@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STFH Crypto Meme Coin Presale - STFH Coin</title>
+  <meta name="description" content="Get ready for the best crypto presale! STFH is launching a unique P2E experience—be the first to Buy The F***ng Dip in the best live meme coin presale." />
+  <link href="https://fonts.googleapis.com/css?family=Jost:400,700|Montserrat:700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: #f6f6f7;
+      font-family: 'Jost', Arial, sans-serif;
+      color: #283655;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0 8px 0;
+    }
+    .menu {
+      display: flex;
+      gap: 1.2rem;
+      font-size: 1rem;
+    }
+    .menu a {
+      color: #283655;
+      text-decoration: none;
+      font-weight: 700;
+      opacity:0.8;
+      transition: opacity .2s;
+    }
+    .menu a:hover {
+      opacity:1;
+      text-decoration:underline;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: bold;
+      font-size: 1.3rem;
+      letter-spacing: 3px;
+    }
+    .logo img {
+      width: 42px; height:42px;
+      vertical-align:middle;
+    }
+    .presale-countdown {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin: 2.2rem 0 1.2rem 0;
+    }
+    .presale-countdown .item {
+      background: #fff;
+      border-radius: 8px;
+      text-align: center;
+      padding: 0.8rem 1.1rem;
+      min-width: 50px;
+      box-shadow: 0 1px 8px 0 #28365511;
+    }
+    .presale-countdown .item span {
+      display: block;
+      font-size: 2rem;
+      font-family: 'Montserrat', Arial, sans-serif;
+      color: #283655;
+      font-weight: bold;
+    }
+    .presale-countdown .label {
+      font-size: .8rem;
+      color: #8bddbb;
+      letter-spacing: 1px;
+    }
+    h1, h2, h3, h4 {
+      font-family:'Montserrat',Arial,sans-serif;
+      letter-spacing:1px;
+      margin-bottom: 0.5em;
+    }
+    h1 {
+      font-size:2.3rem;
+    }
+    .section {
+      background: #fff;
+      border-radius: 1.2em;
+      box-shadow: 0 2px 10px #28365510;
+      margin: 2rem 0;
+      padding: 2rem 1.5rem;
+    }
+    .primary-btn {
+      background: #283655;
+      color: #fff;
+      font-size: 1rem;
+      padding: 0.8em 1.8em;
+      border-radius: 99px;
+      font-family: 'Montserrat';
+      font-weight:700;
+      border: none;
+      cursor: pointer;
+      margin-bottom: 15px;
+      transition:.2s background;
+    }
+    .primary-btn:hover {
+      background: #6dddb1;
+      color: #283655;
+    }
+    .subtitle {
+      color:#c25653;
+      font-weight:700;
+      letter-spacing:2px;
+      font-size: 1.15rem;
+      margin-bottom:.6em;
+    }
+    .bulls {
+      display:grid;
+      gap: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+      margin-bottom:2rem;
+    }
+    .bull {
+      background: #f6c6a0;
+      border-radius: 14px;
+      text-align:center;
+      padding:1.4em .7em;
+      box-shadow:0 1px 8px 0 #28365511;
+    }
+    .bull:nth-child(2) {background:#f0aaa0;}
+    .bull:nth-child(3) {background:#c8d9df;}
+    .bull:nth-child(4) {background:#8bddbb;}
+    .bull img {
+      width: 80px;
+      height: 80px;
+      margin-bottom:1em;
+    }
+    .tokenomics {
+      display:grid;
+      gap:1.2rem;
+      grid-template-columns:repeat(auto-fit, minmax(190px,1fr));
+      margin:1em 0;
+    }
+    .tokenomicscell {
+      background:#eff7fb;
+      border-radius:10px;
+      padding:1em;
+      text-align:center;
+      font-size:1.15em;
+      font-weight:bold;
+      color:#283655;
+    }
+    .footer-cows {
+      display:flex;
+      gap:2em;
+      justify-content:center;
+      margin-top:2.5em;
+      margin-bottom:1em;
+    }
+    @media(max-width:700px){
+      .container{padding:.8em;}
+      .header{flex-direction:column;gap:12px;}
+      .presale-countdown {gap: 1em;}
+      .section{padding:1em .5em;}
+      .bulls{grid-template-columns:1fr;}
+      .tokenomics{grid-template-columns:1fr;}
+      .footer-cows{gap:.6em;}
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">
+      <img src="placeholder-stfh.png" alt="STFH logo">
+      STFHCOIN
+    </div>
+    <nav class="menu">
+      <a href="#buy">Buy Now</a>
+      <a href="#staking">Staking</a>
+      <a href="#referral">Referral</a>
+      <a href="#how">How to Buy</a>
+      <a href="#whitepaper">Whitepaper</a>
+      <a href="#tg" aria-label="Telegram">Telegram</a>
+      <a href="#x" aria-label="X">X</a>
+    </nav>
+  </div>
+  <!-- COUNTDOWN -->
+  <div class="presale-countdown">
+    <div class="item"><span>12</span> <div class="label">Days</div></div>
+    <div class="item"><span>01</span> <div class="label">Hours</div></div>
+    <div class="item"><span>00</span> <div class="label">Minutes</div></div>
+    <div class="item"><span>21</span> <div class="label">Seconds</div></div>
+  </div>
+  <!-- HERO SECTION -->
+  <section class="section" style="text-align:center;">
+    <h2 class="subtitle">PRESALE ENDS SOON</h2>
+    <h1>Final Chance to Load Up</h1>
+    <img src="placeholder-stfh.png" alt="STFH cow mascot" style="height:110px;margin:1em auto;display:block;">
+    <p>This is the moment. When the timer hits zero, it's over. No reruns. No second shots. Lock in your $STFH now or watch it launch without you.</p>
+    <a class="primary-btn" href="#buy">Buy Now</a>
+    <div style="margin-top:1.2em;font-size:1.5em;font-family:'Montserrat';font-weight:bold;letter-spacing:3px;line-height:1.2">BuyThe <br>Fucking Dip</div>
+  </section>
+  <!-- GAMES SECTION -->
+  <section class="section" style="text-align:center;">
+    <img src="placeholder-stfh.png" alt="STFH bull mascot" style="height:90px;margin-bottom:1em;">
+    <h2 id="bullrun">STFH BULL RUN</h2>
+    <p>Run With The Bulls &amp; Earn $STFH</p>
+    <a class="primary-btn" href="#run">Play Now</a>
+  </section>
+  <!-- WHY STFH COIN SECTION -->
+  <section class="section" style="display:grid;gap:2em 0;grid-template-columns:1fr 1fr;align-items:center;">
+    <div style="min-width:210px;">
+      <h2>WHY STFH COIN</h2>
+      <p>For too long, crypto enthusiasts have waited for the perfect dip to invest, only to be disappointed by further drops. STFH coin, symbolized by our resilient and optimistic Baby Bull, revolutionizes this process by ensuring you truly buy at the dip. We've designed a system that launches our coin at an optimal price, securing your position in the market with confidence.</p>
+      <p style="margin:1.2em 0 0 0;">
+        <a href="#tg" style="margin-right:1em;">Telegram</a>
+        <a href="#x">X</a>
+      </p>
+      <div style="margin-top:1.3em;">
+        <small>Blockchain<br>ERC20<br>Token Symbol<br><span style="font-weight:bold;">STFH</span><br>Token Decimals<br>18</small>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <img src="placeholder-stfh.png" alt="STFH bull mascot" style="height:130px;">
+    </div>
+  </section>
+  <!-- REFERRAL PROGRAM -->
+  <section class="section" style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:center;">
+    <div style="text-align:center;">
+      <img src="placeholder-stfh.png" alt="Referral Bull" height="130" style="margin-bottom:1.1em;">
+      <h2>Earn with Referrals</h2>
+    </div>
+    <div>
+      <ol style="line-height:1.7;font-size:1.07em;">
+        <li><b>Step 1: Connect Your Wallet</b><br>Visit the buy page and connect your wallet. Once connected, you will receive a unique referral code.</li>
+        <li><b>Step 2: Share Your Referral Code</b><br>Share your unique referral code with your friends, family, or community.</li>
+        <li><b>Step 3: Referral Benefits</b><br>For your referrals: Anyone who uses your referral code to make a purchase of $50 or more, will receive an extra 10% $STFH on top of their purchase.<br>For you: You will receive 10% of the amount of $STFH coins purchased whenever your referral code is used, if you make it in the top 20 on the leaderboard.</li>
+        <li><b>Step 4: Track Your Earnings</b><br>Keep track of your referral rewards through your wallet. Watch your $STFH grow!</li>
+      </ol>
+      <p style="margin-top:1.2em;">By participating in our referral program, you can help spread the word about STFH and earn extra rewards along the way. Join us in making STFH a success!</p>
+    </div>
+  </section>
+  <!-- TOKENOMICS -->
+  <section class="section" id="tokenomics">
+    <h2>TOKENOMICS</h2>
+    <div class="tokenomics">
+      <div class="tokenomicscell">Presale<br>48%<br>83,040,000,000</div>
+      <div class="tokenomicscell">Liquidity<br>Locked 2 years<br>9%<br>15,570,000,000</div>
+      <div class="tokenomicscell">Staking<br>16 weeks vest<br>18%<br>31,140,000,000</div>
+      <div class="tokenomicscell">P2E Rewards<br>20 weeks vest<br>17%<br>29,410,000,000</div>
+      <div class="tokenomicscell">Community/Burn<br>4%<br>6,920,000,000</div>
+      <div class="tokenomicscell">Influencers<br>20 weeks vest<br>2%<br>3,460,000,000</div>
+      <div class="tokenomicscell">Team<br>Locked 2 years<br>2%<br>3,460,000,000</div>
+      <div class="tokenomicscell">Max Supply<br>173,000,000,000</div>
+    </div>
+  </section>
+  <!-- SECURITY SECTION -->
+  <section class="section" style="display:grid;grid-template-columns:1fr 1fr;gap:2em;align-items:center;">
+    <div style="text-align:center;">
+      <img src="placeholder-stfh.png" alt="Security badge" height="110">
+    </div>
+    <div>
+      <h2>Bull's Eye</h2>
+      <h4>Vigorous Smart Contract Audit</h4>
+      <p>The STFH smart contract has undergone comprehensive audits to guarantee top-tier security throughout the crypto presale. This ensures that no modifications can be made to the contract, safeguarding its integrity and functionality. The audit confirms that the smart contract is immutable and secure. KYC process for our mascot is also complete.</p>
+      <div style="margin-top:1.1em;">
+        <a href="#audit" style="margin-right:1em;">Audit</a>
+        <a href="#scrl">SCRL</a>
+        <a href="#kyc">KYC</a>
+      </div>
+    </div>
+  </section>
+  <!-- TEAM / BULLS SQUAD -->
+  <section class="section">
+    <h2>THE BULLS SQUAD</h2>
+    <div class="bulls">
+      <div class="bull"><img src="placeholder-stfh.png" alt="Baby Bull"><div>Baby Bull<br><small>The brains and vision for STFH.<br>Mascot for resilience & community.</small></div></div>
+      <div class="bull"><img src="placeholder-stfh.png" alt="Raging Bull"><div>Raging Bull<br><small>Designer and support for all STFH graphics.</small></div></div>
+      <div class="bull"><img src="placeholder-stfh.png" alt="Nerdy Bull"><div>Nerdy Bull<br><small>Backend & smart contract mage for STFH.</small></div></div>
+      <div class="bull"><img src="placeholder-stfh.png" alt="People's Bull"><div>People's Bull<br><small>All social/email support to the STFH community.</small></div></div>
+    </div>
+  </section>
+  <!-- ROADMAP -->
+  <section class="section" id="roadmap">
+    <h2>ROADMAP</h2>
+    <div class="tokenomics">
+      <div class="tokenomicscell">Bull Plotting<br><small>Calculating the dip, designing the battlefield</small></div>
+      <div class="tokenomicscell">Bull Charge<br><small>Finalizing page, testing, prepping charge</small></div>
+      <div class="tokenomicscell">Rule Breaker<br><small>Auditing, locking contract, team token pen</small></div>
+      <div class="tokenomicscell">Stampede<br><small>Presale stages, staking 90% APY, bull run game, marketing</small></div>
+      <div class="tokenomicscell">Victory<br><small>Claim tokens, launch, liquidity for the herd</small></div>
+    </div>
+  </section>
+  <!-- MADE POSSIBLE WITH -->
+  <section class="section" style="text-align:center;">
+    <h2>MADE POSSIBLE WITH</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:2em;justify-content:center;margin:2em 0;">
+      <img src="placeholder-stfh.png" alt="AWS" height="36">
+      <img src="placeholder-stfh.png" alt="Google" height="36">
+      <img src="placeholder-stfh.png" alt="Trust Wallet" height="36">
+      <img src="placeholder-stfh.png" alt="Etherscan" height="36">
+      <img src="placeholder-stfh.png" alt="More" height="36">
+      <!-- Add more as needed -->
+    </div>
+  </section>
+  <!-- FEATURED IN -->
+  <section class="section" style="text-align:center;">
+    <h2>FEATURED IN</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:1.2em;justify-content:center;margin:1.8em 0;">
+      <img src="placeholder-stfh.png" alt="Media Logo" height="36">
+      <img src="placeholder-stfh.png" alt="Media Logo" height="36">
+      <img src="placeholder-stfh.png" alt="Media Logo" height="36">
+    </div>
+    <div style="font-size:1.1em;color:#c25653;max-width:520px;margin:0 auto;">You can find us featured on many top crypto publishing websites that have massive audiences to ensure STFH spreads like wildfire in the crypto space.</div>
+  </section>
+  <!-- SUBSCRIBE AND FAQ -->
+  <section class="section" style="display:grid;grid-template-columns:1.3fr 1fr;gap:2em;align-items:center;">
+    <div>
+      <h3>Stay Updated</h3>
+      <form style="display:grid;gap:.7em;">
+        <input type="text" placeholder="Name" style="padding:.7em 1em;border-radius:7px;border:1px solid #c8d9df;">
+        <input type="email" placeholder="Email" style="padding:.7em 1em;border-radius:7px;border:1px solid #c8d9df;">
+        <button type="submit" class="primary-btn" style="margin-top:0;">Subscribe</button>
+      </form>
+    </div>
+    <div style="text-align:center;">
+      <img src="placeholder-stfh.png" alt="FAQ Bull" height="90">
+      <h3>FAQs</h3>
+      <ul style="text-align:left;list-style:circle inside;font-size:.98em;padding-left:12px;">
+        <li>How do I buy $STFH?</li>
+        <li>How can I stake?</li>
+        <li>How does the referral program work?</li>
+        <li>Which wallets are supported?</li>
+        <li>How is liquidity locked?</li>
+        <li>When does the presale end?</li>
+        <li>When do tokens unlock?</li>
+        <li>Who is the STFH mascot?</li>
+      </ul>
+    </div>
+  </section>
+  <!-- FOOTER COWS/CHARACTERS -->
+  <div class="footer-cows">
+    <img src="placeholder-stfh.png" alt="STFH character" height="50">
+    <img src="placeholder-stfh.png" alt="STFH character" height="50">
+    <img src="placeholder-stfh.png" alt="STFH character" height="50">
+    <img src="placeholder-stfh.png" alt="STFH character" height="50">
+  </div>
+  <footer style="text-align:center;color:#28365570;padding-bottom:2em;">
+    &copy; 2025 STFH Meme Coin. This site is for static demo/preview only. Telegram | X (Twitter)
+  </footer>
+</div>
+</body>
+</html>
