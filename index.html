@@ -3,894 +3,778 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Çamaşırhane Yönetim Sistemi</title>
-    <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --text: #2c3e50;
+            --bg: #f5f7fa;
         }
-        .main-content {
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Login Screen */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
+        }
+        
+        .login-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-form h1 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+        }
+        
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-link {
+            background: none;
+            color: var(--secondary);
+            text-decoration: underline;
+            padding: 0.5rem;
+        }
+        
+        /* Main Application */
+        .app-container {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        /* Header */
+        .app-header {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background-color: var(--dark);
+        }
+        
+        .tab {
+            padding: 1rem 2rem;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab.active {
+            background-color: var(--light);
+            color: var(--primary);
+            border-bottom: 3px solid var(--secondary);
+        }
+        
+        /* Content */
+        .tab-content {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        
+        .tab-pane {
             display: none;
         }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        /* Packaging Section */
+        .packaging-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .customer-info {
+            display: flex;
+            gap: 1.5rem;
+        }
+        
+        .info-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-group label {
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+        
+        .info-group select, .info-group input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.8rem;
+        }
+        
+        .packaging-content {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 1.5rem;
+            height: calc(100vh - 250px);
+        }
+        
+        .barcode-section {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .barcode-input {
+            display: flex;
+            margin-bottom: 1rem;
+        }
+        
+        .barcode-input input {
+            flex-grow: 1;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px 0 0 5px;
+            font-size: 1.2rem;
+        }
+        
+        .barcode-input button {
+            padding: 0 1rem;
+            border: 1px solid #ddd;
+            background: var(--light);
+            cursor: pointer;
+        }
+        
+        .pending-packages {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .package-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .package-table th, .package-table td {
+            padding: 0.7rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .package-table th {
+            background-color: var(--light);
+            font-weight: 600;
+        }
+        
+        .package-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .package-details {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .quick-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .quick-btn {
+            padding: 0.8rem 0.5rem;
+            background: var(--light);
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .quick-btn:hover {
+            background: #dfe6e9;
+        }
+        
+        .package-actions {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: var(--accent);
+            color: white;
+        }
+        
+        /* Footer */
+        .app-footer {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .container-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 5px;
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .toast.success {
+            background-color: var(--success);
+        }
+        
+        .toast.error {
+            background-color: var(--accent);
+        }
+        
+        .toast.warning {
+            background-color: var(--warning);
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .packaging-content {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .package-details {
+                grid-column: span 2;
+                margin-top: 1.5rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .packaging-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .package-details {
+                grid-column: span 1;
+            }
+            
+            .packaging-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .customer-info {
+                flex-wrap: wrap;
+            }
+        }
     </style>
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center">
-
-    <!-- Header and Navigation -->
-    <header class="w-full max-w-7xl bg-white p-4 rounded-lg shadow-xl flex flex-col md:flex-row items-center justify-between mb-4">
-        <h1 class="text-xl md:text-2xl font-bold text-gray-800 mb-2 md:mb-0">Çamaşırhane Yönetim Sistemi</h1>
-        <nav class="flex space-x-2 md:space-x-4">
-            <button id="tab-packaging" class="tab-button px-4 py-2 rounded-lg font-semibold text-sm transition-colors bg-blue-500 text-white shadow-md hover:bg-blue-600">Paketleme</button>
-            <button id="tab-shipment" class="tab-button px-4 py-2 rounded-lg font-semibold text-sm transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300">Sevkiyat</button>
-            <button id="tab-stock" class="tab-button px-4 py-2 rounded-lg font-semibold text-sm transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300">Stok Sorgu</button>
-        </nav>
-    </header>
-
-    <!-- Main Application Container -->
-    <main class="w-full max-w-7xl bg-white p-8 rounded-lg shadow-xl relative">
-
-        <!-- Paketleme Screen -->
-        <section id="packaging-screen" class="main-content">
-            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Paketleme Ekranı</h2>
-            <!-- User and Customer Selection -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-                <div class="col-span-1">
-                    <label for="customer-select" class="block text-sm font-medium text-gray-700 mb-1">Müşteri Seçimi</label>
-                    <select id="customer-select" class="w-full p-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-200">
-                        <option value="">Müşteri Seçin</option>
-                    </select>
-                </div>
-                <div class="col-span-1">
-                    <label for="staff-select" class="block text-sm font-medium text-gray-700 mb-1">Personel Seçimi</label>
-                    <select id="staff-select" class="w-full p-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-200">
-                        <option value="">Personel Seçin</option>
-                    </select>
-                </div>
-                <div class="col-span-1 flex items-end">
-                    <button id="end-day-btn" class="w-full px-4 py-2 bg-red-500 text-white rounded-md font-semibold hover:bg-red-600 transition-colors">İş Sonu</button>
-                </div>
-                <div id="customer-info" class="col-span-full mt-2 p-2 text-gray-600"></div>
+<body>
+    <!-- Login Screen -->
+    <div class="login-container" id="loginScreen">
+        <div class="login-form">
+            <h1>ProClean - Oturum Aç</h1>
+            <div class="form-group">
+                <label for="username">Kullanıcı Adı</label>
+                <input type="text" id="username" placeholder="Kullanıcı adınızı girin">
             </div>
-
-            <!-- Main Content Area: Barcode & Quick Add -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <!-- Barcode & Manual Input -->
-                <div class="col-span-2">
-                    <div class="flex items-center space-x-2 mb-4">
-                        <input type="text" id="barcode-input" placeholder="Barkod Okutun" class="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <button id="find-barcode-btn" class="px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">Bul</button>
-                        <button id="clear-barcode-btn" class="px-4 py-3 bg-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-400 transition-colors">Temizle</button>
-                    </div>
-                    <div class="flex items-center space-x-2 mb-4">
-                        <button id="manual-add-btn" class="w-full px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors">Ürün Ekle</button>
-                    </div>
-                    <!-- Quick Add Buttons -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2">
-                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="CARS">Çarşaf</button>
-                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="HAVLU">Havlu</button>
-                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="ALEZ">Alez</button>
-                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="NEVRESIM">Nevresim</button>
-                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="YASTIK">Yastık</button>
-                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="YASLKF">Yastık Kılıfı</button>
-                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="PIKE">Pike</button>
-                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="DIGER">Diğer</button>
-                    </div>
-                </div>
-
-                <!-- Right Panel: Package Details -->
-                <div id="right-panel" class="col-span-1 p-4 bg-gray-100 rounded-lg shadow-inner">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Seçili Paket Detayları</h3>
-                    <div id="package-details-content" class="text-gray-600 text-sm">
-                        <!-- Content will be dynamically added here -->
-                        <p class="text-gray-400">Paket seçiniz...</p>
-                    </div>
-                </div>
+            <div class="form-group">
+                <label for="password">Şifre</label>
+                <input type="password" id="password" placeholder="Şifrenizi girin">
             </div>
-
-            <!-- Lower Section -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- Bekleyen Paketler Listesi -->
-                <div class="col-span-full md:col-span-2">
-                    <h2 class="text-xl font-semibold mb-4 text-gray-700">Bekleyen Paketler</h2>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white rounded-lg shadow">
-                            <thead>
-                                <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-                                    <th class="py-3 px-6 text-left">Paket No</th>
-                                    <th class="py-3 px-6 text-left">Toplam Miktar</th>
-                                    <th class="py-3 px-6 text-left">Paketleme Zamanı</th>
-                                    <th class="py-3 px-6 text-left">Cari Kod</th>
-                                    <th class="py-3 px-6 text-left">Cari Ünvan</th>
-                                    <th class="py-3 px-6 text-left">Cari Açıklama</th>
-                                </tr>
-                            </thead>
-                            <tbody id="pending-packages-list" class="text-gray-600 text-sm font-light">
-                                <!-- Packages will be dynamically added here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Counters and Actions -->
-                <div class="col-span-1 md:col-span-1 bg-gray-50 p-4 rounded-lg shadow-inner">
-                    <h3 class="text-lg font-semibold mb-2">Paket Sayaçları</h3>
-                    <div class="flex flex-col space-y-2 mb-4">
-                        <div class="flex justify-between items-center text-gray-700">
-                            <span>Tanımsız Adet:</span>
-                            <span id="undefined-count" class="font-bold text-red-500">0</span>
-                        </div>
-                        <div class="flex justify-between items-center text-gray-700">
-                            <span>Tanımlı Adet:</span>
-                            <span id="defined-count" class="font-bold text-green-500">0</span>
-                        </div>
-                        <div class="flex justify-between items-center text-gray-700">
-                            <span>Ortalama Adet:</span>
-                            <span id="average-count" class="font-bold">0</span>
-                        </div>
-                    </div>
-                    <button id="pack-save-btn" class="w-full px-4 py-3 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-600 transition-colors">Paketle & Kaydet (F2)</button>
-                </div>
-            </div>
-
-            <!-- Paket İşlemleri and Konteyner Yönetimi -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <!-- Paket İşlemleri -->
-                <div class="col-span-1 p-4 bg-gray-50 rounded-lg shadow-inner">
-                    <h3 class="text-lg font-semibold mb-2">Paket İşlemleri</h3>
-                    <div class="flex flex-wrap gap-2">
-                        <button id="print-label-btn" class="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-colors"><i class="fas fa-print"></i> Etiket Bas</button>
-                        <button id="select-all-btn" class="px-4 py-2 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors"><i class="fas fa-check-double"></i> Tümünü Seç</button>
-                        <button id="deselect-all-btn" class="px-4 py-2 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition-colors"><i class="fas fa-times"></i> Seçimi Kaldır</button>
-                        <button id="delete-package-btn" class="px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"><i class="fas fa-trash"></i> Paket Sil</button>
-                    </div>
-                </div>
-
-                <!-- Konteyner Yönetimi -->
-                <div class="col-span-1 p-4 bg-gray-50 rounded-lg shadow-inner">
-                    <h3 class="text-lg font-semibold mb-2">Konteyner Yönetimi</h3>
-                    <div class="flex flex-col space-y-2">
-                        <input type="text" id="container-number-input" placeholder="Konteyner No" class="p-2 border border-gray-300 rounded-md">
-                        <div class="flex gap-2">
-                            <button id="assign-container-btn" class="w-full px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">Paketi Konteyere Bağla</button>
-                        </div>
-                        <div class="flex gap-2">
-                            <button id="delete-container-btn" class="w-full px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors">Konteyner Sil</button>
-                            <button id="send-ramp-btn" class="w-full px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-600 transition-colors">Kon. Rampaya Gönder</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </section>
-
-        <!-- Sevkiyat Screen -->
-        <section id="shipment-screen" class="main-content">
-            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Sevkiyat Ekranı</h2>
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-white rounded-lg shadow">
-                    <thead>
-                        <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-                            <th class="py-3 px-6 text-left">Paket No</th>
-                            <th class="py-3 px-6 text-left">Müşteri</th>
-                            <th class="py-3 px-6 text-left">Durum</th>
-                            <th class="py-3 px-6 text-left">Konteyner</th>
-                            <th class="py-3 px-6 text-center">İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody id="shipment-list" class="text-gray-600 text-sm font-light">
-                        <!-- Shipment data will be dynamically added here -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="flex justify-end gap-2 mt-4">
-                <button id="delete-container-shipment-btn" class="px-4 py-2 bg-red-500 text-white rounded-md font-semibold hover:bg-red-600">Konteyner Sil</button>
-                <button id="send-ramp-shipment-btn" class="px-4 py-2 bg-indigo-500 text-white rounded-md font-semibold hover:bg-indigo-600">Kon. Rampaya Gönder</button>
-            </div>
-        </section>
-
-        <!-- Stok Sorgu Screen -->
-        <section id="stock-screen" class="main-content">
-            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Stok Sorgu Ekranı</h2>
-            <div class="flex items-center space-x-2 mb-4">
-                <input type="text" id="stock-search-input" placeholder="Stok kodu, adı veya kategoriye göre arama" class="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                <button id="search-stock-btn" class="px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">Ara</button>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <h3 class="text-xl font-semibold mb-2">Günlük Hareketler</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white rounded-lg shadow">
-                            <thead>
-                                <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-                                    <th class="py-3 px-6 text-left">Stok Kodu</th>
-                                    <th class="py-3 px-6 text-left">Cins</th>
-                                    <th class="py-3 px-6 text-left">Miktar</th>
-                                </tr>
-                            </thead>
-                            <tbody id="daily-movements-list" class="text-gray-600 text-sm font-light">
-                                <!-- Daily movements will be dynamically added here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-semibold mb-2">Toplam Stok Miktarı</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white rounded-lg shadow">
-                            <thead>
-                                <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-                                    <th class="py-3 px-6 text-left">Stok Kodu</th>
-                                    <th class="py-3 px-6 text-left">Cins</th>
-                                    <th class="py-3 px-6 text-left">Toplam Miktar</th>
-                                </tr>
-                            </thead>
-                            <tbody id="total-stock-list" class="text-gray-600 text-sm font-light">
-                                <!-- Total stock will be dynamically added here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Modal for messages and manual add -->
-    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
-            <h3 id="modal-title" class="text-xl font-semibold mb-2"></h3>
-            <p id="modal-message" class="text-gray-700 mb-4"></p>
-            <div class="flex justify-end">
-                <button id="modal-close-btn" class="px-4 py-2 bg-blue-500 text-white rounded-md">OK</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Modal for Manual Add -->
-    <div id="manual-add-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full">
-            <h3 class="text-xl font-semibold mb-4">Ürün Ekle</h3>
-            <label for="manual-stock-select" class="block text-sm font-medium text-gray-700 mb-1">Ürün Seçin</label>
-            <select id="manual-stock-select" class="w-full p-2 border border-gray-300 rounded-md mb-4"></select>
-            <label for="manual-quantity-input" class="block text-sm font-medium text-gray-700 mb-1">Miktar</label>
-            <input type="number" id="manual-quantity-input" value="1" min="1" class="w-full p-2 border border-gray-300 rounded-md mb-4">
-            <div class="flex justify-end space-x-2">
-                <button id="manual-add-cancel-btn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md font-semibold">İptal</button>
-                <button id="manual-add-confirm-btn" class="px-4 py-2 bg-green-500 text-white rounded-md font-semibold">Ekle</button>
+            <button class="btn btn-primary" onclick="login()">Giriş Yap</button>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn-link">Şifremi Unuttum</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal for User Authorization -->
-    <div id="auth-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
-            <h3 class="text-xl font-semibold mb-2">Yetki Gereklidir</h3>
-            <p id="auth-message" class="text-gray-700 mb-4">Bu işlemi yapmak için süpervizör yetkisi gerekmektedir.</p>
-            <div class="flex justify-end">
-                <button id="auth-close-btn" class="px-4 py-2 bg-blue-500 text-white rounded-md">Tamam</button>
+    <!-- Main Application -->
+    <div class="app-container" id="appContainer">
+        <!-- Header -->
+        <div class="app-header">
+            <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
+            <div class="user-info">
+                <span id="userRole">Operatör: Ahmet Yılmaz</span>
+                <button class="btn btn-danger" onclick="logout()">Çıkış Yap</button>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('packaging')">Paketleme</div>
+            <div class="tab" onclick="switchTab('shipping')">Sevkiyat</div>
+            <div class="tab" onclick="switchTab('stock')">Stok Sorgu</div>
+        </div>
+
+        <!-- Content -->
+        <div class="tab-content">
+            <!-- Packaging Tab -->
+            <div class="tab-pane active" id="packagingTab">
+                <div class="packaging-header">
+                    <div class="customer-info">
+                        <div class="info-group">
+                            <label for="customer">Müşteri</label>
+                            <select id="customer">
+                                <option value="P0006">P0006 - Laleli Hamit</option>
+                                <option value="P0007">P0007 - Beyoğlu Tekstil</option>
+                                <option value="P0008">P0008 - Şişli Otel</option>
+                            </select>
+                        </div>
+                        <div class="info-group">
+                            <label for="personnel">Personel</label>
+                            <select id="personnel">
+                                <option value="user1">Paket1 - Ahmet Yılmaz</option>
+                                <option value="user2">Paket2 - Mehmet Demir</option>
+                            </select>
+                        </div>
+                        <div class="info-group">
+                            <label>Müşteri Adı</label>
+                            <span><strong>LALELİ HAMİT</strong></span>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary">Müşteri Seç</button>
+                        <button class="btn">Tüm Müş. Göster</button>
+                        <button class="btn btn-warning">İş Sonu</button>
+                    </div>
+                </div>
+
+                <div class="packaging-content">
+                    <!-- Barcode Section -->
+                    <div class="barcode-section">
+                        <h3>Barkod İşlemleri</h3>
+                        <div class="barcode-input">
+                            <input type="text" id="barcodeInput" placeholder="Barkodu okutun veya girin" autofocus>
+                            <button><i class="fas fa-search"></i></button>
+                            <button><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="barcode-counter">
+                            <span>Okutulan barkod sayısı: <strong>0</strong></span>
+                        </div>
+                        <div class="barcode-preview">
+                            <svg id="barcode"></svg>
+                        </div>
+                    </div>
+
+                    <!-- Pending Packages -->
+                    <div class="pending-packages">
+                        <h3>Bekleyen Paketler</h3>
+                        <table class="package-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox"></th>
+                                    <th>Sıra</th>
+                                    <th>Paket No</th>
+                                    <th>T. Miktar</th>
+                                    <th>P. Zamanı</th>
+                                    <th>Cari Kod</th>
+                                    <th>Cari Ünvan</th>
+                                    <th>Paketleyen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><input type="checkbox"></td>
+                                    <td>1</td>
+                                    <td>PKG-0001</td>
+                                    <td>5</td>
+                                    <td>12.05.2023 14:30</td>
+                                    <td>P0006</td>
+                                    <td>Laleli Hamit</td>
+                                    <td>Ahmet Yılmaz</td>
+                                </tr>
+                                <tr>
+                                    <td><input type="checkbox"></td>
+                                    <td>2</td>
+                                    <td>PKG-0002</td>
+                                    <td>3</td>
+                                    <td>12.05.2023 14:45</td>
+                                    <td>P0006</td>
+                                    <td>Laleli Hamit</td>
+                                    <td>Ahmet Yılmaz</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Package Details -->
+                    <div class="package-details">
+                        <h3>Paket Detayları</h3>
+                        <div class="selected-package">
+                            <p><strong>Seçili Paket:</strong> PKG-0001</p>
+                            <p><strong>Stok Kodu:</strong> CHS-001</p>
+                            <p><strong>Cinsi:</strong> Çarşaf</p>
+                            <p><strong>Miktar:</strong> 2</p>
+                        </div>
+
+                        <h4>Hızlı Ürün Ekleme</h4>
+                        <div class="quick-buttons">
+                            <button class="quick-btn">ÇARŞAF</button>
+                            <button class="quick-btn">HAVLU</button>
+                            <button class="quick-btn">ALEZ</button>
+                            <button class="quick-btn">BÜYÜK ÇARŞAF YIKAMA</button>
+                            <button class="quick-btn">NEVRESİM</button>
+                            <button class="quick-btn">PİKE</button>
+                            <button class="quick-btn">YASTIK</button>
+                            <button class="quick-btn">YASTIK KILIFI</button>
+                            <button class="quick-btn">DİĞER</button>
+                        </div>
+
+                        <div class="package-actions">
+                            <button class="btn">MANUEL</button>
+                            <div class="definition-panel">
+                                <p>Tanımsız Adet: <span style="color: red;">0</span></p>
+                                <p>Tanımlı Adet: <span style="color: blue;">5</span></p>
+                                <p>Ortalama Adet: <span>2.5</span></p>
+                            </div>
+                            <button class="btn btn-success">(F2) Paketle / Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shipping Tab -->
+            <div class="tab-pane" id="shippingTab">
+                <h2>Sevkiyat Yönetimi</h2>
+                <p>Bu sekme sevkiyat işlemleri için kullanılacaktır.</p>
+                <!-- Content for shipping tab would be added here -->
+            </div>
+
+            <!-- Stock Tab -->
+            <div class="tab-pane" id="stockTab">
+                <h2>Stok Sorgulama</h2>
+                <p>Bu sekme stok sorgulama işlemleri için kullanılacaktır.</p>
+                <!-- Content for stock tab would be added here -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="app-footer">
+            <div class="footer-actions">
+                <button class="btn"><i class="fas fa-print"></i> Etiket Bas</button>
+                <button class="btn">Tümünü Seç</button>
+                <button class="btn">Seçimi Kaldır</button>
+                <button class="btn btn-danger">Paket Sil</button>
+            </div>
+            <div class="container-info">
+                <button class="btn">Mev. K.</button>
+                <button class="btn">Yeni K.</button>
+                <span>Konteyner No: C000094</span>
+            </div>
+            <div class="footer-actions">
+                <button class="btn btn-danger">Konteyner Sil</button>
+                <button class="btn btn-success">Kon. Rampaya Gönder</button>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
 
-        // Barcode library
-        import "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js";
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Modal Başlık</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody">
+                <p>Modal içeriği burada görünecektir.</p>
+            </div>
+        </div>
+    </div>
 
-        // Global variables provided by the runtime environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+    <script>
+        // Simüle edilmiş veritabanı
+        const users = [
+            { username: "operator", password: "1234", role: "operator", name: "Ahmet Yılmaz" },
+            { username: "supervisor", password: "1234", role: "supervisor", name: "Mehmet Demir" }
+        ];
         
-        let db, auth, userId, userRole = 'personel'; // Change to 'süpervizör' for testing supervisor role
+        const customers = [
+            { code: "P0006", name: "LALELİ HAMİT", email: "hamit@lalelitextile.com" },
+            { code: "P0007", name: "BEYOĞLU TEKSTİL", email: "info@beyoglutextile.com" },
+            { code: "P0008", name: "ŞİŞLİ OTEL", email: "reservations@sisliotel.com" }
+        ];
         
-        // Mock Data for Customers, Staff, and Stock
-        const mockCustomers = [
-            { id: 'C001', code: 'ABC', name: 'ABC Otel', email: 'abc@example.com', description: 'Büyük otel zinciri' },
-            { id: 'C002', code: 'XYZ', name: 'XYZ Restoran', email: 'xyz@example.com', description: 'Şube ağı olan restoran' },
-            { id: 'C003', code: 'EFG', name: 'EFG Hastanesi', email: 'efg@example.com', description: 'Özel hastane' }
-        ];
-
-        const mockStaff = [
-            { id: 'S001', name: 'Ahmet Yılmaz' },
-            { id: 'S002', name: 'Ayşe Kaya' }
-        ];
-
-        const mockStock = [
-            { id: 'ST001', code: 'CARS', name: 'Çarşaf', category: 'Tekstil' },
-            { id: 'ST002', code: 'HAVLU', name: 'Havlu', category: 'Tekstil' },
-            { id: 'ST003', code: 'ALEZ', name: 'Alez', category: 'Tekstil' },
-            { id: 'ST004', code: 'NEVRESIM', name: 'Nevresim', category: 'Tekstil' },
-            { id: 'ST005', code: 'YASTIK', name: 'Yastık', category: 'Tekstil' },
-            { id: 'ST006', code: 'YASLKF', name: 'Yastık Kılıfı', category: 'Tekstil' },
-            { id: 'ST007', code: 'PIKE', name: 'Pike', category: 'Tekstil' },
-            { id: 'ST008', code: 'DIGER', name: 'Diğer', category: 'Çeşitli' }
-        ];
-
-        // UI Elements
-        const mainContents = document.querySelectorAll('.main-content');
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const packageNumberInput = document.getElementById('barcode-input');
-        const customerSelect = document.getElementById('customer-select');
-        const staffSelect = document.getElementById('staff-select');
-        const customerInfoDiv = document.getElementById('customer-info');
-        const addPackageForm = document.getElementById('add-package-form');
-        const pendingPackagesList = document.getElementById('pending-packages-list');
-        const rightPanel = document.getElementById('right-panel');
-        const definedCountEl = document.getElementById('defined-count');
-        const undefinedCountEl = document.getElementById('undefined-count');
-        const averageCountEl = document.getElementById('average-count');
-        const printLabelBtn = document.getElementById('print-label-btn');
-        const deletePackageBtn = document.getElementById('delete-package-btn');
-        const shipmentList = document.getElementById('shipment-list');
-        const stockSearchInput = document.getElementById('stock-search-input');
-        const dailyMovementsList = document.getElementById('daily-movements-list');
-        const totalStockList = document.getElementById('total-stock-list');
-        const manualAddModal = document.getElementById('manual-add-modal');
-        const manualStockSelect = document.getElementById('manual-stock-select');
-        const manualQuantityInput = document.getElementById('manual-quantity-input');
-        const authModal = document.getElementById('auth-modal');
-        const containerNumberInput = document.getElementById('container-number-input');
-
-        let currentPackage = {
-            packageNumber: '',
-            items: [],
-            customer: {},
-            staff: {},
-            container: '',
-            createdAt: null
-        };
-        let selectedPackageId = null;
-        let selectedPackageItems = [];
-        let selectedItemIndex = 0;
-
-        // Modal functions
-        const showModal = (title, message) => {
-            const modal = document.getElementById('modal');
-            const modalTitle = document.getElementById('modal-title');
-            const modalMessage = document.getElementById('modal-message');
-            modalTitle.textContent = title;
-            modalMessage.textContent = message;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        };
-
-        const hideModal = () => {
-            document.getElementById('modal').classList.add('hidden');
-            document.getElementById('modal').classList.remove('flex');
-        };
-
-        document.getElementById('modal-close-btn').addEventListener('click', hideModal);
-
-        const showAuthModal = (message) => {
-            document.getElementById('auth-message').textContent = message;
-            authModal.classList.remove('hidden');
-            authModal.classList.add('flex');
-        };
-
-        document.getElementById('auth-close-btn').addEventListener('click', () => {
-            authModal.classList.add('hidden');
-            authModal.classList.remove('flex');
-        });
-
-        // Tab Switching Logic
-        const showTab = (tabId) => {
-            mainContents.forEach(content => {
-                content.style.display = 'none';
-            });
-            tabButtons.forEach(button => {
-                button.classList.remove('bg-blue-500', 'text-white');
-                button.classList.add('bg-gray-200', 'text-gray-700');
-            });
-
-            document.getElementById(tabId).style.display = 'block';
-            document.getElementById(`tab-${tabId.replace('-screen', '')}`).classList.remove('bg-gray-200', 'text-gray-700');
-            document.getElementById(`tab-${tabId.replace('-screen', '')}`).classList.add('bg-blue-500', 'text-white');
-        };
-
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                showTab(button.id.replace('tab-', '') + '-screen');
-            });
+        let currentUser = null;
+        
+        // DOM Elements
+        const loginScreen = document.getElementById('loginScreen');
+        const appContainer = document.getElementById('appContainer');
+        const toast = document.getElementById('toast');
+        const modal = document.getElementById('modal');
+        
+        // Initialize barcode
+        JsBarcode("#barcode", "PKG-0001", {
+            format: "CODE128",
+            displayValue: true,
+            fontSize: 16,
+            height: 40
         });
         
-        // Initial setup
-        const initializeUI = () => {
-            showTab('packaging-screen');
-
-            // Populate Customer and Staff dropdowns
-            mockCustomers.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = `${customer.code} - ${customer.name}`;
-                customerSelect.appendChild(option);
-            });
-            mockStaff.forEach(staff => {
-                const option = document.createElement('option');
-                option.value = staff.id;
-                option.textContent = staff.name;
-                staffSelect.appendChild(option);
-            });
-
-            // Populate Manual Add modal select
-            mockStock.forEach(stock => {
-                const option = document.createElement('option');
-                option.value = stock.id;
-                option.textContent = `${stock.code} - ${stock.name}`;
-                manualStockSelect.appendChild(option);
-            });
-        };
-
-        // Initialize Firebase
-        const initializeFirebase = async () => {
-            if (!firebaseConfig) {
-                console.error("Firebase config is not available.");
-                return;
-            }
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
+        // Login function
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
             
-            try {
-                const userCredential = await signInAnonymously(auth);
-                userId = userCredential.user.uid;
-                console.log("Signed in anonymously with user ID:", userId);
-                setupFirestoreListeners();
-            } catch (error) {
-                console.error("Authentication error:", error);
-                showModal("Kimlik Doğrulama Hatası", "Lütfen sayfayı yeniden yüklemeyi deneyin.");
-            }
-        };
-
-        // Firestore listeners for real-time updates
-        const setupFirestoreListeners = () => {
-            if (!userId) return;
+            const user = users.find(u => u.username === username && u.password === password);
             
-            // Listener for Pending Packages
-            const packagesRef = collection(db, `artifacts/${appId}/users/${userId}/packages`);
-            onSnapshot(query(packagesRef, where("status", "==", "hazır")), (snapshot) => {
-                const packages = [];
-                snapshot.forEach(doc => {
-                    packages.push({ id: doc.id, ...doc.data() });
-                });
-                renderPendingPackages(packages);
-            }, (error) => {
-                console.error("Firestore listener error:", error);
-                showModal("Veri Hatası", "Bekleyen paketler yüklenemedi.");
-            });
-            
-            // Listener for Shipment Screen
-            onSnapshot(query(packagesRef, where("status", "!=", "hazır")), (snapshot) => {
-                const packages = [];
-                snapshot.forEach(doc => {
-                    packages.push({ id: doc.id, ...doc.data() });
-                });
-                renderShipmentPackages(packages);
-            }, (error) => {
-                console.error("Firestore listener error:", error);
-                showModal("Veri Hatası", "Sevkiyat verileri yüklenemedi.");
-            });
-        };
-
-        // Render functions
-        const renderPendingPackages = (packages) => {
-            pendingPackagesList.innerHTML = '';
-            packages.forEach(pkg => {
-                const row = document.createElement('tr');
-                row.classList.add('border-b', 'border-gray-200', 'hover:bg-gray-100', 'cursor-pointer');
-                row.dataset.packageId = pkg.id;
-                row.innerHTML = `
-                    <td class="py-3 px-6 text-left whitespace-nowrap">${pkg.packageNumber}</td>
-                    <td class="py-3 px-6 text-left">${pkg.items.length}</td>
-                    <td class="py-3 px-6 text-left">${new Date(pkg.createdAt.seconds * 1000).toLocaleString()}</td>
-                    <td class="py-3 px-6 text-left">${pkg.customer?.code || '-'}</td>
-                    <td class="py-3 px-6 text-left">${pkg.customer?.name || '-'}</td>
-                    <td class="py-3 px-6 text-left">${pkg.customer?.description || '-'}</td>
-                `;
-                pendingPackagesList.appendChild(row);
+            if (user) {
+                currentUser = user;
+                document.getElementById('userRole').textContent = 
+                    user.role === 'operator' ? `Operatör: ${user.name}` : `Süpervizör: ${user.name}`;
                 
-                row.addEventListener('click', () => {
-                    selectPackage(pkg.id, pkg.items);
-                });
-            });
-        };
-
-        const renderShipmentPackages = (packages) => {
-            shipmentList.innerHTML = '';
-            packages.forEach(pkg => {
-                const row = document.createElement('tr');
-                row.classList.add('border-b', 'border-gray-200', 'hover:bg-gray-100', 'cursor-pointer');
-                row.dataset.packageId = pkg.id;
+                loginScreen.style.display = 'none';
+                appContainer.style.display = 'flex';
                 
-                let statusClass, statusText;
-                switch(pkg.status) {
-                    case 'yolda':
-                        statusClass = 'bg-yellow-200 text-yellow-700';
-                        statusText = 'Yolda';
-                        break;
-                    case 'teslim edildi':
-                        statusClass = 'bg-green-200 text-green-700';
-                        statusText = 'Teslim Edildi';
-                        break;
-                    default:
-                        statusClass = 'bg-gray-200 text-gray-700';
-                        statusText = 'Bilinmiyor';
-                }
-
-                row.innerHTML = `
-                    <td class="py-3 px-6 text-left whitespace-nowrap">${pkg.packageNumber}</td>
-                    <td class="py-3 px-6 text-left">${pkg.customer?.name || '-'}</td>
-                    <td class="py-3 px-6 text-left"><span class="py-1 px-3 rounded-full text-xs font-medium ${statusClass}">${statusText}</span></td>
-                    <td class="py-3 px-6 text-left">${pkg.container || '-'}</td>
-                    <td class="py-3 px-6 text-center">
-                        <button data-package-id="${pkg.id}" class="update-status-btn px-3 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-600 transition-colors">
-                            Durum Güncelle
-                        </button>
-                    </td>
-                `;
-                shipmentList.appendChild(row);
-            });
-        };
-
-        const renderStock = (daily, total) => {
-            dailyMovementsList.innerHTML = '';
-            daily.forEach(item => {
-                const row = document.createElement('tr');
-                row.innerHTML = `<td class="py-2 px-4">${item.code}</td><td class="py-2 px-4">${item.name}</td><td class="py-2 px-4">${item.quantity}</td>`;
-                dailyMovementsList.appendChild(row);
-            });
-            
-            totalStockList.innerHTML = '';
-            total.forEach(item => {
-                const row = document.createElement('tr');
-                row.innerHTML = `<td class="py-2 px-4">${item.code}</td><td class="py-2 px-4">${item.name}</td><td class="py-2 px-4">${item.quantity}</td>`;
-                totalStockList.appendChild(row);
-            });
-        };
-
-        // Package Management Functions
-        const updateCounters = () => {
-            let defined = 0;
-            let undefined = 0;
-            currentPackage.items.forEach(item => {
-                if (item.stockCode) {
-                    defined++;
-                } else {
-                    undefined++;
-                }
-            });
-            definedCountEl.textContent = defined;
-            undefinedCountEl.textContent = undefined;
-            if (defined + undefined > 0) {
-                averageCountEl.textContent = ((defined + undefined) / (defined > 0 ? defined : 1)).toFixed(2);
+                showToast('Başarıyla giriş yapıldı', 'success');
             } else {
-                averageCountEl.textContent = '0';
+                showToast('Kullanıcı adı veya şifre hatalı', 'error');
             }
-        };
-
-        const addItemToPackage = (item) => {
-            currentPackage.items.push(item);
-            updateCounters();
-            renderRightPanel(currentPackage.items);
-            showModal("Ürün Eklendi", `${item.name} pakete eklendi.`);
-        };
-
-        const renderRightPanel = (items) => {
-            rightPanel.innerHTML = `
-                <h3 class="text-lg font-semibold text-gray-700 mb-2">Seçili Paket Detayları</h3>
-                <div class="flex items-center justify-between">
-                    <button id="prev-item-btn" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-up"></i></button>
-                    <span id="item-index" class="text-lg font-bold"></span>
-                    <button id="next-item-btn" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-down"></i></button>
-                </div>
-                <div id="item-details" class="mt-2 text-gray-600 text-sm"></div>
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Ozel">Özel</button>
-                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Yeni">Yeni</button>
-                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Yirtik">Yırtık</button>
-                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Cikmayan">Çıkmayan</button>
-                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Lekeli">Lekeli</button>
-                </div>
-            `;
-            selectedItemIndex = 0;
-            updateItemDetails();
+        }
+        
+        // Logout function
+        function logout() {
+            currentUser = null;
+            appContainer.style.display = 'none';
+            loginScreen.style.display = 'flex';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+        
+        // Switch tabs
+        function switchTab(tabName) {
+            // Hide all tab panes
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
             
-            document.getElementById('prev-item-btn').addEventListener('click', () => {
-                if (selectedItemIndex > 0) {
-                    selectedItemIndex--;
-                    updateItemDetails();
-                }
+            // Deactivate all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
             });
-            document.getElementById('next-item-btn').addEventListener('click', () => {
-                if (selectedItemIndex < items.length - 1) {
-                    selectedItemIndex++;
-                    updateItemDetails();
-                }
-            });
-
-            document.querySelectorAll('.flag-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const flag = e.target.dataset.flag;
-                    if (selectedPackageItems[selectedItemIndex]) {
-                        selectedPackageItems[selectedItemIndex].flags = selectedPackageItems[selectedItemIndex].flags || [];
-                        if (selectedPackageItems[selectedItemIndex].flags.includes(flag)) {
-                            selectedPackageItems[selectedItemIndex].flags = selectedPackageItems[selectedItemIndex].flags.filter(f => f !== flag);
-                        } else {
-                            selectedPackageItems[selectedItemIndex].flags.push(flag);
-                        }
-                        updateItemDetails();
-                        // You would also update the item in Firestore here
-                    }
-                });
-            });
-        };
-
-        const updateItemDetails = () => {
-            const item = selectedPackageItems[selectedItemIndex];
-            if (!item) {
-                document.getElementById('item-details').innerHTML = `<p class="text-gray-400">Ürün yok.</p>`;
-                document.getElementById('item-index').textContent = '';
-                return;
-            }
-            document.getElementById('item-index').textContent = `${selectedItemIndex + 1} / ${selectedPackageItems.length}`;
-            const details = document.getElementById('item-details');
-            details.innerHTML = `
-                <p><strong>Stok Kodu:</strong> ${item.stockCode || 'Tanımsız'}</p>
-                <p><strong>Cinsi:</strong> ${item.name}</p>
-                <p><strong>Miktar:</strong> ${item.quantity}</p>
-                <p><strong>Özellikler:</strong> ${item.flags?.join(', ') || 'Yok'}</p>
-            `;
-            document.querySelectorAll('.flag-btn').forEach(btn => {
-                const flag = btn.dataset.flag;
-                if (item.flags && item.flags.includes(flag)) {
-                    btn.classList.add('bg-blue-500', 'text-white');
-                    btn.classList.remove('bg-gray-200', 'text-gray-800');
-                } else {
-                    btn.classList.add('bg-gray-200', 'text-gray-800');
-                    btn.classList.remove('bg-blue-500', 'text-white');
-                }
-            });
-        };
-
-        const selectPackage = async (packageId, items) => {
-            selectedPackageId = packageId;
-            selectedPackageItems = items;
-            renderRightPanel(items);
-            // Highlight selected row
-            document.querySelectorAll('#pending-packages-list tr').forEach(row => {
-                row.classList.remove('bg-blue-100');
-            });
-            document.querySelector(`tr[data-package-id="${packageId}"]`).classList.add('bg-blue-100');
-        };
-
-        // Event Listeners
-        document.getElementById('find-barcode-btn').addEventListener('click', () => {
-            const barcodeValue = packageNumberInput.value.trim();
-            if (barcodeValue) {
-                const stockItem = mockStock.find(s => s.code === barcodeValue.toUpperCase());
-                if (stockItem) {
-                    addItemToPackage({
-                        stockCode: stockItem.code,
-                        name: stockItem.name,
-                        quantity: 1,
-                        flags: []
-                    });
-                } else {
-                    addItemToPackage({
-                        stockCode: null,
-                        name: 'Tanımsız Ürün',
-                        quantity: 1,
-                        flags: []
-                    });
-                    showModal("Ürün Bulunamadı", "Girilen barkod stokta bulunamadı. Tanımsız olarak eklendi.");
-                }
-                packageNumberInput.value = '';
-            }
-        });
-
-        document.getElementById('clear-barcode-btn').addEventListener('click', () => {
-            packageNumberInput.value = '';
-        });
-
-        document.querySelectorAll('.quick-add-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const stockCode = e.target.dataset.stockCode;
-                const stockItem = mockStock.find(s => s.code === stockCode);
-                if (stockItem) {
-                    addItemToPackage({
-                        stockCode: stockItem.code,
-                        name: stockItem.name,
-                        quantity: 1,
-                        flags: []
-                    });
-                }
-            });
-        });
-
-        document.getElementById('manual-add-btn').addEventListener('click', () => {
-            manualAddModal.classList.remove('hidden');
-            manualAddModal.classList.add('flex');
-        });
-
-        document.getElementById('manual-add-cancel-btn').addEventListener('click', () => {
-            manualAddModal.classList.add('hidden');
-            manualAddModal.classList.remove('flex');
-        });
-
-        document.getElementById('manual-add-confirm-btn').addEventListener('click', () => {
-            const stockId = manualStockSelect.value;
-            const quantity = parseInt(manualQuantityInput.value, 10);
-            const stockItem = mockStock.find(s => s.id === stockId);
-            if (stockItem && quantity > 0) {
-                addItemToPackage({
-                    stockCode: stockItem.code,
-                    name: stockItem.name,
-                    quantity: quantity,
-                    flags: []
-                });
-                manualAddModal.classList.add('hidden');
-            } else {
-                showModal("Hata", "Lütfen geçerli bir ürün ve miktar seçin.");
-            }
-        });
-
-        document.getElementById('pack-save-btn').addEventListener('click', async () => {
-            if (currentPackage.items.length === 0) {
-                showModal("Hata", "Paketleyecek ürün yok.");
-                return;
-            }
-            if (!customerSelect.value || !staffSelect.value) {
-                showModal("Eksik Bilgi", "Lütfen müşteri ve personel seçimi yapın.");
-                return;
-            }
-
-            currentPackage.packageNumber = `PKT-${Date.now()}`;
-            currentPackage.customer = mockCustomers.find(c => c.id === customerSelect.value);
-            currentPackage.staff = mockStaff.find(s => s.id === staffSelect.value);
-            currentPackage.createdAt = new Date();
-            currentPackage.status = 'hazır';
-
-            try {
-                const packagesRef = collection(db, `artifacts/${appId}/users/${userId}/packages`);
-                const docRef = await addDoc(packagesRef, currentPackage);
-                showModal("Paket Kaydedildi", `Paket No: ${currentPackage.packageNumber} başarıyla kaydedildi.`);
-                
-                // Reset current package for new entry
-                currentPackage = { packageNumber: '', items: [] };
-                updateCounters();
-                packageNumberInput.value = '';
-
-                // You would send an email from a server here, not in a web client
-                console.log(`E-posta gönderme fonksiyonu çağrıldı. Alıcı: ${currentPackage.customer.email}`);
-                // **Sunucu Tarafı E-posta Kod Örneği:**
-                // fetch('https://your-server/send-email', {
-                //   method: 'POST',
-                //   headers: { 'Content-Type': 'application/json' },
-                //   body: JSON.stringify({
-                //     to: currentPackage.customer.email,
-                //     subject: `Paket Raporu: ${currentPackage.packageNumber}`,
-                //     body: '...' // HTML veya metin e-posta içeriği
-                //   })
-                // });
-
-            } catch (error) {
-                console.error("Paket kaydetme hatası:", error);
-                showModal("Hata", "Paket kaydedilemedi. Konsolu kontrol edin.");
+            
+            // Activate selected tab
+            document.querySelector(`.tab:nth-child(${tabName === 'packaging' ? 1 : tabName === 'shipping' ? 2 : 3})`).classList.add('active');
+            
+            // Show selected tab pane
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+        }
+        
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Show modal
+        function showModal(title, content) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').innerHTML = content;
+            modal.style.display = 'flex';
+        }
+        
+        // Close modal
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+        
+        // Event listeners
+        document.getElementById('barcodeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                // Barkod okutuldu simülasyonu
+                showToast('Barkod okutuldu: ' + this.value, 'success');
+                this.value = '';
             }
         });
         
-        document.getElementById('delete-package-btn').addEventListener('click', async () => {
-            if (userRole !== 'süpervizör') {
-                showAuthModal("Bu işlemi sadece süpervizör yapabilir.");
-                return;
+        // Klavye kısayolları
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F2') {
+                // Paketle/Kaydet işlemi
+                showModal('Paketleme Onayı', '<p>Paket kaydedilecek. Onaylıyor musunuz?</p><button class="btn btn-success" onclick="closeModal(); showToast(\'Paket kaydedildi\', \'success\')">Onayla</button>');
+            } else if (e.key === 'Escape') {
+                // Temizleme işlemi
+                document.getElementById('barcodeInput').value = '';
+                document.getElementById('barcodeInput').focus();
             }
-            if (!selectedPackageId) {
-                showModal("Seçim Yok", "Lütfen silmek için bir paket seçin.");
-                return;
-            }
-
-            try {
-                const packageDocRef = doc(db, `artifacts/${appId}/users/${userId}/packages`, selectedPackageId);
-                await deleteDoc(packageDocRef);
-                showModal("Paket Silindi", `Paket başarıyla silindi.`);
-                selectedPackageId = null;
-                selectedPackageItems = [];
-                renderRightPanel([]);
-            } catch (error) {
-                console.error("Paket silme hatası:", error);
-                showModal("Hata", "Paket silinemedi.");
-            }
-        });
-
-        printLabelBtn.addEventListener('click', () => {
-            if (!selectedPackageId) {
-                showModal("Seçim Yok", "Lütfen etiketini basmak için bir paket seçin.");
-                return;
-            }
-
-            const packageToPrint = pendingPackagesList.querySelector(`tr[data-package-id="${selectedPackageId}"]`);
-            const barcodeSvg = packageToPrint.querySelector('.barcode');
-            
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <title>Paket Etiketi</title>
-                    <style>
-                        body { font-family: 'Inter', sans-serif; padding: 20px; }
-                        .label { width: 4in; height: 6in; border: 1px solid black; padding: 10px; box-sizing: border-box; }
-                        h1 { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
-                        p { font-size: 14px; margin-bottom: 5px; }
-                        svg { display: block; margin: 10px auto; }
-                    </style>
-                </head>
-                <body>
-                    <div class="label">
-                        <h1>PAKET ETİKETİ</h1>
-                        <p><strong>Paket No:</strong> ${packageToPrint.cells[0].textContent}</p>
-                        <p><strong>Müşteri:</strong> ${packageToPrint.cells[4].textContent}</p>
-                        <p><strong>Konteyner:</strong> ${containerNumberInput.value || '-'}</p>
-                        <div class="barcode-container">${barcodeSvg.outerHTML}</div>
-                        <hr style="margin-top: 10px; border-top: 1px dashed gray;">
-                        <h3>Ürün Listesi</h3>
-                        <ul>
-                            ${selectedPackageItems.map(item => `<li>${item.name} (${item.quantity} adet)</li>`).join('')}
-                        </ul>
-                    </div>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-        });
-
-        document.getElementById('end-day-btn').addEventListener('click', () => {
-            if (userRole !== 'süpervizör') {
-                showAuthModal("Bu işlemi sadece süpervizör yapabilir.");
-                return;
-            }
-            // Logic for end-of-day operations
-            showModal("İş Sonu", "Gün sonu işlemleri tamamlandı. Raporlar hazırlanıyor...");
-            // Simulate report generation
-            const reportData = `Paket No,Müşteri,Toplam Miktar\n${pendingPackages.map(p => `${p.packageNumber},${p.customer.name},${p.items.length}`).join('\n')}`;
-            console.log("CSV Raporu:", reportData);
-            // **Sunucu Tarafı Rapor Kod Örneği:**
-            // fetch('https://your-server/generate-report', { ... }).then(res => res.blob()).then(blob => {
-            //     const url = URL.createObjectURL(blob);
-            //     const a = document.createElement('a');
-            //     a.href = url;
-            //     a.download = 'gunluk_rapor.pdf';
-            //     a.click();
-            // });
         });
         
-        document.getElementById('search-stock-btn').addEventListener('click', () => {
-            const query = stockSearchInput.value.toLowerCase();
-            const filteredDaily = mockStock.filter(item => 
-                item.code.toLowerCase().includes(query) ||
-                item.name.toLowerCase().includes(query) ||
-                item.category.toLowerCase().includes(query)
-            ).map(item => ({...item, quantity: Math.floor(Math.random() * 20) + 1}));
-            
-            const filteredTotal = mockStock.filter(item => 
-                item.code.toLowerCase().includes(query) ||
-                item.name.toLowerCase().includes(query) ||
-                item.category.toLowerCase().includes(query)
-            ).map(item => ({...item, quantity: Math.floor(Math.random() * 500) + 100}));
-            
-            renderStock(filteredDaily, filteredTotal);
+        // Müşteri değiştiğinde ismi güncelle
+        document.getElementById('customer').addEventListener('change', function() {
+            const selectedCustomer = customers.find(c => c.code === this.value);
+            if (selectedCustomer) {
+                document.querySelector('.customer-info .info-group:last-child span strong').textContent = selectedCustomer.name;
+            }
         });
-
-        // Start the application
-        window.onload = () => {
-            initializeUI();
-            initializeFirebase();
-        };
     </script>
 </body>
 </html>
