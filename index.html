@@ -1,359 +1,896 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>STFH Crypto Meme Coin Presale - STFH Coin</title>
-  <meta name="description" content="Get ready for the best crypto presale! STFH is launching a unique P2E experience—be the first to Buy The F***ng Dip in the best live meme coin presale." />
-  <link href="https://fonts.googleapis.com/css?family=Jost:400,700|Montserrat:700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      background: #f6f6f7;
-      font-family: 'Jost', Arial, sans-serif;
-      color: #283655;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem 1rem;
-    }
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 24px 0 8px 0;
-    }
-    .menu {
-      display: flex;
-      gap: 1.2rem;
-      font-size: 1rem;
-    }
-    .menu a {
-      color: #283655;
-      text-decoration: none;
-      font-weight: 700;
-      opacity:0.8;
-      transition: opacity .2s;
-    }
-    .menu a:hover {
-      opacity:1;
-      text-decoration:underline;
-    }
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: bold;
-      font-size: 1.3rem;
-      letter-spacing: 3px;
-    }
-    .logo img {
-      width: 42px; height:42px;
-      vertical-align:middle;
-    }
-    .presale-countdown {
-      display: flex;
-      justify-content: center;
-      gap: 1.5rem;
-      margin: 2.2rem 0 1.2rem 0;
-    }
-    .presale-countdown .item {
-      background: #fff;
-      border-radius: 8px;
-      text-align: center;
-      padding: 0.8rem 1.1rem;
-      min-width: 50px;
-      box-shadow: 0 1px 8px 0 #28365511;
-    }
-    .presale-countdown .item span {
-      display: block;
-      font-size: 2rem;
-      font-family: 'Montserrat', Arial, sans-serif;
-      color: #283655;
-      font-weight: bold;
-    }
-    .presale-countdown .label {
-      font-size: .8rem;
-      color: #8bddbb;
-      letter-spacing: 1px;
-    }
-    h1, h2, h3, h4 {
-      font-family:'Montserrat',Arial,sans-serif;
-      letter-spacing:1px;
-      margin-bottom: 0.5em;
-    }
-    h1 {
-      font-size:2.3rem;
-    }
-    .section {
-      background: #fff;
-      border-radius: 1.2em;
-      box-shadow: 0 2px 10px #28365510;
-      margin: 2rem 0;
-      padding: 2rem 1.5rem;
-    }
-    .primary-btn {
-      background: #283655;
-      color: #fff;
-      font-size: 1rem;
-      padding: 0.8em 1.8em;
-      border-radius: 99px;
-      font-family: 'Montserrat';
-      font-weight:700;
-      border: none;
-      cursor: pointer;
-      margin-bottom: 15px;
-      transition:.2s background;
-    }
-    .primary-btn:hover {
-      background: #6dddb1;
-      color: #283655;
-    }
-    .subtitle {
-      color:#c25653;
-      font-weight:700;
-      letter-spacing:2px;
-      font-size: 1.15rem;
-      margin-bottom:.6em;
-    }
-    .bulls {
-      display:grid;
-      gap: 2rem;
-      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
-      margin-bottom:2rem;
-    }
-    .bull {
-      background: #f6c6a0;
-      border-radius: 14px;
-      text-align:center;
-      padding:1.4em .7em;
-      box-shadow:0 1px 8px 0 #28365511;
-    }
-    .bull:nth-child(2) {background:#f0aaa0;}
-    .bull:nth-child(3) {background:#c8d9df;}
-    .bull:nth-child(4) {background:#8bddbb;}
-    .bull img {
-      width: 80px;
-      height: 80px;
-      margin-bottom:1em;
-    }
-    .tokenomics {
-      display:grid;
-      gap:1.2rem;
-      grid-template-columns:repeat(auto-fit, minmax(190px,1fr));
-      margin:1em 0;
-    }
-    .tokenomicscell {
-      background:#eff7fb;
-      border-radius:10px;
-      padding:1em;
-      text-align:center;
-      font-size:1.15em;
-      font-weight:bold;
-      color:#283655;
-    }
-    .footer-cows {
-      display:flex;
-      gap:2em;
-      justify-content:center;
-      margin-top:2.5em;
-      margin-bottom:1em;
-    }
-    @media(max-width:700px){
-      .container{padding:.8em;}
-      .header{flex-direction:column;gap:12px;}
-      .presale-countdown {gap: 1em;}
-      .section{padding:1em .5em;}
-      .bulls{grid-template-columns:1fr;}
-      .tokenomics{grid-template-columns:1fr;}
-      .footer-cows{gap:.6em;}
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Çamaşırhane Yönetim Sistemi</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .main-content {
+            display: none;
+        }
+    </style>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body>
-<div class="container">
-  <!-- HEADER -->
-  <div class="header">
-    <div class="logo">
-      <img src="placeholder-stfh.png" alt="STFH logo">
-      STFHCOIN
+<body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center">
+
+    <!-- Header and Navigation -->
+    <header class="w-full max-w-7xl bg-white p-4 rounded-lg shadow-xl flex flex-col md:flex-row items-center justify-between mb-4">
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800 mb-2 md:mb-0">Çamaşırhane Yönetim Sistemi</h1>
+        <nav class="flex space-x-2 md:space-x-4">
+            <button id="tab-packaging" class="tab-button px-4 py-2 rounded-lg font-semibold text-sm transition-colors bg-blue-500 text-white shadow-md hover:bg-blue-600">Paketleme</button>
+            <button id="tab-shipment" class="tab-button px-4 py-2 rounded-lg font-semibold text-sm transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300">Sevkiyat</button>
+            <button id="tab-stock" class="tab-button px-4 py-2 rounded-lg font-semibold text-sm transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300">Stok Sorgu</button>
+        </nav>
+    </header>
+
+    <!-- Main Application Container -->
+    <main class="w-full max-w-7xl bg-white p-8 rounded-lg shadow-xl relative">
+
+        <!-- Paketleme Screen -->
+        <section id="packaging-screen" class="main-content">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Paketleme Ekranı</h2>
+            <!-- User and Customer Selection -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                <div class="col-span-1">
+                    <label for="customer-select" class="block text-sm font-medium text-gray-700 mb-1">Müşteri Seçimi</label>
+                    <select id="customer-select" class="w-full p-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-200">
+                        <option value="">Müşteri Seçin</option>
+                    </select>
+                </div>
+                <div class="col-span-1">
+                    <label for="staff-select" class="block text-sm font-medium text-gray-700 mb-1">Personel Seçimi</label>
+                    <select id="staff-select" class="w-full p-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-200">
+                        <option value="">Personel Seçin</option>
+                    </select>
+                </div>
+                <div class="col-span-1 flex items-end">
+                    <button id="end-day-btn" class="w-full px-4 py-2 bg-red-500 text-white rounded-md font-semibold hover:bg-red-600 transition-colors">İş Sonu</button>
+                </div>
+                <div id="customer-info" class="col-span-full mt-2 p-2 text-gray-600"></div>
+            </div>
+
+            <!-- Main Content Area: Barcode & Quick Add -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Barcode & Manual Input -->
+                <div class="col-span-2">
+                    <div class="flex items-center space-x-2 mb-4">
+                        <input type="text" id="barcode-input" placeholder="Barkod Okutun" class="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <button id="find-barcode-btn" class="px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">Bul</button>
+                        <button id="clear-barcode-btn" class="px-4 py-3 bg-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-400 transition-colors">Temizle</button>
+                    </div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <button id="manual-add-btn" class="w-full px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors">Ürün Ekle</button>
+                    </div>
+                    <!-- Quick Add Buttons -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2">
+                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="CARS">Çarşaf</button>
+                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="HAVLU">Havlu</button>
+                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="ALEZ">Alez</button>
+                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="NEVRESIM">Nevresim</button>
+                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="YASTIK">Yastık</button>
+                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="YASLKF">Yastık Kılıfı</button>
+                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="PIKE">Pike</button>
+                        <button class="quick-add-btn bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors" data-stock-code="DIGER">Diğer</button>
+                    </div>
+                </div>
+
+                <!-- Right Panel: Package Details -->
+                <div id="right-panel" class="col-span-1 p-4 bg-gray-100 rounded-lg shadow-inner">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Seçili Paket Detayları</h3>
+                    <div id="package-details-content" class="text-gray-600 text-sm">
+                        <!-- Content will be dynamically added here -->
+                        <p class="text-gray-400">Paket seçiniz...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lower Section -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Bekleyen Paketler Listesi -->
+                <div class="col-span-full md:col-span-2">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-700">Bekleyen Paketler</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg shadow">
+                            <thead>
+                                <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                                    <th class="py-3 px-6 text-left">Paket No</th>
+                                    <th class="py-3 px-6 text-left">Toplam Miktar</th>
+                                    <th class="py-3 px-6 text-left">Paketleme Zamanı</th>
+                                    <th class="py-3 px-6 text-left">Cari Kod</th>
+                                    <th class="py-3 px-6 text-left">Cari Ünvan</th>
+                                    <th class="py-3 px-6 text-left">Cari Açıklama</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pending-packages-list" class="text-gray-600 text-sm font-light">
+                                <!-- Packages will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Counters and Actions -->
+                <div class="col-span-1 md:col-span-1 bg-gray-50 p-4 rounded-lg shadow-inner">
+                    <h3 class="text-lg font-semibold mb-2">Paket Sayaçları</h3>
+                    <div class="flex flex-col space-y-2 mb-4">
+                        <div class="flex justify-between items-center text-gray-700">
+                            <span>Tanımsız Adet:</span>
+                            <span id="undefined-count" class="font-bold text-red-500">0</span>
+                        </div>
+                        <div class="flex justify-between items-center text-gray-700">
+                            <span>Tanımlı Adet:</span>
+                            <span id="defined-count" class="font-bold text-green-500">0</span>
+                        </div>
+                        <div class="flex justify-between items-center text-gray-700">
+                            <span>Ortalama Adet:</span>
+                            <span id="average-count" class="font-bold">0</span>
+                        </div>
+                    </div>
+                    <button id="pack-save-btn" class="w-full px-4 py-3 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-600 transition-colors">Paketle & Kaydet (F2)</button>
+                </div>
+            </div>
+
+            <!-- Paket İşlemleri and Konteyner Yönetimi -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <!-- Paket İşlemleri -->
+                <div class="col-span-1 p-4 bg-gray-50 rounded-lg shadow-inner">
+                    <h3 class="text-lg font-semibold mb-2">Paket İşlemleri</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="print-label-btn" class="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-colors"><i class="fas fa-print"></i> Etiket Bas</button>
+                        <button id="select-all-btn" class="px-4 py-2 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors"><i class="fas fa-check-double"></i> Tümünü Seç</button>
+                        <button id="deselect-all-btn" class="px-4 py-2 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition-colors"><i class="fas fa-times"></i> Seçimi Kaldır</button>
+                        <button id="delete-package-btn" class="px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"><i class="fas fa-trash"></i> Paket Sil</button>
+                    </div>
+                </div>
+
+                <!-- Konteyner Yönetimi -->
+                <div class="col-span-1 p-4 bg-gray-50 rounded-lg shadow-inner">
+                    <h3 class="text-lg font-semibold mb-2">Konteyner Yönetimi</h3>
+                    <div class="flex flex-col space-y-2">
+                        <input type="text" id="container-number-input" placeholder="Konteyner No" class="p-2 border border-gray-300 rounded-md">
+                        <div class="flex gap-2">
+                            <button id="assign-container-btn" class="w-full px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">Paketi Konteyere Bağla</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="delete-container-btn" class="w-full px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors">Konteyner Sil</button>
+                            <button id="send-ramp-btn" class="w-full px-4 py-2 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-600 transition-colors">Kon. Rampaya Gönder</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Sevkiyat Screen -->
+        <section id="shipment-screen" class="main-content">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Sevkiyat Ekranı</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white rounded-lg shadow">
+                    <thead>
+                        <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                            <th class="py-3 px-6 text-left">Paket No</th>
+                            <th class="py-3 px-6 text-left">Müşteri</th>
+                            <th class="py-3 px-6 text-left">Durum</th>
+                            <th class="py-3 px-6 text-left">Konteyner</th>
+                            <th class="py-3 px-6 text-center">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shipment-list" class="text-gray-600 text-sm font-light">
+                        <!-- Shipment data will be dynamically added here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button id="delete-container-shipment-btn" class="px-4 py-2 bg-red-500 text-white rounded-md font-semibold hover:bg-red-600">Konteyner Sil</button>
+                <button id="send-ramp-shipment-btn" class="px-4 py-2 bg-indigo-500 text-white rounded-md font-semibold hover:bg-indigo-600">Kon. Rampaya Gönder</button>
+            </div>
+        </section>
+
+        <!-- Stok Sorgu Screen -->
+        <section id="stock-screen" class="main-content">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Stok Sorgu Ekranı</h2>
+            <div class="flex items-center space-x-2 mb-4">
+                <input type="text" id="stock-search-input" placeholder="Stok kodu, adı veya kategoriye göre arama" class="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <button id="search-stock-btn" class="px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">Ara</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Günlük Hareketler</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg shadow">
+                            <thead>
+                                <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                                    <th class="py-3 px-6 text-left">Stok Kodu</th>
+                                    <th class="py-3 px-6 text-left">Cins</th>
+                                    <th class="py-3 px-6 text-left">Miktar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="daily-movements-list" class="text-gray-600 text-sm font-light">
+                                <!-- Daily movements will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Toplam Stok Miktarı</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg shadow">
+                            <thead>
+                                <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                                    <th class="py-3 px-6 text-left">Stok Kodu</th>
+                                    <th class="py-3 px-6 text-left">Cins</th>
+                                    <th class="py-3 px-6 text-left">Toplam Miktar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="total-stock-list" class="text-gray-600 text-sm font-light">
+                                <!-- Total stock will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for messages and manual add -->
+    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
+            <h3 id="modal-title" class="text-xl font-semibold mb-2"></h3>
+            <p id="modal-message" class="text-gray-700 mb-4"></p>
+            <div class="flex justify-end">
+                <button id="modal-close-btn" class="px-4 py-2 bg-blue-500 text-white rounded-md">OK</button>
+            </div>
+        </div>
     </div>
-    <nav class="menu">
-      <a href="#buy">Buy Now</a>
-      <a href="#staking">Staking</a>
-      <a href="#referral">Referral</a>
-      <a href="#how">How to Buy</a>
-      <a href="#whitepaper">Whitepaper</a>
-      <a href="#tg" aria-label="Telegram">Telegram</a>
-      <a href="#x" aria-label="X">X</a>
-    </nav>
-  </div>
-  <!-- COUNTDOWN -->
-  <div class="presale-countdown">
-    <div class="item"><span>12</span> <div class="label">Days</div></div>
-    <div class="item"><span>01</span> <div class="label">Hours</div></div>
-    <div class="item"><span>00</span> <div class="label">Minutes</div></div>
-    <div class="item"><span>21</span> <div class="label">Seconds</div></div>
-  </div>
-  <!-- HERO SECTION -->
-  <section class="section" style="text-align:center;">
-    <h2 class="subtitle">PRESALE ENDS SOON</h2>
-    <h1>Final Chance to Load Up</h1>
-    <img src="placeholder-stfh.png" alt="STFH cow mascot" style="height:110px;margin:1em auto;display:block;">
-    <p>This is the moment. When the timer hits zero, it's over. No reruns. No second shots. Lock in your $STFH now or watch it launch without you.</p>
-    <a class="primary-btn" href="#buy">Buy Now</a>
-    <div style="margin-top:1.2em;font-size:1.5em;font-family:'Montserrat';font-weight:bold;letter-spacing:3px;line-height:1.2">BuyThe <br>Fucking Dip</div>
-  </section>
-  <!-- GAMES SECTION -->
-  <section class="section" style="text-align:center;">
-    <img src="placeholder-stfh.png" alt="STFH bull mascot" style="height:90px;margin-bottom:1em;">
-    <h2 id="bullrun">STFH BULL RUN</h2>
-    <p>Run With The Bulls &amp; Earn $STFH</p>
-    <a class="primary-btn" href="#run">Play Now</a>
-  </section>
-  <!-- WHY STFH COIN SECTION -->
-  <section class="section" style="display:grid;gap:2em 0;grid-template-columns:1fr 1fr;align-items:center;">
-    <div style="min-width:210px;">
-      <h2>WHY STFH COIN</h2>
-      <p>For too long, crypto enthusiasts have waited for the perfect dip to invest, only to be disappointed by further drops. STFH coin, symbolized by our resilient and optimistic Baby Bull, revolutionizes this process by ensuring you truly buy at the dip. We've designed a system that launches our coin at an optimal price, securing your position in the market with confidence.</p>
-      <p style="margin:1.2em 0 0 0;">
-        <a href="#tg" style="margin-right:1em;">Telegram</a>
-        <a href="#x">X</a>
-      </p>
-      <div style="margin-top:1.3em;">
-        <small>Blockchain<br>ERC20<br>Token Symbol<br><span style="font-weight:bold;">STFH</span><br>Token Decimals<br>18</small>
-      </div>
+    
+    <!-- Modal for Manual Add -->
+    <div id="manual-add-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full">
+            <h3 class="text-xl font-semibold mb-4">Ürün Ekle</h3>
+            <label for="manual-stock-select" class="block text-sm font-medium text-gray-700 mb-1">Ürün Seçin</label>
+            <select id="manual-stock-select" class="w-full p-2 border border-gray-300 rounded-md mb-4"></select>
+            <label for="manual-quantity-input" class="block text-sm font-medium text-gray-700 mb-1">Miktar</label>
+            <input type="number" id="manual-quantity-input" value="1" min="1" class="w-full p-2 border border-gray-300 rounded-md mb-4">
+            <div class="flex justify-end space-x-2">
+                <button id="manual-add-cancel-btn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md font-semibold">İptal</button>
+                <button id="manual-add-confirm-btn" class="px-4 py-2 bg-green-500 text-white rounded-md font-semibold">Ekle</button>
+            </div>
+        </div>
     </div>
-    <div style="text-align:center;">
-      <img src="placeholder-stfh.png" alt="STFH bull mascot" style="height:130px;">
+
+    <!-- Modal for User Authorization -->
+    <div id="auth-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
+            <h3 class="text-xl font-semibold mb-2">Yetki Gereklidir</h3>
+            <p id="auth-message" class="text-gray-700 mb-4">Bu işlemi yapmak için süpervizör yetkisi gerekmektedir.</p>
+            <div class="flex justify-end">
+                <button id="auth-close-btn" class="px-4 py-2 bg-blue-500 text-white rounded-md">Tamam</button>
+            </div>
+        </div>
     </div>
-  </section>
-  <!-- REFERRAL PROGRAM -->
-  <section class="section" style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:center;">
-    <div style="text-align:center;">
-      <img src="placeholder-stfh.png" alt="Referral Bull" height="130" style="margin-bottom:1.1em;">
-      <h2>Earn with Referrals</h2>
-    </div>
-    <div>
-      <ol style="line-height:1.7;font-size:1.07em;">
-        <li><b>Step 1: Connect Your Wallet</b><br>Visit the buy page and connect your wallet. Once connected, you will receive a unique referral code.</li>
-        <li><b>Step 2: Share Your Referral Code</b><br>Share your unique referral code with your friends, family, or community.</li>
-        <li><b>Step 3: Referral Benefits</b><br>For your referrals: Anyone who uses your referral code to make a purchase of $50 or more, will receive an extra 10% $STFH on top of their purchase.<br>For you: You will receive 10% of the amount of $STFH coins purchased whenever your referral code is used, if you make it in the top 20 on the leaderboard.</li>
-        <li><b>Step 4: Track Your Earnings</b><br>Keep track of your referral rewards through your wallet. Watch your $STFH grow!</li>
-      </ol>
-      <p style="margin-top:1.2em;">By participating in our referral program, you can help spread the word about STFH and earn extra rewards along the way. Join us in making STFH a success!</p>
-    </div>
-  </section>
-  <!-- TOKENOMICS -->
-  <section class="section" id="tokenomics">
-    <h2>TOKENOMICS</h2>
-    <div class="tokenomics">
-      <div class="tokenomicscell">Presale<br>48%<br>83,040,000,000</div>
-      <div class="tokenomicscell">Liquidity<br>Locked 2 years<br>9%<br>15,570,000,000</div>
-      <div class="tokenomicscell">Staking<br>16 weeks vest<br>18%<br>31,140,000,000</div>
-      <div class="tokenomicscell">P2E Rewards<br>20 weeks vest<br>17%<br>29,410,000,000</div>
-      <div class="tokenomicscell">Community/Burn<br>4%<br>6,920,000,000</div>
-      <div class="tokenomicscell">Influencers<br>20 weeks vest<br>2%<br>3,460,000,000</div>
-      <div class="tokenomicscell">Team<br>Locked 2 years<br>2%<br>3,460,000,000</div>
-      <div class="tokenomicscell">Max Supply<br>173,000,000,000</div>
-    </div>
-  </section>
-  <!-- SECURITY SECTION -->
-  <section class="section" style="display:grid;grid-template-columns:1fr 1fr;gap:2em;align-items:center;">
-    <div style="text-align:center;">
-      <img src="placeholder-stfh.png" alt="Security badge" height="110">
-    </div>
-    <div>
-      <h2>Bull's Eye</h2>
-      <h4>Vigorous Smart Contract Audit</h4>
-      <p>The STFH smart contract has undergone comprehensive audits to guarantee top-tier security throughout the crypto presale. This ensures that no modifications can be made to the contract, safeguarding its integrity and functionality. The audit confirms that the smart contract is immutable and secure. KYC process for our mascot is also complete.</p>
-      <div style="margin-top:1.1em;">
-        <a href="#audit" style="margin-right:1em;">Audit</a>
-        <a href="#scrl">SCRL</a>
-        <a href="#kyc">KYC</a>
-      </div>
-    </div>
-  </section>
-  <!-- TEAM / BULLS SQUAD -->
-  <section class="section">
-    <h2>THE BULLS SQUAD</h2>
-    <div class="bulls">
-      <div class="bull"><img src="placeholder-stfh.png" alt="Baby Bull"><div>Baby Bull<br><small>The brains and vision for STFH.<br>Mascot for resilience & community.</small></div></div>
-      <div class="bull"><img src="placeholder-stfh.png" alt="Raging Bull"><div>Raging Bull<br><small>Designer and support for all STFH graphics.</small></div></div>
-      <div class="bull"><img src="placeholder-stfh.png" alt="Nerdy Bull"><div>Nerdy Bull<br><small>Backend & smart contract mage for STFH.</small></div></div>
-      <div class="bull"><img src="placeholder-stfh.png" alt="People's Bull"><div>People's Bull<br><small>All social/email support to the STFH community.</small></div></div>
-    </div>
-  </section>
-  <!-- ROADMAP -->
-  <section class="section" id="roadmap">
-    <h2>ROADMAP</h2>
-    <div class="tokenomics">
-      <div class="tokenomicscell">Bull Plotting<br><small>Calculating the dip, designing the battlefield</small></div>
-      <div class="tokenomicscell">Bull Charge<br><small>Finalizing page, testing, prepping charge</small></div>
-      <div class="tokenomicscell">Rule Breaker<br><small>Auditing, locking contract, team token pen</small></div>
-      <div class="tokenomicscell">Stampede<br><small>Presale stages, staking 90% APY, bull run game, marketing</small></div>
-      <div class="tokenomicscell">Victory<br><small>Claim tokens, launch, liquidity for the herd</small></div>
-    </div>
-  </section>
-  <!-- MADE POSSIBLE WITH -->
-  <section class="section" style="text-align:center;">
-    <h2>MADE POSSIBLE WITH</h2>
-    <div style="display:flex;flex-wrap:wrap;gap:2em;justify-content:center;margin:2em 0;">
-      <img src="placeholder-stfh.png" alt="AWS" height="36">
-      <img src="placeholder-stfh.png" alt="Google" height="36">
-      <img src="placeholder-stfh.png" alt="Trust Wallet" height="36">
-      <img src="placeholder-stfh.png" alt="Etherscan" height="36">
-      <img src="placeholder-stfh.png" alt="More" height="36">
-      <!-- Add more as needed -->
-    </div>
-  </section>
-  <!-- FEATURED IN -->
-  <section class="section" style="text-align:center;">
-    <h2>FEATURED IN</h2>
-    <div style="display:flex;flex-wrap:wrap;gap:1.2em;justify-content:center;margin:1.8em 0;">
-      <img src="placeholder-stfh.png" alt="Media Logo" height="36">
-      <img src="placeholder-stfh.png" alt="Media Logo" height="36">
-      <img src="placeholder-stfh.png" alt="Media Logo" height="36">
-    </div>
-    <div style="font-size:1.1em;color:#c25653;max-width:520px;margin:0 auto;">You can find us featured on many top crypto publishing websites that have massive audiences to ensure STFH spreads like wildfire in the crypto space.</div>
-  </section>
-  <!-- SUBSCRIBE AND FAQ -->
-  <section class="section" style="display:grid;grid-template-columns:1.3fr 1fr;gap:2em;align-items:center;">
-    <div>
-      <h3>Stay Updated</h3>
-      <form style="display:grid;gap:.7em;">
-        <input type="text" placeholder="Name" style="padding:.7em 1em;border-radius:7px;border:1px solid #c8d9df;">
-        <input type="email" placeholder="Email" style="padding:.7em 1em;border-radius:7px;border:1px solid #c8d9df;">
-        <button type="submit" class="primary-btn" style="margin-top:0;">Subscribe</button>
-      </form>
-    </div>
-    <div style="text-align:center;">
-      <img src="placeholder-stfh.png" alt="FAQ Bull" height="90">
-      <h3>FAQs</h3>
-      <ul style="text-align:left;list-style:circle inside;font-size:.98em;padding-left:12px;">
-        <li>How do I buy $STFH?</li>
-        <li>How can I stake?</li>
-        <li>How does the referral program work?</li>
-        <li>Which wallets are supported?</li>
-        <li>How is liquidity locked?</li>
-        <li>When does the presale end?</li>
-        <li>When do tokens unlock?</li>
-        <li>Who is the STFH mascot?</li>
-      </ul>
-    </div>
-  </section>
-  <!-- FOOTER COWS/CHARACTERS -->
-  <div class="footer-cows">
-    <img src="placeholder-stfh.png" alt="STFH character" height="50">
-    <img src="placeholder-stfh.png" alt="STFH character" height="50">
-    <img src="placeholder-stfh.png" alt="STFH character" height="50">
-    <img src="placeholder-stfh.png" alt="STFH character" height="50">
-  </div>
-  <footer style="text-align:center;color:#28365570;padding-bottom:2em;">
-    &copy; 2025 STFH Meme Coin. This site is for static demo/preview only. Telegram | X (Twitter)
-  </footer>
-</div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, doc, getDoc, updateDoc, deleteDoc, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Barcode library
+        import "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js";
+
+        // Global variables provided by the runtime environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        
+        let db, auth, userId, userRole = 'personel'; // Change to 'süpervizör' for testing supervisor role
+        
+        // Mock Data for Customers, Staff, and Stock
+        const mockCustomers = [
+            { id: 'C001', code: 'ABC', name: 'ABC Otel', email: 'abc@example.com', description: 'Büyük otel zinciri' },
+            { id: 'C002', code: 'XYZ', name: 'XYZ Restoran', email: 'xyz@example.com', description: 'Şube ağı olan restoran' },
+            { id: 'C003', code: 'EFG', name: 'EFG Hastanesi', email: 'efg@example.com', description: 'Özel hastane' }
+        ];
+
+        const mockStaff = [
+            { id: 'S001', name: 'Ahmet Yılmaz' },
+            { id: 'S002', name: 'Ayşe Kaya' }
+        ];
+
+        const mockStock = [
+            { id: 'ST001', code: 'CARS', name: 'Çarşaf', category: 'Tekstil' },
+            { id: 'ST002', code: 'HAVLU', name: 'Havlu', category: 'Tekstil' },
+            { id: 'ST003', code: 'ALEZ', name: 'Alez', category: 'Tekstil' },
+            { id: 'ST004', code: 'NEVRESIM', name: 'Nevresim', category: 'Tekstil' },
+            { id: 'ST005', code: 'YASTIK', name: 'Yastık', category: 'Tekstil' },
+            { id: 'ST006', code: 'YASLKF', name: 'Yastık Kılıfı', category: 'Tekstil' },
+            { id: 'ST007', code: 'PIKE', name: 'Pike', category: 'Tekstil' },
+            { id: 'ST008', code: 'DIGER', name: 'Diğer', category: 'Çeşitli' }
+        ];
+
+        // UI Elements
+        const mainContents = document.querySelectorAll('.main-content');
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const packageNumberInput = document.getElementById('barcode-input');
+        const customerSelect = document.getElementById('customer-select');
+        const staffSelect = document.getElementById('staff-select');
+        const customerInfoDiv = document.getElementById('customer-info');
+        const addPackageForm = document.getElementById('add-package-form');
+        const pendingPackagesList = document.getElementById('pending-packages-list');
+        const rightPanel = document.getElementById('right-panel');
+        const definedCountEl = document.getElementById('defined-count');
+        const undefinedCountEl = document.getElementById('undefined-count');
+        const averageCountEl = document.getElementById('average-count');
+        const printLabelBtn = document.getElementById('print-label-btn');
+        const deletePackageBtn = document.getElementById('delete-package-btn');
+        const shipmentList = document.getElementById('shipment-list');
+        const stockSearchInput = document.getElementById('stock-search-input');
+        const dailyMovementsList = document.getElementById('daily-movements-list');
+        const totalStockList = document.getElementById('total-stock-list');
+        const manualAddModal = document.getElementById('manual-add-modal');
+        const manualStockSelect = document.getElementById('manual-stock-select');
+        const manualQuantityInput = document.getElementById('manual-quantity-input');
+        const authModal = document.getElementById('auth-modal');
+        const containerNumberInput = document.getElementById('container-number-input');
+
+        let currentPackage = {
+            packageNumber: '',
+            items: [],
+            customer: {},
+            staff: {},
+            container: '',
+            createdAt: null
+        };
+        let selectedPackageId = null;
+        let selectedPackageItems = [];
+        let selectedItemIndex = 0;
+
+        // Modal functions
+        const showModal = (title, message) => {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        const hideModal = () => {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('modal').classList.remove('flex');
+        };
+
+        document.getElementById('modal-close-btn').addEventListener('click', hideModal);
+
+        const showAuthModal = (message) => {
+            document.getElementById('auth-message').textContent = message;
+            authModal.classList.remove('hidden');
+            authModal.classList.add('flex');
+        };
+
+        document.getElementById('auth-close-btn').addEventListener('click', () => {
+            authModal.classList.add('hidden');
+            authModal.classList.remove('flex');
+        });
+
+        // Tab Switching Logic
+        const showTab = (tabId) => {
+            mainContents.forEach(content => {
+                content.style.display = 'none';
+            });
+            tabButtons.forEach(button => {
+                button.classList.remove('bg-blue-500', 'text-white');
+                button.classList.add('bg-gray-200', 'text-gray-700');
+            });
+
+            document.getElementById(tabId).style.display = 'block';
+            document.getElementById(`tab-${tabId.replace('-screen', '')}`).classList.remove('bg-gray-200', 'text-gray-700');
+            document.getElementById(`tab-${tabId.replace('-screen', '')}`).classList.add('bg-blue-500', 'text-white');
+        };
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                showTab(button.id.replace('tab-', '') + '-screen');
+            });
+        });
+        
+        // Initial setup
+        const initializeUI = () => {
+            showTab('packaging-screen');
+
+            // Populate Customer and Staff dropdowns
+            mockCustomers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = `${customer.code} - ${customer.name}`;
+                customerSelect.appendChild(option);
+            });
+            mockStaff.forEach(staff => {
+                const option = document.createElement('option');
+                option.value = staff.id;
+                option.textContent = staff.name;
+                staffSelect.appendChild(option);
+            });
+
+            // Populate Manual Add modal select
+            mockStock.forEach(stock => {
+                const option = document.createElement('option');
+                option.value = stock.id;
+                option.textContent = `${stock.code} - ${stock.name}`;
+                manualStockSelect.appendChild(option);
+            });
+        };
+
+        // Initialize Firebase
+        const initializeFirebase = async () => {
+            if (!firebaseConfig) {
+                console.error("Firebase config is not available.");
+                return;
+            }
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            try {
+                const userCredential = await signInAnonymously(auth);
+                userId = userCredential.user.uid;
+                console.log("Signed in anonymously with user ID:", userId);
+                setupFirestoreListeners();
+            } catch (error) {
+                console.error("Authentication error:", error);
+                showModal("Kimlik Doğrulama Hatası", "Lütfen sayfayı yeniden yüklemeyi deneyin.");
+            }
+        };
+
+        // Firestore listeners for real-time updates
+        const setupFirestoreListeners = () => {
+            if (!userId) return;
+            
+            // Listener for Pending Packages
+            const packagesRef = collection(db, `artifacts/${appId}/users/${userId}/packages`);
+            onSnapshot(query(packagesRef, where("status", "==", "hazır")), (snapshot) => {
+                const packages = [];
+                snapshot.forEach(doc => {
+                    packages.push({ id: doc.id, ...doc.data() });
+                });
+                renderPendingPackages(packages);
+            }, (error) => {
+                console.error("Firestore listener error:", error);
+                showModal("Veri Hatası", "Bekleyen paketler yüklenemedi.");
+            });
+            
+            // Listener for Shipment Screen
+            onSnapshot(query(packagesRef, where("status", "!=", "hazır")), (snapshot) => {
+                const packages = [];
+                snapshot.forEach(doc => {
+                    packages.push({ id: doc.id, ...doc.data() });
+                });
+                renderShipmentPackages(packages);
+            }, (error) => {
+                console.error("Firestore listener error:", error);
+                showModal("Veri Hatası", "Sevkiyat verileri yüklenemedi.");
+            });
+        };
+
+        // Render functions
+        const renderPendingPackages = (packages) => {
+            pendingPackagesList.innerHTML = '';
+            packages.forEach(pkg => {
+                const row = document.createElement('tr');
+                row.classList.add('border-b', 'border-gray-200', 'hover:bg-gray-100', 'cursor-pointer');
+                row.dataset.packageId = pkg.id;
+                row.innerHTML = `
+                    <td class="py-3 px-6 text-left whitespace-nowrap">${pkg.packageNumber}</td>
+                    <td class="py-3 px-6 text-left">${pkg.items.length}</td>
+                    <td class="py-3 px-6 text-left">${new Date(pkg.createdAt.seconds * 1000).toLocaleString()}</td>
+                    <td class="py-3 px-6 text-left">${pkg.customer?.code || '-'}</td>
+                    <td class="py-3 px-6 text-left">${pkg.customer?.name || '-'}</td>
+                    <td class="py-3 px-6 text-left">${pkg.customer?.description || '-'}</td>
+                `;
+                pendingPackagesList.appendChild(row);
+                
+                row.addEventListener('click', () => {
+                    selectPackage(pkg.id, pkg.items);
+                });
+            });
+        };
+
+        const renderShipmentPackages = (packages) => {
+            shipmentList.innerHTML = '';
+            packages.forEach(pkg => {
+                const row = document.createElement('tr');
+                row.classList.add('border-b', 'border-gray-200', 'hover:bg-gray-100', 'cursor-pointer');
+                row.dataset.packageId = pkg.id;
+                
+                let statusClass, statusText;
+                switch(pkg.status) {
+                    case 'yolda':
+                        statusClass = 'bg-yellow-200 text-yellow-700';
+                        statusText = 'Yolda';
+                        break;
+                    case 'teslim edildi':
+                        statusClass = 'bg-green-200 text-green-700';
+                        statusText = 'Teslim Edildi';
+                        break;
+                    default:
+                        statusClass = 'bg-gray-200 text-gray-700';
+                        statusText = 'Bilinmiyor';
+                }
+
+                row.innerHTML = `
+                    <td class="py-3 px-6 text-left whitespace-nowrap">${pkg.packageNumber}</td>
+                    <td class="py-3 px-6 text-left">${pkg.customer?.name || '-'}</td>
+                    <td class="py-3 px-6 text-left"><span class="py-1 px-3 rounded-full text-xs font-medium ${statusClass}">${statusText}</span></td>
+                    <td class="py-3 px-6 text-left">${pkg.container || '-'}</td>
+                    <td class="py-3 px-6 text-center">
+                        <button data-package-id="${pkg.id}" class="update-status-btn px-3 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-600 transition-colors">
+                            Durum Güncelle
+                        </button>
+                    </td>
+                `;
+                shipmentList.appendChild(row);
+            });
+        };
+
+        const renderStock = (daily, total) => {
+            dailyMovementsList.innerHTML = '';
+            daily.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="py-2 px-4">${item.code}</td><td class="py-2 px-4">${item.name}</td><td class="py-2 px-4">${item.quantity}</td>`;
+                dailyMovementsList.appendChild(row);
+            });
+            
+            totalStockList.innerHTML = '';
+            total.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="py-2 px-4">${item.code}</td><td class="py-2 px-4">${item.name}</td><td class="py-2 px-4">${item.quantity}</td>`;
+                totalStockList.appendChild(row);
+            });
+        };
+
+        // Package Management Functions
+        const updateCounters = () => {
+            let defined = 0;
+            let undefined = 0;
+            currentPackage.items.forEach(item => {
+                if (item.stockCode) {
+                    defined++;
+                } else {
+                    undefined++;
+                }
+            });
+            definedCountEl.textContent = defined;
+            undefinedCountEl.textContent = undefined;
+            if (defined + undefined > 0) {
+                averageCountEl.textContent = ((defined + undefined) / (defined > 0 ? defined : 1)).toFixed(2);
+            } else {
+                averageCountEl.textContent = '0';
+            }
+        };
+
+        const addItemToPackage = (item) => {
+            currentPackage.items.push(item);
+            updateCounters();
+            renderRightPanel(currentPackage.items);
+            showModal("Ürün Eklendi", `${item.name} pakete eklendi.`);
+        };
+
+        const renderRightPanel = (items) => {
+            rightPanel.innerHTML = `
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Seçili Paket Detayları</h3>
+                <div class="flex items-center justify-between">
+                    <button id="prev-item-btn" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-up"></i></button>
+                    <span id="item-index" class="text-lg font-bold"></span>
+                    <button id="next-item-btn" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-down"></i></button>
+                </div>
+                <div id="item-details" class="mt-2 text-gray-600 text-sm"></div>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Ozel">Özel</button>
+                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Yeni">Yeni</button>
+                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Yirtik">Yırtık</button>
+                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Cikmayan">Çıkmayan</button>
+                    <button class="flag-btn px-2 py-1 text-xs rounded-full bg-gray-200" data-flag="Lekeli">Lekeli</button>
+                </div>
+            `;
+            selectedItemIndex = 0;
+            updateItemDetails();
+            
+            document.getElementById('prev-item-btn').addEventListener('click', () => {
+                if (selectedItemIndex > 0) {
+                    selectedItemIndex--;
+                    updateItemDetails();
+                }
+            });
+            document.getElementById('next-item-btn').addEventListener('click', () => {
+                if (selectedItemIndex < items.length - 1) {
+                    selectedItemIndex++;
+                    updateItemDetails();
+                }
+            });
+
+            document.querySelectorAll('.flag-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const flag = e.target.dataset.flag;
+                    if (selectedPackageItems[selectedItemIndex]) {
+                        selectedPackageItems[selectedItemIndex].flags = selectedPackageItems[selectedItemIndex].flags || [];
+                        if (selectedPackageItems[selectedItemIndex].flags.includes(flag)) {
+                            selectedPackageItems[selectedItemIndex].flags = selectedPackageItems[selectedItemIndex].flags.filter(f => f !== flag);
+                        } else {
+                            selectedPackageItems[selectedItemIndex].flags.push(flag);
+                        }
+                        updateItemDetails();
+                        // You would also update the item in Firestore here
+                    }
+                });
+            });
+        };
+
+        const updateItemDetails = () => {
+            const item = selectedPackageItems[selectedItemIndex];
+            if (!item) {
+                document.getElementById('item-details').innerHTML = `<p class="text-gray-400">Ürün yok.</p>`;
+                document.getElementById('item-index').textContent = '';
+                return;
+            }
+            document.getElementById('item-index').textContent = `${selectedItemIndex + 1} / ${selectedPackageItems.length}`;
+            const details = document.getElementById('item-details');
+            details.innerHTML = `
+                <p><strong>Stok Kodu:</strong> ${item.stockCode || 'Tanımsız'}</p>
+                <p><strong>Cinsi:</strong> ${item.name}</p>
+                <p><strong>Miktar:</strong> ${item.quantity}</p>
+                <p><strong>Özellikler:</strong> ${item.flags?.join(', ') || 'Yok'}</p>
+            `;
+            document.querySelectorAll('.flag-btn').forEach(btn => {
+                const flag = btn.dataset.flag;
+                if (item.flags && item.flags.includes(flag)) {
+                    btn.classList.add('bg-blue-500', 'text-white');
+                    btn.classList.remove('bg-gray-200', 'text-gray-800');
+                } else {
+                    btn.classList.add('bg-gray-200', 'text-gray-800');
+                    btn.classList.remove('bg-blue-500', 'text-white');
+                }
+            });
+        };
+
+        const selectPackage = async (packageId, items) => {
+            selectedPackageId = packageId;
+            selectedPackageItems = items;
+            renderRightPanel(items);
+            // Highlight selected row
+            document.querySelectorAll('#pending-packages-list tr').forEach(row => {
+                row.classList.remove('bg-blue-100');
+            });
+            document.querySelector(`tr[data-package-id="${packageId}"]`).classList.add('bg-blue-100');
+        };
+
+        // Event Listeners
+        document.getElementById('find-barcode-btn').addEventListener('click', () => {
+            const barcodeValue = packageNumberInput.value.trim();
+            if (barcodeValue) {
+                const stockItem = mockStock.find(s => s.code === barcodeValue.toUpperCase());
+                if (stockItem) {
+                    addItemToPackage({
+                        stockCode: stockItem.code,
+                        name: stockItem.name,
+                        quantity: 1,
+                        flags: []
+                    });
+                } else {
+                    addItemToPackage({
+                        stockCode: null,
+                        name: 'Tanımsız Ürün',
+                        quantity: 1,
+                        flags: []
+                    });
+                    showModal("Ürün Bulunamadı", "Girilen barkod stokta bulunamadı. Tanımsız olarak eklendi.");
+                }
+                packageNumberInput.value = '';
+            }
+        });
+
+        document.getElementById('clear-barcode-btn').addEventListener('click', () => {
+            packageNumberInput.value = '';
+        });
+
+        document.querySelectorAll('.quick-add-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const stockCode = e.target.dataset.stockCode;
+                const stockItem = mockStock.find(s => s.code === stockCode);
+                if (stockItem) {
+                    addItemToPackage({
+                        stockCode: stockItem.code,
+                        name: stockItem.name,
+                        quantity: 1,
+                        flags: []
+                    });
+                }
+            });
+        });
+
+        document.getElementById('manual-add-btn').addEventListener('click', () => {
+            manualAddModal.classList.remove('hidden');
+            manualAddModal.classList.add('flex');
+        });
+
+        document.getElementById('manual-add-cancel-btn').addEventListener('click', () => {
+            manualAddModal.classList.add('hidden');
+            manualAddModal.classList.remove('flex');
+        });
+
+        document.getElementById('manual-add-confirm-btn').addEventListener('click', () => {
+            const stockId = manualStockSelect.value;
+            const quantity = parseInt(manualQuantityInput.value, 10);
+            const stockItem = mockStock.find(s => s.id === stockId);
+            if (stockItem && quantity > 0) {
+                addItemToPackage({
+                    stockCode: stockItem.code,
+                    name: stockItem.name,
+                    quantity: quantity,
+                    flags: []
+                });
+                manualAddModal.classList.add('hidden');
+            } else {
+                showModal("Hata", "Lütfen geçerli bir ürün ve miktar seçin.");
+            }
+        });
+
+        document.getElementById('pack-save-btn').addEventListener('click', async () => {
+            if (currentPackage.items.length === 0) {
+                showModal("Hata", "Paketleyecek ürün yok.");
+                return;
+            }
+            if (!customerSelect.value || !staffSelect.value) {
+                showModal("Eksik Bilgi", "Lütfen müşteri ve personel seçimi yapın.");
+                return;
+            }
+
+            currentPackage.packageNumber = `PKT-${Date.now()}`;
+            currentPackage.customer = mockCustomers.find(c => c.id === customerSelect.value);
+            currentPackage.staff = mockStaff.find(s => s.id === staffSelect.value);
+            currentPackage.createdAt = new Date();
+            currentPackage.status = 'hazır';
+
+            try {
+                const packagesRef = collection(db, `artifacts/${appId}/users/${userId}/packages`);
+                const docRef = await addDoc(packagesRef, currentPackage);
+                showModal("Paket Kaydedildi", `Paket No: ${currentPackage.packageNumber} başarıyla kaydedildi.`);
+                
+                // Reset current package for new entry
+                currentPackage = { packageNumber: '', items: [] };
+                updateCounters();
+                packageNumberInput.value = '';
+
+                // You would send an email from a server here, not in a web client
+                console.log(`E-posta gönderme fonksiyonu çağrıldı. Alıcı: ${currentPackage.customer.email}`);
+                // **Sunucu Tarafı E-posta Kod Örneği:**
+                // fetch('https://your-server/send-email', {
+                //   method: 'POST',
+                //   headers: { 'Content-Type': 'application/json' },
+                //   body: JSON.stringify({
+                //     to: currentPackage.customer.email,
+                //     subject: `Paket Raporu: ${currentPackage.packageNumber}`,
+                //     body: '...' // HTML veya metin e-posta içeriği
+                //   })
+                // });
+
+            } catch (error) {
+                console.error("Paket kaydetme hatası:", error);
+                showModal("Hata", "Paket kaydedilemedi. Konsolu kontrol edin.");
+            }
+        });
+        
+        document.getElementById('delete-package-btn').addEventListener('click', async () => {
+            if (userRole !== 'süpervizör') {
+                showAuthModal("Bu işlemi sadece süpervizör yapabilir.");
+                return;
+            }
+            if (!selectedPackageId) {
+                showModal("Seçim Yok", "Lütfen silmek için bir paket seçin.");
+                return;
+            }
+
+            try {
+                const packageDocRef = doc(db, `artifacts/${appId}/users/${userId}/packages`, selectedPackageId);
+                await deleteDoc(packageDocRef);
+                showModal("Paket Silindi", `Paket başarıyla silindi.`);
+                selectedPackageId = null;
+                selectedPackageItems = [];
+                renderRightPanel([]);
+            } catch (error) {
+                console.error("Paket silme hatası:", error);
+                showModal("Hata", "Paket silinemedi.");
+            }
+        });
+
+        printLabelBtn.addEventListener('click', () => {
+            if (!selectedPackageId) {
+                showModal("Seçim Yok", "Lütfen etiketini basmak için bir paket seçin.");
+                return;
+            }
+
+            const packageToPrint = pendingPackagesList.querySelector(`tr[data-package-id="${selectedPackageId}"]`);
+            const barcodeSvg = packageToPrint.querySelector('.barcode');
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Paket Etiketi</title>
+                    <style>
+                        body { font-family: 'Inter', sans-serif; padding: 20px; }
+                        .label { width: 4in; height: 6in; border: 1px solid black; padding: 10px; box-sizing: border-box; }
+                        h1 { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+                        p { font-size: 14px; margin-bottom: 5px; }
+                        svg { display: block; margin: 10px auto; }
+                    </style>
+                </head>
+                <body>
+                    <div class="label">
+                        <h1>PAKET ETİKETİ</h1>
+                        <p><strong>Paket No:</strong> ${packageToPrint.cells[0].textContent}</p>
+                        <p><strong>Müşteri:</strong> ${packageToPrint.cells[4].textContent}</p>
+                        <p><strong>Konteyner:</strong> ${containerNumberInput.value || '-'}</p>
+                        <div class="barcode-container">${barcodeSvg.outerHTML}</div>
+                        <hr style="margin-top: 10px; border-top: 1px dashed gray;">
+                        <h3>Ürün Listesi</h3>
+                        <ul>
+                            ${selectedPackageItems.map(item => `<li>${item.name} (${item.quantity} adet)</li>`).join('')}
+                        </ul>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        });
+
+        document.getElementById('end-day-btn').addEventListener('click', () => {
+            if (userRole !== 'süpervizör') {
+                showAuthModal("Bu işlemi sadece süpervizör yapabilir.");
+                return;
+            }
+            // Logic for end-of-day operations
+            showModal("İş Sonu", "Gün sonu işlemleri tamamlandı. Raporlar hazırlanıyor...");
+            // Simulate report generation
+            const reportData = `Paket No,Müşteri,Toplam Miktar\n${pendingPackages.map(p => `${p.packageNumber},${p.customer.name},${p.items.length}`).join('\n')}`;
+            console.log("CSV Raporu:", reportData);
+            // **Sunucu Tarafı Rapor Kod Örneği:**
+            // fetch('https://your-server/generate-report', { ... }).then(res => res.blob()).then(blob => {
+            //     const url = URL.createObjectURL(blob);
+            //     const a = document.createElement('a');
+            //     a.href = url;
+            //     a.download = 'gunluk_rapor.pdf';
+            //     a.click();
+            // });
+        });
+        
+        document.getElementById('search-stock-btn').addEventListener('click', () => {
+            const query = stockSearchInput.value.toLowerCase();
+            const filteredDaily = mockStock.filter(item => 
+                item.code.toLowerCase().includes(query) ||
+                item.name.toLowerCase().includes(query) ||
+                item.category.toLowerCase().includes(query)
+            ).map(item => ({...item, quantity: Math.floor(Math.random() * 20) + 1}));
+            
+            const filteredTotal = mockStock.filter(item => 
+                item.code.toLowerCase().includes(query) ||
+                item.name.toLowerCase().includes(query) ||
+                item.category.toLowerCase().includes(query)
+            ).map(item => ({...item, quantity: Math.floor(Math.random() * 500) + 100}));
+            
+            renderStock(filteredDaily, filteredTotal);
+        });
+
+        // Start the application
+        window.onload = () => {
+            initializeUI();
+            initializeFirebase();
+        };
+    </script>
 </body>
 </html>
