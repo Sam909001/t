@@ -3,815 +3,1237 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Probar Çamaşırhane Yönetim Sistemi</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chosen Palette: Slate Gray & Blue -->
-    <!-- Application Structure Plan: Uygulama, kullanıcı rollerine göre (operatör, süpervizör) erişim kontrolü sağlayan bir giriş ekranıyla başlar. Ana arayüz, üç temel iş akışını (Paketleme, Sevkiyat, Stok Sorgu) yansıtan sekmeli bir yapıya sahiptir. Bu yapı, kullanıcıların görevler arasında kolayca geçiş yapmasını sağlar ve her sekmeyi kendi özel işlevine odaklayarak bilişsel yükü azaltır. Paketleme ekranı, en sık kullanılan bölüm olduğu için, barkod okuma, hızlı ürün ekleme ve paket kaydetme işlemlerini en verimli hale getiren üç panelli bir düzene (giriş/liste, detay/hızlı ekleme, aksiyonlar) sahiptir. Bu tasarım, operasyonel hızı en üst düzeye çıkarmak için seçilmiştir. Kullanıcı akışı, girişten başlayarak paket oluşturma, konteynere ekleme ve sevkiyat takibine kadar mantıksal bir sıra izler. -->
-    <!-- Visualization & Content Choices: Bu uygulama operasyonel bir araç olduğundan, karmaşık veri görselleştirmeleri (grafikler) yerine, verinin net ve hızlı bir şekilde işlenmesine odaklanılmıştır. Bilgi sunumu için HTML tabloları, formlar, büyük butonlar ve modal pencereler gibi standart UI bileşenleri kullanılmıştır.
-    - **Paket Listeleri (Paketleme/Sevkiyat):** Amaç: Bekleyen veya sevk edilen işleri göstermek. Sunum: HTML `<table>`. Etkileşim: Satır seçimiyle detay panellerini doldurma, filtreleme, sıralama. Gerekçe: Yapılandırılmış verileri sunmak için en etkili yöntem.
-    - **Hızlı Ekleme Butonları (Paketleme):** Amaç: Sık kullanılan ürünleri barkodsuz eklemek. Sunum: Grid düzende HTML `<button>`'lar. Etkileşim: Tıklandığında seçili pakete ürün ekler. Gerekçe: Tekrarlayan görevlerde zaman kazandırır.
-    - **Durum Bildirimleri:** Amaç: Kullanıcıya geri bildirim sağlamak. Sunum: Geçici "toast" bildirimleri (başarı/hata) ve eylem onayı için "modal" pencereler. Etkileşim: Onay/iptal butonları. Gerekçe: Kritik işlemlerde yanlışlığı önler ve akışı kesintiye uğratmadan bilgi verir.
-    - **Stok Sorgu:** Amaç: Ürün bilgilerini bulmak. Sunum: Arama formu ve sonuç tablosu. Etkileşim: Filtreleme ve arama. Gerekçe: Bilgiye hızlı erişim için standart ve etkili bir arayüz.
-    Tüm bu seçimler, masaüstü odaklı, klavye ve barkod okuyucu ile hızlı kullanıma uygun bir deneyim yaratma hedefini desteklemektedir. -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <title>ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .tab-btn { transition: all 0.2s ease-in-out; }
-        .tab-btn.active { border-color: #3b82f6; background-color: #3b82f6; color: white; }
-        .tab-btn:not(.active):hover { background-color: #e5e7eb; }
-        .page { display: none; }
-        .page.active { display: flex; }
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
-        .toast { position: fixed; bottom: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 0.5rem; color: white; z-index: 60; opacity: 0; transition: opacity 0.3s ease-in-out; }
-        .toast.show { opacity: 1; }
-        .toast-success { background-color: #16a34a; }
-        .toast-error { background-color: #dc2626; }
-        .toast-warning { background-color: #f59e0b; }
-        .table-selected-row { background-color: #bfdbfe; }
-        .supervisor-only { display: none; }
-        .supervisor-enabled .supervisor-only { display: inline-flex; }
-        .supervisor-enabled-block .supervisor-only { display: block; }
-        input:focus, select:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --text: #2c3e50;
+            --bg: #f5f7fa;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Login Screen */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
+        }
+        
+        .login-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-form h1 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+        }
+        
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-link {
+            background: none;
+            color: var(--secondary);
+            text-decoration: underline;
+            padding: 0.5rem;
+        }
+        
+        /* Main Application */
+        .app-container {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        /* Header */
+        .app-header {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .app-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background-color: var(--dark);
+        }
+        
+        .tab {
+            padding: 0.8rem 1.5rem;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            font-size: 0.9rem;
+        }
+        
+        .tab.active {
+            background-color: var(--light);
+            color: var(--primary);
+            border-bottom: 3px solid var(--secondary);
+        }
+        
+        /* Content */
+        .tab-content {
+            flex-grow: 1;
+            padding: 1.2rem;
+            overflow-y: auto;
+        }
+        
+        .tab-pane {
+            display: none;
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        /* Packaging Section */
+        .packaging-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .customer-info {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .info-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-group label {
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+        }
+        
+        .info-group select, .info-group input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.6rem;
+        }
+        
+        .packaging-content {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 1.2rem;
+            height: calc(100vh - 280px);
+        }
+        
+        .barcode-section {
+            background: white;
+            padding: 0.8rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .barcode-input {
+            display: flex;
+            margin-bottom: 0.8rem;
+        }
+        
+        .barcode-input input {
+            flex-grow: 1;
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 5px 0 0 5px;
+            font-size: 1rem;
+        }
+        
+        .barcode-input button {
+            padding: 0 0.8rem;
+            border: 1px solid #ddd;
+            background: var(--light);
+            cursor: pointer;
+        }
+        
+        .pending-packages {
+            background: white;
+            padding: 0.8rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .package-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        
+        .package-table th, .package-table td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .package-table th {
+            background-color: var(--light);
+            font-weight: 600;
+        }
+        
+        .package-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .package-details {
+            background: white;
+            padding: 0.8rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .quick-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.4rem;
+            margin-top: 0.8rem;
+        }
+        
+        .quick-btn {
+            padding: 0.6rem 0.4rem;
+            background: var(--light);
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.8rem;
+            position: relative;
+        }
+        
+        .quick-btn:hover {
+            background: #dfe6e9;
+        }
+        
+        .quantity-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--secondary);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .package-actions {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: var(--accent);
+            color: white;
+        }
+        
+        /* Footer */
+        .app-footer {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+        
+        .container-info {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 5px;
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .toast.success {
+            background-color: var(--success);
+        }
+        
+        .toast.error {
+            background-color: var(--accent);
+        }
+        
+        .toast.warning {
+            background-color: var(--warning);
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .customer-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        
+        .customer-item {
+            padding: 0.8rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        
+        .customer-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .customer-item.selected {
+            background-color: #e3f2fd;
+        }
+        
+        .add-customer-form {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+        
+        .form-row input {
+            flex: 1;
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .packaging-content {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .package-details {
+                grid-column: span 2;
+                margin-top: 1.2rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .packaging-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .package-details {
+                grid-column: span 1;
+            }
+            
+            .packaging-header {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            
+            .customer-info {
+                flex-wrap: wrap;
+            }
+            
+            .app-footer {
+                flex-direction: column;
+                gap: 0.8rem;
+                padding: 0.8rem;
+            }
+        }
     </style>
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 </head>
-<body class="bg-slate-100 text-slate-800">
-
-    <!-- Giriş Ekranı -->
-    <div id="login-screen" class="min-h-screen w-full flex items-center justify-center bg-slate-200">
-        <div class="bg-white p-10 rounded-xl shadow-2xl w-full max-w-md">
-            <h1 class="text-4xl font-bold text-center text-slate-700 mb-2">Giriş / Oturum Aç</h1>
-            <p class="text-center text-slate-500 mb-8">Çamaşırhane Yönetim Sistemine Hoş Geldiniz</p>
-            <form id="login-form">
-                <div class="mb-6">
-                    <label for="username" class="block text-lg font-medium text-slate-600 mb-2">Kullanıcı Adı</label>
-                    <input type="text" id="username" class="w-full px-4 py-3 border border-slate-300 rounded-lg text-lg focus:ring-blue-500" value="operator" required>
-                </div>
-                <div class="mb-6">
-                    <label for="password" class="block text-lg font-medium text-slate-600 mb-2">Şifre</label>
-                    <input type="password" id="password" class="w-full px-4 py-3 border border-slate-300 rounded-lg text-lg focus:ring-blue-500" value="123" required>
-                </div>
-                <div class="mb-6">
-                     <label for="role" class="block text-lg font-medium text-slate-600 mb-2">Rol</label>
-                    <select id="role" class="w-full px-4 py-3 border border-slate-300 rounded-lg text-lg bg-white">
-                        <option value="operator" selected>Operator (Personel)</option>
-                        <option value="supervisor">Supervisor (Süpervizör)</option>
-                    </select>
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-blue-700 transition-colors">Giriş Yap</button>
-                <div class="text-center mt-6">
-                    <a href="#" class="text-blue-600 hover:underline">Şifremi Unuttum</a>
-                </div>
-            </form>
+<body>
+    <!-- Login Screen -->
+    <div class="login-container" id="loginScreen">
+        <div class="login-form">
+            <h1>ProClean - Oturum Aç</h1>
+            <div class="form-group">
+                <label for="username">Kullanıcı Adı</label>
+                <input type="text" id="username" placeholder="Kullanıcı adınızı girin">
+            </div>
+            <div class="form-group">
+                <label for="password">Şifre</label>
+                <input type="password" id="password" placeholder="Şifrenizi girin">
+            </div>
+            <button class="btn btn-primary" onclick="login()">Giriş Yap</button>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn-link">Şifremi Unuttum</button>
+            </div>
         </div>
     </div>
 
-    <!-- Ana Uygulama Ekranı -->
-    <div id="app-screen" class="hidden w-full flex-col">
-        <!-- Üst Header -->
-        <header class="bg-white shadow-md p-3 flex justify-between items-center flex-shrink-0">
-            <div class="flex items-center space-x-4">
-                <h1 class="text-2xl font-bold text-blue-600">PROBAR</h1>
-                <nav id="tab-navigation" class="flex items-center border border-slate-300 rounded-lg p-1">
-                    <button data-tab="paketleme" class="tab-btn active text-lg font-semibold px-6 py-2 rounded-md">Paketleme</button>
-                    <button data-tab="sevkiyat" class="tab-btn text-lg font-semibold px-6 py-2 rounded-md">Sevkiyat</button>
-                    <button data-tab="stok-sorgu" class="tab-btn text-lg font-semibold px-6 py-2 rounded-md">Stok Sorgu</button>
-                </nav>
+    <!-- Main Application -->
+    <div class="app-container" id="appContainer">
+        <!-- Header -->
+        <div class="app-header">
+            <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
+            <div class="user-info">
+                <span id="userRole">Operatör: Ahmet Yılmaz</span>
+                <button class="btn btn-danger" onclick="logout()">Çıkış Yap</button>
             </div>
-            <div class="flex items-center space-x-4">
-                <div class="text-right">
-                    <div id="user-display" class="font-semibold text-lg">Kullanıcı Adı</div>
-                    <div id="role-display" class="text-sm text-slate-500">Rol</div>
-                </div>
-                <button id="logout-btn" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">Çıkış Yap</button>
-            </div>
-        </header>
+        </div>
 
-        <!-- Sayfa İçerikleri -->
-        <main class="flex flex-col p-4 bg-slate-50">
-            <!-- Paketleme Sayfası -->
-            <div id="paketleme-page" class="page active flex-col">
-                <!-- Üst Kontrol Paneli -->
-                <div class="flex-shrink-0 bg-white p-3 rounded-lg shadow-sm mb-4">
-                    <div class="flex justify-between items-start">
-                        <div class="flex items-center space-x-4">
-                            <div>
-                                <label for="customer-select" class="text-sm font-medium text-slate-500">Müşteri</label>
-                                <select id="customer-select" class="w-64 p-2 border border-slate-300 rounded-md bg-white text-lg">
-                                    <option value="P0006">P0006 - LALELİ HAMİT</option>
-                                    <option value="P0012">P0012 - ACIBADEM HASTANESİ</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="staff-select" class="text-sm font-medium text-slate-500">Personel</label>
-                                <select id="staff-select" class="w-48 p-2 border border-slate-300 rounded-md bg-white text-lg">
-                                    <option>paket1</option>
-                                    <option>paket2</option>
-                                </select>
-                            </div>
-                             <h2 id="customer-name-display" class="text-4xl font-extrabold text-slate-800 self-end ml-6">LALELİ HAMİT</h2>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                             <button class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-100">Müşteri Seç</button>
-                             <button class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-100">Tüm Müş. Göster</button>
-                             <button class="bg-amber-500 text-white px-4 py-2 rounded-md hover:bg-amber-600 supervisor-only">İş Sonu</button>
-                        </div>
-                    </div>
-                </div>
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('packaging')">Paketleme</div>
+            <div class="tab" onclick="switchTab('shipping')">Sevkiyat</div>
+            <div class="tab" onclick="switchTab('stock')">Stok Sorgu</div>
+        </div>
 
-                <!-- Ana Çalışma Alanı -->
-                <div class="grid grid-cols-12 gap-4">
-                    <!-- Sol Panel -->
-                    <div class="col-span-12 lg:col-span-4 flex flex-col gap-4">
-                        <div class="bg-white p-3 rounded-lg shadow-sm flex-shrink-0">
-                            <h3 class="text-lg font-semibold mb-2">Paket Oluştur</h3>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-sm text-slate-500">Ürün Ekle</span>
-                                <input type="text" id="barcode-input" placeholder="Barkod Okutun..." class="flex-grow text-lg p-2 border-2 border-slate-300 rounded-lg">
-                            </div>
-                            <div class="flex justify-between items-center mt-2">
-                                <span class="text-sm text-slate-500">Aynı paket sayısı:</span>
-                                <span class="font-bold text-lg">1</span>
-                            </div>
-                        </div>
-                        <div class="bg-white p-3 rounded-lg shadow-sm">
-                            <h3 class="text-lg font-semibold mb-2">Bekleyen Paketler</h3>
-                            <div class="flex items-center space-x-2 mb-2">
-                                <span class="text-sm">Toplam Bekleyen: <span id="package-count" class="font-bold">0</span></span>
-                            </div>
-                            <div class="overflow-y-auto max-h-[400px]">
-                                <table class="w-full text-left text-sm">
-                                    <thead class="bg-slate-200">
-                                        <tr>
-                                            <th class="p-2 w-12"><input type="checkbox" id="select-all-packages"></th>
-                                            <th class="p-2">Sıra</th>
-                                            <th class="p-2">Paket No</th>
-                                            <th class="p-2">T. Miktar</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="pending-packages-table">
-                                        <!-- Dinamik olarak doldurulacak -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Orta Panel -->
-                    <div class="col-span-12 lg:col-span-4 flex flex-col gap-4">
-                        <div class="bg-white p-3 rounded-lg shadow-sm">
-                            <h3 class="text-lg font-semibold mb-2">Paket Detayı</h3>
-                            <div class="flex justify-between items-center mb-2">
-                                <div class="flex items-center space-x-2">
-                                     <button class="bg-slate-200 p-1 rounded-full text-lg hover:bg-slate-300">▲</button>
-                                     <button class="bg-slate-200 p-1 rounded-full text-lg hover:bg-slate-300">▼</button>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <button class="px-3 py-1 text-sm rounded-md bg-green-500 text-white hover:bg-green-600">MANUEL</button>
-                                    <button class="px-3 py-1 text-sm rounded-md bg-blue-500 text-white hover:bg-blue-600">Ürün Ekle</button>
-                                </div>
-                            </div>
-                            <div id="package-item-details" class="min-h-[200px] max-h-[400px] overflow-y-auto bg-slate-50 p-2 rounded">
-                                <p class="text-slate-500">Yeni bir paket oluşturmak için barkod okutun veya hızlı ekle butonlarını kullanın.</p>
-                            </div>
-                        </div>
-                        <div class="bg-white p-3 rounded-lg shadow-sm flex-shrink-0">
-                            <h3 class="text-lg font-semibold mb-2">TANIMLA</h3>
-                            <div class="grid grid-cols-2 gap-2">
-                                <button class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200">Temizle / Yeni</button>
-                                <div class="p-2 rounded-lg bg-red-100 text-center">
-                                    <div class="text-xl font-bold text-red-700" id="undefined-count">0</div>
-                                    <div class="text-sm text-red-600">Tanımsız Adet</div>
-                                </div>
-                                <div class="p-2 rounded-lg bg-blue-100 text-center">
-                                    <div class="text-xl font-bold text-blue-700" id="defined-count">0</div>
-                                    <div class="text-sm text-blue-600">Tanımlı Adet</div>
-                                </div>
-                                <div class="p-2 rounded-lg bg-slate-100 text-center">
-                                    <div class="text-xl font-bold">0</div>
-                                    <div class="text-sm">Ortalama Adet</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sağ Panel -->
-                    <div class="col-span-12 lg:col-span-4 flex flex-col gap-4">
-                        <div class="bg-white p-3 rounded-lg shadow-sm">
-                            <h3 class="text-lg font-semibold mb-2">Hızlı Ekle</h3>
-                            <div id="quick-add-grid" class="grid grid-cols-3 gap-2">
-                                <!-- Dinamik olarak doldurulacak -->
-                            </div>
-                        </div>
-                        <div class="bg-white p-3 rounded-lg shadow-sm flex-shrink-0">
-                            <button id="save-package-btn" class="w-full text-2xl font-bold bg-green-600 text-white rounded-lg px-8 py-6 hover:bg-green-700">(F2) Paketle / Kaydet</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Alt Menü -->
-                <footer class="flex-shrink-0 bg-white mt-4 p-2 rounded-lg shadow-inner flex justify-between items-center">
-                    <div class="flex items-center space-x-2">
-                        <button class="px-3 py-2 border rounded hover:bg-slate-100">Etiket Bas</button>
-                        <button id="select-all-btn-footer" class="px-3 py-2 border rounded hover:bg-slate-100">Tümünü Seç</button>
-                        <button id="deselect-all-btn-footer" class="px-3 py-2 border rounded hover:bg-slate-100">Seçimi Kaldır</button>
-                        <button id="delete-package-btn" class="px-3 py-2 border rounded bg-red-100 text-red-600 hover:bg-red-200 supervisor-only">Paket Sil</button>
-                    </div>
-                     <div class="flex items-center space-x-2">
-                         <button class="px-3 py-2 border rounded hover:bg-slate-100">Mev. K.</button>
-                         <button class="px-3 py-2 border rounded hover:bg-slate-100">Yeni K.</button>
-                         <div class="text-lg font-mono">Konteyner No: <span id="container-no">C000094</span></div>
-                    </div>
-                     <div class="flex items-center space-x-2">
-                        <button class="px-3 py-2 border rounded hover:bg-slate-100 supervisor-only">Konteyner Sil</button>
-                        <button class="px-3 py-2 border rounded bg-blue-500 text-white hover:bg-blue-600">Kon. Rampaya Gönder</button>
-                    </div>
-                </footer>
-            </div>
-
-            <!-- Sevkiyat Sayfası -->
-            <div id="sevkiyat-page" class="page flex-col">
-                 <div class="bg-white p-3 rounded-lg shadow-sm mb-4 flex-shrink-0">
-                    <h2 class="text-2xl font-bold mb-3">Sevkiyat Filtrele</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                        <div class="flex space-x-2">
-                            <div>
-                                <label class="text-sm font-medium">Başlangıç Tarihi</label>
-                                <input type="date" class="w-full p-2 border rounded-md">
-                            </div>
-                            <div>
-                                <label class="text-sm font-medium">Bitiş Tarihi</label>
-                                <input type="date" class="w-full p-2 border rounded-md">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium">Durum</label>
-                            <select class="w-full p-2 border rounded-md bg-white"><option>Beklemede</option><option>Rampaya Gönderildi</option><option>Gönderildi</option></select>
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium">Konteyner No</label>
-                            <input type="text" class="w-full p-2 border rounded-md">
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium">Müşteri</label>
-                            <select class="w-full p-2 border rounded-md bg-white"><option>P0006 - LALELİ HAMİT</option><option>P0012 - ACIBADEM HASTANESİ</option></select>
-                        </div>
-                         <button class="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700">Filtrele</button>
-                    </div>
-                </div>
-                 <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-8 flex flex-col bg-white rounded-lg shadow-sm">
-                        <h3 class="p-3 text-lg font-semibold bg-slate-100 flex-shrink-0">Paket Listesi</h3>
-                        <div class="overflow-y-auto max-h-[400px]">
-                           <table class="w-full text-left text-sm">
-                                <thead class="bg-slate-200">
-                                    <tr>
-                                        <th class="p-2">Paket No</th>
-                                        <th class="p-2">Müşteri</th>
-                                        <th class="p-2">Konteyner No</th>
-                                        <th class="p-2">Durum</th>
-                                        <th class="p-2">Toplam Ürün</th>
-                                        <th class="p-2">Aksiyonlar</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="shipment-packages-table">
-                                    <!-- Dinamik olarak doldurulacak -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="col-span-4 bg-white rounded-lg shadow-sm p-4">
-                        <h3 class="text-lg font-semibold mb-3">Konteyner Detayı (C000094)</h3>
-                        <ul id="container-details-list" class="space-y-1 mb-4 max-h-[400px] overflow-y-auto bg-slate-50 p-2 rounded">
-                            <!-- Dinamik olarak doldurulacak -->
-                        </ul>
-                        <div class="space-y-2">
-                             <button class="w-full text-center py-2 border rounded bg-blue-500 text-white hover:bg-blue-600">Konteyner Rampa Gönder</button>
-                             <button class="w-full text-center py-2 border rounded hover:bg-slate-100 supervisor-only">Konteyneri Kapat</button>
-                        </div>
-                         <div class="mt-8">
-                             <h3 class="text-lg font-semibold mb-3">Rapor & Export</h3>
-                             <div class="flex space-x-2">
-                                <button class="flex-1 text-center py-2 border rounded bg-green-100 text-green-700 hover:bg-green-200">CSV Export</button>
-                                <button class="flex-1 text-center py-2 border rounded bg-red-100 text-red-700 hover:bg-red-200">PDF Export</button>
-                             </div>
-                         </div>
-                    </div>
-                 </div>
-            </div>
-
-            <!-- Stok Sorgu Sayfası -->
-            <div id="stok-sorgu-page" class="page flex-col">
-                <div class="bg-white p-3 rounded-lg shadow-sm mb-4 flex-shrink-0">
-                    <h2 class="text-2xl font-bold mb-3">Stok Sorgulama</h2>
-                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div>
-                            <label class="text-sm font-medium">Stok Kodu</label>
-                            <input type="text" class="w-full p-2 border rounded-md">
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium">Stok İsmi</label>
-                            <input type="text" class="w-full p-2 border rounded-md">
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium">Kategori</label>
-                            <select id="stock-category-filter" class="w-full p-2 border rounded-md bg-white">
-                                <option>Tümü</option>
+        <!-- Content -->
+        <div class="tab-content">
+            <!-- Packaging Tab -->
+            <div class="tab-pane active" id="packagingTab">
+                <div class="packaging-header">
+                    <div class="customer-info">
+                        <div class="info-group">
+                            <label for="customer">Müşteri</label>
+                            <select id="customer">
+                                <!-- Müşteriler dinamik olarak eklenecek -->
                             </select>
                         </div>
-                        <div class="flex space-x-2">
-                            <button class="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700">Ara</button>
-                            <button class="w-full bg-slate-200 text-slate-700 p-2 rounded-md hover:bg-slate-300">Temizle</button>
+                        <div class="info-group">
+                            <label for="personnel">Personel</label>
+                            <select id="personnel">
+                                <option value="user1">Paket1 - Ahmet Yılmaz</option>
+                                <option value="user2">Paket2 - Mehmet Demir</option>
+                            </select>
+                        </div>
+                        <div class="info-group">
+                            <label>Müşteri Adı</label>
+                            <span><strong id="customerName">Lütfen müşteri seçin</strong></span>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="showCustomerSelection()">Müşteri Seç</button>
+                        <button class="btn" onclick="showAllCustomers()">Tüm Müş. Göster</button>
+                        <button class="btn btn-warning">İş Sonu</button>
+                    </div>
+                </div>
+
+                <div class="packaging-content">
+                    <!-- Barcode Section -->
+                    <div class="barcode-section">
+                        <h3>Barkod İşlemleri</h3>
+                        <div class="barcode-input">
+                            <input type="text" id="barcodeInput" placeholder="Barkodu okutun veya girin" autofocus>
+                            <button><i class="fas fa-search"></i></button>
+                            <button><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="barcode-counter">
+                            <span>Okutulan barkod sayısı: <strong id="barcodeCount">0</strong></span>
+                        </div>
+                        <div class="barcode-preview">
+                            <svg id="barcode"></svg>
+                        </div>
+                    </div>
+
+                    <!-- Pending Packages -->
+                    <div class="pending-packages">
+                        <h3>Bekleyen Paketler</h3>
+                        <table class="package-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAllPackages"></th>
+                                    <th>Sıra</th>
+                                    <th>Paket No</th>
+                                    <th>T. Miktar</th>
+                                    <th>P. Zamanı</th>
+                                    <th>Cari Kod</th>
+                                    <th>Cari Ünvan</th>
+                                    <th>Paketleyen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="packagesTableBody">
+                                <!-- Paketler dinamik olarak eklenecek -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Package Details -->
+                    <div class="package-details">
+                        <h3>Paket Detayları</h3>
+                        <div class="selected-package">
+                            <p><strong>Seçili Paket:</strong> <span id="selectedPackage">Yok</span></p>
+                            <p><strong>Stok Kodu:</strong> <span id="stockCode">-</span></p>
+                            <p><strong>Cinsi:</strong> <span id="itemType">-</span></p>
+                            <p><strong>Miktar:</strong> <span id="itemQuantity">0</span></p>
+                        </div>
+
+                        <h4>Hızlı Ürün Ekleme</h4>
+                        <div class="quick-buttons" id="quickButtons">
+                            <!-- Hızlı ürün butonları dinamik olarak eklenecek -->
+                        </div>
+
+                        <div class="package-actions">
+                            <button class="btn">MANUEL</button>
+                            <div class="definition-panel">
+                                <p>Tanımsız Adet: <span style="color: red;" id="undefinedCount">0</span></p>
+                                <p>Tanımlı Adet: <span style="color: blue;" id="definedCount">0</span></p>
+                                <p>Ortalama Adet: <span id="averageCount">0</span></p>
+                            </div>
+                            <button class="btn btn-success" onclick="savePackage()">(F2) Paketle / Kaydet</button>
                         </div>
                     </div>
                 </div>
-                <div class="bg-white rounded-lg shadow-sm overflow-y-auto max-h-[600px]">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-200 sticky top-0">
-                            <tr>
-                                <th class="p-3">Stok Kodu</th>
-                                <th class="p-3">Stok İsmi</th>
-                                <th class="p-3">Miktar</th>
-                                <th class="p-3">Depo Konumu</th>
-                                <th class="p-3">Günlük Hareket</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stock-query-results">
-                            <!-- Dinamik olarak doldurulacak -->
-                        </tbody>
-                    </table>
-                </div>
             </div>
-        </main>
+
+            <!-- Shipping Tab -->
+            <div class="tab-pane" id="shippingTab">
+                <h2>Sevkiyat Yönetimi</h2>
+                <p>Bu sekme sevkiyat işlemleri için kullanılacaktır.</p>
+                <!-- Content for shipping tab would be added here -->
+            </div>
+
+            <!-- Stock Tab -->
+            <div class="tab-pane" id="stockTab">
+                <h2>Stok Sorgulama</h2>
+                <p>Bu sekme stok sorgulama işlemleri için kullanılacaktır.</p>
+                <!-- Content for stock tab would be added here -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="app-footer">
+            <div class="footer-actions">
+                <button class="btn" onclick="printLabel()"><i class="fas fa-print"></i> Etiket Bas</button>
+                <button class="btn" onclick="selectAllPackages()">Tümünü Seç</button>
+                <button class="btn" onclick="clearSelection()">Seçimi Kaldır</button>
+                <button class="btn btn-danger" onclick="deletePackage()">Paket Sil</button>
+            </div>
+            <div class="container-info">
+                <button class="btn">Mev. K.</button>
+                <button class="btn">Yeni K.</button>
+                <span>Konteyner No: <span id="containerNumber">C000094</span></span>
+            </div>
+            <div class="footer-actions">
+                <button class="btn btn-danger" onclick="deleteContainer()">Konteyner Sil</button>
+                <button class="btn btn-success" onclick="sendToRamp()">Kon. Rampaya Gönder</button>
+            </div>
+        </div>
     </div>
-    
-    <!-- Modal ve Toast Alanı -->
-    <div id="modal-container"></div>
-    <div id="toast-container"></div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        
-        // --- MOCK DATA ---
-        const MOCK_USERS = {
-            operator: { username: 'operator', password: '123', role: 'operator', name: 'Ayşe Yılmaz' },
-            supervisor: { username: 'supervisor', password: '123', role: 'supervisor', name: 'Ahmet Kaya' },
-        };
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
 
-        const MOCK_STOCK = {
-            '8691234567890': { kod: 'CRS001', isim: 'ÇARŞAF', kategori: 'Tekstil', miktar: 1500, depo: 'A1-01' },
-            '8691234567891': { kod: 'HVL002', isim: 'HAVLU', kategori: 'Tekstil', miktar: 3200, depo: 'A1-02' },
-            '8691234567892': { kod: 'ALZ003', isim: 'ALEZ', kategori: 'Tekstil', miktar: 800, depo: 'B2-05' },
-            '8691234567893': { kod: 'BCRS004', isim: 'BÜYÜK ÇARŞAF YIKAMA', kategori: 'Hizmet', miktar: null, depo: 'N/A' },
-            '8691234567894': { kod: 'NVR005', isim: 'NEVRESİM', kategori: 'Tekstil', miktar: 1250, depo: 'A1-03' },
-            '8691234567895': { kod: 'PIK006', isim: 'PİKE', kategori: 'Tekstil', miktar: 600, depo: 'B2-06' },
-            '8691234567896': { kod: 'YST007', isim: 'YASTIK', kategori: 'Tekstil', miktar: 2100, depo: 'C3-01' },
-            '8691234567897': { kod: 'YKL008', isim: 'YASTIK KILIFI', kategori: 'Tekstil', miktar: 4500, depo: 'C3-02' },
-            '8691234567898': { kod: 'DGR009', isim: 'DİĞER', kategori: 'Genel', miktar: 0, depo: 'N/A' },
-        };
-        
-        const QUICK_ADD_ITEMS = ['ÇARŞAF', 'HAVLU', 'ALEZ', 'BÜYÜK ÇARŞAF YIKAMA', 'NEVRESİM', 'PİKE', 'YASTIK', 'YASTIK KILIFI', 'DİĞER'];
-
-        let MOCK_PENDING_PACKAGES = [
-            { id: 1, no: 'PK00123', miktar: 15, zaman: '10:32', cariKod: 'P0006', cariUnvan: 'LALELİ HAMİT', paketleyen: 'paket1' },
-            { id: 2, no: 'PK00124', miktar: 8, zaman: '10:35', cariKod: 'P0006', cariUnvan: 'LALELİ HAMİT', paketleyen: 'paket1' },
-        ];
-        
-        let MOCK_SHIPMENT_PACKAGES = [
-            { no: 'PK00120', musteri: 'ACIBADEM HASTANESİ', konteyner: 'C000093', durum: 'Gönderildi', urun: 25 },
-            { no: 'PK00121', musteri: 'LALELİ HAMİT', konteyner: 'C000094', durum: 'Rampaya Gönderildi', urun: 18 },
-            { no: 'PK00122', musteri: 'LALELİ HAMİT', konteyner: 'C000094', durum: 'Rampaya Gönderildi', urun: 32 },
-        ]
-
-        // --- STATE MANAGEMENT ---
-        let currentUser = null;
-        let currentPackage = {
-            items: {},
-            tanimsiz: 0,
-        };
-        let packageCounter = MOCK_PENDING_PACKAGES.length;
-
-        // --- DOM Elements ---
-        const loginScreen = document.getElementById('login-screen');
-        const appScreen = document.getElementById('app-screen');
-        const loginForm = document.getElementById('login-form');
-        const logoutBtn = document.getElementById('logout-btn');
-        const userDisplay = document.getElementById('user-display');
-        const roleDisplay = document.getElementById('role-display');
-        const tabNavigation = document.getElementById('tab-navigation');
-        const pages = document.querySelectorAll('.page');
-        const barcodeInput = document.getElementById('barcode-input');
-        const definedCountEl = document.getElementById('defined-count');
-        const undefinedCountEl = document.getElementById('undefined-count');
-        const packageItemDetailsEl = document.getElementById('package-item-details');
-        const savePackageBtn = document.getElementById('save-package-btn');
-        const quickAddGrid = document.getElementById('quick-add-grid');
-        const pendingPackagesTable = document.getElementById('pending-packages-table');
-        const packageCountEl = document.getElementById('package-count');
-        const customerNameDisplay = document.getElementById('customer-name-display');
-        const customerSelect = document.getElementById('customer-select');
-        const shipmentPackagesTable = document.getElementById('shipment-packages-table');
-        const containerDetailsList = document.getElementById('container-details-list');
-        const stockQueryResults = document.getElementById('stock-query-results');
-        const stockCategoryFilter = document.getElementById('stock-category-filter');
-        const deletePackageBtn = document.getElementById('delete-package-btn');
-
-        // --- SYSTEM WRAPPERS (Desktop Integration Placeholders) ---
-        const SystemAPI = {
-            saveFile: (data, fileName) => {
-                console.log(`[DESKTOP WRAPPER] Saving file: ${fileName}`, data);
-                // Web fallback
-                const blob = new Blob([data], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                showToast('Dosya indirildi.', 'success');
-            },
-            openFile: () => {
-                console.log('[DESKTOP WRAPPER] Opening file dialog.');
-                // Web fallback
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.click();
-            },
-            print: (content) => {
-                console.log('[DESKTOP WRAPPER] Printing content.');
-                 // Web fallback
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(content);
-                printWindow.document.close();
-                printWindow.focus();
-                printWindow.print();
-            },
-            sendEmail: (to, subject, body) => {
-                 console.log(`[EMAIL WRAPPER] Sending email to: ${to}`);
-                 console.log(`Subject: ${subject}`);
-                 console.log(`Body: ${body}`);
-                 // Gerçek bir API çağrısı burada olur.
-                 return new Promise(resolve => setTimeout(() => resolve({success: true}), 500));
-            },
-        };
-
-        // --- UI FUNCTIONS ---
-        const showToast = (message, type = 'success') => {
-            const toastContainer = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.textContent = message;
-            toastContainer.appendChild(toast);
-            setTimeout(() => { toast.classList.add('show'); }, 10);
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => { toast.remove(); }, 300);
-            }, 3000);
-        };
-
-        const showModal = (title, content, buttons) => {
-            const modalContainer = document.getElementById('modal-container');
-            const modalOverlay = document.createElement('div');
-            modalOverlay.className = 'modal-overlay';
-            
-            let buttonsHtml = buttons.map(btn => 
-                `<button class="px-6 py-2 rounded-md ${btn.class}" data-action="${btn.action}">${btn.text}</button>`
-            ).join('');
-
-            modalOverlay.innerHTML = `
-                <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-                    <h2 class="text-2xl font-bold mb-4">${title}</h2>
-                    <p class="text-slate-600 mb-6">${content}</p>
-                    <div class="flex justify-end space-x-4">
-                        ${buttonsHtml}
+    <!-- Müşteri Seçim Modal -->
+    <div class="modal" id="customerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Müşteri Seçimi</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody">
+                <div class="customer-list" id="customerList">
+                    <!-- Müşteri listesi buraya dinamik olarak eklenecek -->
+                </div>
+                <div class="add-customer-form">
+                    <h4>Yeni Müşteri Ekle</h4>
+                    <div class="form-row">
+                        <input type="text" id="newCustomerCode" placeholder="Müşteri Kodu">
+                        <input type="text" id="newCustomerName" placeholder="Müşteri Adı">
+                    </div>
+                    <div class="form-row">
+                        <input type="email" id="newCustomerEmail" placeholder="E-posta">
+                        <button class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
                     </div>
                 </div>
-            `;
-            
-            modalContainer.appendChild(modalOverlay);
+            </div>
+        </div>
+    </div>
 
-            return new Promise((resolve) => {
-                modalOverlay.addEventListener('click', (e) => {
-                    if (e.target.tagName === 'BUTTON') {
-                        const action = e.target.dataset.action;
-                        modalOverlay.remove();
-                        resolve(action);
+    <script>
+        // Simüle edilmiş veritabanı
+        const users = [
+            { username: "operator", password: "1234", role: "operator", name: "Ahmet Yılmaz" },
+            { username: "supervisor", password: "1234", role: "supervisor", name: "Mehmet Demir" }
+        ];
+        
+        let customers = [
+            { code: "P0006", name: "LALELİ HAMİT", email: "hamit@lalelitextile.com" },
+            { code: "P0007", name: "BEYOĞLU TEKSTİL", email: "info@beyoglutextile.com" },
+            { code: "P0008", name: "ŞİŞLİ OTEL", email: "reservations@sisliotel.com" }
+        ];
+        
+        let packages = [
+            { id: 1, packageNo: "PKG-0001", totalQuantity: 5, packageTime: "12.05.2023 14:30", customerCode: "P0006", customerName: "Laleli Hamit", packer: "Ahmet Yılmaz", selected: false },
+            { id: 2, packageNo: "PKG-0002", totalQuantity: 3, packageTime: "12.05.2023 14:45", customerCode: "P0006", customerName: "Laleli Hamit", packer: "Ahmet Yılmaz", selected: false }
+        ];
+        
+        const products = [
+            { id: 1, name: "ÇARŞAF", code: "CHS-001", type: "Çarşaf" },
+            { id: 2, name: "HAVLU", code: "HVL-001", type: "Havlu" },
+            { id: 3, name: "ALEZ", code: "ALZ-001", type: "Alez" },
+            { id: 4, name: "BÜYÜK ÇARŞAF YIKAMA", code: "BCY-001", type: "Büyük Çarşaf" },
+            { id: 5, name: "NEVRESİM", code: "NVR-001", type: "Nevresim" },
+            { id: 6, name: "PİKE", code: "PIK-001", type: "Pike" },
+            { id: 7, name: "YASTIK", code: "YST-001", type: "Yastık" },
+            { id: 8, name: "YASTIK KILIFI", code: "YKL-001", type: "Yastık Kılıfı" },
+            { id: 9, name: "DİĞER", code: "DGR-001", type: "Diğer" }
+        ];
+        
+        let currentUser = null;
+        let selectedCustomer = null;
+        let selectedPackage = null;
+        let barcodeCount = 0;
+        let quickProductQuantities = {};
+        let currentContainer = "C000094";
+        
+        // DOM Elements
+        const loginScreen = document.getElementById('loginScreen');
+        const appContainer = document.getElementById('appContainer');
+        const toast = document.getElementById('toast');
+        const modal = document.getElementById('customerModal');
+        const customerSelect = document.getElementById('customer');
+        const customerNameSpan = document.getElementById('customerName');
+        const packagesTableBody = document.getElementById('packagesTableBody');
+        const quickButtonsContainer = document.getElementById('quickButtons');
+        const barcodeCountSpan = document.getElementById('barcodeCount');
+        const selectAllCheckbox = document.getElementById('selectAllPackages');
+        
+        // Initialize application
+        function initApp() {
+            // Müşteri dropdown'ını doldur
+            populateCustomerDropdown();
+            
+            // Paket tablosunu doldur
+            populatePackagesTable();
+            
+            // Hızlı ürün butonlarını oluştur
+            createQuickProductButtons();
+            
+            // Initialize barcode
+            JsBarcode("#barcode", "PKG-0001", {
+                format: "CODE128",
+                displayValue: true,
+                fontSize: 16,
+                height: 40
+            });
+            
+            // Event listeners
+            document.getElementById('barcodeInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    processBarcode(this.value);
+                    this.value = '';
+                }
+            });
+            
+            selectAllCheckbox.addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                    // Paket seçim durumunu güncelle
+                    const packageId = parseInt(checkbox.dataset.id);
+                    const packageIndex = packages.findIndex(p => p.id === packageId);
+                    if (packageIndex !== -1) {
+                        packages[packageIndex].selected = this.checked;
                     }
                 });
             });
-        };
-        
-        const updateRoleUI = () => {
-            if (currentUser.role === 'supervisor') {
-                appScreen.classList.add('supervisor-enabled');
-                document.body.classList.add('supervisor-enabled-block'); // for block elements
-            } else {
-                appScreen.classList.remove('supervisor-enabled');
-                document.body.classList.remove('supervisor-enabled-block');
-            }
-        };
-
-        // --- APP LOGIC ---
-        const handleLogin = (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const role = document.getElementById('role').value;
-
-            const user = (role === 'operator') ? MOCK_USERS.operator : MOCK_USERS.supervisor;
-
-            if (user) {
-                currentUser = { ...user };
-                loginScreen.style.display = 'none';
-                appScreen.style.display = 'flex';
-                userDisplay.textContent = currentUser.name;
-                roleDisplay.textContent = currentUser.role === 'operator' ? 'Operatör' : 'Süpervizör';
-                updateRoleUI();
-                initializePaketlemePage();
-                initializeSevkiyatPage();
-                initializeStokSorguPage();
-                barcodeInput.focus();
-            } else {
-                showToast('Geçersiz kullanıcı adı veya şifre.', 'error');
-            }
-        };
-
-        const handleLogout = () => {
-            currentUser = null;
-            loginScreen.style.display = 'flex';
-            appScreen.style.display = 'none';
-            document.getElementById('login-form').reset();
-        };
-
-        const switchTab = (tabName) => {
-            tabNavigation.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === tabName);
-            });
-            pages.forEach(page => {
-                page.classList.toggle('active', page.id === `${tabName}-page`);
-            });
-        };
-
-        // --- PAKETLEME SAYFASI LOGIC ---
-        const initializePaketlemePage = () => {
-            renderPendingPackages();
-            renderQuickAddButtons();
-            updatePackageCounts();
-            packageCountEl.textContent = MOCK_PENDING_PACKAGES.length;
-            customerNameDisplay.textContent = customerSelect.options[customerSelect.selectedIndex].text.split(' - ')[1];
-            updatePackageDetails(); // Yeni eklendi
-        };
-        
-        const renderPendingPackages = () => {
-            pendingPackagesTable.innerHTML = MOCK_PENDING_PACKAGES.map((pkg, index) => `
-                <tr class="hover:bg-slate-50 cursor-pointer" data-id="${pkg.id}">
-                    <td class="p-2 w-12"><input type="checkbox" class="package-checkbox"></td>
-                    <td class="p-2">${index + 1}</td>
-                    <td class="p-2">${pkg.no}</td>
-                    <td class="p-2">${pkg.miktar}</td>
-                </tr>
-            `).join('');
-        };
-        
-        const renderQuickAddButtons = () => {
-            quickAddGrid.innerHTML = QUICK_ADD_ITEMS.map(item => `
-                <button data-item-name="${item}" class="quick-add-btn text-sm font-semibold p-2 border rounded-lg bg-slate-50 hover:bg-blue-100 hover:border-blue-400 transition-all">${item}</button>
-            `).join('');
-        };
-
-        const updatePackageCounts = () => {
-            const definedTotal = Object.values(currentPackage.items).reduce((sum, item) => sum + item.qty, 0);
-            definedCountEl.textContent = definedTotal;
-            undefinedCountEl.textContent = currentPackage.tanimsiz;
-        };
-        
-        // Bu fonksiyon, Paket Detayları panelini güncelliyor
-        const updatePackageDetails = () => {
-             if (Object.keys(currentPackage.items).length === 0 && currentPackage.tanimsiz === 0) {
-                 packageItemDetailsEl.innerHTML = '<p class="text-slate-500">Yeni bir paket oluşturmak için barkod okutun veya hızlı ekle butonlarını kullanın.</p>';
-                 return;
-             }
-             let html = '<ul class="space-y-1 text-sm">';
-             for(const [kod, item] of Object.entries(currentPackage.items)) {
-                html += `<li class="flex justify-between items-center p-1 rounded hover:bg-slate-200 cursor-pointer" data-item-kod="${kod}"><span>${item.isim}</span><span class="font-bold bg-blue-200 text-blue-800 px-2 rounded-full">${item.qty}</span></li>`;
-             }
-             if (currentPackage.tanimsiz > 0) {
-                 html += `<li class="flex justify-between items-center p-1 rounded bg-red-100 hover:bg-red-200 cursor-pointer"><span>Tanımsız Ürün</span><span class="font-bold text-red-800 px-2 rounded-full">${currentPackage.tanimsiz}</span></li>`;
-             }
-             html += '</ul>';
-             packageItemDetailsEl.innerHTML = html;
-        };
-
-        const addItemToPackage = (item) => {
-            if (currentPackage.items[item.kod]) {
-                currentPackage.items[item.kod].qty++;
-            } else {
-                currentPackage.items[item.kod] = { ...item, qty: 1 };
-            }
-            updatePackageCounts();
-            updatePackageDetails();
-        };
-
-        const handleBarcodeScan = () => {
-            const barcode = barcodeInput.value.trim();
-            if (!barcode) return;
-
-            const stockItem = Object.values(MOCK_STOCK).find(s => s.kod === barcode) || MOCK_STOCK[barcode];
-            if (stockItem) {
-                addItemToPackage(stockItem);
-                showToast(`${stockItem.isim} eklendi.`, 'success');
-            } else {
-                currentPackage.tanimsiz++;
-                updatePackageCounts();
-                updatePackageDetails(); // Tanımsız ürün eklendiğinde de detayları güncelle
-                showToast('Tanımsız barkod okutuldu.', 'warning');
-            }
-            barcodeInput.value = '';
-            barcodeInput.focus();
-        };
-
-        const handleQuickAdd = (e) => {
-            const itemName = e.target.dataset.itemName;
-            if (!itemName) return;
             
-            const stockItem = Object.values(MOCK_STOCK).find(s => s.isim === itemName);
-            if(stockItem){
-                addItemToPackage(stockItem);
-                showToast(`${stockItem.isim} eklendi.`, 'success');
-            } else {
-                showToast('Hızlı ekleme ürünü bulunamadı!', 'error');
-            }
-        };
-
-        const handleSavePackage = async () => {
-            const totalItems = Object.values(currentPackage.items).reduce((sum, item) => sum + item.qty, 0) + currentPackage.tanimsiz;
-            if (totalItems === 0) {
-                showModal('Hata', 'Pakete kaydedilecek en az 1 ürün eklenmelidir.', [{text: 'Tamam', class: 'bg-blue-500 text-white', action: 'ok'}]);
-                return;
-            }
-
-            const newPackageNo = `PK${String(125 + MOCK_PENDING_PACKAGES.length + 1).padStart(5, '0')}`;
-            const now = new Date();
-            const newPackage = {
-                id: MOCK_PENDING_PACKAGES.length + 1,
-                no: newPackageNo,
-                miktar: totalItems,
-                zaman: `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`,
-                cariKod: customerSelect.value,
-                cariUnvan: customerSelect.options[customerSelect.selectedIndex].text.split(' - ')[1],
-                paketleyen: document.getElementById('staff-select').value
-            };
-            
-            MOCK_PENDING_PACKAGES.push(newPackage);
-            packageCountEl.textContent = MOCK_PENDING_PACKAGES.length;
-
-            renderPendingPackages();
-            resetCurrentPackage();
-            showToast('Paket başarıyla kaydedildi!', 'success');
-            
-            // Etiket oluştur ve e-posta gönder
-            const labelContent = generateLabelContent(newPackage, currentPackage.items);
-            SystemAPI.print(labelContent);
-            
-            const emailBody = `Sayın ${newPackage.cariUnvan}, ${newPackage.no} numaralı paketiniz ${totalItems} adet ürün ile oluşturulmuştur.`;
-            await SystemAPI.sendEmail('musteri@ornek.com', `Paketiniz #${newPackage.no} Oluşturuldu`, emailBody);
-        };
-        
-        const generateLabelContent = (packageInfo, items) => {
-            let itemsList = Object.values(items).map(i => `<li>${i.isim}: ${i.qty}</li>`).join('');
-            return `
-                <html><head><title>Etiket</title><style>body{font-family: sans-serif; margin: 10px;} h1{font-size: 18px;} p{font-size: 14px;} ul{padding-left: 20px;}</style></head><body>
-                <h1>Paket No: ${packageInfo.no}</h1>
-                <p><strong>Müşteri:</strong> ${packageInfo.cariUnvan}</p>
-                <p><strong>Konteyner:</strong> ${document.getElementById('container-no').textContent}</p>
-                <hr>
-                <strong>Ürünler:</strong>
-                <ul>${itemsList}</ul>
-                <p><strong>Toplam Miktar:</strong> ${packageInfo.miktar}</p>
-                </body></html>
-            `;
-        };
-
-        const resetCurrentPackage = () => {
-            currentPackage = { items: {}, tanimsiz: 0 };
-            updatePackageCounts();
-            updatePackageDetails();
-        };
-        
-        const handleDeletePackage = async () => {
-             const selectedCount = pendingPackagesTable.querySelectorAll('.package-checkbox:checked').length;
-             if (selectedCount === 0) {
-                 showModal('Uyarı', 'Lütfen silmek için en az bir paket seçin.', [{text: 'Tamam', class: 'bg-blue-500 text-white', action: 'ok'}]);
-                 return;
-             }
-             
-             const result = await showModal('Onay', `${selectedCount} adet paket silinecek. Emin misiniz? Bu işlem geri alınamaz.`, [
-                 {text: 'Vazgeç', class: 'bg-slate-200', action: 'cancel'},
-                 {text: 'Evet, Sil', class: 'bg-red-500 text-white', action: 'confirm'}
-             ]);
-
-             if (result === 'confirm') {
-                 const selectedPackageIds = Array.from(pendingPackagesTable.querySelectorAll('.package-checkbox:checked'))
-                    .map(checkbox => parseInt(checkbox.closest('tr').dataset.id, 10));
-                
-                MOCK_PENDING_PACKAGES = MOCK_PENDING_PACKAGES.filter(pkg => !selectedPackageIds.includes(pkg.id));
-                
-                renderPendingPackages();
-                packageCountEl.textContent = MOCK_PENDING_PACKAGES.length;
-                showToast(`${selectedCount} paket silindi.`, 'success');
-             }
-        };
-
-        // --- SEVKİYAT SAYFASI LOGIC ---
-        const initializeSevkiyatPage = () => {
-            renderShipmentPackages();
-            renderContainerDetails();
-        };
-
-        const renderShipmentPackages = () => {
-            shipmentPackagesTable.innerHTML = MOCK_SHIPMENT_PACKAGES.map(pkg => `
-                 <tr class="hover:bg-slate-50">
-                    <td class="p-2">${pkg.no}</td>
-                    <td class="p-2">${pkg.musteri}</td>
-                    <td class="p-2">${pkg.konteyner}</td>
-                    <td class="p-2"><span class="px-2 py-1 text-xs rounded-full ${pkg.durum === 'Gönderildi' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}">${pkg.durum}</span></td>
-                    <td class="p-2">${pkg.urun}</td>
-                    <td class="p-2 space-x-2">
-                        <button title="Etiket Yazdır" class="text-blue-500">🖨️</button>
-                        <button title="Konteyner Sil" class="text-red-500 supervisor-only">🗑️</button>
-                    </td>
-                </tr>
-            `).join('');
-        };
-        
-        const renderContainerDetails = () => {
-            containerDetailsList.innerHTML = MOCK_SHIPMENT_PACKAGES
-                .filter(p => p.konteyner === 'C000094')
-                .map(p => `<li class="p-1">${p.no} - ${p.musteri} (${p.urun} ürün)</li>`)
-                .join('');
-        };
-
-        // --- STOK SORGU SAYFASI LOGIC ---
-        const initializeStokSorguPage = () => {
-            renderStockQueryResults(Object.values(MOCK_STOCK));
-            const categories = [...new Set(Object.values(MOCK_STOCK).map(s => s.kategori))];
-            stockCategoryFilter.innerHTML = '<option>Tümü</option>' + categories.map(c => `<option>${c}</option>`).join('');
-        };
-        
-        const renderStockQueryResults = (stockList) => {
-            stockQueryResults.innerHTML = stockList.map(s => `
-                <tr class="border-b hover:bg-slate-50">
-                    <td class="p-3">${s.kod}</td>
-                    <td class="p-3">${s.isim}</td>
-                    <td class="p-3">${s.miktar ?? 'N/A'}</td>
-                    <td class="p-3">${s.depo}</td>
-                    <td class="p-3 text-green-600">+10</td>
-                </tr>
-            `).join('');
-        };
-
-        // --- EVENT LISTENERS ---
-        loginForm.addEventListener('submit', handleLogin);
-        logoutBtn.addEventListener('click', handleLogout);
-        tabNavigation.addEventListener('click', (e) => {
-            if (e.target.matches('.tab-btn')) {
-                switchTab(e.target.dataset.tab);
-            }
-        });
-        
-        customerSelect.addEventListener('change', () => {
-             customerNameDisplay.textContent = customerSelect.options[customerSelect.selectedIndex].text.split(' - ')[1];
-        });
-
-        // Paketleme Sayfası Eventleri
-        barcodeInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleBarcodeScan();
-            }
-            if (e.key === 'Escape') {
-                resetCurrentPackage();
-            }
-        });
-        quickAddGrid.addEventListener('click', (e) => {
-            if(e.target.classList.contains('quick-add-btn')) {
-                handleQuickAdd(e);
-            }
-        });
-        savePackageBtn.addEventListener('click', handleSavePackage);
-        deletePackageBtn.addEventListener('click', handleDeletePackage);
-
-        // Klavye kısayolları
-        document.addEventListener('keydown', (e) => {
-            if (appScreen.style.display === 'flex' && document.getElementById('paketleme-page').classList.contains('active')) {
+            // Klavye kısayolları
+            document.addEventListener('keydown', function(e) {
                 if (e.key === 'F2') {
                     e.preventDefault();
-                    savePackageBtn.click();
+                    savePackage();
+                } else if (e.key === 'Escape') {
+                    document.getElementById('barcodeInput').value = '';
+                    document.getElementById('barcodeInput').focus();
                 }
+            });
+        }
+        
+        // Müşteri dropdown'ını doldur
+        function populateCustomerDropdown() {
+            customerSelect.innerHTML = '';
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.code;
+                option.textContent = `${customer.code} - ${customer.name}`;
+                customerSelect.appendChild(option);
+            });
+            
+            // İlk müşteriyi varsayılan olarak seç
+            if (customers.length > 0) {
+                customerSelect.value = customers[0].code;
+                updateCustomerInfo(customers[0].code);
             }
-        });
-    });
+        }
+        
+        // Müşteri bilgilerini güncelle
+        function updateCustomerInfo(customerCode) {
+            const customer = customers.find(c => c.code === customerCode);
+            if (customer) {
+                customerNameSpan.textContent = customer.name;
+                selectedCustomer = customer;
+            }
+        }
+        
+        // Paket tablosunu doldur
+        function populatePackagesTable() {
+            packagesTableBody.innerHTML = '';
+            packages.forEach(pkg => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="checkbox" data-id="${pkg.id}" ${pkg.selected ? 'checked' : ''}></td>
+                    <td>${pkg.id}</td>
+                    <td>${pkg.packageNo}</td>
+                    <td>${pkg.totalQuantity}</td>
+                    <td>${pkg.packageTime}</td>
+                    <td>${pkg.customerCode}</td>
+                    <td>${pkg.customerName}</td>
+                    <td>${pkg.packer}</td>
+                `;
+                packagesTableBody.appendChild(row);
+                
+                // Checkbox değişikliklerini dinle
+                const checkbox = row.querySelector('input[type="checkbox"]');
+                checkbox.addEventListener('change', function() {
+                    const packageId = parseInt(this.dataset.id);
+                    const packageIndex = packages.findIndex(p => p.id === packageId);
+                    if (packageIndex !== -1) {
+                        packages[packageIndex].selected = this.checked;
+                    }
+                    
+                    // Tümünü seç checkbox'ını güncelle
+                    const allChecked = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]'))
+                        .every(cb => cb.checked);
+                    selectAllCheckbox.checked = allChecked;
+                    
+                    // Seçili paket bilgilerini göster
+                    if (this.checked) {
+                        showPackageDetails(packageId);
+                    }
+                });
+            });
+        }
+        
+        // Hızlı ürün butonlarını oluştur
+        function createQuickProductButtons() {
+            quickButtonsContainer.innerHTML = '';
+            products.forEach(product => {
+                const button = document.createElement('button');
+                button.className = 'quick-btn';
+                button.textContent = product.name;
+                button.dataset.productId = product.id;
+                
+                const badge = document.createElement('span');
+                badge.className = 'quantity-badge';
+                badge.id = `badge-${product.id}`;
+                badge.textContent = '0';
+                badge.style.display = 'none';
+                
+                button.appendChild(badge);
+                quickButtonsContainer.appendChild(button);
+                
+                // Miktarı sıfırla
+                quickProductQuantities[product.id] = 0;
+                
+                // Buton tıklama olayı
+                button.addEventListener('click', function() {
+                    const productId = parseInt(this.dataset.productId);
+                    quickProductQuantities[productId]++;
+                    
+                    // Badge'ı güncelle
+                    const badge = document.getElementById(`badge-${productId}`);
+                    badge.textContent = quickProductQuantities[productId];
+                    badge.style.display = 'block';
+                    
+                    // Paket detaylarını güncelle
+                    updatePackageDetails(productId);
+                    
+                    showToast(`${product.name} eklendi`, 'success');
+                });
+            });
+        }
+        
+        // Paket detaylarını güncelle
+        function updatePackageDetails(productId) {
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                document.getElementById('stockCode').textContent = product.code;
+                document.getElementById('itemType').textContent = product.type;
+                document.getElementById('itemQuantity').textContent = quickProductQuantities[productId];
+                
+                // Tanımlı adet sayısını güncelle
+                const definedCount = Object.values(quickProductQuantities).reduce((sum, qty) => sum + qty, 0);
+                document.getElementById('definedCount').textContent = definedCount;
+                
+                // Ortalama hesapla (basit bir örnek)
+                document.getElementById('averageCount').textContent = (definedCount / Object.keys(quickProductQuantities).length).toFixed(1);
+            }
+        }
+        
+        // Seçili paketin detaylarını göster
+        function showPackageDetails(packageId) {
+            const pkg = packages.find(p => p.id === packageId);
+            if (pkg) {
+                document.getElementById('selectedPackage').textContent = pkg.packageNo;
+                selectedPackage = pkg;
+                
+                // Burada gerçek uygulamada paket detayları API'den çekilebilir
+                // Şimdilik örnek veriler gösteriyoruz
+                document.getElementById('stockCode').textContent = "CHS-001";
+                document.getElementById('itemType').textContent = "Çarşaf";
+                document.getElementById('itemQuantity').textContent = pkg.totalQuantity;
+            }
+        }
+        
+        // Barkod işleme
+        function processBarcode(barcode) {
+            barcodeCount++;
+            barcodeCountSpan.textContent = barcodeCount;
+            showToast('Barkod okutuldu: ' + barcode, 'success');
+            
+            // Barkod önizlemesini güncelle
+            JsBarcode("#barcode", barcode, {
+                format: "CODE128",
+                displayValue: true,
+                fontSize: 16,
+                height: 40
+            });
+        }
+        
+        // Müşteri seçim modalını göster
+        function showCustomerSelection() {
+            const customerList = document.getElementById('customerList');
+            customerList.innerHTML = '';
+            
+            customers.forEach(customer => {
+                const div = document.createElement('div');
+                div.className = 'customer-item';
+                if (selectedCustomer && customer.code === selectedCustomer.code) {
+                    div.classList.add('selected');
+                }
+                div.innerHTML = `
+                    <strong>${customer.code}</strong> - ${customer.name}
+                    <br><small>${customer.email}</small>
+                `;
+                div.addEventListener('click', function() {
+                    // Seçili müşteriyi işaretle
+                    document.querySelectorAll('.customer-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    this.classList.add('selected');
+                    
+                    // Müşteriyi seç
+                    selectCustomer(customer);
+                });
+                
+                customerList.appendChild(div);
+            });
+            
+            document.getElementById('modalTitle').textContent = 'Müşteri Seçimi';
+            modal.style.display = 'flex';
+        }
+        
+        // Tüm müşterileri göster
+        function showAllCustomers() {
+            showCustomerSelection();
+        }
+        
+        // Müşteri seç
+        function selectCustomer(customer) {
+            customerSelect.value = customer.code;
+            updateCustomerInfo(customer.code);
+            closeModal();
+            showToast(`${customer.name} müşterisi seçildi`, 'success');
+        }
+        
+        // Yeni müşteri ekle
+        function addNewCustomer() {
+            const code = document.getElementById('newCustomerCode').value.trim();
+            const name = document.getElementById('newCustomerName').value.trim();
+            const email = document.getElementById('newCustomerEmail').value.trim();
+            
+            if (!code || !name) {
+                showToast('Müşteri kodu ve adı zorunludur', 'error');
+                return;
+            }
+            
+            // Müşteri kodunun benzersiz olup olmadığını kontrol et
+            if (customers.some(c => c.code === code)) {
+                showToast('Bu müşteri kodu zaten mevcut', 'error');
+                return;
+            }
+            
+            // Yeni müşteri ekle
+            const newCustomer = { code, name, email };
+            customers.push(newCustomer);
+            
+            // Dropdown'ı güncelle
+            populateCustomerDropdown();
+            
+            // Yeni müşteriyi seç
+            customerSelect.value = code;
+            updateCustomerInfo(code);
+            
+            // Formu temizle
+            document.getElementById('newCustomerCode').value = '';
+            document.getElementById('newCustomerName').value = '';
+            document.getElementById('newCustomerEmail').value = '';
+            
+            showToast(`${name} müşterisi eklendi`, 'success');
+        }
+        
+        // Paket kaydet
+        function savePackage() {
+            if (!selectedCustomer) {
+                showToast('Lütfen önce bir müşteri seçin', 'error');
+                return;
+            }
+            
+            // Yeni paket oluştur
+            const newPackage = {
+                id: packages.length + 1,
+                packageNo: `PKG-${String(packages.length + 1).padStart(4, '0')}`,
+                totalQuantity: Object.values(quickProductQuantities).reduce((sum, qty) => sum + qty, 0),
+                packageTime: new Date().toLocaleString('tr-TR'),
+                customerCode: selectedCustomer.code,
+                customerName: selectedCustomer.name,
+                packer: currentUser.name,
+                selected: false
+            };
+            
+            packages.push(newPackage);
+            
+            // Tabloyu güncelle
+            populatePackagesTable();
+            
+            // Hızlı ürün miktarlarını sıfırla
+            Object.keys(quickProductQuantities).forEach(id => {
+                quickProductQuantities[id] = 0;
+                const badge = document.getElementById(`badge-${id}`);
+                if (badge) {
+                    badge.textContent = '0';
+                    badge.style.display = 'none';
+                }
+            });
+            
+            // Paket detaylarını sıfırla
+            document.getElementById('selectedPackage').textContent = 'Yok';
+            document.getElementById('stockCode').textContent = '-';
+            document.getElementById('itemType').textContent = '-';
+            document.getElementById('itemQuantity').textContent = '0';
+            document.getElementById('definedCount').textContent = '0';
+            document.getElementById('averageCount').textContent = '0';
+            
+            showToast('Paket başarıyla kaydedildi', 'success');
+        }
+        
+        // Tüm paketleri seç
+        function selectAllPackages() {
+            selectAllCheckbox.checked = true;
+            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                const packageId = parseInt(checkbox.dataset.id);
+                const packageIndex = packages.findIndex(p => p.id === packageId);
+                if (packageIndex !== -1) {
+                    packages[packageIndex].selected = true;
+                }
+            });
+        }
+        
+        // Seçimi temizle
+        function clearSelection() {
+            selectAllCheckbox.checked = false;
+            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                const packageId = parseInt(checkbox.dataset.id);
+                const packageIndex = packages.findIndex(p => p.id === packageId);
+                if (packageIndex !== -1) {
+                    packages[packageIndex].selected = false;
+                }
+            });
+            
+            // Paket detaylarını sıfırla
+            document.getElementById('selectedPackage').textContent = 'Yok';
+            selectedPackage = null;
+        }
+        
+        // Paket sil
+        function deletePackage() {
+            const selectedPackages = packages.filter(p => p.selected);
+            if (selectedPackages.length === 0) {
+                showToast('Lütfen silmek için bir paket seçin', 'error');
+                return;
+            }
+            
+            if (confirm(`${selectedPackages.length} paketi silmek istediğinize emin misiniz?`)) {
+                // Seçili paketleri kaldır
+                packages = packages.filter(p => !p.selected);
+                
+                // Tabloyu güncelle
+                populatePackagesTable();
+                
+                // Paket detaylarını sıfırla
+                document.getElementById('selectedPackage').textContent = 'Yok';
+                selectedPackage = null;
+                
+                showToast(`${selectedPackages.length} paket silindi`, 'success');
+            }
+        }
+        
+        // Konteyner sil
+        function deleteContainer() {
+            if (confirm('Konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+                showToast('Konteyner silindi', 'success');
+                // Gerçek uygulamada API çağrısı yapılır
+            }
+        }
+        
+        // Konteyneri rampay gönder
+        function sendToRamp() {
+            if (confirm('Konteyneri rampay göndermek istediğinize emin misiniz?')) {
+                showToast('Konteyner rampay gönderildi', 'success');
+                // Gerçek uygulamada API çağrısı yapılır
+            }
+        }
+        
+        // Etiket yazdır
+        function printLabel() {
+            const selectedPackages = packages.filter(p => p.selected);
+            if (selectedPackages.length === 0) {
+                showToast('Lütfen yazdırmak için bir paket seçin', 'error');
+                return;
+            }
+            
+            showToast(`${selectedPackages.length} paket için etiket yazdırılıyor...`, 'success');
+            // Gerçek uygulamada yazdırma işlemi yapılır
+        }
+        
+        // Modal'ı kapat
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+        
+        // Tab değiştirme
+        function switchTab(tabName) {
+            // Tüm tabları ve içerikleri gizle
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            
+            // Seçili tabı ve içeriği göster
+            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+        }
+        
+        // Toast bildirimi göster
+        function showToast(message, type = 'success') {
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Giriş yap
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const user = users.find(u => u.username === username && u.password === password);
+            
+            if (user) {
+                currentUser = user;
+                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
+                
+                loginScreen.style.display = 'none';
+                appContainer.style.display = 'flex';
+                
+                initApp();
+                showToast('Başarıyla giriş yapıldı', 'success');
+            } else {
+                showToast('Kullanıcı adı veya şifre hatalı', 'error');
+            }
+        }
+        
+        // Çıkış yap
+        function logout() {
+            if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+                currentUser = null;
+                appContainer.style.display = 'none';
+                loginScreen.style.display = 'flex';
+                
+                // Formu temizle
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                
+                showToast('Çıkış yapıldı', 'success');
+            }
+        }
+        
+        // Sayfa yüklendiğinde
+        window.onload = function() {
+            // Gerçek uygulamada oturum kontrolü yapılır
+            // Şimdilik doğrudan giriş ekranını gösteriyoruz
+            loginScreen.style.display = 'flex';
+            appContainer.style.display = 'none';
+        };
     </script>
 </body>
 </html>
