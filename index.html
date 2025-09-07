@@ -432,6 +432,9 @@
             padding: 0.8rem;
             border-bottom: 1px solid #eee;
             cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .customer-item:hover {
@@ -440,6 +443,11 @@
         
         .customer-item.selected {
             background-color: #e3f2fd;
+        }
+        
+        .customer-actions {
+            display: flex;
+            gap: 0.5rem;
         }
         
         .add-customer-form {
@@ -459,6 +467,46 @@
             padding: 0.6rem;
             border: 1px solid #ddd;
             border-radius: 5px;
+        }
+        
+        /* Quantity Modal */
+        .quantity-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1001;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .quantity-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 300px;
+            text-align: center;
+        }
+        
+        .quantity-input {
+            width: 100%;
+            padding: 0.8rem;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        
+        .quantity-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 0.8rem;
+            margin-top: 1rem;
         }
         
         /* Responsive */
@@ -685,7 +733,7 @@
                     <!-- Müşteri listesi buraya dinamik olarak eklenecek -->
                 </div>
                 <div class="add-customer-form">
-                    <h4>Yeni Müşteri Ekle</h4>
+                    <h4>Müşteri Yönetimi</h4>
                     <div class="form-row">
                         <input type="text" id="newCustomerCode" placeholder="Müşteri Kodu">
                         <input type="text" id="newCustomerName" placeholder="Müşteri Adı">
@@ -693,8 +741,21 @@
                     <div class="form-row">
                         <input type="email" id="newCustomerEmail" placeholder="E-posta">
                         <button class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
+                        <button class="btn btn-danger" onclick="deleteSelectedCustomer()">Müşteri Sil</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Miktar Seçim Modal -->
+    <div class="quantity-modal" id="quantityModal">
+        <div class="quantity-content">
+            <h3 id="quantityProductName">Ürün Miktarı</h3>
+            <input type="number" id="quantityInput" class="quantity-input" min="1" value="1">
+            <div class="quantity-buttons">
+                <button class="btn btn-primary" onclick="confirmQuantity()">Tamam</button>
+                <button class="btn" onclick="closeQuantityModal()">İptal</button>
             </div>
         </div>
     </div>
@@ -735,18 +796,23 @@
         let barcodeCount = 0;
         let quickProductQuantities = {};
         let currentContainer = "C000094";
+        let selectedCustomerInModal = null;
+        let selectedProductForQuantity = null;
         
         // DOM Elements
         const loginScreen = document.getElementById('loginScreen');
         const appContainer = document.getElementById('appContainer');
         const toast = document.getElementById('toast');
         const modal = document.getElementById('customerModal');
+        const quantityModal = document.getElementById('quantityModal');
         const customerSelect = document.getElementById('customer');
         const customerNameSpan = document.getElementById('customerName');
         const packagesTableBody = document.getElementById('packagesTableBody');
         const quickButtonsContainer = document.getElementById('quickButtons');
         const barcodeCountSpan = document.getElementById('barcodeCount');
         const selectAllCheckbox = document.getElementById('selectAllPackages');
+        const quantityInput = document.getElementById('quantityInput');
+        const quantityProductName = document.getElementById('quantityProductName');
         
         // Initialize application
         function initApp() {
@@ -786,6 +852,11 @@
                         packages[packageIndex].selected = this.checked;
                     }
                 });
+            });
+            
+            // Müşteri dropdown değişikliği
+            customerSelect.addEventListener('change', function() {
+                updateCustomerInfo(this.value);
             });
             
             // Klavye kısayolları
@@ -889,19 +960,47 @@
                 // Buton tıklama olayı
                 button.addEventListener('click', function() {
                     const productId = parseInt(this.dataset.productId);
-                    quickProductQuantities[productId]++;
-                    
-                    // Badge'ı güncelle
-                    const badge = document.getElementById(`badge-${productId}`);
-                    badge.textContent = quickProductQuantities[productId];
-                    badge.style.display = 'block';
-                    
-                    // Paket detaylarını güncelle
-                    updatePackageDetails(productId);
-                    
-                    showToast(`${product.name} eklendi`, 'success');
+                    selectedProductForQuantity = products.find(p => p.id === productId);
+                    showQuantityModal(selectedProductForQuantity);
                 });
             });
+        }
+        
+        // Miktar modalını göster
+        function showQuantityModal(product) {
+            quantityProductName.textContent = product.name;
+            quantityInput.value = quickProductQuantities[product.id] || 1;
+            quantityModal.style.display = 'flex';
+            quantityInput.focus();
+            quantityInput.select();
+        }
+        
+        // Miktar modalını kapat
+        function closeQuantityModal() {
+            quantityModal.style.display = 'none';
+            selectedProductForQuantity = null;
+        }
+        
+        // Miktarı onayla
+        function confirmQuantity() {
+            if (selectedProductForQuantity) {
+                const quantity = parseInt(quantityInput.value) || 1;
+                const productId = selectedProductForQuantity.id;
+                
+                quickProductQuantities[productId] = quantity;
+                
+                // Badge'ı güncelle
+                const badge = document.getElementById(`badge-${productId}`);
+                badge.textContent = quantity;
+                badge.style.display = quantity > 0 ? 'block' : 'none';
+                
+                // Paket detaylarını güncelle
+                updatePackageDetails(productId);
+                
+                showToast(`${selectedProductForQuantity.name} için ${quantity} adet eklendi`, 'success');
+            }
+            
+            closeQuantityModal();
         }
         
         // Paket detaylarını güncelle
@@ -917,7 +1016,8 @@
                 document.getElementById('definedCount').textContent = definedCount;
                 
                 // Ortalama hesapla (basit bir örnek)
-                document.getElementById('averageCount').textContent = (definedCount / Object.keys(quickProductQuantities).length).toFixed(1);
+                const productCount = Object.values(quickProductQuantities).filter(qty => qty > 0).length;
+                document.getElementById('averageCount').textContent = productCount > 0 ? (definedCount / productCount).toFixed(1) : '0';
             }
         }
         
@@ -961,10 +1061,13 @@
                 div.className = 'customer-item';
                 if (selectedCustomer && customer.code === selectedCustomer.code) {
                     div.classList.add('selected');
+                    selectedCustomerInModal = customer;
                 }
                 div.innerHTML = `
-                    <strong>${customer.code}</strong> - ${customer.name}
-                    <br><small>${customer.email}</small>
+                    <div>
+                        <strong>${customer.code}</strong> - ${customer.name}
+                        <br><small>${customer.email}</small>
+                    </div>
                 `;
                 div.addEventListener('click', function() {
                     // Seçili müşteriyi işaretle
@@ -974,7 +1077,7 @@
                     this.classList.add('selected');
                     
                     // Müşteriyi seç
-                    selectCustomer(customer);
+                    selectedCustomerInModal = customer;
                 });
                 
                 customerList.appendChild(div);
@@ -989,12 +1092,25 @@
             showCustomerSelection();
         }
         
-        // Müşteri seç
-        function selectCustomer(customer) {
-            customerSelect.value = customer.code;
-            updateCustomerInfo(customer.code);
-            closeModal();
-            showToast(`${customer.name} müşterisi seçildi`, 'success');
+        // Seçili müşteriyi sil
+        function deleteSelectedCustomer() {
+            if (!selectedCustomerInModal) {
+                showToast('Lütfen silmek için bir müşteri seçin', 'error');
+                return;
+            }
+            
+            if (confirm(`${selectedCustomerInModal.name} müşterisini silmek istediğinize emin misiniz?`)) {
+                // Müşteriyi listeden kaldır
+                customers = customers.filter(c => c.code !== selectedCustomerInModal.code);
+                
+                // Dropdown'ı güncelle
+                populateCustomerDropdown();
+                
+                // Modal'ı kapat
+                closeModal();
+                
+                showToast('Müşteri silindi', 'success');
+            }
         }
         
         // Yeni müşteri ekle
@@ -1164,6 +1280,7 @@
         // Modal'ı kapat
         function closeModal() {
             modal.style.display = 'none';
+            selectedCustomerInModal = null;
         }
         
         // Tab değiştirme
