@@ -2205,29 +2205,35 @@
             }, 3000);
         }
         
-        // Giriş yap
-        function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            const user = users.find(u => u.username === username && u.password === password);
-            
-            if (user) {
-                currentUser = user;
-                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
-                
-                loginScreen.style.display = 'none';
-                appContainer.style.display = 'flex';
-                
-                // localStorage'dan verileri yükle
-                loadDataFromLocalStorage();
-                
-                initApp();
-                showToast('Başarıyla giriş yapıldı', 'success');
-            } else {
-                showToast('Kullanıcı adı veya şifre hatalı', 'error');
-            }
+       // Giriş yap - düzeltilmiş
+    function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        
+        // Boş giriş kontrolü
+        if (!username || !password) {
+            showToast('Kullanıcı adı ve şifre gereklidir', 'error');
+            return;
         }
+        
+        const user = users.find(u => u.username === username && u.password === password);
+        
+        if (user) {
+            currentUser = user;
+            document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
+            
+            loginScreen.style.display = 'none';
+            appContainer.style.display = 'flex';
+            
+            // localStorage'dan verileri yükle
+            loadDataFromLocalStorage();
+            
+            initApp();
+            showToast('Başarıyla giriş yapıldı', 'success');
+        } else {
+            showToast('Kullanıcı adı veya şifre hatalı', 'error');
+        }
+    }
         
         // Çıkış yap
         function logout() {
