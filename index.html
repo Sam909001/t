@@ -7,9 +7,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Firebase ve UI kütüphaneleri -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
     <style>
         :root {
             --primary: #2c3e50;
@@ -103,6 +105,34 @@
             color: var(--secondary);
             text-decoration: underline;
             padding: 0.5rem;
+        }
+        
+        /* Firebase UI Container */
+        #firebaseui-auth-container {
+            margin-top: 1.5rem;
+        }
+        
+        /* Demo Accounts */
+        .demo-accounts {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .demo-accounts h3 {
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            font-size: 1rem;
+        }
+        
+        .demo-account {
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            background: white;
+            border-radius: 5px;
+            font-size: 0.9rem;
         }
         
         /* Main Application */
@@ -629,17 +659,19 @@
     <div class="login-container" id="loginScreen">
         <div class="login-form">
             <h1>ProClean - Oturum Aç</h1>
-            <div class="form-group">
-                <label for="username">Kullanıcı Adı</label>
-                <input type="text" id="username" placeholder="Kullanıcı adınızı girin">
-            </div>
-            <div class="form-group">
-                <label for="password">Şifre</label>
-                <input type="password" id="password" placeholder="Şifrenizi girin">
-            </div>
-            <button class="btn btn-primary" id="loginButton">Giriş Yap</button>
-            <div style="text-align: center; margin-top: 1rem;">
-                <button class="btn-link">Şifremi Unuttum</button>
+            
+            <!-- Firebase UI Container -->
+            <div id="firebaseui-auth-container"></div>
+            
+            <!-- Demo Hesaplar -->
+            <div class="demo-accounts">
+                <h3>Demo Hesaplar:</h3>
+                <div class="demo-account">
+                    <strong>Operatör:</strong> operator@proclean.com / 123456
+                </div>
+                <div class="demo-account">
+                    <strong>Yönetici:</strong> admin@proclean.com / 123456
+                </div>
             </div>
         </div>
     </div>
@@ -926,12 +958,37 @@
     </div>
 
     <script>
-        // Simüle edilmiş veritabanı
-        const users = [
-            { username: "operator", password: "1234", role: "operator", name: "Ahmet Yılmaz" },
-            { username: "supervisor", password: "1234", role: "supervisor", name: "Mehmet Demir" }
-        ];
+        // Firebase yapılandırması
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHiHc7s-BxqQ2C64LgGkQqFv3K4jJzK3E",
+            authDomain: "proclean-demo.firebaseapp.com",
+            projectId: "proclean-demo",
+            storageBucket: "proclean-demo.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdefghijklmnopqrstuv"
+        };
         
+        // Firebase'i başlat
+        firebase.initializeApp(firebaseConfig);
+        
+        // Firebase UI yapılandırması
+        const uiConfig = {
+            signInSuccessUrl: '#', // Başarılı giriş sonrası yönlendirme
+            signInOptions: [
+                {
+                    provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
+                    requireDisplayName: false
+                }
+            ],
+            tosUrl: '#', // Kullanım şartları
+            privacyPolicyUrl: '#', // Gizlilik politikası
+            credentialHelper: firebaseui.auth.CredentialHelper.NONE
+        };
+        
+        // Firebase UI başlat
+        const ui = new firebaseui.auth.AuthUI(firebase.auth());
+        
+        // Demo veriler
         let customers = [
             { code: "P0006", name: "LALELİ HAMİT", email: "hamit@lalelitextile.com" },
             { code: "P0007", name: "BEYOĞLU TEKSTİL", email: "info@beyoglutextile.com" },
@@ -1087,157 +1144,8 @@
                 }
             });
             
-            // Service Worker kaydı (çevrimdışı destek için)
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('Service Worker registered with scope:', registration.scope);
-                }).catch(function(error) {
-                    console.log('Service Worker registration failed:', error);
-                });
-            }
-            
-            // IndexedDB'yi başlat
-            initIndexedDB();
-            
             // Verileri localStorage'a kaydet
             saveDataToLocalStorage();
-        }
-        
-        // IndexedDB'yi başlat
-        function initIndexedDB() {
-            const request = indexedDB.open("ProCleanDB", 1);
-            
-            request.onerror = function(event) {
-                console.error("IndexedDB hatası:", event.target.errorCode);
-            };
-            
-            request.onupgradeneeded = function(event) {
-                const db = event.target.result;
-                
-                // Müşteriler için object store oluştur
-                if (!db.objectStoreNames.contains('customers')) {
-                    const customerStore = db.createObjectStore('customers', { keyPath: 'code' });
-                    customerStore.createIndex('name', 'name', { unique: false });
-                }
-                
-                // Paketler için object store oluştur
-                if (!db.objectStoreNames.contains('packages')) {
-                    const packageStore = db.createObjectStore('packages', { keyPath: 'id', autoIncrement: true });
-                    packageStore.createIndex('customerCode', 'customerCode', { unique: false });
-                }
-                
-                // Stoklar için object store oluştur
-                if (!db.objectStoreNames.contains('stockItems')) {
-                    const stockStore = db.createObjectStore('stockItems', { keyPath: 'code' });
-                    stockStore.createIndex('name', 'name', { unique: false });
-                }
-                
-                // Konteynerler için object store oluştur
-                if (!db.objectStoreNames.contains('containers')) {
-                    const containerStore = db.createObjectStore('containers', { keyPath: 'id', autoIncrement: true });
-                    containerStore.createIndex('containerNo', 'containerNo', { unique: true });
-                }
-            };
-            
-            request.onsuccess = function(event) {
-                console.log("IndexedDB başarıyla başlatıldı");
-                // Verileri IndexedDB'den yükle
-                loadDataFromIndexedDB();
-            };
-        }
-        
-        // Verileri IndexedDB'den yükle
-        function loadDataFromIndexedDB() {
-            const request = indexedDB.open("ProCleanDB", 1);
-            
-            request.onsuccess = function(event) {
-                const db = event.target.result;
-                
-                // Müşterileri yükle
-                const customerTransaction = db.transaction(["customers"], "readonly");
-                const customerStore = customerTransaction.objectStore("customers");
-                const customerRequest = customerStore.getAll();
-                
-                customerRequest.onsuccess = function() {
-                    if (customerRequest.result.length > 0) {
-                        customers = customerRequest.result;
-                        populateCustomerDropdown();
-                    }
-                };
-                
-                // Paketleri yükle
-                const packageTransaction = db.transaction(["packages"], "readonly");
-                const packageStore = packageTransaction.objectStore("packages");
-                const packageRequest = packageStore.getAll();
-                
-                packageRequest.onsuccess = function() {
-                    if (packageRequest.result.length > 0) {
-                        packages = packageRequest.result;
-                        populatePackagesTable();
-                    }
-                };
-                
-                // Stokları yükle
-                const stockTransaction = db.transaction(["stockItems"], "readonly");
-                const stockStore = stockTransaction.objectStore("stockItems");
-                const stockRequest = stockStore.getAll();
-                
-                stockRequest.onsuccess = function() {
-                    if (stockRequest.result.length > 0) {
-                        stockItems = stockRequest.result;
-                        populateStockTable();
-                    }
-                };
-                
-                // Konteynerleri yükle
-                const containerTransaction = db.transaction(["containers"], "readonly");
-                const containerStore = containerTransaction.objectStore("containers");
-                const containerRequest = containerStore.getAll();
-                
-                containerRequest.onsuccess = function() {
-                    if (containerRequest.result.length > 0) {
-                        containers = containerRequest.result;
-                        populateShippingTable();
-                    }
-                };
-            };
-        }
-        
-        // Verileri IndexedDB'ye kaydet
-        function saveDataToIndexedDB() {
-            const request = indexedDB.open("ProCleanDB", 1);
-            
-            request.onsuccess = function(event) {
-                const db = event.target.result;
-                
-                // Müşterileri kaydet
-                const customerTransaction = db.transaction(["customers"], "readwrite");
-                const customerStore = customerTransaction.objectStore("customers");
-                customers.forEach(customer => {
-                    customerStore.put(customer);
-                });
-                
-                // Paketleri kaydet
-                const packageTransaction = db.transaction(["packages"], "readwrite");
-                const packageStore = packageTransaction.objectStore("packages");
-                packages.forEach(pkg => {
-                    packageStore.put(pkg);
-                });
-                
-                // Stokları kaydet
-                const stockTransaction = db.transaction(["stockItems"], "readwrite");
-                const stockStore = stockTransaction.objectStore("stockItems");
-                stockItems.forEach(item => {
-                    stockStore.put(item);
-                });
-                
-                // Konteynerleri kaydet
-                const containerTransaction = db.transaction(["containers"], "readwrite");
-                const containerStore = containerTransaction.objectStore("containers");
-                containers.forEach(container => {
-                    containerStore.put(container);
-                });
-            };
         }
         
         // Çevrimdışı durumunu kontrol et
@@ -1381,7 +1289,6 @@
             if (containerIndex !== -1) {
                 containers[containerIndex].status = status === 'shipped' ? 'Sevk Edildi' : 'Bekliyor';
                 populateShippingTable();
-                saveDataToIndexedDB();
                 saveDataToLocalStorage();
                 showToast('Konteyner durumu güncellendi', 'success');
             }
@@ -1427,7 +1334,7 @@
                     <td>${item.name}</td>
                     <td>${item.quantity}</td>
                     <td>${item.unit}</td>
-                    <td>${item.lastUpdate}</td>
+                    <td>${item.lastUpdate</td>
                     <td>${item.status}</td>
                 `;
                 stockTableBody.appendChild(row);
@@ -1742,8 +1649,7 @@
                 // Modal'ı kapat
                 closeModal();
                 
-                // Verileri IndexedDB'ye ve localStorage'a kaydet
-                saveDataToIndexedDB();
+                // Verileri localStorage'a kaydet
                 saveDataToLocalStorage();
                 
                 showToast('Müşteri silindi', 'success');
@@ -1783,8 +1689,7 @@
             document.getElementById('newCustomerName').value = '';
             document.getElementById('newCustomerEmail').value = '';
             
-            // Verileri IndexedDB'ye ve localStorage'a kaydet
-            saveDataToIndexedDB();
+            // Verileri localStorage'a kaydet
             saveDataToLocalStorage();
             
             showToast(`${name} müşterisi eklendi`, 'success');
@@ -1863,8 +1768,7 @@
             containers.push(newContainer);
             populateShippingTable();
             
-            // Verileri IndexedDB'ye ve localStorage'a kaydet
-            saveDataToIndexedDB();
+            // Verileri localStorage'a kaydet
             saveDataToLocalStorage();
             
             showToast(`Yeni konteyner oluşturuldu: ${newContainerNumber}`, 'success');
@@ -1931,8 +1835,7 @@
                 stockItems = newStockItems;
                 populateStockTable();
                 
-                // Verileri IndexedDB'ye ve localStorage'a kaydet
-                saveDataToIndexedDB();
+                // Verileri localStorage'a kaydet
                 saveDataToLocalStorage();
                 
                 showToast('Stok bilgileri güncellendi', 'success');
@@ -1959,7 +1862,7 @@
                 packageTime: new Date().toLocaleString('tr-TR'),
                 customerCode: selectedCustomer.code,
                 customerName: selectedCustomer.name,
-                packer: currentUser.name,
+                packer: currentUser.displayName || currentUser.email,
                 selected: false
             };
             
@@ -1994,8 +1897,7 @@
             document.getElementById('definedCount').textContent = '0';
             document.getElementById('averageCount').textContent = '0';
             
-            // Verileri IndexedDB'ye ve localStorage'a kaydet
-            saveDataToIndexedDB();
+            // Verileri localStorage'a kaydet
             saveDataToLocalStorage();
             
             showToast('Paket başarıyla kaydedildi', 'success');
@@ -2052,8 +1954,7 @@
                 document.getElementById('selectedPackage').textContent = 'Yok';
                 selectedPackage = null;
                 
-                // Verileri IndexedDB'ye ve localStorage'a kaydet
-                saveDataToIndexedDB();
+                // Verileri localStorage'a kaydet
                 saveDataToLocalStorage();
                 
                 showToast(`${selectedPackages.length} paket silindi`, 'success');
@@ -2074,8 +1975,7 @@
                 // Sevkiyat tablosunu güncelle
                 populateShippingTable();
                 
-                // Verileri IndexedDB'ye ve localStorage'a kaydet
-                saveDataToIndexedDB();
+                // Verileri localStorage'a kaydet
                 saveDataToLocalStorage();
                 
                 showToast('Konteyner silindi', 'success');
@@ -2092,8 +1992,7 @@
                     // Sevkiyat tablosunu güncelle
                     populateShippingTable();
                     
-                    // Verileri IndexedDB'ye ve localStorage'a kaydet
-                    saveDataToIndexedDB();
+                    // Verileri localStorage'a kaydet
                     saveDataToLocalStorage();
                 }
                 
@@ -2205,50 +2104,21 @@
             }, 3000);
         }
         
-        // Giriş yap
-        function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            const user = users.find(u => u.username === username && u.password === password);
-            
-            if (user) {
-                currentUser = user;
-                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
-                
-                loginScreen.style.display = 'none';
-                appContainer.style.display = 'flex';
-                
-                // localStorage'dan verileri yükle
-                loadDataFromLocalStorage();
-                
-                initApp();
-                showToast('Başarıyla giriş yapıldı', 'success');
-            } else {
-                showToast('Kullanıcı adı veya şifre hatalı', 'error');
-            }
-        }
-        
         // Çıkış yap
         function logout() {
             if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
-                currentUser = null;
-                appContainer.style.display = 'none';
-                loginScreen.style.display = 'flex';
-                
-                // Formu temizle
-                document.getElementById('username').value = '';
-                document.getElementById('password').value = '';
-                
-                showToast('Çıkış yapıldı', 'success');
+                firebase.auth().signOut().then(() => {
+                    // Çıkış başarılı
+                    showToast('Çıkış yapıldı', 'success');
+                }).catch((error) => {
+                    // Çıkış hatası
+                    showToast('Çıkış yapılırken hata oluştu', 'error');
+                });
             }
         }
         
         // Event listener'ları bağla
         function setupEventListeners() {
-            // Giriş butonu
-            document.getElementById('loginButton').addEventListener('click', login);
-            
             // Çıkış butonu
             document.getElementById('logoutButton').addEventListener('click', logout);
             
@@ -2309,10 +2179,30 @@
         
         // Sayfa yüklendiğinde
         window.onload = function() {
-            // Gerçek uygulamada oturum kontrolü yapılır
-            // Şimdilik doğrudan giriş ekranını gösteriyoruz
-            loginScreen.style.display = 'flex';
-            appContainer.style.display = 'none';
+            // Firebase Authentication state observer
+            firebase.auth().onAuthStateChanged(function(user) {
+                if (user) {
+                    // Kullanıcı oturum açmış
+                    currentUser = user;
+                    document.getElementById('userRole').textContent = `Kullanıcı: ${user.email}`;
+                    
+                    loginScreen.style.display = 'none';
+                    appContainer.style.display = 'flex';
+                    
+                    // localStorage'dan verileri yükle
+                    loadDataFromLocalStorage();
+                    
+                    initApp();
+                    showToast('Başarıyla giriş yapıldı', 'success');
+                } else {
+                    // Kullanıcı oturum açmamış
+                    loginScreen.style.display = 'flex';
+                    appContainer.style.display = 'none';
+                    
+                    // Firebase UI'ı başlat
+                    ui.start('#firebaseui-auth-container', uiConfig);
+                }
+            });
             
             // Event listener'ları kur
             setupEventListeners();
