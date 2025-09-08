@@ -78,7 +78,7 @@
         }
         
         .btn {
-            padding: 0.6rem 1rem;
+            padding: 0.8rem 1.2rem;
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -179,6 +179,7 @@
         .customer-info {
             display: flex;
             gap: 1rem;
+            align-items: flex-end;
         }
         
         .info-group {
@@ -202,6 +203,11 @@
         .action-buttons {
             display: flex;
             gap: 0.6rem;
+            align-items: flex-end;
+        }
+        
+        .action-buttons .btn {
+            padding: 0.8rem 1rem;
         }
         
         .packaging-content {
@@ -216,6 +222,7 @@
             padding: 0.8rem;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            order: 3;
         }
         
         .barcode-input {
@@ -244,6 +251,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow-y: auto;
+            order: 2;
         }
         
         .package-table {
@@ -274,6 +282,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
+            order: 1;
         }
         
         .quick-buttons {
@@ -692,19 +701,29 @@
                 </div>
 
                 <div class="packaging-content">
-                    <!-- Paket Oluşturma Bölümü -->
-                    <div class="barcode-section">
-                        <h3>Paket Oluştur</h3>
-                        <div class="barcode-input">
-                            <input type="text" id="barcodeInput" placeholder="Barkodu okutun veya girin" autofocus>
-                            <button><i class="fas fa-search"></i></button>
-                            <button><i class="fas fa-times"></i></button>
+                    <!-- Hızlı Ürün Ekleme Bölümü -->
+                    <div class="package-details">
+                        <h3>Hızlı Ürün Ekleme</h3>
+                        <div class="selected-package">
+                            <p><strong>Seçili Paket:</strong> <span id="selectedPackage">Yok</span></p>
+                            <p><strong>Stok Kodu:</strong> <span id="stockCode">-</span></p>
+                            <p><strong>Cinsi:</strong> <span id="itemType">-</span></p>
+                            <p><strong>Miktar:</strong> <span id="itemQuantity">0</span></p>
                         </div>
-                        <div class="barcode-counter">
-                            <span>Okutulan barkod sayısı: <strong id="barcodeCount">0</strong></span>
+
+                        <h4>Hızlı Ürün Ekleme</h4>
+                        <div class="quick-buttons" id="quickButtons">
+                            <!-- Hızlı ürün butonları dinamik olarak eklenecek -->
                         </div>
-                        <div class="barcode-preview">
-                            <svg id="barcode"></svg>
+
+                        <div class="package-actions">
+                            <button class="btn">MANUEL</button>
+                            <div class="definition-panel">
+                                <p>Tanımsız Adet: <span style="color: red;" id="undefinedCount">0</span></p>
+                                <p>Tanımlı Adet: <span style="color: blue;" id="definedCount">0</span></p>
+                                <p>Ortalama Adet: <span id="averageCount">0</span></p>
+                            </div>
+                            <button class="btn btn-success" onclick="savePackage()">(F2) Paketle / Kaydet</button>
                         </div>
                     </div>
 
@@ -730,29 +749,19 @@
                         </table>
                     </div>
 
-                    <!-- Hızlı Ürün Ekleme Bölümü -->
-                    <div class="package-details">
-                        <h3>Hızlı Ürün Ekleme</h3>
-                        <div class="selected-package">
-                            <p><strong>Seçili Paket:</strong> <span id="selectedPackage">Yok</span></p>
-                            <p><strong>Stok Kodu:</strong> <span id="stockCode">-</span></p>
-                            <p><strong>Cinsi:</strong> <span id="itemType">-</span></p>
-                            <p><strong>Miktar:</strong> <span id="itemQuantity">0</span></p>
+                    <!-- Paket Oluşturma Bölümü -->
+                    <div class="barcode-section">
+                        <h3>Paket Oluştur</h3>
+                        <div class="barcode-input">
+                            <input type="text" id="barcodeInput" placeholder="Barkodu okutun veya girin" autofocus>
+                            <button><i class="fas fa-search"></i></button>
+                            <button><i class="fas fa-times"></i></button>
                         </div>
-
-                        <h4>Hızlı Ürün Ekleme</h4>
-                        <div class="quick-buttons" id="quickButtons">
-                            <!-- Hızlı ürün butonları dinamik olarak eklenecek -->
+                        <div class="barcode-counter">
+                            <span>Okutulan barkod sayısı: <strong id="barcodeCount">0</strong></span>
                         </div>
-
-                        <div class="package-actions">
-                            <button class="btn">MANUEL</button>
-                            <div class="definition-panel">
-                                <p>Tanımsız Adet: <span style="color: red;" id="undefinedCount">0</span></p>
-                                <p>Tanımlı Adet: <span style="color: blue;" id="definedCount">0</span></p>
-                                <p>Ortalama Adet: <span id="averageCount">0</span></p>
-                            </div>
-                            <button class="btn btn-success" onclick="savePackage()">(F2) Paketle / Kaydet</button>
+                        <div class="barcode-preview">
+                            <svg id="barcode"></svg>
                         </div>
                     </div>
                 </div>
@@ -1328,9 +1337,48 @@
             modal.style.display = 'flex';
         }
         
-        // Tüm müşterileri göster
+        // Tüm müşterileri göster ve seçim yapılmasını sağla
         function showAllCustomers() {
-            showCustomerSelection();
+            const customerList = document.getElementById('customerList');
+            customerList.innerHTML = '';
+            
+            customers.forEach(customer => {
+                const div = document.createElement('div');
+                div.className = 'customer-item';
+                if (selectedCustomer && customer.code === selectedCustomer.code) {
+                    div.classList.add('selected');
+                    selectedCustomerInModal = customer;
+                }
+                div.innerHTML = `
+                    <div>
+                        <strong>${customer.code}</strong> - ${customer.name}
+                        <br><small>${customer.email}</small>
+                    </div>
+                    <div class="customer-actions">
+                        <button class="btn btn-primary" onclick="selectCustomer('${customer.code}')">Seç</button>
+                    </div>
+                `;
+                
+                customerList.appendChild(div);
+            });
+            
+            document.getElementById('modalTitle').textContent = 'Tüm Müşteriler';
+            modal.style.display = 'flex';
+        }
+        
+        // Müşteri seçme fonksiyonu
+        function selectCustomer(customerCode) {
+            const customer = customers.find(c => c.code === customerCode);
+            if (customer) {
+                // Müşteriyi dropdown'da seç
+                customerSelect.value = customer.code;
+                updateCustomerInfo(customer.code);
+                
+                // Modal'ı kapat
+                closeModal();
+                
+                showToast(`${customer.name} müşterisi seçildi`, 'success');
+            }
         }
         
         // Seçili müşteriyi sil
@@ -1423,7 +1471,7 @@
             doc.setFontSize(10);
             
             let yPosition = 80;
-            packages.forEach((pkg, index) => {
+            packages.forEach((pkg, index) {
                 if (yPosition > 250) {
                     doc.addPage();
                     yPosition = 20;
