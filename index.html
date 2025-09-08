@@ -637,7 +637,7 @@
                 <label for="password">Şifre</label>
                 <input type="password" id="password" placeholder="Şifrenizi girin">
             </div>
-            <button class="btn btn-primary" onclick="login()">Giriş Yap</button>
+            <button class="btn btn-primary" id="loginButton">Giriş Yap</button>
             <div style="text-align: center; margin-top: 1rem;">
                 <button class="btn-link">Şifremi Unuttum</button>
             </div>
@@ -651,15 +651,15 @@
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Ahmet Yılmaz</span>
-                <button class="btn btn-danger" onclick="logout()">Çıkış Yap</button>
+                <button class="btn btn-danger" id="logoutButton">Çıkış Yap</button>
             </div>
         </div>
 
         <!-- Tabs -->
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('packaging')">Paketleme</div>
-            <div class="tab" onclick="switchTab('shipping')">Sevkiyat</div>
-            <div class="tab" onclick="switchTab('stock')">Stok Sorgu</div>
+            <div class="tab active" data-tab="packaging">Paketleme</div>
+            <div class="tab" data-tab="shipping">Sevkiyat</div>
+            <div class="tab" data-tab="stock">Stok Sorgu</div>
         </div>
 
         <!-- Content -->
@@ -687,9 +687,9 @@
                         </div>
                     </div>
                     <div class="action-buttons">
-                        <button class="btn btn-primary" onclick="showCustomerSelection()">Müşteri Seç</button>
-                        <button class="btn" onclick="showAllCustomers()">Tüm Müş. Göster</button>
-                        <button class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
+                        <button class="btn btn-primary" id="selectCustomerButton">Müşteri Seç</button>
+                        <button class="btn" id="showAllCustomersButton">Tüm Müş. Göster</button>
+                        <button class="btn btn-warning" id="generateReportButton">İş Sonu Raporu</button>
                     </div>
                 </div>
 
@@ -699,8 +699,8 @@
                         <h3>Paket Oluştur</h3>
                         <div class="barcode-input">
                             <input type="text" id="barcodeInput" placeholder="Barkodu okutun veya girin" autofocus>
-                            <button onclick="searchBarcode()"><i class="fas fa-search"></i></button>
-                            <button onclick="clearBarcode()"><i class="fas fa-times"></i></button>
+                            <button id="searchBarcodeButton"><i class="fas fa-search"></i></button>
+                            <button id="clearBarcodeButton"><i class="fas fa-times"></i></button>
                         </div>
                         <div class="barcode-counter">
                             <span>Okutulan barkod sayısı: <strong id="barcodeCount">0</strong></span>
@@ -748,13 +748,13 @@
                         </div>
 
                         <div class="package-actions">
-                            <button class="btn" onclick="showManualEntry()">MANUEL</button>
+                            <button class="btn" id="manualEntryButton">MANUEL</button>
                             <div class="definition-panel">
                                 <p>Tanımsız Adet: <span style="color: red;" id="undefinedCount">0</span></p>
                                 <p>Tanımlı Adet: <span style="color: blue;" id="definedCount">0</span></p>
                                 <p>Ortalama Adet: <span id="averageCount">0</span></p>
                             </div>
-                            <button class="btn btn-success" onclick="savePackage()">(F2) Paketle / Kaydet</button>
+                            <button class="btn btn-success" id="savePackageButton">(F2) Paketle / Kaydet</button>
                         </div>
                     </div>
                 </div>
@@ -772,7 +772,7 @@
                             <option value="shipped">Sevk Edilen</option>
                         </select>
                     </div>
-                    <button class="btn btn-primary" onclick="filterShipping()">Uygula</button>
+                    <button class="btn btn-primary" id="filterShippingButton">Uygula</button>
                 </div>
                 
                 <table class="package-table">
@@ -799,8 +799,8 @@
                 
                 <div class="stock-search">
                     <input type="text" id="stockSearch" placeholder="Ürün adı veya koduna göre ara...">
-                    <button class="btn btn-primary" onclick="searchStock()">Ara</button>
-                    <button class="btn" onclick="clearStockSearch()">Temizle</button>
+                    <button class="btn btn-primary" id="searchStockButton">Ara</button>
+                    <button class="btn" id="clearStockSearchButton">Temizle</button>
                 </div>
                 
                 <table class="stock-table">
@@ -827,7 +827,7 @@
                         <i class="fas fa-upload"></i> Dosya Seç
                     </label>
                     <span id="selectedFileName" style="margin-left: 10px;"></span>
-                    <button class="btn btn-primary" onclick="uploadStockFile()" style="margin-top: 10px;">Yükle</button>
+                    <button class="btn btn-primary" id="uploadStockButton" style="margin-top: 10px;">Yükle</button>
                 </div>
             </div>
         </div>
@@ -835,19 +835,19 @@
         <!-- Footer -->
         <div class="app-footer">
             <div class="footer-actions">
-                <button class="btn" onclick="printLabel()"><i class="fas fa-print"></i> Etiket Bas</button>
-                <button class="btn" onclick="selectAllPackages()">Tümünü Seç</button>
-                <button class="btn" onclick="clearSelection()">Seçimi Kaldır</button>
-                <button class="btn btn-danger" onclick="deletePackage()">Paket Sil</button>
+                <button class="btn" id="printLabelButton"><i class="fas fa-print"></i> Etiket Bas</button>
+                <button class="btn" id="selectAllButton">Tümünü Seç</button>
+                <button class="btn" id="clearSelectionButton">Seçimi Kaldır</button>
+                <button class="btn btn-danger" id="deletePackageButton">Paket Sil</button>
             </div>
             <div class="container-info">
-                <button class="btn" onclick="loadCurrentContainer()">Mev. K.</button>
-                <button class="btn" onclick="createNewContainer()">Yeni K.</button>
+                <button class="btn" id="loadContainerButton">Mev. K.</button>
+                <button class="btn" id="createContainerButton">Yeni K.</button>
                 <span>Konteyner No: <span id="containerNumber">C000094</span></span>
             </div>
             <div class="footer-actions">
-                <button class="btn btn-danger" onclick="deleteContainer()">Konteyner Sil</button>
-                <button class="btn btn-success" onclick="sendToRamp()">Kon. Rampaya Gönder</button>
+                <button class="btn btn-danger" id="deleteContainerButton">Konteyner Sil</button>
+                <button class="btn btn-success" id="sendToRampButton">Kon. Rampaya Gönder</button>
             </div>
         </div>
     </div>
@@ -865,7 +865,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="modalTitle">Müşteri Seçimi</h3>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
+                <button class="modal-close" id="closeModalButton">&times;</button>
             </div>
             <div id="modalBody">
                 <div class="customer-list" id="customerList">
@@ -879,8 +879,8 @@
                     </div>
                     <div class="form-row">
                         <input type="email" id="newCustomerEmail" placeholder="E-posta">
-                        <button class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
-                        <button class="btn btn-danger" onclick="deleteSelectedCustomer()">Müşteri Sil</button>
+                        <button class="btn btn-primary" id="addCustomerButton">Müşteri Ekle</button>
+                        <button class="btn btn-danger" id="deleteCustomerButton">Müşteri Sil</button>
                     </div>
                 </div>
             </div>
@@ -893,8 +893,8 @@
             <h3 id="quantityProductName">Ürün Miktarı</h3>
             <input type="number" id="quantityInput" class="quantity-input" min="1" value="1">
             <div class="quantity-buttons">
-                <button class="btn btn-primary" onclick="confirmQuantity()">Tamam</button>
-                <button class="btn" onclick="closeQuantityModal()">İptal</button>
+                <button class="btn btn-primary" id="confirmQuantityButton">Tamam</button>
+                <button class="btn" id="cancelQuantityButton">İptal</button>
             </div>
         </div>
     </div>
@@ -904,7 +904,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Manuel Ürün Ekleme</h3>
-                <button class="modal-close" onclick="closeManualModal()">&times;</button>
+                <button class="modal-close" id="closeManualModalButton">&times;</button>
             </div>
             <div class="form-group">
                 <label for="manualProductCode">Ürün Kodu</label>
@@ -919,8 +919,8 @@
                 <input type="number" id="manualQuantity" min="1" value="1">
             </div>
             <div class="form-group">
-                <button class="btn btn-primary" onclick="addManualProduct()">Ekle</button>
-                <button class="btn" onclick="closeManualModal()">İptal</button>
+                <button class="btn btn-primary" id="addManualProductButton">Ekle</button>
+                <button class="btn" id="cancelManualModalButton">İptal</button>
             </div>
         </div>
     </div>
@@ -2191,7 +2191,7 @@
             });
             
             // Seçili tabı ve içeriği göster
-            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
             document.getElementById(`${tabName}Tab`).classList.add('active');
         }
         
@@ -2205,35 +2205,29 @@
             }, 3000);
         }
         
-       // Giriş yap - düzeltilmiş
-    function login() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        
-        // Boş giriş kontrolü
-        if (!username || !password) {
-            showToast('Kullanıcı adı ve şifre gereklidir', 'error');
-            return;
+        // Giriş yap
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const user = users.find(u => u.username === username && u.password === password);
+            
+            if (user) {
+                currentUser = user;
+                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
+                
+                loginScreen.style.display = 'none';
+                appContainer.style.display = 'flex';
+                
+                // localStorage'dan verileri yükle
+                loadDataFromLocalStorage();
+                
+                initApp();
+                showToast('Başarıyla giriş yapıldı', 'success');
+            } else {
+                showToast('Kullanıcı adı veya şifre hatalı', 'error');
+            }
         }
-        
-        const user = users.find(u => u.username === username && u.password === password);
-        
-        if (user) {
-            currentUser = user;
-            document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
-            
-            loginScreen.style.display = 'none';
-            appContainer.style.display = 'flex';
-            
-            // localStorage'dan verileri yükle
-            loadDataFromLocalStorage();
-            
-            initApp();
-            showToast('Başarıyla giriş yapıldı', 'success');
-        } else {
-            showToast('Kullanıcı adı veya şifre hatalı', 'error');
-        }
-    }
         
         // Çıkış yap
         function logout() {
@@ -2250,12 +2244,78 @@
             }
         }
         
+        // Event listener'ları bağla
+        function setupEventListeners() {
+            // Giriş butonu
+            document.getElementById('loginButton').addEventListener('click', login);
+            
+            // Çıkış butonu
+            document.getElementById('logoutButton').addEventListener('click', logout);
+            
+            // Tab butonları
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchTab(this.getAttribute('data-tab'));
+                });
+            });
+            
+            // Müşteri işlemleri
+            document.getElementById('selectCustomerButton').addEventListener('click', showCustomerSelection);
+            document.getElementById('showAllCustomersButton').addEventListener('click', showAllCustomers);
+            document.getElementById('generateReportButton').addEventListener('click', generateDailyReport);
+            
+            // Barkod işlemleri
+            document.getElementById('searchBarcodeButton').addEventListener('click', searchBarcode);
+            document.getElementById('clearBarcodeButton').addEventListener('click', clearBarcode);
+            
+            // Manuel giriş
+            document.getElementById('manualEntryButton').addEventListener('click', showManualEntry);
+            
+            // Paket kaydet
+            document.getElementById('savePackageButton').addEventListener('click', savePackage);
+            
+            // Footer butonları
+            document.getElementById('printLabelButton').addEventListener('click', printLabel);
+            document.getElementById('selectAllButton').addEventListener('click', selectAllPackages);
+            document.getElementById('clearSelectionButton').addEventListener('click', clearSelection);
+            document.getElementById('deletePackageButton').addEventListener('click', deletePackage);
+            document.getElementById('loadContainerButton').addEventListener('click', loadCurrentContainer);
+            document.getElementById('createContainerButton').addEventListener('click', createNewContainer);
+            document.getElementById('deleteContainerButton').addEventListener('click', deleteContainer);
+            document.getElementById('sendToRampButton').addEventListener('click', sendToRamp);
+            
+            // Modal butonları
+            document.getElementById('closeModalButton').addEventListener('click', closeModal);
+            document.getElementById('addCustomerButton').addEventListener('click', addNewCustomer);
+            document.getElementById('deleteCustomerButton').addEventListener('click', deleteSelectedCustomer);
+            
+            // Miktar modalı
+            document.getElementById('confirmQuantityButton').addEventListener('click', confirmQuantity);
+            document.getElementById('cancelQuantityButton').addEventListener('click', closeQuantityModal);
+            
+            // Manuel ürün modalı
+            document.getElementById('addManualProductButton').addEventListener('click', addManualProduct);
+            document.getElementById('closeManualModalButton').addEventListener('click', closeManualModal);
+            document.getElementById('cancelManualModalButton').addEventListener('click', closeManualModal);
+            
+            // Stok işlemleri
+            document.getElementById('searchStockButton').addEventListener('click', searchStock);
+            document.getElementById('clearStockSearchButton').addEventListener('click', clearStockSearch);
+            document.getElementById('uploadStockButton').addEventListener('click', uploadStockFile);
+            
+            // Sevkiyat filtreleme
+            document.getElementById('filterShippingButton').addEventListener('click', filterShipping);
+        }
+        
         // Sayfa yüklendiğinde
         window.onload = function() {
             // Gerçek uygulamada oturum kontrolü yapılır
             // Şimdilik doğrudan giriş ekranını gösteriyoruz
             loginScreen.style.display = 'flex';
             appContainer.style.display = 'none';
+            
+            // Event listener'ları kur
+            setupEventListeners();
         };
     </script>
 </body>
