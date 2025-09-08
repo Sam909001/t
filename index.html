@@ -166,7 +166,8 @@
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: -</span>
-                <button type="button" id="logoutBtn" class="btn btn-danger" title="Çıkış Yap">Çıkış Yap</button>
+                <!-- added inline onclick so logout works even if event listener wasn't attached -->
+                <button type="button" id="logoutBtn" class="btn btn-danger" title="Çıkış Yap" onclick="logout()">Çıkış Yap</button>
             </div>
         </div>
 
@@ -250,6 +251,7 @@
 
                         <div class="package-actions">
                             <button type="button" class="btn" onclick="showManualEntry()">MANUEL</button>
+                            <!-- (F2) Paketle / Kaydet button is kept and visible -->
                             <button type="button" class="btn btn-success" id="savePackageBtn" onclick="savePackage()">(F2) Paketle / Kaydet</button>
                         </div>
                     </div>
@@ -503,7 +505,9 @@
             updateContainerDisplay();
             updateCounts();
 
-            logoutBtn.addEventListener('click', logout);
+            // attach logout event listener as well (inline onclick exists too)
+            try { logoutBtn.addEventListener('click', logout); } catch (e) {}
+
             document.getElementById('barcodeInput').addEventListener('keypress', e => { if (e.key === 'Enter') { processBarcode(e.target.value); e.target.value=''; }});
             selectAllCheckbox.addEventListener('change', e => {
                 document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => {
@@ -586,11 +590,12 @@
 
             list.forEach(container => {
                 const row = shippingTableBody.insertRow();
+                const actionsTd = row.insertCell();
+                row.innerHTML = `<td>${container.containerNo}</td><td>${container.customer}</td><td>${container.packageCount}</td><td>${container.totalQuantity}</td><td>${container.createdAt}</td><td>${container.status}</td><td></td>`;
                 const actions = document.createElement('div');
                 actions.innerHTML = `<button type="button" class="btn btn-success" onclick="changeContainerStatus(${container.id}, 'Sevk Edildi')">Sevk Et</button>
                                      <button type="button" class="btn" onclick="selectContainer('${container.containerNo}')">Seç</button>
                                      <button type="button" class="btn" onclick="viewContainerDetails(${container.id})">Detay</button>`;
-                row.innerHTML = `<td>${container.containerNo}</td><td>${container.customer}</td><td>${container.packageCount}</td><td>${container.totalQuantity}</td><td>${container.createdAt}</td><td>${container.status}</td><td></td>`;
                 row.cells[6].appendChild(actions);
             });
         }
@@ -649,7 +654,7 @@
             }
         }
 
-        // Fix cikis yap - robust logout
+        // Robust logout function (fixed)
         function logout() {
             const doLogout = () => {
                 currentUser = null;
@@ -661,10 +666,12 @@
                 showToast('Çıkış yapıldı','success');
             };
 
-            // If user is logged show confirmation; otherwise just logout silently
             if (currentUser) {
-                if (confirm('Çıkış yapmak istediğinize emin misiniz?')) doLogout();
+                if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+                    doLogout();
+                }
             } else {
+                // If somehow user is not set but the button clicked, still do logout actions
                 doLogout();
             }
         }
@@ -675,38 +682,24 @@
             const tabButton = document.getElementById(`tab-${tabName}`);
             if (tabButton) tabButton.classList.add('active');
             const pane = document.getElementById(`${tabName}Tab`);
-            if (pane) pane.classList.add('active');
+            // our ids are packagingTab, shippingTab, stockTab -> handle mapping
+            const map = { packaging: 'packagingTab', shipping: 'shippingTab', stock: 'stockTab' };
+            const paneId = map[tabName] || `${tabName}Tab`;
+            document.getElementById(paneId)?.classList.add('active');
 
-            // fallback: try using IDs matching earlier naming
-            const paneAlt = document.getElementById(`${tabName}Tab`);
-            if (paneAlt) paneAlt.classList.add('active');
-            // ensure the selected tab-pane by id
-            const tabPaneById = document.getElementById(`${tabName}Tab`);
-            if (tabPaneById) tabPaneById.classList.add('active');
-
-            // also handle custom naming we used: packaging, shipping, stock
-            if (tabName === 'packaging') {
-                document.querySelector('.tab-pane#packagingTab')?.classList.add('active');
-            } else if (tabName === 'shipping') {
-                document.querySelector('.tab-pane#shippingTab')?.classList.add('active');
-                // refresh shipping list
-                filterShipping();
-            } else if (tabName === 'stock') {
-                document.querySelector('.tab-pane#stockTab')?.classList.add('active');
-                populateStockTable();
-            }
+            if (tabName === 'shipping') filterShipping();
+            if (tabName === 'stock') populateStockTable();
         }
 
         function processBarcode(barcode) {
             if (!barcode) return;
             barcodeCount++;
             document.getElementById('barcodeCount').textContent = barcodeCount;
-            updateUndefinedCount(); // update counts based on barcode vs defined products
+            updateUndefinedCount();
             showToast('Barkod okutuldu: ' + barcode, 'success');
             try { JsBarcode("#barcode", barcode, { format: "CODE128", displayValue: true, fontSize: 16, height: 40 }); } catch(e){}
         }
 
-        // Save package with quick products
         function savePackage() {
             if (!selectedCustomer) { showToast('Lütfen önce bir müşteri seçin', 'error'); return; }
             if (!currentContainer) { showToast('Lütfen önce bir konteyner seçin veya oluşturun', 'error'); return; }
@@ -757,13 +750,11 @@
             const container = containers.find(c => c.containerNo === currentContainer);
             if (container) {
                 container.status = 'Sevk Edildi';
-                // Remove packages associated with this container to simulate sending
                 packages = packages.filter(p => p.containerNo !== currentContainer);
 
                 populatePackagesTable();
                 populateShippingTable();
 
-                // set next container or create new
                 const nextContainer = containers.find(c => c.status === 'Bekliyor' && c.containerNo !== currentContainer);
                 if (nextContainer) {
                     currentContainer = nextContainer.containerNo;
@@ -853,7 +844,6 @@
             document.getElementById('customerModal').style.display = 'flex';
         }
 
-        // Tüm Müş. Göster -> immediate pick and close
         function showAllCustomers() {
             customerModalImmediatePick = true;
             renderCustomerList(true);
@@ -870,13 +860,11 @@
                 div.innerHTML = `<div><strong>${customer.code}</strong> - ${customer.name}</div>`;
                 div.onclick = () => {
                     if (immediatePick) {
-                        // Direct pick and close
                         customerSelect.value = customer.code;
                         updateCustomerInfo(customer.code);
                         document.getElementById('customerModal').style.display = 'none';
                         showToast(`${customer.name} seçildi.`, 'success');
                     } else {
-                        // select in modal (for management)
                         document.querySelectorAll('#customerList .list-item').forEach(i => i.classList.remove('selected'));
                         div.classList.add('selected');
                         selectedCustomerInModal = customer;
@@ -908,7 +896,6 @@
             populateCustomerDropdown();
             renderCustomerList(false);
             showToast(`${name} müşterisi eklendi`, 'success');
-            // clear fields
             document.getElementById('newCustomerCode').value = '';
             document.getElementById('newCustomerName').value = '';
         }
@@ -921,21 +908,6 @@
             renderCustomerList(false);
             selectedCustomerInModal = null;
             showToast('Müşteri silindi', 'success');
-        }
-
-        function selectContainer(containerNo) {
-            currentContainer = containerNo;
-            updateContainerDisplay();
-            populatePackagesTable();
-            showToast(`${containerNo} seçildi.`, 'success');
-        }
-
-        function viewContainerDetails(containerId) {
-            const c = containers.find(x => x.id === containerId);
-            if (!c) { showToast('Konteyner bulunamadı', 'error'); return; }
-            const pkgs = packages.filter(p => p.containerNo === c.containerNo);
-            const details = pkgs.map(p => `${p.packageNo} - ${p.totalQuantity} adet - ${p.customerName}`).join('\n');
-            alert(`Konteyner: ${c.containerNo}\nMüşteri: ${c.customer}\nPaket Sayısı: ${c.packageCount}\nToplam Adet: ${c.totalQuantity}\nDurum: ${c.status}\n\nPaketler:\n${details || '(yok)'}`);
         }
 
         // --- Modals & Helpers ---
@@ -988,7 +960,6 @@
         }
         function clearStockSearch() { document.getElementById('stockSearch').value=''; populateStockTable(); }
 
-        // Handle file upload for stock: CSV or Excel
         async function uploadStockFile() {
             const fileInput = document.getElementById('stockFileUpload');
             const file = fileInput.files && fileInput.files[0];
@@ -1014,15 +985,12 @@
                 console.error(err);
                 showToast('Dosya işlenirken hata oluştu', 'error');
             } finally {
-                // clear file input
                 fileInput.value = '';
                 document.getElementById('selectedFileName').textContent = '';
             }
         }
 
-        // Map uploaded rows to stockItems structure and merge/replace quantities
         function mapAndMergeStock(rows) {
-            // Try to map columns automatically: code,name,quantity,unit,lastUpdate,status
             let updatedCount = 0;
             rows.forEach(r => {
                 const code = (r.code || r.Code || r['Stok Kodu'] || r['Kod'] || r['SKU'] || '').toString().trim();
@@ -1074,14 +1042,12 @@
         }
 
         // --- Utility functions ---
-        function searchBarcode() { processBarcode(document.getElementById('barcodeInput').value); document.getElementById('barcodeInput').value=''; }
-        function clearBarcode() { document.getElementById('barcodeInput').value = ''; document.getElementById('barcodeInput').focus(); }
-        function showManualEntry() { document.getElementById('manualModal').style.display='flex'; }
-        function closeManualModal() { document.getElementById('manualModal').style.display='none'; }
         function selectAllPackages() { selectAllCheckbox.checked = true; selectAllCheckbox.dispatchEvent(new Event('change')); }
         function clearSelection() { selectAllCheckbox.checked = false; selectAllCheckbox.dispatchEvent(new Event('change')); }
+        function printLabel() { showToast('Etiket yazdırılıyor...'); }
+
+        // --- Daily report (PDF) ---
         function generateDailyReport() {
-            // Create PDF report containing packages and containers for the day
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
@@ -1090,7 +1056,6 @@
             doc.setFontSize(10);
             doc.text(`Tarih: ${new Date().toLocaleString('tr-TR')}`, 14, 28);
 
-            // Packages table
             const packageRows = packages.map(p => [
                 p.packageNo, p.totalQuantity.toString(), p.packageTime, p.customerCode, p.customerName, p.packer, p.containerNo
             ]);
@@ -1103,7 +1068,6 @@
                 headStyles: { fillColor: [20, 90, 50] }
             });
 
-            // Containers table on the next page
             doc.addPage();
             doc.setFontSize(14);
             doc.text('Konteynerler', 14, 20);
@@ -1119,7 +1083,6 @@
                 styles: { fontSize: 9 }
             });
 
-            // Footer summary
             doc.addPage();
             doc.setFontSize(12);
             doc.text('Özet', 14, 20);
@@ -1128,37 +1091,31 @@
             doc.text(`Toplam Konteyner: ${containers.length}`, 14, 36);
             doc.text(`Okutulan Barkod Sayısı: ${barcodeCount}`, 14, 44);
 
-            // Save file
             doc.save(`GUN_SONU_RAPORU_${new Date().toISOString().slice(0,10)}.pdf`);
             showToast('Gün sonu raporu indirildi', 'success');
         }
-
-        function printLabel() { showToast('Etiket yazdırılıyor...'); }
-
-        // Upload stock file is above
 
         function addManualProduct() {
             const code = document.getElementById('manualProductCode').value.trim();
             const name = document.getElementById('manualProductName').value.trim();
             const qty = Number(document.getElementById('manualQuantity').value) || 0;
             if (!code || !name || qty <= 0) { showToast('Lütfen geçerli ürün bilgisi girin', 'error'); return; }
-            // If product exists in quick list, increase quantity
             const prod = products.find(p => p.code === code);
             if (prod) {
                 quickProductQuantities[prod.id] = (quickProductQuantities[prod.id] || 0) + qty;
                 updateQuickButtonBadge(prod.id, quickProductQuantities[prod.id]);
             } else {
-                // add to products list
                 const newId = (products.length ? Math.max(...products.map(p => p.id)) : 0) + 1;
                 products.push({ id: newId, name, code });
                 quickProductQuantities[newId] = qty;
                 createQuickProductButtons();
+                updateQuickButtonBadge(newId, qty);
             }
             showToast('Manuel ürün eklendi.', 'success');
             closeManualModal();
         }
 
-        // --- Counts: Defined and Undefined ---
+        // --- Counts ---
         function updateCounts() {
             const definedCount = Object.values(quickProductQuantities).reduce((s, q) => s + (Number(q) || 0), 0);
             const undefinedCount = Math.max(0, barcodeCount - definedCount);
@@ -1175,33 +1132,17 @@
 
         function updateUndefinedCount() { updateCounts(); }
 
-        // --- Shipping/stock helpers used earlier that weren't defined ---
-        function selectAllPackagesInUI(state) {
-            document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => {
-                cb.checked = !!state;
-                const pkg = packages.find(p => p.id === parseInt(cb.dataset.id));
-                if (pkg) pkg.selected = !!state;
-            });
-        }
-
-        // Helper to change container selection status (already used)
-        function changeContainerStatusByNo(containerNo, newStatus) {
-            const c = containers.find(x => x.containerNo === containerNo);
-            if (c) c.status = newStatus;
-            populateShippingTable();
-        }
-
-        // --- File/initial load ---
+        // --- On load ---
         window.onload = function() {
             loginScreen.style.display = 'flex';
             appContainer.style.display = 'none';
-            // prepopulate some UI values
             populateCustomerDropdown();
             populatePackagesTable();
             populateShippingTable();
             populateStockTable();
             createQuickProductButtons();
             updateContainerDisplay();
+            updateCounts();
         };
     </script>
 </body>
