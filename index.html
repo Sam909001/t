@@ -1280,5 +1280,63 @@
             return false;
         };
     </script>
+    <script>
+window.addEventListener('DOMContentLoaded', () => {
+  if (!window.firebaseHelpers || !window.firebaseHelpers.auth) {
+    console.error("Firebase not initialized yet");
+    return;
+  }
+
+  const loginBtn = document.getElementById("loginBtn");
+
+  loginBtn.onclick = async () => {
+    const email = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      alert("Lütfen kullanıcı adı ve şifre girin");
+      return;
+    }
+
+    try {
+      const user = await window.firebaseHelpers.firebaseLogin(email, password);
+      alert("Giriş başarılı: " + user.email);
+      document.getElementById("loginScreen").style.display = "none";
+
+      if (window.firebaseHelpers.fetchAndPopulateData) {
+        await window.firebaseHelpers.fetchAndPopulateData();
+      }
+    } catch (e) {
+      alert("Giriş başarısız: " + e.message);
+      console.error(e);
+    }
+  };
+
+  // Persist login status
+  window.firebaseHelpers.auth.onAuthStateChanged((user) => {
+    if (user) {
+      document.getElementById("loginScreen").style.display = "none";
+      if (window.firebaseHelpers.fetchAndPopulateData) {
+        window.firebaseHelpers.fetchAndPopulateData().catch(()=>{});
+      }
+    } else {
+      document.getElementById("loginScreen").style.display = "block";
+    }
+  });
+});
+    </script>
+    <script>
+        window.firebaseHelpers.auth.onAuthStateChanged((user) => {
+  if (user) {
+    document.getElementById("loginScreen").style.display = "none";
+    // fetch Firestore data
+    if (window.firebaseHelpers.fetchAndPopulateData) {
+      window.firebaseHelpers.fetchAndPopulateData().catch(()=>{});
+    }
+  } else {
+    document.getElementById("loginScreen").style.display = "block";
+  }
+});
+</script>
 </body>
 </html>
