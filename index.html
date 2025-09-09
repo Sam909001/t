@@ -12,6 +12,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+    
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <!-- Firebase Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase Authentication -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <style>
         :root {
@@ -152,6 +159,13 @@
         .status-kritik { background:#c0392b;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.8rem; }
         .status-az-stok { background:#f39c12;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.8rem; }
         .status-stokta { background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.8rem; }
+        
+        /* Container grouping styles */
+        .customer-group { margin-bottom: 1.5rem; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .customer-group-header { background-color: #f5f5f5; padding: 0.8rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .customer-group-content { padding: 0.5rem; }
+        .customer-group-table { width: 100%; border-collapse: collapse; }
+        .customer-group-table th { background-color: #e8e8e8; }
 
         /* Responsive */
         @media (max-width:1200px) {
@@ -177,7 +191,7 @@
                 <label for="password">Şifre</label>
                 <input type="password" id="password" placeholder="Şifrenizi girin">
             </div>
-            <button type="button" class="btn btn-primary" id="loginBtn" onclick="loginUser()">Giriş Yap</button>
+            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
             <div style="text-align:center; margin-top:1rem;">
                 <button type="button" class="btn-link">Şifremi Unuttum</button>
             </div>
@@ -189,14 +203,14 @@
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Ahmet Yılmaz</span>
-                <button type="button" id="logoutBtn" class="btn btn-danger" onclick="logout()">Çıkış Yap</button>
+                <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
             </div>
         </div>
 
         <div class="tabs" role="tablist" aria-label="Ana Sekmeler">
-            <div class="tab active" data-tab="packaging" role="tab" onclick="switchTab('packaging')">Paketleme</div>
-            <div class="tab" data-tab="shipping" role="tab" onclick="switchTab('shipping')">Sevkiyat</div>
-            <div class="tab" data-tab="stock" role="tab" onclick="switchTab('stock')">Stok Sorgu</div>
+            <div class="tab active" data-tab="packaging" role="tab">Paketleme</div>
+            <div class="tab" data-tab="shipping" role="tab">Sevkiyat</div>
+            <div class="tab" data-tab="stock" role="tab">Stok Sorgu</div>
         </div>
 
         <div class="tab-content">
@@ -220,9 +234,9 @@
                         </div>
                     </div>
                     <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" onclick="showCustomerSelection()">Müşteri Seç</button>
-                        <button type="button" class="btn" onclick="showAllCustomers()">Tüm Müş. Göster</button>
-                        <button type="button" class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
+                        <button type="button" class="btn btn-primary" id="showCustomerSelectionBtn">Müşteri Seç</button>
+                        <button type="button" class="btn" id="showAllCustomersBtn">Tüm Müş. Göster</button>
+                        <button type="button" class="btn btn-warning" id="generateDailyReportBtn">İş Sonu Raporu</button>
                     </div>
                 </div>
 
@@ -231,8 +245,8 @@
                         <h3>Paket Oluştur</h3>
                         <div class="barcode-input">
                             <input type="text" id="barcodeInput" placeholder="Barkodu okutun veya girin" autofocus>
-                            <button type="button" onclick="searchBarcode()"><i class="fas fa-search"></i></button>
-                            <button type="button" onclick="clearBarcode()"><i class="fas fa-times"></i></button>
+                            <button type="button" id="searchBarcodeBtn"><i class="fas fa-search"></i></button>
+                            <button type="button" id="clearBarcodeBtn"><i class="fas fa-times"></i></button>
                         </div>
                         <div class="barcode-counter">
                             <span>Okutulan barkod sayısı: <strong id="barcodeCount">0</strong></span>
@@ -264,13 +278,13 @@
                         <div class="quick-buttons" id="quickButtons"></div>
 
                         <div class="package-actions">
-                            <button type="button" class="btn" onclick="showManualEntry()">MANUEL</button>
+                            <button type="button" class="btn" id="showManualEntryBtn">MANUEL</button>
                             <div class="definition-panel">
                                 <p>Tanımsız Adet: <span style="color: red;" id="undefinedCount">0</span></p>
                                 <p>Tanımlı Adet: <span style="color: blue;" id="definedCount">0</span></p>
                                 <p>Ortalama Adet: <span id="averageCount">0</span></p>
                             </div>
-                            <button type="button" class="btn btn-success" onclick="savePackage()">(F2) Paketle / Kaydet</button>
+                            <button type="button" class="btn btn-success" id="savePackageBtn">(F2) Paketle / Kaydet</button>
                         </div>
                     </div>
                 </div>
@@ -287,31 +301,20 @@
                             <option value="sevk-edildi">Sevk Edildi</option>
                         </select>
                     </div>
-                    <button type="button" class="btn btn-primary" onclick="filterShipping()">Uygula</button>
+                    <button type="button" class="btn btn-primary" id="filterShippingBtn">Uygula</button>
                 </div>
 
-                <table class="package-table" style="width:100%;">
-                    <thead>
-                        <tr>
-                            <th>Konteyner No</th>
-                            <th>Müşteri</th>
-                            <th>Paket Sayısı</th>
-                            <th>Toplam Adet</th>
-                            <th>Oluşturulma Tarihi</th>
-                            <th>Durum</th>
-                            <th>İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody id="shippingTableBody"></tbody>
-                </table>
+                <div id="shippingContainerGroups">
+                    <!-- Container groups will be populated here -->
+                </div>
             </div>
 
             <div class="tab-pane" id="stockTab">
                 <h2>Stok Sorgulama</h2>
                 <div class="stock-search">
                     <input type="text" id="stockSearch" placeholder="Ürün adı veya koduna göre ara...">
-                    <button type="button" class="btn btn-primary" onclick="searchStock()">Ara</button>
-                    <button type="button" class="btn" onclick="clearStockSearch()">Temizle</button>
+                    <button type="button" class="btn btn-primary" id="searchStockBtn">Ara</button>
+                    <button type="button" class="btn" id="clearStockSearchBtn">Temizle</button>
                 </div>
 
                 <table class="stock-table">
@@ -334,7 +337,7 @@
                     <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" style="display:none;">
                     <label for="stockFileUpload" class="upload-button" role="button"><i class="fas fa-upload"></i> Dosya Seç</label>
                     <span id="selectedFileName" style="margin-left:10px;"></span>
-                    <button type="button" class="btn btn-primary" onclick="uploadStockFile()" style="margin-top:10px;">Yükle</button>
+                    <button type="button" class="btn btn-primary" id="uploadStockFileBtn">Yükle</button>
                     <p style="margin-top:8px; font-size:0.85rem; color:#666">Desteklenen başlık örnekleri: "Stok Kodu", "Ürün Adı", "Mevcut Adet" veya "code", "name", "quantity"</p>
                 </div>
             </div>
@@ -342,19 +345,19 @@
 
         <div class="app-footer">
             <div class="footer-actions">
-                <button type="button" class="btn" onclick="printLabel()"><i class="fas fa-print"></i> Etiket Bas</button>
-                <button type="button" class="btn" onclick="selectAllPackages()">Tümünü Seç</button>
-                <button type="button" class="btn" onclick="clearSelection()">Seçimi Kaldır</button>
-                <button type="button" class="btn btn-danger" onclick="deletePackage()">Paket Sil</button>
+                <button type="button" class="btn" id="printLabelBtn"><i class="fas fa-print"></i> Etiket Bas</button>
+                <button type="button" class="btn" id="selectAllPackagesBtn">Tümünü Seç</button>
+                <button type="button" class="btn" id="clearSelectionBtn">Seçimi Kaldır</button>
+                <button type="button" class="btn btn-danger" id="deletePackageBtn">Paket Sil</button>
             </div>
             <div class="container-info">
-                <button type="button" class="btn" onclick="loadCurrentContainer()">Mev. K.</button>
-                <button type="button" class="btn" onclick="createNewContainer()">Yeni K.</button>
+                <button type="button" class="btn" id="loadCurrentContainerBtn">Mev. K.</button>
+                <button type="button" class="btn" id="createNewContainerBtn">Yeni K.</button>
                 <span>Konteyner No: <span id="containerNumber">C000094</span></span>
             </div>
             <div class="footer-actions">
-                <button type="button" class="btn btn-danger" onclick="deleteContainer()">Konteyner Sil</button>
-                <button type="button" class="btn btn-success" onclick="sendToRamp()">Kon. Rampaya Gönder</button>
+                <button type="button" class="btn btn-danger" id="deleteContainerBtn">Konteyner Sil</button>
+                <button type="button" class="btn btn-success" id="sendToRampBtn">Kon. Rampaya Gönder</button>
             </div>
         </div>
     </div>
@@ -368,7 +371,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="modalTitle">Müşteri Seçimi</h3>
-                <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+                <button type="button" class="modal-close" id="closeModalBtn">&times;</button>
             </div>
             <div id="modalBody">
                 <div class="customer-list" id="customerList"></div>
@@ -380,8 +383,8 @@
                     </div>
                     <div class="form-row">
                         <input type="email" id="newCustomerEmail" placeholder="E-posta">
-                        <button type="button" class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
-                        <button type="button" class="btn btn-danger" onclick="deleteSelectedCustomer()">Müşteri Sil</button>
+                        <button type="button" class="btn btn-primary" id="addNewCustomerBtn">Müşteri Ekle</button>
+                        <button type="button" class="btn btn-danger" id="deleteSelectedCustomerBtn">Müşteri Sil</button>
                     </div>
                 </div>
             </div>
@@ -393,7 +396,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Tüm Müşteriler</h3>
-                <button type="button" class="modal-close" onclick="closeAllCustomersModal()">&times;</button>
+                <button type="button" class="modal-close" id="closeAllCustomersModalBtn">&times;</button>
             </div>
             <div class="customer-list" id="allCustomersList" style="max-height: 400px; overflow-y: auto;"></div>
         </div>
@@ -404,14 +407,14 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>İş Sonu Raporu Gönder</h3>
-                <button type="button" class="modal-close" onclick="closeEmailModal()">&times;</button>
+                <button type="button" class="modal-close" id="closeEmailModalBtn">&times;</button>
             </div>
             <div class="email-settings">
                 <label for="reportEmail">E-posta Adresi:</label>
                 <input type="email" id="reportEmail" placeholder="rapor@firma.com">
                 <div style="display:flex;gap:8px;margin-top:8px">
-                    <button type="button" class="btn btn-primary" onclick="sendDailyReport()">Raporu Gönder</button>
-                    <button type="button" class="btn" onclick="previewReport()">Raporu Önizle</button>
+                    <button type="button" class="btn btn-primary" id="sendDailyReportBtn">Raporu Gönder</button>
+                    <button type="button" class="btn" id="previewReportBtn">Raporu Önizle</button>
                 </div>
             </div>
         </div>
@@ -422,8 +425,8 @@
             <h3 id="quantityProductName">Ürün Miktarı</h3>
             <input type="number" id="quantityInput" class="quantity-input" min="1" value="1">
             <div class="quantity-buttons">
-                <button type="button" class="btn btn-primary" onclick="confirmQuantity()">Tamam</button>
-                <button type="button" class="btn" onclick="closeQuantityModal()">İptal</button>
+                <button type="button" class="btn btn-primary" id="confirmQuantityBtn">Tamam</button>
+                <button type="button" class="btn" id="closeQuantityModalBtn">İptal</button>
             </div>
         </div>
     </div>
@@ -432,7 +435,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Manuel Ürün Ekleme</h3>
-                <button type="button" class="modal-close" onclick="closeManualModal()">&times;</button>
+                <button type="button" class="modal-close" id="closeManualModalBtn">&times;</button>
             </div>
             <div class="form-group">
                 <label for="manualProductCode">Ürün Kodu</label>
@@ -447,13 +450,130 @@
                 <input type="number" id="manualQuantity" min="1" value="1">
             </div>
             <div class="form-group">
-                <button type="button" class="btn btn-primary" onclick="addManualProduct()">Ekle</button>
-                <button type="button" class="btn" onclick="closeManualModal()">İptal</button>
+                <button type="button" class="btn btn-primary" id="addManualProductBtn">Ekle</button>
+                <button type="button" class="btn" id="closeManualModalBtn2">İptal</button>
             </div>
         </div>
     </div>
 
     <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Firebase helper functions
+        window.firebaseHelpers = {
+            auth: auth,
+            db: db,
+            
+            // Login function
+            firebaseLogin: async function(email, password) {
+                try {
+                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                    return userCredential.user;
+                } catch (error) {
+                    throw new Error(this.getAuthErrorMessage(error.code));
+                }
+            },
+            
+            // Get authentication error message
+            getAuthErrorMessage: function(errorCode) {
+                switch(errorCode) {
+                    case 'auth/invalid-email': return 'Geçersiz e-posta adresi.';
+                    case 'auth/user-disabled': return 'Kullanıcı hesabı devre dışı bırakılmış.';
+                    case 'auth/user-not-found': return 'Kullanıcı bulunamadı.';
+                    case 'auth/wrong-password': return 'Hatalı şifre.';
+                    default: return 'Giriş yapılırken bir hata oluştu.';
+                }
+            },
+            
+            // Fetch and populate data from Firestore
+            fetchAndPopulateData: async function() {
+                try {
+                    // Fetch customers
+                    const customersSnapshot = await db.collection('customers').get();
+                    customers = [];
+                    customersSnapshot.forEach(doc => {
+                        customers.push({ id: doc.id, ...doc.data() });
+                    });
+                    populateCustomerDropdown();
+                    
+                    // Fetch packages
+                    const packagesSnapshot = await db.collection('packages').get();
+                    packages = [];
+                    packagesSnapshot.forEach(doc => {
+                        packages.push({ id: doc.id, ...doc.data() });
+                    });
+                    populatePackagesTable();
+                    
+                    // Fetch containers
+                    const containersSnapshot = await db.collection('containers').get();
+                    containers = [];
+                    containersSnapshot.forEach(doc => {
+                        containers.push({ id: doc.id, ...doc.data() });
+                    });
+                    populateShippingTable();
+                    
+                    // Fetch stock items
+                    const stockSnapshot = await db.collection('stock').get();
+                    stockItems = [];
+                    stockSnapshot.forEach(doc => {
+                        stockItems.push({ id: doc.id, ...doc.data() });
+                    });
+                    populateStockTable();
+                    
+                    showToast('Veriler başarıyla yüklendi', 'success');
+                } catch (error) {
+                    console.error('Veri yükleme hatası:', error);
+                    showToast('Veri yüklenirken hata oluştu', 'error');
+                }
+            },
+            
+            // Save data to Firestore
+            saveData: async function(collection, data) {
+                try {
+                    if (data.id) {
+                        // Update existing document
+                        const docRef = db.collection(collection).doc(data.id);
+                        const { id, ...dataWithoutId } = data;
+                        await docRef.update(dataWithoutId);
+                        return data.id;
+                    } else {
+                        // Add new document
+                        const docRef = await db.collection(collection).add(data);
+                        return docRef.id;
+                    }
+                } catch (error) {
+                    console.error('Veri kaydetme hatası:', error);
+                    showToast('Veri kaydedilirken hata oluştu', 'error');
+                    throw error;
+                }
+            },
+            
+            // Delete data from Firestore
+            deleteData: async function(collection, id) {
+                try {
+                    await db.collection(collection).doc(id).delete();
+                    return true;
+                } catch (error) {
+                    console.error('Veri silme hatası:', error);
+                    showToast('Veri silinirken hata oluştu', 'error');
+                    throw error;
+                }
+            }
+        };
+
         /* -----------------------
            Data & State
            ----------------------- */
@@ -521,73 +641,110 @@
            Initialization
            ----------------------- */
         function initApp() {
-            // avoid re-binding listeners multiple times
-            if (!window._proclean_listeners_initialized) {
-                setupEventListeners();
-                window._proclean_listeners_initialized = true;
-            }
-
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Initialize data
             populateCustomerDropdown();
             populateQuickButtons();
             populatePackagesTable();
             populateStockTable();
             populateShippingTable();
+            
+            // Load data from Firebase if available
+            if (window.firebaseHelpers && window.firebaseHelpers.fetchAndPopulateData) {
+                window.firebaseHelpers.fetchAndPopulateData().catch(() => {
+                    showToast('Firebase verileri yüklenemedi, yerel veriler kullanılıyor', 'warning');
+                });
+            }
         }
 
         function setupEventListeners() {
-            // Barcode input enter
-            const bInput = document.getElementById('barcodeInput');
-            if (bInput && !bInput._bound) {
-                bInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') searchBarcode();
-                });
-                bInput._bound = true;
-            }
-
-            const stockInput = document.getElementById('stockSearch');
-            if (stockInput && !stockInput._bound) {
-                stockInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') searchStock();
-                });
-                stockInput._bound = true;
-            }
-
-            const fileInput = document.getElementById('stockFileUpload');
-            if (fileInput && !fileInput._bound) {
-                fileInput.addEventListener('change', function(e) {
-                    const fileName = e.target.files[0]?.name || '';
-                    document.getElementById('selectedFileName').textContent = fileName;
-                });
-                fileInput._bound = true;
-            }
-
-            if (selectAllCheckbox && !selectAllCheckbox._bound) {
-                selectAllCheckbox.addEventListener('change', function() {
-                    if (this.checked) selectAllPackages(); else clearSelection();
-                });
-                selectAllCheckbox._bound = true;
-            }
-
-            // F2 and ESC handling
-            if (!document._proclean_keybound) {
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'F2') { e.preventDefault(); savePackage(); }
-                    if (e.key === 'Escape') {
-                        closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-                    }
-                });
-                document._proclean_keybound = true;
-            }
-
-            // Additional shortcuts (Ctrl)
-            if (!document._proclean_ctrlbound) {
-                document.addEventListener('keydown', function(e) {
-                    if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); savePackage(); }
-                    if (e.ctrlKey && e.key.toLowerCase() === 'p') { e.preventDefault(); printLabel(); }
-                    if (e.ctrlKey && e.key.toLowerCase() === 'n') { e.preventDefault(); createNewContainer(); }
-                });
-                document._proclean_ctrlbound = true;
-            }
+            // Login
+            document.getElementById('loginBtn').addEventListener('click', loginUser);
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+            
+            // Customer selection
+            document.getElementById('showCustomerSelectionBtn').addEventListener('click', showCustomerSelection);
+            document.getElementById('showAllCustomersBtn').addEventListener('click', showAllCustomers);
+            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+            document.getElementById('closeAllCustomersModalBtn').addEventListener('click', closeAllCustomersModal);
+            document.getElementById('addNewCustomerBtn').addEventListener('click', addNewCustomer);
+            document.getElementById('deleteSelectedCustomerBtn').addEventListener('click', deleteSelectedCustomer);
+            
+            // Barcode
+            document.getElementById('searchBarcodeBtn').addEventListener('click', searchBarcode);
+            document.getElementById('clearBarcodeBtn').addEventListener('click', clearBarcode);
+            document.getElementById('barcodeInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') searchBarcode();
+            });
+            
+            // Packages
+            document.getElementById('savePackageBtn').addEventListener('click', savePackage);
+            document.getElementById('selectAllPackagesBtn').addEventListener('click', selectAllPackages);
+            document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+            document.getElementById('deletePackageBtn').addEventListener('click', deletePackage);
+            document.getElementById('printLabelBtn').addEventListener('click', printLabel);
+            
+            // Quantity modal
+            document.getElementById('confirmQuantityBtn').addEventListener('click', confirmQuantity);
+            document.getElementById('closeQuantityModalBtn').addEventListener('click', closeQuantityModal);
+            
+            // Manual entry
+            document.getElementById('showManualEntryBtn').addEventListener('click', showManualEntry);
+            document.getElementById('addManualProductBtn').addEventListener('click', addManualProduct);
+            document.getElementById('closeManualModalBtn').addEventListener('click', closeManualModal);
+            document.getElementById('closeManualModalBtn2').addEventListener('click', closeManualModal);
+            
+            // Containers
+            document.getElementById('loadCurrentContainerBtn').addEventListener('click', loadCurrentContainer);
+            document.getElementById('createNewContainerBtn').addEventListener('click', createNewContainer);
+            document.getElementById('deleteContainerBtn').addEventListener('click', deleteContainer);
+            document.getElementById('sendToRampBtn').addEventListener('click', sendToRamp);
+            
+            // Shipping
+            document.getElementById('filterShippingBtn').addEventListener('click', filterShipping);
+            
+            // Stock
+            document.getElementById('searchStockBtn').addEventListener('click', searchStock);
+            document.getElementById('clearStockSearchBtn').addEventListener('click', clearStockSearch);
+            document.getElementById('uploadStockFileBtn').addEventListener('click', uploadStockFile);
+            document.getElementById('stockSearch').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') searchStock();
+            });
+            document.getElementById('stockFileUpload').addEventListener('change', function(e) {
+                const fileName = e.target.files[0]?.name || '';
+                document.getElementById('selectedFileName').textContent = fileName;
+            });
+            
+            // Reports
+            document.getElementById('generateDailyReportBtn').addEventListener('click', generateDailyReport);
+            document.getElementById('sendDailyReportBtn').addEventListener('click', sendDailyReport);
+            document.getElementById('previewReportBtn').addEventListener('click', previewReport);
+            document.getElementById('closeEmailModalBtn').addEventListener('click', closeEmailModal);
+            
+            // Select all checkbox
+            selectAllCheckbox.addEventListener('change', function() {
+                if (this.checked) selectAllPackages(); else clearSelection();
+            });
+            
+            // Global keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'F2') { e.preventDefault(); savePackage(); }
+                if (e.key === 'Escape') {
+                    closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
+                }
+                if (e.ctrlKey) {
+                    if (e.key.toLowerCase() === 's') { e.preventDefault(); savePackage(); }
+                    if (e.key.toLowerCase() === 'p') { e.preventDefault(); printLabel(); }
+                    if (e.key.toLowerCase() === 'n') { e.preventDefault(); createNewContainer(); }
+                }
+            });
         }
 
         /* -----------------------
@@ -604,11 +761,10 @@
                 customerSelect.appendChild(option);
             });
 
-            // Use onchange assignment (idempotent) instead of addEventListener to avoid duplicates
-            customerSelect.onchange = function() {
+            customerSelect.addEventListener('change', function() {
                 const selectedCustomer = customers.find(c => c.code === this.value);
                 document.getElementById('customerName').textContent = selectedCustomer ? selectedCustomer.name : 'Lütfen müşteri seçin';
-            };
+            });
         }
 
         function populateQuickButtons() {
@@ -620,7 +776,7 @@
                 button.type = 'button';
                 button.className = 'quick-btn';
                 button.innerHTML = `${product.name}${product.quantity > 0 ? `<div class="quantity-badge">${product.quantity}</div>` : ''}`;
-                button.onclick = () => openQuantityModal(product);
+                button.addEventListener('click', () => openQuantityModal(product));
                 quickButtons.appendChild(button);
             });
         }
@@ -632,7 +788,7 @@
             packages.forEach((pkg, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><input type="checkbox" ${pkg.selected ? 'checked' : ''} onchange="togglePackageSelection(${pkg.id})" data-id="${pkg.id}"></td>
+                    <td><input type="checkbox" ${pkg.selected ? 'checked' : ''} data-id="${pkg.id}"></td>
                     <td>${index + 1}</td>
                     <td>${pkg.packageNo}</td>
                     <td>${pkg.totalQuantity}</td>
@@ -641,6 +797,11 @@
                     <td>${pkg.customerName}</td>
                     <td>${pkg.packer}</td>
                 `;
+                
+                // Add event listener to the checkbox
+                const checkbox = row.querySelector('input[type="checkbox"]');
+                checkbox.addEventListener('change', () => togglePackageSelection(pkg.id));
+                
                 tbody.appendChild(row);
             });
         }
@@ -665,43 +826,92 @@
         }
 
         function populateShippingTable() {
-            const tbody = document.getElementById('shippingTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
+            const shippingContainerGroups = document.getElementById('shippingContainerGroups');
+            if (!shippingContainerGroups) return;
+            shippingContainerGroups.innerHTML = '';
 
             const filter = document.getElementById('shippingFilter')?.value || 'all';
             const filteredContainers = filter === 'all' ? containers : containers.filter(c => c.status === filter);
-
+            
+            // Group containers by customer
+            const containersByCustomer = {};
             filteredContainers.forEach(container => {
-                const row = document.createElement('tr');
-                const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
-
-                row.innerHTML = `
-                    <td>${escapeHtml(container.containerNo)}</td>
-                    <td>${escapeHtml(container.customer)}</td>
-                    <td>${escapeHtml(container.packageCount)}</td>
-                    <td>${escapeHtml(container.totalQuantity)}</td>
-                    <td>${escapeHtml(container.createdAt)}</td>
-                    <td><span class="${statusClass}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                    <td>
-                        ${container.status === 'beklemede' ? 
-                            `<button class="btn btn-success" type="button" data-container="${container.containerNo}">Sevk Et</button>` :
-                            `<span>Sevk Edildi</span>`
-                        }
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-
-            // delegate button clicks for "Sevk Et"
-            tbody.querySelectorAll('button[data-container]').forEach(btn => {
-                if (!btn._bound) {
-                    btn.addEventListener('click', function() {
-                        shipContainer(this.dataset.container);
-                    });
-                    btn._bound = true;
+                if (!containersByCustomer[container.customer]) {
+                    containersByCustomer[container.customer] = [];
                 }
+                containersByCustomer[container.customer].push(container);
             });
+            
+            // Create customer groups
+            for (const [customerName, customerContainers] of Object.entries(containersByCustomer)) {
+                const customerGroup = document.createElement('div');
+                customerGroup.className = 'customer-group';
+                
+                const groupHeader = document.createElement('div');
+                groupHeader.className = 'customer-group-header';
+                groupHeader.innerHTML = `
+                    <span>${escapeHtml(customerName)}</span>
+                    <span>Toplam ${customerContainers.length} konteyner</span>
+                `;
+                
+                const groupContent = document.createElement('div');
+                groupContent.className = 'customer-group-content';
+                
+                const table = document.createElement('table');
+                table.className = 'customer-group-table';
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>Konteyner No</th>
+                            <th>Paket Sayısı</th>
+                            <th>Toplam Adet</th>
+                            <th>Oluşturulma Tarihi</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                
+                const tbody = table.querySelector('tbody');
+                customerContainers.forEach(container => {
+                    const row = document.createElement('tr');
+                    const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
+                    const statusText = container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi';
+
+                    row.innerHTML = `
+                        <td>${escapeHtml(container.containerNo)}</td>
+                        <td>${escapeHtml(container.packageCount)}</td>
+                        <td>${escapeHtml(container.totalQuantity)}</td>
+                        <td>${escapeHtml(container.createdAt)}</td>
+                        <td><span class="${statusClass}">${statusText}</span></td>
+                        <td>
+                            ${container.status === 'beklemede' ? 
+                                `<button class="btn btn-success" type="button" data-container="${container.containerNo}">Sevk Et</button>` :
+                                `<span>Sevk Edildi</span>`
+                            }
+                        </td>
+                    `;
+                    
+                    // Add event listener to the "Sevk Et" button
+                    const shipButton = row.querySelector('button[data-container]');
+                    if (shipButton) {
+                        shipButton.addEventListener('click', () => shipContainer(container.containerNo));
+                    }
+                    
+                    tbody.appendChild(row);
+                });
+                
+                groupContent.appendChild(table);
+                customerGroup.appendChild(groupHeader);
+                customerGroup.appendChild(groupContent);
+                shippingContainerGroups.appendChild(customerGroup);
+            }
+            
+            // Show message if no containers
+            if (filteredContainers.length === 0) {
+                shippingContainerGroups.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">Henüz konteyner bulunmamaktadır.</p>';
+            }
         }
 
         /* -----------------------
@@ -733,8 +943,15 @@
             allCustomersModal.setAttribute('aria-hidden', 'true');
         }
 
-        function generateDailyReport() { emailModal.style.display = 'flex'; emailModal.setAttribute('aria-hidden','false'); }
-        function closeEmailModal() { emailModal.style.display = 'none'; emailModal.setAttribute('aria-hidden','true'); }
+        function generateDailyReport() { 
+            emailModal.style.display = 'flex'; 
+            emailModal.setAttribute('aria-hidden','false'); 
+        }
+        
+        function closeEmailModal() { 
+            emailModal.style.display = 'none'; 
+            emailModal.setAttribute('aria-hidden','true'); 
+        }
 
         function previewReport() {
             const reportData = {
@@ -787,32 +1004,61 @@
            ----------------------- */
         function sendToRamp() {
             const selectedPackages = packages.filter(p => p.selected);
-            if (selectedPackages.length === 0) { showToast('Lütfen rampaya göndermek için paket seçin', 'error'); return; }
+            if (selectedPackages.length === 0) { 
+                showToast('Lütfen rampaya göndermek için paket seçin', 'error'); 
+                return; 
+            }
 
             if (!confirm('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?')) return;
 
-            const containerId = containers.length + 1;
-            const newContainerNumber = `C${String(containerId).padStart(6, '0')}`;
+            // Group packages by customer
+            const packagesByCustomer = {};
+            selectedPackages.forEach(pkg => {
+                if (!packagesByCustomer[pkg.customerName]) {
+                    packagesByCustomer[pkg.customerName] = [];
+                }
+                packagesByCustomer[pkg.customerName].push(pkg);
+            });
 
-            const newContainer = {
-                id: containerId,
-                containerNo: newContainerNumber,
-                customer: selectedPackages[0].customerName,
-                packageCount: selectedPackages.length,
-                totalQuantity: selectedPackages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0),
-                createdAt: new Date().toLocaleDateString('tr-TR'),
-                status: 'beklemede',
-                packages: selectedPackages.map(p => p.id)
-            };
+            // Create a container for each customer
+            Object.entries(packagesByCustomer).forEach(([customerName, customerPackages]) => {
+                const containerId = containers.length + 1;
+                const newContainerNumber = `C${String(containerId).padStart(6, '0')}`;
 
-            containers.push(newContainer);
+                const newContainer = {
+                    id: containerId,
+                    containerNo: newContainerNumber,
+                    customer: customerName,
+                    packageCount: customerPackages.length,
+                    totalQuantity: customerPackages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0),
+                    createdAt: new Date().toLocaleDateString('tr-TR'),
+                    status: 'beklemede',
+                    packages: customerPackages.map(p => p.id)
+                };
+
+                containers.push(newContainer);
+                
+                // Save to Firebase if available
+                if (window.firebaseHelpers && window.firebaseHelpers.saveData) {
+                    window.firebaseHelpers.saveData('containers', newContainer)
+                        .then(id => {
+                            if (id) newContainer.id = id;
+                        })
+                        .catch(error => {
+                            console.error('Konteyner Firebase\'e kaydedilemedi:', error);
+                        });
+                }
+            });
+
+            // Remove selected packages from the packages list
             packages = packages.filter(p => !p.selected);
 
+            // Update UI
             populatePackagesTable();
             populateShippingTable();
             clearSelection();
 
-            showToast(`${selectedPackages.length} paket konteyner(${newContainerNumber}) ile rampaya gönderildi - Durum: Beklemede`, 'success');
+            showToast(`${selectedPackages.length} paket konteyner ile rampaya gönderildi - Durum: Beklemede`, 'success');
             switchTab('shipping');
         }
 
@@ -820,12 +1066,23 @@
             const container = containers.find(c => c.containerNo === containerNo);
             if (container) {
                 container.status = 'sevk-edildi';
+                
+                // Update in Firebase if available
+                if (window.firebaseHelpers && window.firebaseHelpers.saveData) {
+                    window.firebaseHelpers.saveData('containers', container)
+                        .catch(error => {
+                            console.error('Konteyner durumu güncellenemedi:', error);
+                        });
+                }
+                
                 populateShippingTable();
                 showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
             }
         }
 
-        function filterShipping() { populateShippingTable(); }
+        function filterShipping() { 
+            populateShippingTable(); 
+        }
 
         /* -----------------------
            Customer modal selection
@@ -877,6 +1134,18 @@
 
             const newCustomer = { code, name, email: email || '' };
             customers.push(newCustomer);
+            
+            // Save to Firebase if available
+            if (window.firebaseHelpers && window.firebaseHelpers.saveData) {
+                window.firebaseHelpers.saveData('customers', newCustomer)
+                    .then(id => {
+                        if (id) newCustomer.id = id;
+                    })
+                    .catch(error => {
+                        console.error('Müşteri Firebase\'e kaydedilemedi:', error);
+                    });
+            }
+            
             populateCustomerDropdown();
             populateCustomerModal();
 
@@ -890,6 +1159,16 @@
         function deleteSelectedCustomer() {
             if (!selectedCustomerInModal) { showToast('Silmek için bir müşteri seçin', 'error'); return; }
             if (!confirm(`${selectedCustomerInModal.name} müşterisini silmek istediğinize emin misiniz?`)) return;
+            
+            // Delete from Firebase if available
+            if (window.firebaseHelpers && window.firebaseHelpers.deleteData && selectedCustomerInModal.id) {
+                window.firebaseHelpers.deleteData('customers', selectedCustomerInModal.id)
+                    .catch(error => {
+                        console.error('Müşteri Firebase\'den silinemedi:', error);
+                        showToast('Müşteri silinirken hata oluştu', 'error');
+                    });
+            }
+            
             customers = customers.filter(c => c.code !== selectedCustomerInModal.code);
             selectedCustomerInModal = null;
             populateCustomerDropdown();
@@ -1016,6 +1295,17 @@
             };
 
             packages.push(newPackage);
+            
+            // Save to Firebase if available
+            if (window.firebaseHelpers && window.firebaseHelpers.saveData) {
+                window.firebaseHelpers.saveData('packages', newPackage)
+                    .then(id => {
+                        if (id) newPackage.id = id;
+                    })
+                    .catch(error => {
+                        console.error('Paket Firebase\'e kaydedilemedi:', error);
+                    });
+            }
 
             // Reset product quantities and barcode count
             products.forEach(p => p.quantity = 0);
@@ -1055,6 +1345,19 @@
             const selectedPackages = packages.filter(p => p.selected);
             if (selectedPackages.length === 0) { showToast('Lütfen silmek için bir paket seçin', 'error'); return; }
             if (!confirm(`${selectedPackages.length} paketi silmek istediğinize emin misiniz?`)) return;
+            
+            // Delete from Firebase if available
+            if (window.firebaseHelpers && window.firebaseHelpers.deleteData) {
+                selectedPackages.forEach(pkg => {
+                    if (pkg.id) {
+                        window.firebaseHelpers.deleteData('packages', pkg.id)
+                            .catch(error => {
+                                console.error('Paket Firebase\'den silinemedi:', error);
+                            });
+                    }
+                });
+            }
+            
             packages = packages.filter(p => !p.selected);
             populatePackagesTable();
             clearSelection();
@@ -1063,8 +1366,22 @@
 
         function deleteContainer() {
             if (!confirm('Konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
-            const idx = containers.findIndex(c => c.containerNo === currentContainer);
-            if (idx !== -1) containers.splice(idx, 1);
+            const container = containers.find(c => c.containerNo === currentContainer);
+            
+            if (container) {
+                // Delete from Firebase if available
+                if (window.firebaseHelpers && window.firebaseHelpers.deleteData && container.id) {
+                    window.firebaseHelpers.deleteData('containers', container.id)
+                        .catch(error => {
+                            console.error('Konteyner Firebase\'den silinemedi:', error);
+                            showToast('Konteyner silinirken hata oluştu', 'error');
+                        });
+                }
+                
+                const idx = containers.findIndex(c => c.containerNo === currentContainer);
+                if (idx !== -1) containers.splice(idx, 1);
+            }
+            
             document.getElementById('containerNumber').textContent = 'Yok';
             currentContainer = null;
             populateShippingTable();
@@ -1154,7 +1471,9 @@
             }, 1200);
         }
 
-        function loadCurrentContainer() { showToast('Mevcut konteyner yüklendi', 'success'); }
+        function loadCurrentContainer() { 
+            showToast('Mevcut konteyner yüklendi', 'success'); 
+        }
 
         function createNewContainer() {
             const newContainerNo = `C${String(containers.length + 1).padStart(6, '0')}`;
@@ -1170,18 +1489,18 @@
         }
 
         function switchTab(tabName) {
-            // make switching robust by using data-tab attributes
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            
             const tabElement = document.querySelector(`.tab[data-tab="${tabName}"]`);
             if (tabElement) tabElement.classList.add('active');
+            
             const pane = document.getElementById(`${tabName}Tab`);
             if (pane) pane.classList.add('active');
-            else {
-                // fallback: try known ids
-                const map = { packaging: 'packagingTab', shipping: 'shippingTab', stock: 'stockTab' };
-                const alt = document.getElementById(map[tabName]);
-                if (alt) alt.classList.add('active');
+            
+            // Refresh the shipping table when switching to the shipping tab
+            if (tabName === 'shipping') {
+                populateShippingTable();
             }
         }
 
@@ -1193,7 +1512,6 @@
             if (!el) return;
             el.textContent = message;
             el.className = `toast ${type} show`;
-            // ensure accessible announce
             el.setAttribute('role','status');
             setTimeout(() => { el.classList.remove('show'); }, duration);
         }
@@ -1204,22 +1522,66 @@
         function loginUser() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            const user = users.find(u => u.username === username && u.password === password);
-
-            if (user) {
-                currentUser = user;
-                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
-                loginScreen.style.display = 'none';
-                appContainer.style.display = 'flex';
-                appContainer.setAttribute('aria-hidden','false');
-                initApp();
-                showToast('Başarıyla giriş yapıldı', 'success');
+            
+            // Try Firebase login first
+            if (window.firebaseHelpers && window.firebaseHelpers.firebaseLogin) {
+                window.firebaseHelpers.firebaseLogin(username, password)
+                    .then(user => {
+                        currentUser = { 
+                            username: user.email, 
+                            name: user.displayName || user.email.split('@')[0],
+                            role: 'operator' 
+                        };
+                        
+                        document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+                        loginScreen.style.display = 'none';
+                        appContainer.style.display = 'flex';
+                        appContainer.setAttribute('aria-hidden','false');
+                        
+                        initApp();
+                        showToast('Başarıyla giriş yapıldı', 'success');
+                    })
+                    .catch(error => {
+                        // Fallback to local authentication if Firebase fails
+                        const user = users.find(u => u.username === username && u.password === password);
+                        if (user) {
+                            currentUser = user;
+                            document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
+                            loginScreen.style.display = 'none';
+                            appContainer.style.display = 'flex';
+                            appContainer.setAttribute('aria-hidden','false');
+                            initApp();
+                            showToast('Başarıyla giriş yapıldı', 'success');
+                        } else {
+                            showToast('Kullanıcı adı veya şifre hatalı', 'error');
+                        }
+                    });
             } else {
-                showToast('Kullanıcı adı veya şifre hatalı', 'error');
+                // Fallback to local authentication
+                const user = users.find(u => u.username === username && u.password === password);
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
+                    loginScreen.style.display = 'none';
+                    appContainer.style.display = 'flex';
+                    appContainer.setAttribute('aria-hidden','false');
+                    initApp();
+                    showToast('Başarıyla giriş yapıldı', 'success');
+                } else {
+                    showToast('Kullanıcı adı veya şifre hatalı', 'error');
+                }
             }
         }
 
         function logout() {
+            // Sign out from Firebase if available
+            if (window.firebaseHelpers && window.firebaseHelpers.auth) {
+                window.firebaseHelpers.auth.signOut()
+                    .catch(error => {
+                        console.error('Çıkış yapılırken hata oluştu:', error);
+                    });
+            }
+            
             currentUser = null;
             appContainer.style.display = 'none';
             appContainer.setAttribute('aria-hidden','true');
@@ -1267,76 +1629,35 @@
             loginScreen.style.display = 'flex';
             appContainer.style.display = 'none';
             loadAutoSave();
-            // pre-populate customer dropdown so it's available on login
             populateCustomerDropdown();
-            // set initial tab pane ids mapping if missing (ensure correct panes are visible)
-            // nothing else by default - user must login
+            
+            // Check if user is already logged in with Firebase
+            if (window.firebaseHelpers && window.firebaseHelpers.auth) {
+                window.firebaseHelpers.auth.onAuthStateChanged((user) => {
+                    if (user) {
+                        currentUser = { 
+                            username: user.email, 
+                            name: user.displayName || user.email.split('@')[0],
+                            role: 'operator' 
+                        };
+                        
+                        document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+                        loginScreen.style.display = 'none';
+                        appContainer.style.display = 'flex';
+                        appContainer.setAttribute('aria-hidden','false');
+                        
+                        initApp();
+                    }
+                });
+            }
         });
 
-        // Global error handler (helps debugging)
+        // Global error handler
         window.onerror = function(msg, url, lineNo, columnNo, error) {
             console.error('Global error', msg, url, lineNo, columnNo, error);
             showToast(`Beklenmeyen hata: ${msg} (Satır ${lineNo})`, 'error');
             return false;
         };
     </script>
-    <script>
-window.addEventListener('DOMContentLoaded', () => {
-  if (!window.firebaseHelpers || !window.firebaseHelpers.auth) {
-    console.error("Firebase not initialized yet");
-    return;
-  }
-
-  const loginBtn = document.getElementById("loginBtn");
-
-  loginBtn.onclick = async () => {
-    const email = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
-
-    if (!email || !password) {
-      alert("Lütfen kullanıcı adı ve şifre girin");
-      return;
-    }
-
-    try {
-      const user = await window.firebaseHelpers.firebaseLogin(email, password);
-      alert("Giriş başarılı: " + user.email);
-      document.getElementById("loginScreen").style.display = "none";
-
-      if (window.firebaseHelpers.fetchAndPopulateData) {
-        await window.firebaseHelpers.fetchAndPopulateData();
-      }
-    } catch (e) {
-      alert("Giriş başarısız: " + e.message);
-      console.error(e);
-    }
-  };
-
-  // Persist login status
-  window.firebaseHelpers.auth.onAuthStateChanged((user) => {
-    if (user) {
-      document.getElementById("loginScreen").style.display = "none";
-      if (window.firebaseHelpers.fetchAndPopulateData) {
-        window.firebaseHelpers.fetchAndPopulateData().catch(()=>{});
-      }
-    } else {
-      document.getElementById("loginScreen").style.display = "block";
-    }
-  });
-});
-    </script>
-    <script>
-        window.firebaseHelpers.auth.onAuthStateChanged((user) => {
-  if (user) {
-    document.getElementById("loginScreen").style.display = "none";
-    // fetch Firestore data
-    if (window.firebaseHelpers.fetchAndPopulateData) {
-      window.firebaseHelpers.fetchAndPopulateData().catch(()=>{});
-    }
-  } else {
-    document.getElementById("loginScreen").style.display = "block";
-  }
-});
-</script>
 </body>
 </html>
