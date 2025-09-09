@@ -1280,37 +1280,53 @@
             return false;
         };
     </script>
-    <script src="firebase-init.js"></script>
-    <script type="module" src="login.js"></script>
-    <script type="module">
-const loginBtn = document.getElementById("loginBtn");
-
-loginBtn.onclick = async () => {
-  const email = document.getElementById("username").value; // use username field
-  const password = document.getElementById("password").value;
-
-  if (!email || !password) {
-    alert("Lütfen kullanıcı adı ve şifre girin");
+    <script>
+window.addEventListener('DOMContentLoaded', () => {
+  if (!window.firebaseHelpers || !window.firebaseHelpers.auth) {
+    console.error("Firebase not initialized yet");
     return;
   }
 
-  try {
-    const user = await window.firebaseHelpers.firebaseLogin(email, password);
-    alert("Giriş başarılı: " + user.email);
-    // hide login screen after successful login
-    document.getElementById("loginScreen").style.display = "none";
+  const loginBtn = document.getElementById("loginBtn");
 
-    // optionally, fetch Firestore data now
-    if (window.firebaseHelpers.fetchAndPopulateData) {
-      await window.firebaseHelpers.fetchAndPopulateData();
+  loginBtn.onclick = async () => {
+    const email = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      alert("Lütfen kullanıcı adı ve şifre girin");
+      return;
     }
-  } catch (e) {
-    alert("Giriş başarısız: " + e.message);
-    console.error(e);
-  }
-};
-</script>
-    <script>window.firebaseHelpers.auth.onAuthStateChanged((user) => {
+
+    try {
+      const user = await window.firebaseHelpers.firebaseLogin(email, password);
+      alert("Giriş başarılı: " + user.email);
+      document.getElementById("loginScreen").style.display = "none";
+
+      if (window.firebaseHelpers.fetchAndPopulateData) {
+        await window.firebaseHelpers.fetchAndPopulateData();
+      }
+    } catch (e) {
+      alert("Giriş başarısız: " + e.message);
+      console.error(e);
+    }
+  };
+
+  // Persist login status
+  window.firebaseHelpers.auth.onAuthStateChanged((user) => {
+    if (user) {
+      document.getElementById("loginScreen").style.display = "none";
+      if (window.firebaseHelpers.fetchAndPopulateData) {
+        window.firebaseHelpers.fetchAndPopulateData().catch(()=>{});
+      }
+    } else {
+      document.getElementById("loginScreen").style.display = "block";
+    }
+  });
+});
+    </script>
+    <script>
+        window.firebaseHelpers.auth.onAuthStateChanged((user) => {
   if (user) {
     document.getElementById("loginScreen").style.display = "none";
     // fetch Firestore data
