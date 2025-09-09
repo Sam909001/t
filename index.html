@@ -25,9 +25,8 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
-        /* FIX: Ensure all root elements fill the viewport and use flexbox */
-        html, body { height: 100%; overflow: hidden; }
-        body { background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+        /* FIX: Remove fixed height to enable flexible layout */
+        body { background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
         /* Login Screen */
         .login-container { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%); }
@@ -42,7 +41,8 @@
         .btn-link { background:none; color:var(--secondary); text-decoration:underline; padding:0.5rem; }
 
         /* Main App Container */
-        .app-container { display:none; flex-direction:column; height:100%; }
+        /* FIX: Use flexbox to manage vertical space */
+        .app-container { display:none; flex-direction:column; height:100vh; }
         .app-header { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; }
         .app-title { font-size:1.3rem; font-weight:600; }
         .user-info { display:flex; align-items:center; gap:0.8rem; }
@@ -50,8 +50,8 @@
         .tab { padding:0.8rem 1.5rem; color:white; cursor:pointer; font-weight:500; border-bottom:3px solid transparent; font-size:0.9rem; }
         .tab.active { background:var(--light); color:var(--primary); border-bottom:3px solid var(--secondary); }
         
-        /* FIX: Content area grows to fill remaining space */
-        .tab-content { flex-grow: 1; padding:0.8rem; overflow: hidden; display: flex; flex-direction: column; }
+        /* FIX: Use flex-grow to make content fill vertical space */
+        .tab-content { flex-grow:1; padding:0.8rem; overflow-y:hidden; display: flex; flex-direction: column; }
         .tab-pane { display:none; flex-direction: column; flex-grow: 1; }
         .tab-pane.active { display:flex; }
 
@@ -63,7 +63,7 @@
         .info-group span { font-size: 0.9rem; }
         .action-buttons { display:flex; gap:0.4rem; }
 
-        /* FIX: Main content area uses flexbox to arrange sub-sections side-by-side and fill space */
+        /* FIX: Main content area uses flexbox to arrange sub-sections side-by-side */
         .packaging-content { display: flex; gap: 0.8rem; align-items: stretch; flex-grow: 1; }
         .barcode-section, .pending-packages, .package-details { background:white; padding:0.8rem; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
         .barcode-section { flex: 0 0 25%; min-width: 220px; }
@@ -74,7 +74,7 @@
         .barcode-input input { flex-grow:1; padding:0.6rem; border:1px solid #ddd; border-radius:5px 0 0 5px; font-size:1rem; }
         .barcode-input button { padding:0 0.8rem; border:1px solid #ddd; background:var(--light); cursor:pointer; }
         
-        /* FIX: Make table containers scrollable within their parent flexbox */
+        /* FIX: Make table container fill available space and scroll independently */
         .table-container { flex-grow: 1; overflow-y: auto; margin-top: 0.5rem; }
         .package-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
         .package-table th, .package-table td { padding:0.5rem; text-align:left; border-bottom:1px solid #ddd; }
@@ -143,6 +143,7 @@
     </style>
 </head>
 <body>
+    <!-- Login Screen -->
     <div class="login-container" id="loginScreen">
         <div class="login-form">
             <h1>ProClean - Oturum Aç</h1>
@@ -161,7 +162,9 @@
         </div>
     </div>
 
+    <!-- Main Application -->
     <div class="app-container" id="appContainer">
+        <!-- Header -->
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
@@ -170,13 +173,16 @@
             </div>
         </div>
 
+        <!-- Tabs -->
         <div class="tabs">
             <div class="tab active" onclick="switchTab('packaging')">Paketleme</div>
             <div class="tab" onclick="switchTab('shipping')">Sevkiyat</div>
             <div class="tab" onclick="switchTab('stock')">Stok Sorgu</div>
         </div>
 
+        <!-- Content -->
         <div class="tab-content">
+            <!-- Packaging Tab -->
             <div class="tab-pane active" id="packagingTab">
                 <div class="packaging-header">
                     <div class="customer-info">
@@ -204,6 +210,7 @@
                 </div>
 
                 <div class="packaging-content">
+                    <!-- Paket Oluşturma Bölümü (left) -->
                     <div class="barcode-section" id="barcodeSection">
                         <h3>Paket Oluştur</h3>
                         <div class="barcode-input">
@@ -217,6 +224,7 @@
                         <div class="barcode-preview"><svg id="barcode"></svg></div>
                     </div>
 
+                    <!-- Paket Detayları Bölümü (center) -->
                     <div class="pending-packages" id="pendingPackages">
                         <h3>Paket Detayları</h3>
                         <div class="table-container">
@@ -238,6 +246,7 @@
                         </div>
                     </div>
 
+                    <!-- Hızlı Ürün Ekleme Bölümü (right) -->
                     <div class="package-details" id="packageDetails">
                         <h3>Hızlı Ürün Ekleme</h3>
                         <div class="quick-buttons" id="quickButtons"></div>
@@ -254,6 +263,7 @@
                 </div>
             </div>
 
+            <!-- Shipping Tab -->
             <div class="tab-pane" id="shippingTab">
                 <h2>Sevkiyat Yönetimi</h2>
                 <div class="shipping-controls">
@@ -285,6 +295,7 @@
                 </div>
             </div>
 
+            <!-- Stock Tab -->
             <div class="tab-pane" id="stockTab">
                 <h2>Stok Sorgulama</h2>
                 <div class="stock-search">
@@ -319,6 +330,7 @@
             </div>
         </div>
 
+        <!-- Footer -->
         <div class="app-footer">
             <div class="footer-actions">
                 <button type="button" class="btn" onclick="printLabel()"><i class="fas fa-print"></i> Etiket Bas</button>
@@ -338,10 +350,13 @@
         </div>
     </div>
 
+    <!-- Toast -->
     <div class="toast" id="toast"></div>
 
+    <!-- Offline Indicator -->
     <div class="offline-indicator" id="offlineIndicator"><i class="fas fa-wifi"></i> Çevrimdışı moddasınız</div>
 
+    <!-- Modals -->
     <div class="modal" id="customerModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -402,6 +417,7 @@
         </div>
     </div>
     
+    <!-- FIX: Custom Confirmation Modal for all confirm() calls -->
     <div class="modal" id="confirmModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1151,6 +1167,14 @@
         window.onload = function() {
             loginScreen.style.display='flex'; appContainer.style.display='none';
         };
+        function logout() {
+            currentUser = null;
+            appContainer.style.display = 'none';
+            loginScreen.style.display = 'flex';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            showToast('Başarıyla çıkış yapıldı', 'success');
+        }
     </script>
 </body>
 </html>
