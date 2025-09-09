@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -24,10 +25,7 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
-        /* FIX: Ensure all root elements fill the viewport and use flexbox */
-        html, body { height: 100%; overflow: hidden; }
-        body { background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+        body { background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
 
         /* Login Screen */
         .login-container { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%); }
@@ -36,61 +34,72 @@
         .form-group { margin-bottom: 1.2rem; }
         .form-group label { display:block; margin-bottom:0.5rem; font-weight:500; }
         .form-group input { width:100%; padding:0.8rem; border:1px solid #ddd; border-radius:5px; font-size:1rem; }
+
         .btn { padding:0.6rem 1rem; border:none; border-radius:5px; cursor:pointer; font-size:0.9rem; font-weight:600; transition:all .3s; }
         .btn-primary { background:var(--secondary); color:#fff; }
         .btn-primary:hover { background:#2980b9; }
         .btn-link { background:none; color:var(--secondary); text-decoration:underline; padding:0.5rem; }
 
-        /* Main App Container */
-        .app-container { display:none; flex-direction:column; height:100%; }
+        /* Main */
+        .app-container { display:none; flex-direction:column; height:100vh; }
+
+        /* Header */
         .app-header { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; }
         .app-title { font-size:1.3rem; font-weight:600; }
         .user-info { display:flex; align-items:center; gap:0.8rem; }
+
+        /* Tabs */
         .tabs { display:flex; background-color:var(--dark); }
         .tab { padding:0.8rem 1.5rem; color:white; cursor:pointer; font-weight:500; border-bottom:3px solid transparent; font-size:0.9rem; }
         .tab.active { background:var(--light); color:var(--primary); border-bottom:3px solid var(--secondary); }
-        
-        /* FIX: Content area grows to fill remaining space */
-        .tab-content { flex-grow: 1; padding:0.8rem; overflow: hidden; display: flex; flex-direction: column; }
-        .tab-pane { display:none; flex-direction: column; flex-grow: 1; }
-        .tab-pane.active { display:flex; }
 
-        .packaging-header { display:flex; justify-content:space-between; margin-bottom:0.8rem; padding-bottom:0.6rem; border-bottom:1px solid #ddd; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
-        .customer-info { display:flex; gap:0.6rem; align-items: center; flex-wrap: wrap; }
+        /* Content */
+        .tab-content { flex-grow:1; padding:1.2rem; overflow-y:auto; }
+        .tab-pane { display:none; }
+        .tab-pane.active { display:block; }
+
+        /* UPDATED: More compact customer info section */
+        .packaging-header { display:flex; justify-content:space-between; margin-bottom:1.2rem; padding-bottom:0.8rem; border-bottom:1px solid #ddd; align-items: center; }
+        .customer-info { display:flex; gap:0.8rem; align-items: center; flex-wrap: wrap; }
         .info-group { display:flex; flex-direction:column; margin-bottom: 0; }
         .info-group label { font-weight:600; margin-bottom:0.2rem; font-size:0.8rem; }
-        .info-group select, .info-group input { padding:0.3rem; border:1px solid #ddd; border-radius:5px; font-size:0.8rem; height: auto; }
+        .info-group select, .info-group input { padding:0.4rem; border:1px solid #ddd; border-radius:5px; font-size:0.8rem; height: auto; }
         .info-group span { font-size: 0.9rem; }
-        .action-buttons { display:flex; gap:0.4rem; }
+        .action-buttons { display:flex; gap:0.6rem; }
 
-        /* FIX: Main content area uses flexbox to arrange sub-sections side-by-side and fill space */
-        .packaging-content { display: flex; gap: 0.8rem; align-items: stretch; flex-grow: 1; }
-        .barcode-section, .pending-packages, .package-details { background:white; padding:0.8rem; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
-        .barcode-section { flex: 0 0 25%; min-width: 220px; }
-        .pending-packages { flex: 1 1 50%; min-width: 360px; }
-        .package-details { flex: 0 0 25%; min-width: 220px; }
+        /* UPDATED: Ensure left-to-right sections and stable sizes */
+        .packaging-content {
+            display: flex;
+            gap: 1.2rem;
+            align-items: flex-start;
+            height: calc(100vh - 230px);
+            padding-bottom: 10px;
+        }
+        /* Widths: Paket Oluştur (25%) | Paket Detayları (50%) | Hızlı Ürün Ekleme (25%) */
+        .barcode-section { flex: 0 0 25%; min-width: 220px; background:white; padding:0.8rem; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+        .pending-packages { flex: 0 0 50%; min-width: 360px; background:white; padding:0.8rem; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); overflow-y:auto; }
+        .package-details { flex: 0 0 25%; min-width: 220px; background:white; padding:0.8rem; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); display:flex; flex-direction:column; }
 
         .barcode-input { display:flex; margin-bottom:0.8rem; }
         .barcode-input input { flex-grow:1; padding:0.6rem; border:1px solid #ddd; border-radius:5px 0 0 5px; font-size:1rem; }
         .barcode-input button { padding:0 0.8rem; border:1px solid #ddd; background:var(--light); cursor:pointer; }
-        
-        /* FIX: Make table containers scrollable within their parent flexbox */
-        .table-container { flex-grow: 1; overflow-y: auto; margin-top: 0.5rem; }
+
         .package-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
         .package-table th, .package-table td { padding:0.5rem; text-align:left; border-bottom:1px solid #ddd; }
-        .package-table th { background:var(--light); font-weight:600; position: sticky; top: 0; z-index: 1; }
+        .package-table th { background:var(--light); font-weight:600; }
         .package-table tr:hover { background:#f9f9f9; }
 
         .quick-buttons { display:grid; grid-template-columns:repeat(3, 1fr); gap:0.4rem; margin-top:0.8rem; }
         .quick-btn { padding:0.6rem 0.4rem; background:var(--light); border:1px solid #ddd; border-radius:5px; cursor:pointer; text-align:center; font-size:0.8rem; position:relative; }
         .quantity-badge { position:absolute; top:-5px; right:-5px; background:var(--secondary); color:white; border-radius:50%; width:18px; height:18px; font-size:0.7rem; display:flex; align-items:center; justify-content:center; }
+
         .package-actions { margin-top:auto; display:flex; flex-direction:column; gap:0.6rem; }
 
         .btn-success { background:var(--success); color:white; }
         .btn-warning { background:var(--warning); color:white; }
         .btn-danger { background:var(--accent); color:white; }
 
-        .app-footer { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; flex-wrap: wrap; gap: 0.5rem; }
+        .app-footer { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; }
         .container-info { display:flex; align-items:center; gap:0.8rem; }
 
         .toast { position:fixed; top:20px; right:20px; padding:1rem 1.5rem; border-radius:5px; color:white; z-index:1000; opacity:0; transform:translateY(-20px); transition:all .3s; }
@@ -101,6 +110,7 @@
         .modal-content { background:white; padding:1.5rem; border-radius:8px; width:90%; max-width:500px; max-height:80vh; overflow-y:auto; }
         .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; padding-bottom:0.8rem; border-bottom:1px solid #ddd; }
         .modal-close { background:none; border:none; font-size:1.5rem; cursor:pointer; }
+
         .customer-list { max-height:300px; overflow-y:auto; margin-bottom:1rem; }
         .customer-item { padding:0.8rem; border-bottom:1px solid #eee; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
         .customer-item:hover { background:#f5f5f5; } .customer-item.selected { background:#e3f2fd; }
@@ -112,13 +122,8 @@
 
         .stock-search { display:flex; gap:0.8rem; margin-bottom:1.2rem; }
         .stock-search input { flex-grow:1; padding:0.8rem; border:1px solid #ddd; border-radius:5px; }
-        
-        /* FIX: Make stock table container fill space and scroll independently */
-        .stock-table-container { flex-grow: 1; overflow-y: auto; margin-bottom: 0.8rem; }
         .stock-table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
-        .stock-table th, .stock-table td { padding:0.8rem; text-align:left; border-bottom:1px solid #ddd; } 
-        .stock-table th { background:var(--light); font-weight:600; position: sticky; top: 0; z-index: 1; } 
-        .stock-table tr:hover { background:#f9f9f9; }
+        .stock-table th, .stock-table td { padding:0.8rem; text-align:left; border-bottom:1px solid #ddd; } .stock-table th { background:var(--light); font-weight:600; } .stock-table tr:hover { background:#f9f9f9; }
 
         .file-upload { margin-top:1.2rem; padding:1.2rem; background:white; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
         .upload-button { display:inline-block; padding:0.8rem 1.5rem; background:var(--secondary); color:white; border-radius:5px; cursor:pointer; margin-top:0.8rem; }
@@ -126,11 +131,7 @@
 
         .offline-indicator { position:fixed; bottom:20px; left:20px; padding:0.8rem 1.2rem; background:var(--accent); color:white; border-radius:5px; z-index:1000; display:none; }
 
-        /* Custom Confirmation Modal */
-        #confirmModal .modal-content { max-width: 400px; text-align: center; }
-        #confirmModal .modal-body { margin-bottom: 1.5rem; font-size: 1.1rem; }
-        #confirmModal .modal-footer { display: flex; justify-content: center; gap: 1rem; }
-
+        /* Responsive */
         @media (max-width:1200px) {
             .barcode-section, .package-details { min-width:200px; }
             .pending-packages { flex: 1 1 60%; }
@@ -138,12 +139,10 @@
         @media (max-width:900px) {
             .packaging-content { flex-direction:column; height:auto; }
             .barcode-section, .pending-packages, .package-details { flex: 1 1 auto; width:100%; min-width: auto; }
-            .app-footer { flex-direction: column; align-items: center; text-align: center; }
         }
     </style>
 </head>
 <body>
-    <!-- Login Screen -->
     <div class="login-container" id="loginScreen">
         <div class="login-form">
             <h1>ProClean - Oturum Aç</h1>
@@ -162,28 +161,22 @@
         </div>
     </div>
 
-    <!-- Main Application -->
     <div class="app-container" id="appContainer">
-        <!-- Header -->
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Ahmet Yılmaz</span>
-                <!-- FIX: Added event listener via JS for more robust click handling -->
-                <button type="button" class="btn btn-danger" id="logoutBtn">Çıkış Yap</button>
+                <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
             </div>
         </div>
 
-        <!-- Tabs -->
         <div class="tabs">
             <div class="tab active" onclick="switchTab('packaging')">Paketleme</div>
             <div class="tab" onclick="switchTab('shipping')">Sevkiyat</div>
             <div class="tab" onclick="switchTab('stock')">Stok Sorgu</div>
         </div>
 
-        <!-- Content -->
         <div class="tab-content">
-            <!-- Packaging Tab -->
             <div class="tab-pane active" id="packagingTab">
                 <div class="packaging-header">
                     <div class="customer-info">
@@ -211,7 +204,6 @@
                 </div>
 
                 <div class="packaging-content">
-                    <!-- Paket Oluşturma Bölümü (left) -->
                     <div class="barcode-section" id="barcodeSection">
                         <h3>Paket Oluştur</h3>
                         <div class="barcode-input">
@@ -225,34 +217,29 @@
                         <div class="barcode-preview"><svg id="barcode"></svg></div>
                     </div>
 
-                    <!-- Paket Detayları Bölümü (center) -->
                     <div class="pending-packages" id="pendingPackages">
                         <h3>Paket Detayları</h3>
-                        <div class="table-container">
-                            <table class="package-table">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" id="selectAllPackages"></th>
-                                        <th>Sıra</th>
-                                        <th>Paket No</th>
-                                        <!-- FIX: Added new Ürün column as requested -->
-                                        <th>Ürün</th>
-                                        <th>T. Miktar</th>
-                                        <th>P. Zamanı</th>
-                                        <th>Cari Kod</th>
-                                        <th>Cari Ünvan</th>
-                                        <th>Paketleyen</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="packagesTableBody"></tbody>
-                            </table>
-                        </div>
+                        <table class="package-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAllPackages"></th>
+                                    <th>Sıra</th>
+                                    <th>Paket No</th>
+                                    <th>T. Miktar</th>
+                                    <th>P. Zamanı</th>
+                                    <th>Cari Kod</th>
+                                    <th>Cari Ünvan</th>
+                                    <th>Paketleyen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="packagesTableBody"></tbody>
+                        </table>
                     </div>
 
-                    <!-- Hızlı Ürün Ekleme Bölümü (right) -->
                     <div class="package-details" id="packageDetails">
                         <h3>Hızlı Ürün Ekleme</h3>
                         <div class="quick-buttons" id="quickButtons"></div>
+
                         <div class="package-actions">
                             <button type="button" class="btn" onclick="showManualEntry()">MANUEL</button>
                             <div class="definition-panel">
@@ -266,7 +253,6 @@
                 </div>
             </div>
 
-            <!-- Shipping Tab -->
             <div class="tab-pane" id="shippingTab">
                 <h2>Sevkiyat Yönetimi</h2>
                 <div class="shipping-controls">
@@ -280,25 +266,23 @@
                     </div>
                     <button type="button" class="btn btn-primary" onclick="filterShipping()">Uygula</button>
                 </div>
-                <div class="table-container">
-                    <table class="package-table">
-                        <thead>
-                            <tr>
-                                <th>Konteyner No</th>
-                                <th>Müşteri</th>
-                                <th>Paket Sayısı</th>
-                                <th>Toplam Adet</th>
-                                <th>Oluşturulma Tarihi</th>
-                                <th>Durum</th>
-                                <th>İşlemler</th>
-                            </tr>
-                        </thead>
-                        <tbody id="shippingTableBody"></tbody>
-                    </table>
-                </div>
+
+                <table class="package-table">
+                    <thead>
+                        <tr>
+                            <th>Konteyner No</th>
+                            <th>Müşteri</th>
+                            <th>Paket Sayısı</th>
+                            <th>Toplam Adet</th>
+                            <th>Oluşturulma Tarihi</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shippingTableBody"></tbody>
+                </table>
             </div>
 
-            <!-- Stock Tab -->
             <div class="tab-pane" id="stockTab">
                 <h2>Stok Sorgulama</h2>
                 <div class="stock-search">
@@ -306,21 +290,21 @@
                     <button type="button" class="btn btn-primary" onclick="searchStock()">Ara</button>
                     <button type="button" class="btn" onclick="clearStockSearch()">Temizle</button>
                 </div>
-                <div class="stock-table-container">
-                    <table class="stock-table">
-                        <thead>
-                            <tr>
-                                <th>Stok Kodu</th>
-                                <th>Ürün Adı</th>
-                                <th>Mevcut Adet</th>
-                                <th>Birim</th>
-                                <th>Son Güncelleme</th>
-                                <th>Durum</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockTableBody"></tbody>
-                    </table>
-                </div>
+
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th>Stok Kodu</th>
+                            <th>Ürün Adı</th>
+                            <th>Mevcut Adet</th>
+                            <th>Birim</th>
+                            <th>Son Güncelleme</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody"></tbody>
+                </table>
+
                 <div class="file-upload">
                     <h3>Stok Dosyası Yükle</h3>
                     <p>Stok bilgilerini güncellemek için bir Excel veya CSV dosyası yükleyin.</p>
@@ -333,7 +317,6 @@
             </div>
         </div>
 
-        <!-- Footer -->
         <div class="app-footer">
             <div class="footer-actions">
                 <button type="button" class="btn" onclick="printLabel()"><i class="fas fa-print"></i> Etiket Bas</button>
@@ -353,13 +336,10 @@
         </div>
     </div>
 
-    <!-- Toast -->
     <div class="toast" id="toast"></div>
 
-    <!-- Offline Indicator -->
     <div class="offline-indicator" id="offlineIndicator"><i class="fas fa-wifi"></i> Çevrimdışı moddasınız</div>
 
-    <!-- Modals -->
     <div class="modal" id="customerModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -419,24 +399,9 @@
             </div>
         </div>
     </div>
-    
-    <!-- FIX: Custom Confirmation Modal for all confirm() calls -->
-    <div class="modal" id="confirmModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Onay</h3>
-                <button type="button" class="modal-close" onclick="closeConfirmModal()">&times;</button>
-            </div>
-            <div class="modal-body" id="confirmModalBody"></div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="confirmOkBtn">Evet</button>
-                <button type="button" class="btn btn-danger" onclick="closeConfirmModal()">İptal</button>
-            </div>
-        </div>
-    </div>
-
 
     <script>
+        // --- App Data & DOM refs (same logic as önceki sürüm, küçük iyileştirmeler) ---
         const users = [
             { username: "operator", password: "1234", role: "operator", name: "Ahmet Yılmaz" },
             { username: "supervisor", password: "1234", role: "supervisor", name: "Mehmet Demir" }
@@ -448,10 +413,9 @@
             { code: "P0008", name: "ŞİŞLİ OTEL", email: "reservations@sisliotel.com" }
         ];
 
-        // FIX: Added 'products' field to dummy data to support the new table column
         let packages = [
-            { id: 1, packageNo: "PKG-0001", products: { '2': 5 }, totalQuantity: 5, packageTime: "12.05.2023 14:30", customerCode: "P0006", customerName: "Laleli Hamit", packer: "Ahmet Yılmaz", selected: false },
-            { id: 2, packageNo: "PKG-0002", products: { '1': 3 }, totalQuantity: 3, packageTime: "12.05.2023 14:45", customerCode: "P0006", customerName: "Laleli Hamit", packer: "Ahmet Yılmaz", selected: false }
+            { id: 1, packageNo: "PKG-0001", totalQuantity: 5, packageTime: "12.05.2023 14:30", customerCode: "P0006", customerName: "Laleli Hamit", packer: "Ahmet Yılmaz", selected: false },
+            { id: 2, packageNo: "PKG-0002", totalQuantity: 3, packageTime: "12.05.2023 14:45", customerCode: "P0006", customerName: "Laleli Hamit", packer: "Ahmet Yılmaz", selected: false }
         ];
 
         const products = [
@@ -489,12 +453,9 @@
         const loginScreen = document.getElementById('loginScreen');
         const appContainer = document.getElementById('appContainer');
         const toast = document.getElementById('toast');
-        const customerModal = document.getElementById('customerModal');
+        const modal = document.getElementById('customerModal');
         const quantityModal = document.getElementById('quantityModal');
         const manualModal = document.getElementById('manualModal');
-        const confirmModal = document.getElementById('confirmModal');
-        const confirmModalBody = document.getElementById('confirmModalBody');
-        const confirmOkBtn = document.getElementById('confirmOkBtn');
         const customerSelect = document.getElementById('customer');
         const customerNameSpan = document.getElementById('customerName');
         const packagesTableBody = document.getElementById('packagesTableBody');
@@ -511,20 +472,7 @@
         const selectedFileName = document.getElementById('selectedFileName');
         const logoutBtn = document.getElementById('logoutBtn');
 
-        // FIX: Reusable confirm modal function
-        function showConfirmModal(message, onConfirm) {
-            confirmModalBody.textContent = message;
-            confirmModal.style.display = 'flex';
-            confirmOkBtn.onclick = () => {
-                onConfirm();
-                closeConfirmModal();
-            };
-        }
-
-        function closeConfirmModal() {
-            confirmModal.style.display = 'none';
-        }
-
+        // initApp: başlatma, event listener eklemeleri
         function initApp() {
             const savedPending = localStorage.getItem('pendingOperations');
             if (savedPending) pendingOperations = JSON.parse(savedPending);
@@ -558,7 +506,9 @@
             });
 
             customerSelect.addEventListener('change', function() { updateCustomerInfo(this.value); });
+
             stockSearchInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') searchStock(); });
+
             stockFileUpload.addEventListener('change', function() {
                 if (this.files.length > 0) selectedFileName.textContent = this.files[0].name;
                 else selectedFileName.textContent = '';
@@ -571,21 +521,21 @@
                 }
             });
 
-            // FIX: Use the new confirm modal for logout
+            // logout butonuna event listener (inline yerine)
             if (logoutBtn) {
-                logoutBtn.addEventListener('click', function() {
-                    showConfirmModal('Çıkış yapmak istediğinize emin misiniz?', logoutConfirmed);
-                });
+                logoutBtn.addEventListener('click', function() { logout(); });
             }
 
+            // Service worker register (hata olsa gözardı et)
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').catch(()=>{/* ignore */});
             }
+
             initIndexedDB();
             saveDataToLocalStorage();
         }
 
-        // IndexedDB, load/save, offline queue... (same as before)
+        // (IndexedDB, load/save, offline queue vb. fonksiyonlar) -- aynı mantık, kısaltılarak eklendi
         function initIndexedDB() {
             const request = indexedDB.open("ProCleanDB", 1);
             request.onupgradeneeded = function(e) {
@@ -649,6 +599,7 @@
 
         function syncPendingData() {
             if (!navigator.onLine || !pendingOperations.length) return;
+            // Simülasyon: başarılı kabul et
             setTimeout(()=> { pendingOperations=[]; localStorage.removeItem('pendingOperations'); showToast('Çevrimiçi veri senkronizasyonu tamamlandı', 'success'); }, 800);
         }
 
@@ -689,14 +640,8 @@
         function populatePackagesTable() {
             packagesTableBody.innerHTML='';
             packages.forEach(pkg => {
-                // FIX: Get product details from the pkg object to display in the new column
-                const productNames = Object.keys(pkg.products || {}).map(productId => {
-                    const product = products.find(p => p.id == productId);
-                    return product ? `${product.name} (${pkg.products[productId]})` : `Ürün (${pkg.products[productId]})`;
-                }).join(', ');
-
                 const row = document.createElement('tr');
-                row.innerHTML = `<td><input type="checkbox" data-id="${pkg.id}" ${pkg.selected ? 'checked' : ''}></td><td>${pkg.id}</td><td>${pkg.packageNo}</td><td>${productNames}</td><td>${pkg.totalQuantity}</td><td>${pkg.packageTime}</td><td>${pkg.customerCode}</td><td>${pkg.customerName}</td><td>${pkg.packer}</td>`;
+                row.innerHTML = `<td><input type="checkbox" data-id="${pkg.id}" ${pkg.selected ? 'checked' : ''}></td><td>${pkg.id}</td><td>${pkg.packageNo}</td><td>${pkg.totalQuantity}</td><td>${pkg.packageTime}</td><td>${pkg.customerCode}</td><td>${pkg.customerName}</td><td>${pkg.packer}</td>`;
                 packagesTableBody.appendChild(row);
                 const checkbox = row.querySelector('input[type="checkbox"]');
                 checkbox.addEventListener('change', function() {
@@ -820,6 +765,9 @@
         function updatePackageDetails(productId) {
             const product = products.find(p=>p.id===productId) || selectedProductForQuantity;
             if (product) {
+                // document.getElementById('stockCode').textContent = product.code || '-';
+                // document.getElementById('itemType').textContent = product.type || '-';
+                // document.getElementById('itemQuantity').textContent = quickProductQuantities[productId] || 0;
                 const definedCount = Object.values(quickProductQuantities).reduce((s,q)=>s+q,0);
                 document.getElementById('definedCount').textContent = definedCount;
                 const productCount = Object.values(quickProductQuantities).filter(q=>q>0).length;
@@ -830,7 +778,11 @@
         function showPackageDetails(packageId) {
             const pkg = packages.find(p=>p.id===packageId);
             if (pkg) {
+                // document.getElementById('selectedPackage').textContent = pkg.packageNo;
                 selectedPackage = pkg;
+                // document.getElementById('stockCode').textContent = "CHS-001";
+                // document.getElementById('itemType').textContent = "Çarşaf";
+                // document.getElementById('itemQuantity').textContent = pkg.totalQuantity;
             }
         }
 
@@ -864,20 +816,19 @@
                 div.addEventListener('click', function(){ document.querySelectorAll('.customer-item').forEach(i=>i.classList.remove('selected')); this.classList.add('selected'); selectedCustomerInModal = customer; });
                 customerList.appendChild(div);
             });
-            document.getElementById('modalTitle').textContent='Müşteri Seçimi'; customerModal.style.display='flex';
+            document.getElementById('modalTitle').textContent='Müşteri Seçimi'; modal.style.display='flex';
         }
 
         function showAllCustomers() { showCustomerSelection(); }
 
-        // FIX: Use confirm modal instead of browser confirm()
         function deleteSelectedCustomer() {
             if (!selectedCustomerInModal) { showToast('Lütfen silmek için bir müşteri seçin','error'); return; }
-            showConfirmModal(`${selectedCustomerInModal.name} müşterisini silmek istediğinize emin misiniz?`, () => {
+            if (confirm(`${selectedCustomerInModal.name} müşterisini silmek istediğinize emin misiniz?`)) {
                 customers = customers.filter(c=>c.code!==selectedCustomerInModal.code);
                 populateCustomerDropdown(); closeModal();
                 if (!navigator.onLine) queueOperation({ type:'deleteCustomer', payload:{ code: selectedCustomerInModal.code }});
                 saveDataToIndexedDB(); saveDataToLocalStorage(); showToast('Müşteri silindi','success');
-            });
+            }
         }
 
         function addNewCustomer() {
@@ -911,18 +862,14 @@
 
             const tableData = packages.map(pkg => [
                 pkg.packageNo,
-                // FIX: Added products field to report generation
-                Object.keys(pkg.products || {}).map(productId => {
-                    const product = products.find(p => p.id == productId);
-                    return product ? `${product.name} (${pkg.products[productId]})` : `Ürün (${pkg.products[productId]})`;
-                }).join(', '),
+                pkg.customerName,
                 pkg.totalQuantity,
                 pkg.packageTime,
                 pkg.packer
             ]);
 
             doc.autoTable({
-                head: [['Paket No', 'Ürün', 'Miktar', 'Zaman', 'Paketleyen']],
+                head: [['Paket No', 'Müşteri', 'Miktar', 'Zaman', 'Paketleyen']],
                 body: tableData,
                 startY: 85,
                 theme: 'striped',
@@ -944,6 +891,7 @@
             saveDataToIndexedDB(); saveDataToLocalStorage(); showToast(`Yeni konteyner oluşturuldu: ${newContainerNumber}`,'success');
         }
 
+        // Dosya yükleme ve esnek başlık algılama
         function getFieldFromRow(row, possibleKeys) {
             if (!row) return undefined;
             if (Array.isArray(row)) return undefined;
@@ -997,63 +945,32 @@
         }
 
         function savePackage() {
-            if (!selectedCustomer) {
-                showToast('Lütfen önce bir müşteri seçin', 'error');
-                return;
+            if (!selectedCustomer) { showToast('Lütfen önce bir müşteri seçin','error'); return; }
+            const newPackage = {
+                id: packages.length + 1,
+                packageNo: `PKG-${String(packages.length + 1).padStart(4,'0')}`,
+                totalQuantity: Object.values(quickProductQuantities).reduce((s,q)=>s+q,0),
+                packageTime: new Date().toLocaleString('tr-TR'),
+                customerCode: selectedCustomer.code,
+                customerName: selectedCustomer.name,
+                packer: currentUser ? currentUser.name : 'Unknown',
+                selected: false
+            };
+            packages.push(newPackage);
+            const currentContainerObj = containers.find(c=>c.containerNo===currentContainer);
+            if (currentContainerObj) { 
+                currentContainerObj.packageCount += 1; 
+                currentContainerObj.totalQuantity += newPackage.totalQuantity; 
+                currentContainerObj.packages.push(newPackage.id);
+                populateShippingTable();
             }
-            const totalQuantity = Object.values(quickProductQuantities).reduce((s, q) => s + q, 0);
-            
-            // FIX: Prevent saving empty packages
-            if (totalQuantity === 0) {
-                showToast('Lütfen önce bir ürün ekleyin', 'error');
-                return;
-            }
-
-            // FIX: Use confirm modal instead of browser confirm()
-            showConfirmModal('Paketi kaydetmek istediğinize emin misiniz?', () => {
-                const newPackage = {
-                    id: packages.length + 1,
-                    packageNo: `PKG-${String(packages.length + 1).padStart(4, '0')}`,
-                    totalQuantity: totalQuantity,
-                    packageTime: new Date().toLocaleString('tr-TR'),
-                    customerCode: selectedCustomer.code,
-                    customerName: selectedCustomer.name,
-                    packer: currentUser ? currentUser.name : 'Unknown',
-                    selected: false,
-                    // FIX: Added products field to the new package
-                    products: { ...quickProductQuantities }
-                };
-                packages.push(newPackage);
-                const currentContainerObj = containers.find(c => c.containerNo === currentContainer);
-                if (currentContainerObj) { 
-                    currentContainerObj.packageCount += 1; 
-                    currentContainerObj.totalQuantity += newPackage.totalQuantity; 
-                    currentContainerObj.packages.push(newPackage.id);
-                    populateShippingTable();
-                }
-                
-                populatePackagesTable();
-                
-                if (!navigator.onLine) {
-                    queueOperation({ type: 'savePackage', payload: newPackage });
-                }
-                
-                Object.keys(quickProductQuantities).forEach(id => {
-                    quickProductQuantities[id] = 0;
-                    const badge = document.getElementById(`badge-${id}`);
-                    if (badge) {
-                        badge.textContent = '0';
-                        badge.style.display = 'none';
-                    }
-                });
-                
-                document.getElementById('definedCount').textContent = '0';
-                document.getElementById('averageCount').textContent = '0';
-
-                saveDataToIndexedDB();
-                saveDataToLocalStorage();
-                showToast('Paket başarıyla kaydedildi', 'success');
-            });
+            populatePackagesTable();
+            if (!navigator.onLine) queueOperation({ type:'savePackage', payload:newPackage });
+            Object.keys(quickProductQuantities).forEach(id=>{ quickProductQuantities[id]=0; const badge=document.getElementById(`badge-${id}`); if (badge){ badge.textContent='0'; badge.style.display='none'; } });
+            // document.getElementById('selectedPackage').textContent='Yok'; 
+            // document.getElementById('stockCode').textContent='-'; document.getElementById('itemType').textContent='-'; document.getElementById('itemQuantity').textContent='0'; 
+            document.getElementById('definedCount').textContent='0'; document.getElementById('averageCount').textContent='0';
+            saveDataToIndexedDB(); saveDataToLocalStorage(); showToast('Paket başarıyla kaydedildi','success');
         }
 
         function selectAllPackages() {
@@ -1064,65 +981,70 @@
         function clearSelection() {
             selectAllCheckbox.checked = false;
             document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb=>{ cb.checked=false; const id=parseInt(cb.dataset.id); const idx=packages.findIndex(p=>p.id===id); if (idx!==-1) packages[idx].selected=false; });
+            // document.getElementById('selectedPackage').textContent='Yok'; 
             selectedPackage=null;
         }
 
-        // FIX: Use confirm modal instead of browser confirm()
         function deletePackage() {
             const selectedPackages = packages.filter(p=>p.selected);
             if (selectedPackages.length===0) { showToast('Lütfen silmek için bir paket seçin','error'); return; }
-            showConfirmModal(`${selectedPackages.length} paketi silmek istediğinize emin misiniz?`, () => {
+            if (confirm(`${selectedPackages.length} paketi silmek istediğinize emin misiniz?`)) {
                 const removed = selectedPackages.map(p=>p.id);
                 packages = packages.filter(p=>!p.selected);
                 if (!navigator.onLine) queueOperation({ type:'deletePackages', payload: removed });
                 populatePackagesTable(); 
+                // document.getElementById('selectedPackage').textContent='Yok'; 
                 selectedPackage=null; saveDataToIndexedDB(); saveDataToLocalStorage(); showToast(`${selectedPackages.length} paket silindi`,'success');
-            });
+            }
         }
 
-        // FIX: Use confirm modal instead of browser confirm()
         function deleteContainer() {
-            showConfirmModal('Konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.', () => {
+            if (confirm('Konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
                 const idx = containers.findIndex(c=>c.containerNo===currentContainer);
                 if (idx!==-1) {
                     const removed = containers.splice(idx,1)[0];
                     if (!navigator.onLine) queueOperation({ type:'deleteContainer', payload:removed });
                 }
                 document.getElementById('containerNumber').textContent='Yok'; currentContainer=null; populateShippingTable(); saveDataToIndexedDB(); saveDataToLocalStorage(); showToast('Konteyner silindi','success');
-            });
+            }
         }
 
-        // FIX: Use confirm modal instead of browser confirm()
         function sendToRamp() {
             const selectedPackages = packages.filter(p => p.selected);
             if (selectedPackages.length === 0) {
                 showToast('Lütfen rampaya göndermek için paket seçin', 'error');
                 return;
             }
-            showConfirmModal('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?', () => {
+
+            if (confirm('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?')) {
                 const packagesToSendIds = selectedPackages.map(p => p.id);
+                
                 const containerId = containers.length + 1;
                 const newContainerNumber = `C${String(containerId).padStart(6, '0')}`;
+                
                 const newContainer = {
                     id: containerId,
                     containerNo: newContainerNumber,
-                    customer: selectedPackages[0].customerName,
+                    customer: selectedPackages[0].customerName, // Assuming all selected packages are for the same customer
                     packageCount: selectedPackages.length,
                     totalQuantity: selectedPackages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0),
                     createdAt: new Date().toLocaleDateString('tr-TR'),
                     status: 'Sevk Edildi',
                     packages: packagesToSendIds
                 };
+                
                 containers.push(newContainer);
                 packages = packages.filter(p => !p.selected);
+                
                 populatePackagesTable();
                 populateShippingTable();
                 clearSelection();
                 saveDataToIndexedDB();
                 saveDataToLocalStorage();
+                
                 showToast(`${selectedPackages.length} paket konteyner(${newContainerNumber}) ile rampaya gönderildi`, 'success');
                 switchTab('shipping');
-            });
+            }
         }
 
         function printLabel() {
@@ -1138,15 +1060,18 @@
             showToast(`${selectedPackages.length} paket için etiket yazdırılıyor...`,'success');
         }
 
-        function closeModal() { customerModal.style.display='none'; selectedCustomerInModal=null; }
-        
+        function closeModal() { modal.style.display='none'; selectedCustomerInModal=null; }
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab=>tab.classList.remove('active'));
             document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
             const tabElement = Array.from(document.querySelectorAll('.tab')).find(t => t.getAttribute('onclick') === `switchTab('${tabName}')`);
             if (tabElement) tabElement.classList.add('active');
             const pane = document.getElementById(`${tabName}Tab`);
-            if (pane) pane.classList.add('active');
+            if (pane) pane.classList.add('active'); else {
+                // fallback if id naming differs
+                const pane2 = document.getElementById(`${tabName}Tab`) || document.getElementById(`${tabName}Tab`);
+                if (pane2) pane2.classList.add('active');
+            }
         }
 
         function showToast(message, type='success') {
@@ -1168,20 +1093,17 @@
             } else showToast('Kullanıcı adı veya şifre hatalı','error');
         }
 
-        // FIX: Separate function for confirmed logout action
-        function logoutConfirmed() {
+        // Robust logout: modal ve durum temizlikleriyle
+       function logout() {
             currentUser = null;
             appContainer.style.display = 'none';
             loginScreen.style.display = 'flex';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
-            closeModal();
-            manualModal.style.display = 'none';
-            quantityModal.style.display = 'none';
-            document.getElementById('userRole').textContent = '';
-            showToast('Çıkış yapıldı', 'success');
+            showToast('Başarıyla çıkış yapıldı', 'success');
         }
-        
+
+        // On load
         window.onload = function() {
             loginScreen.style.display='flex'; appContainer.style.display='none';
         };
