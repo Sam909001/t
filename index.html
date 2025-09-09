@@ -1093,17 +1093,13 @@
         }
 
         // Robust logout: modal ve durum temizlikleriyle
-        function logout() {
-            if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
-                currentUser = null;
-                appContainer.style.display='none'; loginScreen.style.display='flex';
-                document.getElementById('username').value = ''; document.getElementById('password').value = '';
-                // close modals if any
-                modal.style.display='none'; manualModal.style.display='none'; quantityModal.style.display='none';
-                // reset UI state if gerekirse
-                document.getElementById('userRole').textContent = '';
-                showToast('Çıkış yapıldı','success');
-            }
+       function logout() {
+            currentUser = null;
+            appContainer.style.display = 'none';
+            loginScreen.style.display = 'flex';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            showToast('Başarıyla çıkış yapıldı', 'success');
         }
 
         // On load
