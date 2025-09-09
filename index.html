@@ -12,6 +12,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <style>
         :root {
@@ -453,6 +455,43 @@
         </div>
     </div>
 
+    <script>
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBidMZ0nBy7QcsCggQC2h1HVoESDsYBdB4",
+        authDomain: "proclea-49b23.firebaseapp.com",
+        projectId: "proclea-49b23",
+        storageBucket: "proclea-49b23.firebasestorage.app",
+        messagingSenderId: "1021274066331",
+        appId: "1:1021274066331:web:20d55750b7d88c6585653e"
+        measurementId: "G-5GWNB5QBPV"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+
+        // Auth state observer - ADD THIS RIGHT AFTER INITIALIZATION
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            // User is signed in
+            currentUser = {
+                username: user.email,
+                uid: user.uid,
+                name: user.displayName || user.email.split('@')[0]
+            };
+            
+            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+            loginScreen.style.display = 'none';
+            appContainer.style.display = 'flex';
+            appContainer.setAttribute('aria-hidden','false');
+            initApp();
+        } else {
+            // User is signed out
+            loginScreen.style.display = 'flex';
+            appContainer.style.display = 'none';
+        }
+    });
+</script>
     <script>
         /* -----------------------
            Data & State
@@ -1255,34 +1294,56 @@
         /* -----------------------
            Login / Logout
            ----------------------- */
-        function loginUser() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const user = users.find(u => u.username === username && u.password === password);
-
-            if (user) {
-                currentUser = user;
-                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
-                loginScreen.style.display = 'none';
-                appContainer.style.display = 'flex';
-                appContainer.setAttribute('aria-hidden','false');
-                initApp();
-                showToast('Başarıyla giriş yapıldı', 'success');
+       function loginUser() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    
+    // Sign in with email and password
+    firebase.auth().signInWithEmailAndPassword(username, password)
+        .then((userCredential) => {
+            // Signed in 
+            const user = userCredential.user;
+            currentUser = {
+                username: user.email,
+                uid: user.uid,
+                name: user.displayName || user.email.split('@')[0]
+            };
+            
+            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+            loginScreen.style.display = 'none';
+            appContainer.style.display = 'flex';
+            appContainer.setAttribute('aria-hidden','false');
+            initApp();
+            showToast('Başarıyla giriş yapıldı', 'success');
+        })
+        .catch((error) => {
+            const errorCode = error.code;
+            const errorMessage = error.message;
+            
+            if (errorCode === 'auth/user-not-found') {
+                showToast('Kullanıcı bulunamadı', 'error');
+            } else if (errorCode === 'auth/wrong-password') {
+                showToast('Şifre hatalı', 'error');
             } else {
-                showToast('Kullanıcı adı veya şifre hatalı', 'error');
+                showToast(`Giriş hatası: ${errorMessage}`, 'error');
             }
-        }
+        });
+}
 
         function logout() {
-            currentUser = null;
-            appContainer.style.display = 'none';
-            appContainer.setAttribute('aria-hidden','true');
-            loginScreen.style.display = 'flex';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-            showToast('Başarıyla çıkış yapıldı', 'success');
-        }
+    firebase.auth().signOut().then(() => {
+        currentUser = null;
+        appContainer.style.display = 'none';
+        appContainer.setAttribute('aria-hidden','true');
+        loginScreen.style.display = 'flex';
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
+        showToast('Başarıyla çıkış yapıldı', 'success');
+    }).catch((error) => {
+        showToast('Çıkış yapılırken hata oluştu', 'error');
+    });
+}
 
         /* -----------------------
            Auto-save
