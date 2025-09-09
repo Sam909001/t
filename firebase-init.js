@@ -1,9 +1,3 @@
-// firebase-init.js
-// Save this file next to your HTML and include with:
-// <script type="module" src="./firebase-init.js"></script>
-//
-// Uses Firebase JS SDK v12 (modular). Helpers are attached to window.firebaseHelpers.
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
