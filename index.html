@@ -943,34 +943,65 @@
             showToast(`${file.name} dosyası işleniyor...`,'success');
         }
 
-        function savePackage() {
-            if (!selectedCustomer) { showToast('Lütfen önce bir müşteri seçin','error'); return; }
-            const newPackage = {
-                id: packages.length + 1,
-                packageNo: `PKG-${String(packages.length + 1).padStart(4,'0')}`,
-                totalQuantity: Object.values(quickProductQuantities).reduce((s,q)=>s+q,0),
-                packageTime: new Date().toLocaleString('tr-TR'),
-                customerCode: selectedCustomer.code,
-                customerName: selectedCustomer.name,
-                packer: currentUser ? currentUser.name : 'Unknown',
-                selected: false
-            };
-            packages.push(newPackage);
-            const currentContainerObj = containers.find(c=>c.containerNo===currentContainer);
-            if (currentContainerObj) { 
-                currentContainerObj.packageCount += 1; 
-                currentContainerObj.totalQuantity += newPackage.totalQuantity; 
-                currentContainerObj.packages.push(newPackage.id);
-                populateShippingTable();
-            }
-            populatePackagesTable();
-            if (!navigator.onLine) queueOperation({ type:'savePackage', payload:newPackage });
-            Object.keys(quickProductQuantities).forEach(id=>{ quickProductQuantities[id]=0; const badge=document.getElementById(`badge-${id}`); if (badge){ badge.textContent='0'; badge.style.display='none'; } });
-            // document.getElementById('selectedPackage').textContent='Yok'; 
-            // document.getElementById('stockCode').textContent='-'; document.getElementById('itemType').textContent='-'; document.getElementById('itemQuantity').textContent='0'; 
-            document.getElementById('definedCount').textContent='0'; document.getElementById('averageCount').textContent='0';
-            saveDataToIndexedDB(); saveDataToLocalStorage(); showToast('Paket başarıyla kaydedildi','success');
+       function savePackage() {
+    // Check 1: Ensure a customer is selected. This was already in place.
+    if (!selectedCustomer) {
+        showToast('Lütfen önce bir müşteri seçin', 'error');
+        return;
+    }
+
+    const totalQuantity = Object.values(quickProductQuantities).reduce((s, q) => s + q, 0);
+
+    // Check 2: Ensure the package contains at least one item. This is the fix.
+    if (totalQuantity === 0) {
+        showToast('Lütfen önce bir ürün ekleyin', 'error');
+        return;
+    }
+
+    const newPackage = {
+        id: packages.length + 1,
+        packageNo: `PKG-${String(packages.length + 1).padStart(4, '0')}`,
+        totalQuantity: totalQuantity,
+        packageTime: new Date().toLocaleString('tr-TR'),
+        customerCode: selectedCustomer.code,
+        customerName: selectedCustomer.name,
+        packer: currentUser ? currentUser.name : 'Unknown',
+        selected: false
+    };
+
+    packages.push(newPackage);
+
+    const currentContainerObj = containers.find(c => c.containerNo === currentContainer);
+    if (currentContainerObj) {
+        currentContainerObj.packageCount += 1;
+        currentContainerObj.totalQuantity += newPackage.totalQuantity;
+        currentContainerObj.packages.push(newPackage.id);
+        populateShippingTable();
+    }
+    
+    populatePackagesTable();
+    
+    if (!navigator.onLine) {
+        queueOperation({ type: 'savePackage', payload: newPackage });
+    }
+    
+    // Reset quick product quantities and UI
+    Object.keys(quickProductQuantities).forEach(id => {
+        quickProductQuantities[id] = 0;
+        const badge = document.getElementById(`badge-${id}`);
+        if (badge) {
+            badge.textContent = '0';
+            badge.style.display = 'none';
         }
+    });
+    
+    document.getElementById('definedCount').textContent = '0';
+    document.getElementById('averageCount').textContent = '0';
+
+    saveDataToIndexedDB();
+    saveDataToLocalStorage();
+    showToast('Paket başarıyla kaydedildi', 'success');
+}
 
         function selectAllPackages() {
             selectAllCheckbox.checked = true;
