@@ -1,3 +1,146 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --text: #2c3e50;
+            --bg: #f5f7fa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+
+        /* Login Screen */
+        .login-container { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%); }
+        .login-form { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 400px; }
+        .login-form h1 { text-align: center; margin-bottom: 1.5rem; color: var(--primary); }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display:block; margin-bottom:0.5rem; font-weight:500; }
+        .form-group input { width:100%; padding:0.8rem; border:1px solid #ddd; border-radius:5px; font-size:1rem; }
+
+        .btn { padding:0.6rem 1rem; border:none; border-radius:5px; cursor:pointer; font-size:0.9rem; font-weight:600; transition:all .3s; }
+        .btn-primary { background:var(--secondary); color:#fff; }
+        .btn-primary:hover { background:#2980b9; }
+        .btn-link { background:none; color:var(--secondary); text-decoration:underline; padding:0.5rem; }
+
+        /* Main */
+        .app-container { display:none; flex-direction:column; height:100vh; }
+
+        /* Header */
+        .app-header { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; }
+        .app-title { font-size:1.3rem; font-weight:600; }
+        .user-info { display:flex; align-items:center; gap:0.8rem; }
+
+        /* Tabs */
+        .tabs { display:flex; background-color:var(--dark); }
+        .tab { padding:0.8rem 1.5rem; color:white; cursor:pointer; font-weight:500; border-bottom:3px solid transparent; font-size:0.9rem; }
+        .tab.active { background:var(--light); color:var(--primary); border-bottom:3px solid var(--secondary); }
+
+        /* Content */
+        .tab-content { flex-grow:1; padding:1.2rem; overflow-y:auto; }
+        .tab-pane { display:none; }
+        .tab-pane.active { display:block; }
+
+        /* UPDATED: More compact customer info section */
+        .packaging-header { display:flex; justify-content:space-between; margin-bottom:1.2rem; padding-bottom:0.8rem; border-bottom:1px solid #ddd; align-items: center; }
+        .customer-info { display:flex; gap:0.8rem; align-items: center; flex-wrap: wrap; }
+        .info-group { display:flex; flex-direction:column; margin-bottom: 0; }
+        .info-group label { font-weight:600; margin-bottom:0.2rem; font-size:0.8rem; }
+        .info-group select, .info-group input { padding:0.4rem; border:1px solid #ddd; border-radius:5px; font-size:0.8rem; height: auto; }
+        .info-group span { font-size: 0.9rem; }
+        .action-buttons { display:flex; gap:0.6rem; }
+
+        /* UPDATED: Ensure left-to-right sections and stable sizes */
+        .packaging-content {
+            display: flex;
+            gap: 1.2rem;
+            align-items: flex-start;
+            height: calc(100vh - 230px);
+            padding-bottom: 10px;
+        }
+        /* Widths: Paket Oluştur (25%) | Paket Detayları (50%) | Hızlı Ürün Ekleme (25%) */
+        .barcode-section { flex: 0 0 25%; min-width: 220px; background:white; padding:0.8rem; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+        .pending-packages { flex: 0 0 50%; min-width: 360px; background:white; padding:0.8rem; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); overflow-y:auto; }
+        .package-details { flex: 0 0 25%; min-width: 220px; background:white; padding:0.8rem; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); display:flex; flex-direction:column; }
+
+        .barcode-input { display:flex; margin-bottom:0.8rem; }
+        .barcode-input input { flex-grow:1; padding:0.6rem; border:1px solid #ddd; border-radius:5px 0 0 5px; font-size:1rem; }
+        .barcode-input button { padding:0 0.8rem; border:1px solid #ddd; background:var(--light); cursor:pointer; }
+
+        .package-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+        .package-table th, .package-table td { padding:0.5rem; text-align:left; border-bottom:1px solid #ddd; }
+        .package-table th { background:var(--light); font-weight:600; }
+        .package-table tr:hover { background:#f9f9f9; }
+
+        .quick-buttons { display:grid; grid-template-columns:repeat(3, 1fr); gap:0.4rem; margin-top:0.8rem; }
+        .quick-btn { padding:0.6rem 0.4rem; background:var(--light); border:1px solid #ddd; border-radius:5px; cursor:pointer; text-align:center; font-size:0.8rem; position:relative; }
+        .quantity-badge { position:absolute; top:-5px; right:-5px; background:var(--secondary); color:white; border-radius:50%; width:18px; height:18px; font-size:0.7rem; display:flex; align-items:center; justify-content:center; }
+
+        .package-actions { margin-top:auto; display:flex; flex-direction:column; gap:0.6rem; }
+
+        .btn-success { background:var(--success); color:white; }
+        .btn-warning { background:var(--warning); color:white; }
+        .btn-danger { background:var(--accent); color:white; }
+
+        .app-footer { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; }
+        .container-info { display:flex; align-items:center; gap:0.8rem; }
+
+        .toast { position:fixed; top:20px; right:20px; padding:1rem 1.5rem; border-radius:5px; color:white; z-index:1000; opacity:0; transform:translateY(-20px); transition:all .3s; }
+        .toast.show { opacity:1; transform:translateY(0); }
+        .toast.success { background:var(--success); } .toast.error { background:var(--accent); } .toast.warning { background:var(--warning); }
+
+        .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; }
+        .modal-content { background:white; padding:1.5rem; border-radius:8px; width:90%; max-width:500px; max-height:80vh; overflow-y:auto; }
+        .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; padding-bottom:0.8rem; border-bottom:1px solid #ddd; }
+        .modal-close { background:none; border:none; font-size:1.5rem; cursor:pointer; }
+
+        .customer-list { max-height:300px; overflow-y:auto; margin-bottom:1rem; }
+        .customer-item { padding:0.8rem; border-bottom:1px solid #eee; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+        .customer-item:hover { background:#f5f5f5; } .customer-item.selected { background:#e3f2fd; }
+
+        .quantity-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1001; justify-content:center; align-items:center; }
+        .quantity-content { background:white; padding:1.5rem; border-radius:8px; width:90%; max-width:300px; text-align:center; }
+        .quantity-input { width:100%; padding:0.8rem; margin:1rem 0; border:1px solid #ddd; border-radius:5px; font-size:1.2rem; text-align:center; }
+        .quantity-buttons { display:flex; justify-content:center; gap:0.8rem; margin-top:1rem; }
+
+        .stock-search { display:flex; gap:0.8rem; margin-bottom:1.2rem; }
+        .stock-search input { flex-grow:1; padding:0.8rem; border:1px solid #ddd; border-radius:5px; }
+        .stock-table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+        .stock-table th, .stock-table td { padding:0.8rem; text-align:left; border-bottom:1px solid #ddd; } .stock-table th { background:var(--light); font-weight:600; } .stock-table tr:hover { background:#f9f9f9; }
+
+        .file-upload { margin-top:1.2rem; padding:1.2rem; background:white; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+        .upload-button { display:inline-block; padding:0.8rem 1.5rem; background:var(--secondary); color:white; border-radius:5px; cursor:pointer; margin-top:0.8rem; }
+        .upload-button:hover { background:#2980b9; }
+
+        .offline-indicator { position:fixed; bottom:20px; left:20px; padding:0.8rem 1.2rem; background:var(--accent); color:white; border-radius:5px; z-index:1000; display:none; }
+
+        /* Responsive */
+        @media (max-width:1200px) {
+            .barcode-section, .package-details { min-width:200px; }
+            .pending-packages { flex: 1 1 60%; }
+        }
+        @media (max-width:900px) {
+            .packaging-content { flex-direction:column; height:auto; }
+            .barcode-section, .pending-packages, .package-details { flex: 1 1 auto; width:100%; min-width: auto; }
+        }
+    </style>
+</head>
 <body>
     <div class="login-container" id="loginScreen">
         <div class="login-form">
@@ -292,7 +435,7 @@
         ];
 
         let containers = [
-            { id: 1, containerNo: "C000094", customer: "LALELİ HAMİT", packageCount: 2, totalQuantity: 8, createdAt: "12.05.2023", status: "Bekliyor", packages: ["PKG-0001", "PKG-0002"] }
+            { id: 1, containerNo: "C000094", customer: "LALELİ HAMİT", packageCount: 2, totalQuantity: 8, createdAt: "12.05.2023", status: "Bekliyor", packages: [1, 2] }
         ];
 
         let currentUser = null;
@@ -621,9 +764,9 @@
         function updatePackageDetails(productId) {
             const product = products.find(p=>p.id===productId) || selectedProductForQuantity;
             if (product) {
-                document.getElementById('stockCode').textContent = product.code || '-';
-                document.getElementById('itemType').textContent = product.type || '-';
-                document.getElementById('itemQuantity').textContent = quickProductQuantities[productId] || 0;
+                // document.getElementById('stockCode').textContent = product.code || '-';
+                // document.getElementById('itemType').textContent = product.type || '-';
+                // document.getElementById('itemQuantity').textContent = quickProductQuantities[productId] || 0;
                 const definedCount = Object.values(quickProductQuantities).reduce((s,q)=>s+q,0);
                 document.getElementById('definedCount').textContent = definedCount;
                 const productCount = Object.values(quickProductQuantities).filter(q=>q>0).length;
@@ -634,11 +777,11 @@
         function showPackageDetails(packageId) {
             const pkg = packages.find(p=>p.id===packageId);
             if (pkg) {
-                document.getElementById('selectedPackage').textContent = pkg.packageNo;
+                // document.getElementById('selectedPackage').textContent = pkg.packageNo;
                 selectedPackage = pkg;
-                document.getElementById('stockCode').textContent = "CHS-001";
-                document.getElementById('itemType').textContent = "Çarşaf";
-                document.getElementById('itemQuantity').textContent = pkg.totalQuantity;
+                // document.getElementById('stockCode').textContent = "CHS-001";
+                // document.getElementById('itemType').textContent = "Çarşaf";
+                // document.getElementById('itemQuantity').textContent = pkg.totalQuantity;
             }
         }
 
@@ -703,13 +846,36 @@
         function generateDailyReport() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            doc.setFontSize(20); doc.text('ProClean - Günlük İş Sonu Raporu', 105, 15, { align:'center' });
-            doc.setFontSize(12); const today = new Date().toLocaleDateString('tr-TR'); doc.text(`Tarih: ${today}`, 105,25,{align:'center'});
-            doc.setFontSize(14); doc.text('Müşteri Bilgileri', 20,40); doc.setFontSize(10); doc.text(`Seçili Müşteri: ${selectedCustomer ? selectedCustomer.name : 'Yok'}`, 20,50);
-            doc.setFontSize(14); doc.text('Paket Bilgileri', 20,70); doc.setFontSize(10);
-            let y=80; packages.forEach((pkg,i)=>{ if (y>250){doc.addPage(); y=20;} doc.text(`${i+1}. ${pkg.packageNo} - ${pkg.totalQuantity} adet - ${pkg.packageTime}`, 20,y); y+=7; });
-            doc.setFontSize(12); doc.text(`Toplam Paket Sayısı: ${packages.length}`, 20, y+10);
-            doc.save(`proclean_rapor_${today.replace(/\./g,'_')}.pdf`);
+            doc.setFontSize(20); doc.text('ProClean - Günlük İş Sonu Raporu', 105, 15, { align: 'center' });
+            doc.setFontSize(12); doc.text(`Tarih: ${new Date().toLocaleDateString('tr-TR')}`, 105, 25, { align: 'center' });
+            
+            const totalQuantity = packages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0);
+            const totalPackages = packages.length;
+            doc.setFontSize(14); doc.text('Rapor Özeti', 20, 40);
+            doc.setFontSize(10);
+            doc.text(`Toplam Paket Sayısı: ${totalPackages}`, 20, 50);
+            doc.text(`Toplam Adet: ${totalQuantity}`, 20, 57);
+            doc.text(`Oluşturan Personel: ${currentUser ? currentUser.name : 'Bilinmiyor'}`, 20, 64);
+            
+            doc.setFontSize(14); doc.text('Paket Listesi', 20, 80);
+
+            const tableData = packages.map(pkg => [
+                pkg.packageNo,
+                pkg.customerName,
+                pkg.totalQuantity,
+                pkg.packageTime,
+                pkg.packer
+            ]);
+
+            doc.autoTable({
+                head: [['Paket No', 'Müşteri', 'Miktar', 'Zaman', 'Paketleyen']],
+                body: tableData,
+                startY: 85,
+                theme: 'striped',
+                headStyles: { fillColor: [52, 73, 94] }
+            });
+
+            doc.save(`proclean_rapor_${new Date().toLocaleDateString('tr-TR').replace(/\./g, '_')}.pdf`);
             showToast('Rapor oluşturuldu ve e-posta olarak gönderildi','success');
         }
 
@@ -718,7 +884,7 @@
         function createNewContainer() {
             const newContainerNumber = `C${String(Math.floor(Math.random()*1000000)).padStart(6,'0')}`;
             document.getElementById('containerNumber').textContent = newContainerNumber; currentContainer = newContainerNumber;
-            const newContainer = { id: containers.length+1, containerNo: newContainerNumber, customer: selectedCustomer ? selectedCustomer.name : 'Belirtilmemiş', packageCount:0, totalQuantity:0, createdAt: new Date().toLocaleDateString('tr-TR'), status:'Bekliyor' };
+            const newContainer = { id: containers.length+1, containerNo: newContainerNumber, customer: selectedCustomer ? selectedCustomer.name : 'Belirtilmemiş', packageCount:0, totalQuantity:0, createdAt: new Date().toLocaleDateString('tr-TR'), status:'Bekliyor', packages: [] };
             containers.push(newContainer); populateShippingTable();
             if (!navigator.onLine) queueOperation({ type:'createContainer', payload:newContainer });
             saveDataToIndexedDB(); saveDataToLocalStorage(); showToast(`Yeni konteyner oluşturuldu: ${newContainerNumber}`,'success');
@@ -791,11 +957,18 @@
             };
             packages.push(newPackage);
             const currentContainerObj = containers.find(c=>c.containerNo===currentContainer);
-            if (currentContainerObj) { currentContainerObj.packageCount += 1; currentContainerObj.totalQuantity += newPackage.totalQuantity; populateShippingTable(); }
+            if (currentContainerObj) { 
+                currentContainerObj.packageCount += 1; 
+                currentContainerObj.totalQuantity += newPackage.totalQuantity; 
+                currentContainerObj.packages.push(newPackage.id);
+                populateShippingTable();
+            }
             populatePackagesTable();
             if (!navigator.onLine) queueOperation({ type:'savePackage', payload:newPackage });
             Object.keys(quickProductQuantities).forEach(id=>{ quickProductQuantities[id]=0; const badge=document.getElementById(`badge-${id}`); if (badge){ badge.textContent='0'; badge.style.display='none'; } });
-            document.getElementById('undefinedCount').textContent='0'; document.getElementById('definedCount').textContent='0'; document.getElementById('averageCount').textContent='0';
+            // document.getElementById('selectedPackage').textContent='Yok'; 
+            // document.getElementById('stockCode').textContent='-'; document.getElementById('itemType').textContent='-'; document.getElementById('itemQuantity').textContent='0'; 
+            document.getElementById('definedCount').textContent='0'; document.getElementById('averageCount').textContent='0';
             saveDataToIndexedDB(); saveDataToLocalStorage(); showToast('Paket başarıyla kaydedildi','success');
         }
 
@@ -807,7 +980,8 @@
         function clearSelection() {
             selectAllCheckbox.checked = false;
             document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb=>{ cb.checked=false; const id=parseInt(cb.dataset.id); const idx=packages.findIndex(p=>p.id===id); if (idx!==-1) packages[idx].selected=false; });
-            document.getElementById('selectedPackage').textContent='Yok'; selectedPackage=null;
+            // document.getElementById('selectedPackage').textContent='Yok'; 
+            selectedPackage=null;
         }
 
         function deletePackage() {
@@ -817,7 +991,9 @@
                 const removed = selectedPackages.map(p=>p.id);
                 packages = packages.filter(p=>!p.selected);
                 if (!navigator.onLine) queueOperation({ type:'deletePackages', payload: removed });
-                populatePackagesTable(); document.getElementById('selectedPackage').textContent='Yok'; selectedPackage=null; saveDataToIndexedDB(); saveDataToLocalStorage(); showToast(`${selectedPackages.length} paket silindi`,'success');
+                populatePackagesTable(); 
+                // document.getElementById('selectedPackage').textContent='Yok'; 
+                selectedPackage=null; saveDataToIndexedDB(); saveDataToLocalStorage(); showToast(`${selectedPackages.length} paket silindi`,'success');
             }
         }
 
@@ -835,37 +1011,41 @@
         function sendToRamp() {
             const selectedPackages = packages.filter(p => p.selected);
             if (selectedPackages.length === 0) {
-                showToast('Lütfen sevk etmek için paket seçin', 'error');
+                showToast('Lütfen rampaya göndermek için paket seçin', 'error');
                 return;
             }
-            if (confirm(`Seçili ${selectedPackages.length} paketi rampaya göndermek istediğinize emin misiniz?`)) {
-                const containerNo = `C${String(Math.floor(Math.random() * 1000000)).padStart(6, '0')}`;
-                const totalQuantity = selectedPackages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0);
-                const packageNos = selectedPackages.map(p => p.packageNo);
 
+            if (confirm('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?')) {
+                const packagesToSendIds = selectedPackages.map(p => p.id);
+                
+                const containerId = containers.length + 1;
+                const newContainerNumber = `C${String(containerId).padStart(6, '0')}`;
+                
                 const newContainer = {
-                    id: containers.length + 1,
-                    containerNo: containerNo,
-                    customer: selectedPackages[0].customerName,
+                    id: containerId,
+                    containerNo: newContainerNumber,
+                    customer: selectedPackages[0].customerName, // Assuming all selected packages are for the same customer
                     packageCount: selectedPackages.length,
-                    totalQuantity: totalQuantity,
+                    totalQuantity: selectedPackages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0),
                     createdAt: new Date().toLocaleDateString('tr-TR'),
                     status: 'Sevk Edildi',
-                    packages: packageNos
+                    packages: packagesToSendIds
                 };
-
-                containers.push(newContainer);
                 
-                // Remove packages from the main list
-                packages = packages.filter(pkg => !selectedPackages.includes(pkg));
-
+                containers.push(newContainer);
+                packages = packages.filter(p => !p.selected);
+                
                 populatePackagesTable();
                 populateShippingTable();
+                clearSelection();
                 saveDataToIndexedDB();
                 saveDataToLocalStorage();
-                showToast(`Seçili ${selectedPackages.length} paket başarıyla rampaya sevk edildi.`, 'success');
+                
+                showToast(`${selectedPackages.length} paket konteyner(${newContainerNumber}) ile rampaya gönderildi`, 'success');
+                switchTab('shipping');
             }
         }
+
         function printLabel() {
             const selectedPackages = packages.filter(p=>p.selected);
             if (selectedPackages.length===0) { showToast('Lütfen yazdırmak için bir paket seçin','error'); return; }
