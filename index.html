@@ -1011,7 +1011,7 @@
                 packageTime: new Date().toLocaleString('tr-TR'),
                 customerCode: selectedCustomer.code,
                 customerName: selectedCustomer.name,
-                packer: currentUser?.name || 'Bilinmiyor',
+                packer: currentUser?.name || currentUser?.displayName || window.currentUser?.displayName || window.currentUser?.email || 'Bilinmiyor'
                 selected: false
             };
 
