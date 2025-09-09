@@ -1011,7 +1011,7 @@
                 packageTime: new Date().toLocaleString('tr-TR'),
                 customerCode: selectedCustomer.code,
                 customerName: selectedCustomer.name,
-                packer: currentUser?.name || currentUser?.displayName || window.currentUser?.displayName || window.currentUser?.email || 'Bilinmiyor'
+                packer: currentUser?.name || 'Bilinmiyor',
                 selected: false
             };
 
@@ -1201,50 +1201,24 @@
         /* -----------------------
            Login / Logout
            ----------------------- */
-        // Replace the existing loginUser() in your HTML with this version
-async function loginUser() {
-  const email = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
+        function loginUser() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const user = users.find(u => u.username === username && u.password === password);
 
-  if (window.firebaseHelpers && window.firebaseHelpers.firebaseLogin) {
-    try {
-      const user = await window.firebaseHelpers.firebaseLogin(email, password);
+            if (user) {
+                currentUser = user;
+                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
+                loginScreen.style.display = 'none';
+                appContainer.style.display = 'flex';
+                appContainer.setAttribute('aria-hidden','false');
+                initApp();
+                showToast('Başarıyla giriş yapıldı', 'success');
+            } else {
+                showToast('Kullanıcı adı veya şifre hatalı', 'error');
+            }
+        }
 
-      // sync the app-local currentUser variable with firebase user
-      currentUser = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || null
-      };
-
-      // initialize app UI and listeners (idempotent)
-      initApp();
-
-      document.getElementById('userRole').textContent = `Operatör: ${user.displayName || user.email || user.uid}`;
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('appContainer').style.display = 'flex';
-      showToast('Başarıyla giriş yapıldı (Firebase)', 'success');
-      return;
-    } catch (err) {
-      console.error('Firebase login error', err);
-      showToast('Giriş hatası: ' + (err.message || err.code), 'error');
-      return;
-    }
-  }
-
-  // Fallback: local demo auth (keep your old logic here)
-  const user = users.find(u => u.username === email && u.password === password);
-  if (user) {
-    currentUser = user;
-    document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
-    loginScreen.style.display = 'none';
-    appContainer.style.display = 'flex';
-    initApp();
-    showToast('Başarıyla giriş yapıldı (Local)', 'success');
-  } else {
-    showToast('Kullanıcı adı veya şifre hatalı', 'error');
-  }
-}
         function logout() {
             currentUser = null;
             appContainer.style.display = 'none';
@@ -1306,6 +1280,5 @@ async function loginUser() {
             return false;
         };
     </script>
-    <script type="module" src="./firebase-init.js"></script>
 </body>
 </html>
