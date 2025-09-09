@@ -694,6 +694,77 @@
         stockTableBody.appendChild(row);
       });
     }
+    // Fix: define searchStock if missing and wire button + Enter key.
+// Paste this inside your existing <script> (after stockItems and populateStockTable are defined).
+if (typeof searchStock === 'undefined') {
+  function searchStock() {
+    try {
+      const input = document.getElementById('stockSearch');
+      const tbody = document.getElementById('stockTableBody');
+      if (!tbody) return;
+      const term = (input && input.value ? input.value.trim().toLowerCase() : '');
+      // If no search term, restore full table
+      if (!term) {
+        // populateStockTable is expected to exist in your script
+        if (typeof populateStockTable === 'function') {
+          populateStockTable();
+          return;
+        } else {
+          tbody.innerHTML = '';
+          return;
+        }
+      }
+      // Filter stockItems (expects stockItems array exists)
+      const filtered = (Array.isArray(stockItems) ? stockItems : []).filter(item => {
+        const code = (item.code || '').toString().toLowerCase();
+        const name = (item.name || '').toString().toLowerCase();
+        return code.includes(term) || name.includes(term);
+      });
+      // Render filtered rows
+      tbody.innerHTML = '';
+      filtered.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${item.code || ''}</td>
+                        <td>${item.name || ''}</td>
+                        <td>${item.quantity != null ? item.quantity : ''}</td>
+                        <td>${item.unit || ''}</td>
+                        <td>${item.lastUpdate || ''}</td>
+                        <td>${item.status || ''}</td>`;
+        tbody.appendChild(tr);
+      });
+      // If no results, optionally show a message row
+      if (filtered.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6" style="text-align:center;color:#666;padding:12px">Eşleşen stok bulunamadı</td>`;
+        tbody.appendChild(tr);
+      }
+    } catch (err) {
+      console.error('searchStock error', err);
+      // fallback: try to call original alert/toast functions if present
+      if (typeof showAlert === 'function') showAlert('Stok aranırken hata oluştu: ' + (err.message||err), 'Hata', 'error');
+      else alert('Stok aranırken hata: ' + (err.message||err));
+    }
+  }
+
+  // Wire the search button (if exists) - id="btnSearchStock"
+  const _btnSearch = document.getElementById('btnSearchStock');
+  if (_btnSearch && !_btnSearch._searchBound) {
+    _btnSearch.addEventListener('click', searchStock);
+    _btnSearch._searchBound = true;
+  }
+
+  // Wire Enter on input field stockSearch
+  const _stockInput = document.getElementById('stockSearch');
+  if (_stockInput && !_stockInput._enterBound) {
+    _stockInput.addEventListener('keypress', function(e){
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchStock();
+      }
+    });
+    _stockInput._enterBound = true;
+  }
+}
 
     // -----------------------
     // Customer modal
