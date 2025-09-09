@@ -1201,13 +1201,25 @@
         /* -----------------------
            Login / Logout
            ----------------------- */
-        async function loginUser() {
+        // Replace the existing loginUser() in your HTML with this version
+async function loginUser() {
   const email = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
 
   if (window.firebaseHelpers && window.firebaseHelpers.firebaseLogin) {
     try {
       const user = await window.firebaseHelpers.firebaseLogin(email, password);
+
+      // sync the app-local currentUser variable with firebase user
+      currentUser = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || null
+      };
+
+      // initialize app UI and listeners (idempotent)
+      initApp();
+
       document.getElementById('userRole').textContent = `Operatör: ${user.displayName || user.email || user.uid}`;
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('appContainer').style.display = 'flex';
@@ -1231,52 +1243,6 @@
     showToast('Başarıyla giriş yapıldı (Local)', 'success');
   } else {
     showToast('Kullanıcı adı veya şifre hatalı', 'error');
-  }
-}
-
-// Replace or augment your savePackage() to persist to Firestore:
-async function savePackage() {
-  const selectedCustomerCode = document.getElementById('customer').value;
-  const selectedCustomer = customers.find(c => c.code === selectedCustomerCode);
-
-  if (!selectedCustomer) { showToast('Lütfen bir müşteri seçin', 'error'); return; }
-
-  const totalQuantity = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
-  if (totalQuantity === 0) { showToast('Paket için en az bir ürün ekleyin', 'error'); return; }
-
-  const packageNo = `PKG-${String(packages.length + 1).padStart(4, '0')}`;
-  const newPackage = {
-    packageNo,
-    totalQuantity,
-    packageTime: new Date().toLocaleString('tr-TR'),
-    customerCode: selectedCustomer.code,
-    customerName: selectedCustomer.name,
-    packer: currentUser?.name || (window.currentUser?.email || 'Bilinmiyor'),
-    createdAt: new Date().toISOString()
-  };
-
-  // Optimistically update local UI
-  packages.push({ id: packages.length + 1, packageNo: newPackage.packageNo, totalQuantity: newPackage.totalQuantity, packageTime: newPackage.packageTime, customerCode: newPackage.customerCode, customerName: newPackage.customerName, packer: newPackage.packer, selected: false });
-  populatePackagesTable();
-  products.forEach(p => p.quantity = 0);
-  barcodeCount = 0;
-  document.getElementById('barcodeCount').textContent = '0';
-  populateQuickButtons();
-  updateDefinitionCounts();
-  showToast(`Paket kaydedildi: ${packageNo}`, 'success');
-
-  // Persist to Firestore if available
-  if (window.firebaseHelpers && window.firebaseHelpers.savePackageToFirestore) {
-    try {
-      const docId = await window.firebaseHelpers.savePackageToFirestore(newPackage);
-      // store firestore id on the local package entry (optional)
-      const local = packages.find(p => p.packageNo === newPackage.packageNo);
-      if (local) local.firestoreId = docId;
-      showToast('Paket Firestore\'a kaydedildi', 'success');
-    } catch (err) {
-      console.error('savePackageToFirestore error', err);
-      showToast('Paket Firestore\'a kaydedilemedi: ' + (err.message||err), 'error');
-    }
   }
 }
         function logout() {
