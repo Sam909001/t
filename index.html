@@ -177,7 +177,7 @@
                 <label for="password">Şifre</label>
                 <input type="password" id="password" placeholder="Şifrenizi girin">
             </div>
-            <button type="button" class="btn btn-primary" id="loginBtn" onclick="loginUser()">Giriş Yap</button>
+           <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
             <div style="text-align:center; margin-top:1rem;">
                 <button type="button" class="btn-link">Şifremi Unuttum</button>
             </div>
@@ -1201,24 +1201,6 @@
         /* -----------------------
            Login / Logout
            ----------------------- */
-        function loginUser() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const user = users.find(u => u.username === username && u.password === password);
-
-            if (user) {
-                currentUser = user;
-                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
-                loginScreen.style.display = 'none';
-                appContainer.style.display = 'flex';
-                appContainer.setAttribute('aria-hidden','false');
-                initApp();
-                showToast('Başarıyla giriş yapıldı', 'success');
-            } else {
-                showToast('Kullanıcı adı veya şifre hatalı', 'error');
-            }
-        }
-
         function logout() {
             currentUser = null;
             appContainer.style.display = 'none';
@@ -1279,8 +1261,7 @@
             showToast(`Beklenmeyen hata: ${msg} (Satır ${lineNo})`, 'error');
             return false;
         };
-    </script>
-    <script>
+    
 window.addEventListener('DOMContentLoaded', () => {
   if (!window.firebaseHelpers || !window.firebaseHelpers.auth) {
     console.error("Firebase not initialized yet");
@@ -1324,8 +1305,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-    </script>
-    <script>
         window.firebaseHelpers.auth.onAuthStateChanged((user) => {
   if (user) {
     document.getElementById("loginScreen").style.display = "none";
