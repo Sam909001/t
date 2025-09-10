@@ -13,6 +13,55 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
 
+    <head>
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js"></script>
+
+    <script src="./js/firebaseHelpers.js"></script>
+
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        const loginBtn = document.getElementById("loginBtn");
+        if (loginBtn) {
+          loginBtn.onclick = async () => {
+            const email = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            if (!email || !password) {
+              alert("Lütfen kullanıcı adı ve şifre girin");
+              return;
+            }
+
+            try {
+              const user = await window.firebaseHelpers.firebaseLogin(email, password);
+              alert("Giriş başarılı: " + user.email);
+              document.getElementById("loginScreen").style.display = "none";
+              if (window.firebaseHelpers.fetchAndPopulateData) {
+                await window.firebaseHelpers.fetchAndPopulateData();
+              }
+            } catch (e) {
+              alert("Giriş başarısız: " + e.message);
+              console.error(e);
+            }
+          };
+        }
+
+        // This is the correct place for the state change listener
+        window.firebaseHelpers.auth.onAuthStateChanged((user) => {
+          if (user) {
+            document.getElementById("loginScreen").style.display = "none";
+            if (window.firebaseHelpers.fetchAndPopulateData) {
+              window.firebaseHelpers.fetchAndPopulateData().catch(()=>{});
+            }
+          } else {
+            document.getElementById("loginScreen").style.display = "block";
+          }
+        });
+      });
+    </script>
+
     <style>
         :root {
             --primary: #2c3e50;
@@ -1261,35 +1310,6 @@
             showToast(`Beklenmeyen hata: ${msg} (Satır ${lineNo})`, 'error');
             return false;
         };
-    
-window.addEventListener('DOMContentLoaded', () => {
-  // Your other Firebase and app setup code here...
-
-  const loginBtn = document.getElementById("loginBtn");
-  if (loginBtn) {
-    loginBtn.onclick = async () => {
-      const email = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-
-      if (!email || !password) {
-        alert("Lütfen kullanıcı adı ve şifre girin");
-        return;
-      }
-
-      try {
-        const user = await window.firebaseHelpers.firebaseLogin(email, password);
-        alert("Giriş başarılı: " + user.email);
-        document.getElementById("loginScreen").style.display = "none";
-        if (window.firebaseHelpers.fetchAndPopulateData) {
-          await window.firebaseHelpers.fetchAndPopulateData();
-        }
-      } catch (e) {
-        alert("Giriş başarısız: " + e.message);
-        console.error(e);
-      }
-    };
-  }
 </script>
-<script src="./js/firebase.init.js"></script>
 </body>
 </html>
