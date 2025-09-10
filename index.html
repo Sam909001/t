@@ -1289,19 +1289,6 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     };
   }
-
-  // Persist login status
-  window.firebaseHelpers.auth.onAuthStateChanged((user) => {
-    if (user) {
-      document.getElementById("loginScreen").style.display = "none";
-      if (window.firebaseHelpers.fetchAndPopulateData) {
-        window.firebaseHelpers.fetchAndPopulateData().catch(()=>{});
-      }
-    } else {
-      document.getElementById("loginScreen").style.display = "block";
-    }
-  });
-});
 </script>
 <script src="./js/firebase.init.js"></script>
 </body>
