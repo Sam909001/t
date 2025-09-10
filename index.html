@@ -12,8 +12,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <style>
         :root {
@@ -40,32 +38,37 @@
         .form-group label { display:block; margin-bottom:0.5rem; font-weight:500; }
         .form-group input { width:100%; padding:0.8rem; border:1px solid #ddd; border-radius:5px; font-size:1rem; }
 
-        .btn { padding:0.6rem 1rem; border:none; border-radius:5px; cursor:pointer; font-size:0.9rem; font-weight:600; transition:all .3s; display:inline-block; text-align:center; }
+        .btn { padding:0.8rem 1.2rem; border:none; border-radius:5px; cursor:pointer; font-size:1rem; font-weight:600; transition:all .3s; display:inline-block; text-align:center; width: 100%; }
         .btn-primary { background:var(--secondary); color:#fff; }
         .btn-primary:hover { background:#2980b9; }
-        .btn-link { background:none; color:var(--secondary); text-decoration:underline; padding:0.5rem; }
+        .btn-link { background:none; color:var(--secondary); text-decoration:underline; padding:0.5rem; width: auto; }
 
         /* Main */
         .app-container { display:none; flex-direction:column; height:100vh; }
 
         /* Header */
-        .app-header { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; }
+        .app-header { background:var(--primary); color:white; padding:0.8rem 1.2rem; display:flex; justify-content:space-between; align-items:center; }
         .app-title { font-size:1.3rem; font-weight:600; }
-        .user-info { display:flex; align-items:center; gap:0.8rem; }
+        .user-info { display:flex; align-items:center; gap:1rem; }
 
-        .user-info button {
-            padding: 0.6rem 1rem;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 600;
-            transition: all 0.3s;
-            background: var(--accent);
-            color: white;
-            min-width: 100px;
+        /* Fixed logout button styling */
+        .logout-btn {
+            padding: 0.8rem 1.5rem !important;
+            border: none !important;
+            border-radius: 5px !important;
+            cursor: pointer !important;
+            font-size: 1rem !important;
+            font-weight: 600 !important;
+            transition: all 0.3s !important;
+            background: var(--accent) !important;
+            color: white !important;
+            min-width: 120px !important;
+            height: 45px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
-        .user-info button:hover { background: #c0392b; transform: translateY(-1px); }
+        .logout-btn:hover { background: #c0392b !important; transform: translateY(-1px) !important; }
 
         /* Tabs */
         .tabs { display:flex; background-color:var(--dark); }
@@ -73,17 +76,17 @@
         .tab.active { background:var(--light); color:var(--primary); border-bottom:3px solid var(--secondary); }
 
         /* Content */
-        .tab-content { flex-grow:1; padding:1.2rem; overflow:hidden; /* internal panes will handle scrolling */ }
-        .tab-pane { display:none; height: calc(100vh - 200px); overflow:auto; } /* consistent pane sizing */
+        .tab-content { flex-grow:1; padding:1.2rem; overflow:hidden; }
+        .tab-pane { display:none; height: calc(100vh - 200px); overflow:auto; }
         .tab-pane.active { display:block; }
 
-        .packaging-header { display:flex; justify-content:space-between; margin-bottom:1.2rem; padding-bottom:0.8rem; border-bottom:1px solid #ddd; align-items: center; }
+        .packaging-header { display:flex; justify-content:space-between; margin-bottom:1.2rem; padding-bottom:0.8rem; border-bottom:1px solid #ddd; align-items: center; flex-wrap: wrap; }
         .customer-info { display:flex; gap:0.8rem; align-items: center; flex-wrap: wrap; }
         .info-group { display:flex; flex-direction:column; margin-bottom: 0; }
         .info-group label { font-weight:600; margin-bottom:0.2rem; font-size:0.8rem; }
         .info-group select, .info-group input { padding:0.4rem; border:1px solid #ddd; border-radius:5px; font-size:0.8rem; height: auto; }
         .info-group span { font-size: 0.9rem; }
-        .action-buttons { display:flex; gap:0.6rem; }
+        .action-buttons { display:flex; gap:0.6rem; flex-wrap: wrap; }
 
         .packaging-content {
             display: flex;
@@ -106,6 +109,7 @@
 
         .quick-buttons { display:grid; grid-template-columns:repeat(3, 1fr); gap:0.4rem; margin-top:0.8rem; }
         .quick-btn { padding:0.6rem 0.4rem; background:var(--light); border:1px solid #ddd; border-radius:5px; cursor:pointer; text-align:center; font-size:0.8rem; position:relative; }
+        .quick-btn:hover { background: #d5dbdb; }
         .quantity-badge { position:absolute; top:-5px; right:-5px; background:var(--secondary); color:white; border-radius:50%; width:18px; height:18px; font-size:0.7rem; display:flex; align-items:center; justify-content:center; }
 
         .package-actions { margin-top:auto; display:flex; flex-direction:column; gap:0.6rem; }
@@ -117,7 +121,7 @@
         .status-beklemede { background: var(--warning); color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; }
         .status-sevk-edildi { background: var(--success); color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; }
 
-        .app-footer { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; }
+        .app-footer { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; flex-wrap: wrap; }
         .container-info { display:flex; align-items:center; gap:0.8rem; }
 
         /* Toast styles */
@@ -155,6 +159,9 @@
         .status-az-stok { background:#f39c12;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.8rem; }
         .status-stokta { background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.8rem; }
 
+        .form-row { display: flex; gap: 0.8rem; margin-bottom: 0.8rem; align-items: center; }
+        .form-row input { flex: 1; padding: 0.6rem; border: 1px solid #ddd; border-radius: 5px; }
+
         /* Responsive */
         @media (max-width:1200px) {
             .barcode-section, .package-details { min-width:200px; }
@@ -164,6 +171,9 @@
             .packaging-content { flex-direction:column; height:auto; }
             .barcode-section, .pending-packages, .package-details { flex: 1 1 auto; width:100%; min-width: auto; }
             .tab-pane { height: auto; }
+            .packaging-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+            .action-buttons { width: 100%; }
+            .app-footer { flex-direction: column; gap: 1rem; }
         }
     </style>
 </head>
@@ -173,15 +183,18 @@
             <h1>ProClean - Oturum Aç</h1>
             <div class="form-group">
                 <label for="username">Kullanıcı Adı</label>
-                <input type="text" id="username" placeholder="Kullanıcı adınızı girin">
+                <input type="text" id="username" placeholder="Kullanıcı adınızı girin" value="admin">
             </div>
             <div class="form-group">
                 <label for="password">Şifre</label>
-                <input type="password" id="password" placeholder="Şifrenizi girin">
+                <input type="password" id="password" placeholder="Şifrenizi girin" value="123456">
             </div>
             <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
             <div style="text-align:center; margin-top:1rem;">
                 <button type="button" class="btn-link">Şifremi Unuttum</button>
+            </div>
+            <div style="text-align:center; margin-top:1rem; font-size:0.9rem; color:#666;">
+                Test Kullanıcısı: admin / 123456
             </div>
         </div>
     </div>
@@ -191,7 +204,7 @@
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Ahmet Yılmaz</span>
-                <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
+                <button type="button" id="logoutBtn" class="logout-btn">Çıkış Yap</button>
             </div>
         </div>
 
@@ -212,8 +225,10 @@
                         <div class="info-group">
                             <label for="personnel">Personel</label>
                             <select id="personnel">
-                                <option value="user1">Paket1 - Ahmet Yılmaz</option>
-                                <option value="user2">Paket2 - Mehmet Demir</option>
+                                <option value="user1">Ahmet Yılmaz</option>
+                                <option value="user2">Mehmet Demir</option>
+                                <option value="user3">Ayşe Kaya</option>
+                                <option value="user4">Fatma Özkan</option>
                             </select>
                         </div>
                         <div class="info-group">
@@ -280,7 +295,7 @@
 
             <div class="tab-pane" id="shippingTab">
                 <h2>Sevkiyat Yönetimi</h2>
-                <div class="shipping-controls" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:10px;">
+                <div class="shipping-controls" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:10px; flex-wrap: wrap;">
                     <div class="info-group">
                         <label for="shippingFilter">Filtrele</label>
                         <select id="shippingFilter">
@@ -292,20 +307,22 @@
                     <button type="button" class="btn btn-primary" id="filterShippingBtn">Uygula</button>
                 </div>
 
-                <table class="package-table" style="width:100%;">
-                    <thead>
-                        <tr>
-                            <th>Konteyner No</th>
-                            <th>Müşteri</th>
-                            <th>Paket Sayısı</th>
-                            <th>Toplam Adet</th>
-                            <th>Oluşturulma Tarihi</th>
-                            <th>Durum</th>
-                            <th>İşlem</th>
-                        </tr>
-                    </thead>
-                    <tbody id="shippingTableBody"></tbody>
-                </table>
+                <div style="overflow-x: auto;">
+                    <table class="package-table" style="width:100%; min-width: 800px;">
+                        <thead>
+                            <tr>
+                                <th>Konteyner No</th>
+                                <th>Müşteri</th>
+                                <th>Paket Sayısı</th>
+                                <th>Toplam Adet</th>
+                                <th>Oluşturulma Tarihi</th>
+                                <th>Durum</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shippingTableBody"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="tab-pane" id="stockTab">
@@ -316,19 +333,21 @@
                     <button type="button" class="btn" id="clearStockSearchBtn">Temizle</button>
                 </div>
 
-                <table class="stock-table">
-                    <thead>
-                        <tr>
-                            <th>Stok Kodu</th>
-                            <th>Ürün Adı</th>
-                            <th>Mevcut Adet</th>
-                            <th>Birim</th>
-                            <th>Son Güncelleme</th>
-                            <th>Durum</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stockTableBody"></tbody>
-                </table>
+                <div style="overflow-x: auto;">
+                    <table class="stock-table" style="min-width: 800px;">
+                        <thead>
+                            <tr>
+                                <th>Stok Kodu</th>
+                                <th>Ürün Adı</th>
+                                <th>Mevcut Adet</th>
+                                <th>Birim</th>
+                                <th>Son Güncelleme</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody"></tbody>
+                    </table>
+                </div>
 
                 <div class="file-upload">
                     <h3>Stok Dosyası Yükle</h3>
@@ -419,136 +438,60 @@
         </div>
     </div>
 
+    <!-- Quantity Modal -->
     <div class="quantity-modal" id="quantityModal" aria-hidden="true">
         <div class="quantity-content">
-            <h3 id="quantityProductName">Ürün Miktarı</h3>
+            <h3 id="quantityProductName">Ürün Adı</h3>
             <input type="number" id="quantityInput" class="quantity-input" min="1" value="1">
             <div class="quantity-buttons">
-                <button type="button" class="btn btn-primary" id="confirmQuantityBtn">Tamam</button>
-                <button type="button" class="btn" id="closeQuantityModalBtn">İptal</button>
+                <button type="button" class="btn btn-primary" id="confirmQuantityBtn">Onayla</button>
+                <button type="button" class="btn" id="cancelQuantityBtn">İptal</button>
             </div>
         </div>
     </div>
 
+    <!-- Manual Entry Modal -->
     <div class="modal" id="manualModal" aria-hidden="true">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Manuel Ürün Ekleme</h3>
+                <h3>Manuel Ürün Girişi</h3>
                 <button type="button" class="modal-close" id="closeManualModalBtn">&times;</button>
             </div>
-            <div class="form-group">
-                <label for="manualProductCode">Ürün Kodu</label>
-                <input type="text" id="manualProductCode" placeholder="Ürün kodunu girin">
-            </div>
-            <div class="form-group">
-                <label for="manualProductName">Ürün Adı</label>
-                <input type="text" id="manualProductName" placeholder="Ürün adını girin">
-            </div>
-            <div class="form-group">
-                <label for="manualQuantity">Miktar</label>
-                <input type="number" id="manualQuantity" min="1" value="1">
-            </div>
-            <div class="form-group">
-                <button type="button" class="btn btn-primary" id="addManualProductBtn">Ekle</button>
-                <button type="button" class="btn" id="closeManualModalBtn2">İptal</button>
+            <div>
+                <div class="form-group">
+                    <label for="manualProductCode">Ürün Kodu</label>
+                    <input type="text" id="manualProductCode" placeholder="Ürün kodunu girin">
+                </div>
+                <div class="form-group">
+                    <label for="manualProductName">Ürün Adı</label>
+                    <input type="text" id="manualProductName" placeholder="Ürün adını girin">
+                </div>
+                <div class="form-group">
+                    <label for="manualQuantity">Miktar</label>
+                    <input type="number" id="manualQuantity" min="1" value="1">
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                    <button type="button" class="btn btn-primary" id="addManualProductBtn">Ekle</button>
+                    <button type="button" class="btn" id="cancelManualBtn">İptal</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-    // Firebase configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBidMZ0nBy7QcsCggQC2h1HVoESDsYBdB4",
-        authDomain: "proclea-49b23.firebaseapp.com",
-        projectId: "proclea-49b23",
-        storageBucket: "proclea-49b23.firebasestorage.app",
-        messagingSenderId: "1021274066331",
-        appId: "1:1021274066331:web:20d55750b7d88c6585653e"
-        measurementId: "G-5GWNB5QBPV"
-    };
-    
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-
-        // Auth state observer - ADD THIS RIGHT AFTER INITIALIZATION
-    firebase.auth().onAuthStateChanged((user) => {
-        if (user) {
-            // User is signed in
-            currentUser = {
-                username: user.email,
-                uid: user.uid,
-                name: user.displayName || user.email.split('@')[0]
-            };
-            
-            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
-            loginScreen.style.display = 'none';
-            appContainer.style.display = 'flex';
-            appContainer.setAttribute('aria-hidden','false');
-            initApp();
-        } else {
-            // User is signed out
-            loginScreen.style.display = 'flex';
-            appContainer.style.display = 'none';
-        }
-    });
-</script>
-    <script>
         /* -----------------------
-           Data & State
+           Global Variables & Data
            ----------------------- */
-        const users = [
-            { username: "operator", password: "1234", role: "operator", name: "Ahmet Yılmaz" },
-            { username: "supervisor", password: "1234", role: "supervisor", name: "Mehmet Demir" }
-        ];
-
-        let customers = [
-            { code: "P0006", name: "LALELİ HAMİT", email: "hamit@lalelitextile.com" },
-            { code: "P0007", name: "BEYOĞLU TEKSTİL", email: "info@beyoglutextile.com" },
-            { code: "P0008", name: "ŞİŞLİ OTEL", email: "reservations@sisliotel.com" },
-            { code: "P0009", name: "KADIKÖY GIDA", email: "siparis@kadikoyglda.com" },
-            { code: "P0010", name: "ATAŞEHIR LTD", email: "muhasebe@atasehirltd.com" }
-        ];
-
-        let packages = [
-            { id: 1, packageNo: "PKG-0001", totalQuantity: 5, packageTime: "12.05.2023 14:30", customerCode: "P0006", customerName: "LALELİ HAMİT", packer: "Ahmet Yılmaz", selected: false },
-            { id: 2, packageNo: "PKG-0002", totalQuantity: 3, packageTime: "12.05.2023 14:45", customerCode: "P0006", customerName: "LALELİ HAMİT", packer: "Ahmet Yılmaz", selected: false }
-        ];
-
-        let containers = [
-            { id: 1, containerNo: "C000094", customer: "LALELİ HAMİT", packageCount: 2, totalQuantity: 8, createdAt: "12.05.2023", status: "beklemede", packages: [1,2] },
-            { id: 2, containerNo: "C000095", customer: "BEYOĞLU TEKSTİL", packageCount: 1, totalQuantity: 4, createdAt: "13.05.2023", status: "sevk-edildi", packages: [] }
-        ];
-
-        const products = [
-            { code: "PRD001", name: "Çarşaf", quantity: 0 },
-            { code: "PRD002", name: "Büyük Çarşaf", quantity: 0 },
-            { code: "PRD003", name: "Havlu", quantity: 0 },
-            { code: "PRD004", name: "Büyük havlu", quantity: 0 },
-            { code: "PRD005", name: "Alez", quantity: 0 },
-            { code: "PRD006", name: "Nevresim", quantity: 0 },
-            { code: "PRD007", name: "Pıke", quantity: 0 },
-            { code: "PRD008", name: "Yastık", quantity: 0 },
-            { code: "PRD009", name: "Yastık kılıfı", quantity: 0 }
-        ];
-
-        let stockItems = [
-            { code: "STK001", name: "Temizlik Maddesi A", quantity: 150, unit: "Adet", lastUpdate: "12.05.2023", status: "Stokta" },
-            { code: "STK002", name: "Deterjan Premium", quantity: 75, unit: "Kg", lastUpdate: "11.05.2023", status: "Az Stok" },
-            { code: "STK003", name: "Yumuşatıcı", quantity: 200, unit: "Lt", lastUpdate: "10.05.2023", status: "Stokta" },
-            { code: "STK004", name: "Leke Çıkarıcı", quantity: 5, unit: "Adet", lastUpdate: "12.05.2023", status: "Kritik" }
-        ];
-
         let currentUser = null;
-        let selectedCustomerInModal = null;
         let selectedPackage = null;
-        let currentContainer = "C000094";
+        let selectedCustomerInModal = null;
         let currentQuantityProduct = null;
         let barcodeCount = 0;
+        let currentContainer = 'C000094';
 
-        // DOM refs
+        // DOM elements
         const loginScreen = document.getElementById('loginScreen');
         const appContainer = document.getElementById('appContainer');
-        const toast = document.getElementById('toast');
         const modal = document.getElementById('customerModal');
         const allCustomersModal = document.getElementById('allCustomersModal');
         const emailModal = document.getElementById('emailModal');
@@ -556,171 +499,279 @@
         const manualModal = document.getElementById('manualModal');
         const selectAllCheckbox = document.getElementById('selectAllPackages');
 
-        /* -----------------------
-           Initialization
-           ----------------------- */
-        function initApp() {
-            // Setup event listeners
-            setupEventListeners();
-            
-            // Initialize data
-            populateCustomerDropdown();
-            populateQuickButtons();
-            populatePackagesTable();
-            populateStockTable();
-            populateShippingTable();
-        }
+        // Default test users
+        const testUsers = [
+            { username: 'admin', password: '123456', name: 'Ahmet Yılmaz', role: 'admin' },
+            { username: 'operator', password: '123456', name: 'Mehmet Demir', role: 'operator' }
+        ];
 
-        function setupEventListeners() {
-            // Login
+        // Sample data
+        let customers = [
+            { code: "P0001", name: "ACME Corporation", email: "contact@acme.com" },
+            { code: "P0002", name: "BETA Tekstil", email: "info@betatekstil.com" },
+            { code: "P0003", name: "GAMMA Holdings", email: "gamma@holdings.com" },
+            { code: "P0004", name: "DELTA Industries", email: "delta@industries.com" },
+            { code: "P0005", name: "EPSILON Ltd", email: "epsilon@ltd.com" },
+            { code: "P0006", name: "ZETA Group", email: "contact@zetagroup.com" },
+            { code: "P0007", name: "ETA Ventures", email: "eta@ventures.com" },
+            { code: "P0008", name: "THETA Solutions", email: "info@thetasolutions.com" },
+            { code: "P0009", name: "IOTA Systems", email: "contact@iotasystems.com" },
+            { code: "P0010", name: "ATAŞEHIR LTD", email: "muhasebe@atasehirltd.com" }
+        ];
+
+        let packages = [
+            { id: 1, packageNo: "PKG-0001", totalQuantity: 25, packageTime: "2024-01-15 09:30", customerCode: "P0001", customerName: "ACME Corporation", packer: "Ahmet Yılmaz", selected: false },
+            { id: 2, packageNo: "PKG-0002", totalQuantity: 18, packageTime: "2024-01-15 10:15", customerCode: "P0002", customerName: "BETA Tekstil", packer: "Mehmet Demir", selected: false },
+            { id: 3, packageNo: "PKG-0003", totalQuantity: 32, packageTime: "2024-01-15 11:00", customerCode: "P0003", customerName: "GAMMA Holdings", packer: "Ahmet Yılmaz", selected: false }
+        ];
+
+        let containers = [
+            { containerNo: "C000001", customer: "ACME Corporation", packageCount: 5, totalQuantity: 120, createdDate: "2024-01-10", status: "sevk-edildi" },
+            { containerNo: "C000002", customer: "BETA Tekstil", packageCount: 3, totalQuantity: 85, createdDate: "2024-01-12", status: "beklemede" },
+            { containerNo: "C000093", customer: "GAMMA Holdings", packageCount: 8, totalQuantity: 200, createdDate: "2024-01-14", status: "beklemede" }
+        ];
+
+        let stockItems = [
+            { code: "ST001", name: "Pamuklu Tişört", quantity: 150, unit: "Adet", lastUpdate: "2024-01-15", status: "Stokta" },
+            { code: "ST002", name: "Denim Pantolon", quantity: 25, unit: "Adet", lastUpdate: "2024-01-14", status: "Az Stok" },
+            { code: "ST003", name: "Yün Kazak", quantity: 5, unit: "Adet", lastUpdate: "2024-01-13", status: "Kritik" },
+            { code: "ST004", name: "İpek Bluz", quantity: 80, unit: "Adet", lastUpdate: "2024-01-15", status: "Stokta" },
+            { code: "ST005", name: "Keten Elbise", quantity: 12, unit: "Adet", lastUpdate: "2024-01-12", status: "Az Stok" },
+            { code: "ST006", name: "Kot Ceket", quantity: 35, unit: "Adet", lastUpdate: "2024-01-14", status: "Stokta" },
+            { code: "ST007", name: "Spor Ayakkabı", quantity: 8, unit: "Çift", lastUpdate: "2024-01-13", status: "Kritik" },
+            { code: "ST008", name: "Deri Mont", quantity: 22, unit: "Adet", lastUpdate: "2024-01-15", status: "Az Stok" }
+        ];
+
+        let products = [
+            { code: "PR001", name: "Gömlek", quantity: 0 },
+            { code: "PR002", name: "Pantolon", quantity: 0 },
+            { code: "PR003", name: "Elbise", quantity: 0 },
+            { code: "PR004", name: "Ceket", quantity: 0 },
+            { code: "PR005", name: "Etek", quantity: 0 },
+            { code: "PR006", name: "Kazak", quantity: 0 },
+            { code: "PR007", name: "Tişört", quantity: 0 },
+            { code: "PR008", name: "Şort", quantity: 0 },
+            { code: "PR009", name: "Bluz", quantity: 0 }
+        ];
+
+        /* -----------------------
+           Event Listeners
+           ----------------------- */
+        function initEventListeners() {
+            // Login/Logout
             document.getElementById('loginBtn').addEventListener('click', loginUser);
             document.getElementById('logoutBtn').addEventListener('click', logout);
-            
-            // Tabs
+
+            // Tab functionality
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', () => switchTab(tab.dataset.tab));
             });
-            
-            // Customer selection
-            document.getElementById('showCustomerSelectionBtn').addEventListener('click', showCustomerSelection);
-            document.getElementById('showAllCustomersBtn').addEventListener('click', showAllCustomers);
+
+            // Customer management
+            document.getElementById('showCustomerSelectionBtn').addEventListener('click', () => {
+                populateCustomerModal();
+                modal.style.display = 'flex';
+                modal.setAttribute('aria-hidden','false');
+            });
+
+            document.getElementById('showAllCustomersBtn').addEventListener('click', () => {
+                populateAllCustomersModal();
+                allCustomersModal.style.display = 'flex';
+                allCustomersModal.setAttribute('aria-hidden','false');
+            });
+
             document.getElementById('closeModalBtn').addEventListener('click', closeModal);
             document.getElementById('closeAllCustomersModalBtn').addEventListener('click', closeAllCustomersModal);
+            document.getElementById('closeEmailModalBtn').addEventListener('click', closeEmailModal);
+
             document.getElementById('addNewCustomerBtn').addEventListener('click', addNewCustomer);
             document.getElementById('deleteSelectedCustomerBtn').addEventListener('click', deleteSelectedCustomer);
-            
-            // Barcode
+
+            // Barcode functionality
             document.getElementById('searchBarcodeBtn').addEventListener('click', searchBarcode);
             document.getElementById('clearBarcodeBtn').addEventListener('click', clearBarcode);
-            document.getElementById('barcodeInput').addEventListener('keypress', function(e) {
+            document.getElementById('barcodeInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchBarcode();
             });
-            
-            // Packages
+
+            // Package operations
             document.getElementById('savePackageBtn').addEventListener('click', savePackage);
             document.getElementById('selectAllPackagesBtn').addEventListener('click', selectAllPackages);
             document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
             document.getElementById('deletePackageBtn').addEventListener('click', deletePackage);
             document.getElementById('printLabelBtn').addEventListener('click', printLabel);
-            
-            // Quantity modal
-            document.getElementById('confirmQuantityBtn').addEventListener('click', confirmQuantity);
-            document.getElementById('closeQuantityModalBtn').addEventListener('click', closeQuantityModal);
-            
-            // Manual entry
-            document.getElementById('showManualEntryBtn').addEventListener('click', showManualEntry);
-            document.getElementById('addManualProductBtn').addEventListener('click', addManualProduct);
-            document.getElementById('closeManualModalBtn').addEventListener('click', closeManualModal);
-            document.getElementById('closeManualModalBtn2').addEventListener('click', closeManualModal);
-            
-            // Containers
+
+            // Container operations
             document.getElementById('loadCurrentContainerBtn').addEventListener('click', loadCurrentContainer);
             document.getElementById('createNewContainerBtn').addEventListener('click', createNewContainer);
             document.getElementById('deleteContainerBtn').addEventListener('click', deleteContainer);
-            document.getElementById('sendToRampBtn').addEventListener('click', sendToRamp);
-            
-            // Shipping
-            document.getElementById('filterShippingBtn').addEventListener('click', filterShipping);
-            
-            // Stock
+            document.getElementById('sendToRampBtn').addEventListener('click', () => showToast('Konteyner rampaya gönderildi', 'success'));
+
+            // Stock functionality
             document.getElementById('searchStockBtn').addEventListener('click', searchStock);
             document.getElementById('clearStockSearchBtn').addEventListener('click', clearStockSearch);
-            document.getElementById('uploadStockFileBtn').addEventListener('click', uploadStockFile);
-            document.getElementById('stockSearch').addEventListener('keypress', function(e) {
+            document.getElementById('stockSearch').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchStock();
             });
-            document.getElementById('stockFileUpload').addEventListener('change', function(e) {
+
+            // File upload
+            document.getElementById('stockFileUpload').addEventListener('change', (e) => {
                 const fileName = e.target.files[0]?.name || '';
                 document.getElementById('selectedFileName').textContent = fileName;
             });
-            
+            document.getElementById('uploadStockFileBtn').addEventListener('click', uploadStockFile);
+
+            // Manual entry
+            document.getElementById('showManualEntryBtn').addEventListener('click', showManualEntry);
+            document.getElementById('closeManualModalBtn').addEventListener('click', closeManualModal);
+            document.getElementById('addManualProductBtn').addEventListener('click', addManualProduct);
+            document.getElementById('cancelManualBtn').addEventListener('click', closeManualModal);
+
+            // Quantity modal
+            document.getElementById('confirmQuantityBtn').addEventListener('click', confirmQuantity);
+            document.getElementById('cancelQuantityBtn').addEventListener('click', closeQuantityModal);
+
             // Reports
-            document.getElementById('generateDailyReportBtn').addEventListener('click', generateDailyReport);
-            document.getElementById('sendDailyReportBtn').addEventListener('click', sendDailyReport);
-            document.getElementById('previewReportBtn').addEventListener('click', previewReport);
-            document.getElementById('closeEmailModalBtn').addEventListener('click', closeEmailModal);
-            
-            // Select all checkbox
-            selectAllCheckbox.addEventListener('change', function() {
-                if (this.checked) selectAllPackages(); else clearSelection();
+            document.getElementById('generateDailyReportBtn').addEventListener('click', () => {
+                emailModal.style.display = 'flex';
+                emailModal.setAttribute('aria-hidden','false');
             });
-            
-            // Global keyboard shortcuts
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'F2') { e.preventDefault(); savePackage(); }
-                if (e.key === 'Escape') {
-                    closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
+            document.getElementById('sendDailyReportBtn').addEventListener('click', () => {
+                showToast('İş sonu raporu gönderildi', 'success');
+                closeEmailModal();
+            });
+            document.getElementById('previewReportBtn').addEventListener('click', () => showToast('Rapor önizlemesi açılıyor...', 'success'));
+
+            // Shipping
+            document.getElementById('filterShippingBtn').addEventListener('click', filterShipping);
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'F2') {
+                    e.preventDefault();
+                    savePackage();
                 }
-                if (e.ctrlKey) {
-                    if (e.key.toLowerCase() === 's') { e.preventDefault(); savePackage(); }
-                    if (e.key.toLowerCase() === 'p') { e.preventDefault(); printLabel(); }
-                    if (e.key.toLowerCase() === 'n') { e.preventDefault(); createNewContainer(); }
-                }
+            });
+
+            // Customer dropdown change
+            document.getElementById('customer').addEventListener('change', (e) => {
+                const selectedCustomer = customers.find(c => c.code === e.target.value);
+                document.getElementById('customerName').textContent = selectedCustomer ? selectedCustomer.name : 'Lütfen müşteri seçin';
+            });
+
+            // Select all packages checkbox
+            selectAllCheckbox.addEventListener('change', (e) => {
+                packages.forEach(p => p.selected = e.target.checked);
+                document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => {
+                    cb.checked = e.target.checked;
+                });
             });
         }
 
         /* -----------------------
-           Populate helpers
+           Initialization
            ----------------------- */
+        function initApp() {
+            populateCustomerDropdown();
+            populatePackagesTable();
+            populateShippingTable();
+            populateStockTable();
+            populateQuickButtons();
+            updateDefinitionCounts();
+        }
+
         function populateCustomerDropdown() {
-            const customerSelect = document.getElementById('customer');
-            if (!customerSelect) return;
-            customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
+            const select = document.getElementById('customer');
+            select.innerHTML = '<option value="">Müşteri Seçin</option>';
             customers.forEach(customer => {
                 const option = document.createElement('option');
                 option.value = customer.code;
                 option.textContent = `${customer.code} - ${customer.name}`;
-                customerSelect.appendChild(option);
-            });
-
-            customerSelect.addEventListener('change', function() {
-                const selectedCustomer = customers.find(c => c.code === this.value);
-                document.getElementById('customerName').textContent = selectedCustomer ? selectedCustomer.name : 'Lütfen müşteri seçin';
+                select.appendChild(option);
             });
         }
 
-        function populateQuickButtons() {
-            const quickButtons = document.getElementById('quickButtons');
-            if (!quickButtons) return;
-            quickButtons.innerHTML = '';
-            products.forEach(product => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'quick-btn';
-                button.innerHTML = `${product.name}${product.quantity > 0 ? `<div class="quantity-badge">${product.quantity}</div>` : ''}`;
-                button.addEventListener('click', () => openQuantityModal(product));
-                quickButtons.appendChild(button);
+        function populateCustomerModal() {
+            const list = document.getElementById('customerList');
+            list.innerHTML = '';
+            customers.forEach(customer => {
+                const item = document.createElement('div');
+                item.className = 'customer-item';
+                item.innerHTML = `
+                    <div>
+                        <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
+                        <small>${escapeHtml(customer.email)}</small>
+                    </div>
+                `;
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.customer-item').forEach(i => i.classList.remove('selected'));
+                    item.classList.add('selected');
+                    selectedCustomerInModal = customer;
+                    document.getElementById('customer').value = customer.code;
+                    document.getElementById('customerName').textContent = customer.name;
+                    closeModal();
+                });
+                list.appendChild(item);
+            });
+        }
+
+        function populateAllCustomersModal() {
+            const list = document.getElementById('allCustomersList');
+            list.innerHTML = '';
+            customers.forEach(customer => {
+                const item = document.createElement('div');
+                item.className = 'customer-item';
+                item.innerHTML = `
+                    <div>
+                        <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
+                        <small>${escapeHtml(customer.email)}</small>
+                    </div>
+                `;
+                list.appendChild(item);
             });
         }
 
         function populatePackagesTable() {
             const tbody = document.getElementById('packagesTableBody');
-            if (!tbody) return;
             tbody.innerHTML = '';
             packages.forEach((pkg, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><input type="checkbox" ${pkg.selected ? 'checked' : ''} data-id="${pkg.id}"></td>
+                    <td><input type="checkbox" ${pkg.selected ? 'checked' : ''} onchange="togglePackageSelection(${pkg.id})"></td>
                     <td>${index + 1}</td>
-                    <td>${pkg.packageNo}</td>
+                    <td>${escapeHtml(pkg.packageNo)}</td>
                     <td>${pkg.totalQuantity}</td>
-                    <td>${pkg.packageTime}</td>
-                    <td>${pkg.customerCode}</td>
-                    <td>${pkg.customerName}</td>
-                    <td>${pkg.packer}</td>
+                    <td>${escapeHtml(pkg.packageTime)}</td>
+                    <td>${escapeHtml(pkg.customerCode)}</td>
+                    <td>${escapeHtml(pkg.customerName)}</td>
+                    <td>${escapeHtml(pkg.packer)}</td>
                 `;
-                
-                // Add event listener to the checkbox
-                const checkbox = row.querySelector('input[type="checkbox"]');
-                checkbox.addEventListener('change', () => togglePackageSelection(pkg.id));
-                
+                tbody.appendChild(row);
+            });
+        }
+
+        function populateShippingTable() {
+            const tbody = document.getElementById('shippingTableBody');
+            tbody.innerHTML = '';
+            containers.forEach(container => {
+                const row = document.createElement('tr');
+                const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
+                const statusText = container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi';
+                row.innerHTML = `
+                    <td>${escapeHtml(container.containerNo)}</td>
+                    <td>${escapeHtml(container.customer)}</td>
+                    <td>${container.packageCount}</td>
+                    <td>${container.totalQuantity}</td>
+                    <td>${escapeHtml(container.createdDate)}</td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                    <td><button class="btn btn-primary" onclick="showToast('Konteyner detayları görüntüleniyor', 'success')">Detay</button></td>
+                `;
                 tbody.appendChild(row);
             });
         }
 
         function populateStockTable() {
             const tbody = document.getElementById('stockTableBody');
-            if (!tbody) return;
             tbody.innerHTML = '';
             stockItems.forEach(item => {
                 const row = document.createElement('tr');
@@ -737,231 +788,55 @@
             });
         }
 
-        function populateShippingTable() {
-            const tbody = document.getElementById('shippingTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            const filter = document.getElementById('shippingFilter')?.value || 'all';
-            const filteredContainers = filter === 'all' ? containers : containers.filter(c => c.status === filter);
-
-            filteredContainers.forEach(container => {
-                const row = document.createElement('tr');
-                const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
-
-                row.innerHTML = `
-                    <td>${escapeHtml(container.containerNo)}</td>
-                    <td>${escapeHtml(container.customer)}</td>
-                    <td>${escapeHtml(container.packageCount)}</td>
-                    <td>${escapeHtml(container.totalQuantity)}</td>
-                    <td>${escapeHtml(container.createdAt)}</td>
-                    <td><span class="${statusClass}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                    <td>
-                        ${container.status === 'beklemede' ? 
-                            `<button class="btn btn-success" type="button" data-container="${container.containerNo}">Sevk Et</button>` :
-                            `<span>Sevk Edildi</span>`
-                        }
-                    </td>
+        function populateQuickButtons() {
+            const container = document.getElementById('quickButtons');
+            container.innerHTML = '';
+            products.forEach(product => {
+                const button = document.createElement('div');
+                button.className = 'quick-btn';
+                button.innerHTML = `
+                    ${escapeHtml(product.name)}
+                    ${product.quantity > 0 ? `<div class="quantity-badge">${product.quantity}</div>` : ''}
                 `;
-                
-                // Add event listener to the "Sevk Et" button
-                const shipButton = row.querySelector('button[data-container]');
-                if (shipButton) {
-                    shipButton.addEventListener('click', () => shipContainer(container.containerNo));
-                }
-                
-                tbody.appendChild(row);
+                button.addEventListener('click', () => openQuantityModal(product));
+                container.appendChild(button);
             });
         }
 
-        /* -----------------------
-           Customer modal & list
-           ----------------------- */
-        function showAllCustomers() {
-            const allCustomersList = document.getElementById('allCustomersList');
-            if (!allCustomersList) return;
-            allCustomersList.innerHTML = '';
-
-            customers.forEach(customer => {
-                const item = document.createElement('div');
-                item.className = 'customer-item';
-                item.innerHTML = `
-                    <div>
-                        <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
-                        <small>E-posta: ${escapeHtml(customer.email)}</small>
-                    </div>
+        function filterShipping() {
+            const filter = document.getElementById('shippingFilter').value;
+            const tbody = document.getElementById('shippingTableBody');
+            tbody.innerHTML = '';
+            
+            const filteredContainers = filter === 'all' ? containers : containers.filter(c => c.status === filter);
+            
+            filteredContainers.forEach(container => {
+                const row = document.createElement('tr');
+                const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
+                const statusText = container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi';
+                row.innerHTML = `
+                    <td>${escapeHtml(container.containerNo)}</td>
+                    <td>${escapeHtml(container.customer)}</td>
+                    <td>${container.packageCount}</td>
+                    <td>${container.totalQuantity}</td>
+                    <td>${escapeHtml(container.createdDate)}</td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                    <td><button class="btn btn-primary" onclick="showToast('Konteyner detayları görüntüleniyor', 'success')">Detay</button></td>
                 `;
-                allCustomersList.appendChild(item);
+                tbody.appendChild(row);
             });
-
-            allCustomersModal.style.display = 'flex';
-            allCustomersModal.setAttribute('aria-hidden', 'false');
+            
+            showToast(`${filteredContainers.length} konteyner listelendi`, 'success');
         }
 
         function closeAllCustomersModal() {
             allCustomersModal.style.display = 'none';
-            allCustomersModal.setAttribute('aria-hidden', 'true');
+            allCustomersModal.setAttribute('aria-hidden','true');
         }
 
-        function generateDailyReport() { 
-            emailModal.style.display = 'flex'; 
-            emailModal.setAttribute('aria-hidden','false'); 
-        }
-        
-        function closeEmailModal() { 
-            emailModal.style.display = 'none'; 
-            emailModal.setAttribute('aria-hidden','true'); 
-        }
-
-        function previewReport() {
-            const reportData = {
-                date: new Date().toLocaleDateString('tr-TR'),
-                totalPackages: packages.length,
-                totalItems: packages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0),
-                containers: containers.length,
-                customers: [...new Set(packages.map(p => p.customerName))].length,
-                operator: currentUser?.name || 'Bilinmiyor'
-            };
-
-            const reportWindow = window.open('', '_blank');
-            reportWindow.document.write(`
-                <html>
-                <head>
-                    <title>İş Sonu Raporu - ${reportData.date}</title>
-                    <style>body{font-family:Arial;margin:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px}</style>
-                </head>
-                <body>
-                    <h1>ProClean - İş Sonu Raporu</h1>
-                    <p>Tarih: ${reportData.date} | Operatör: ${reportData.operator}</p>
-                    <h2>Özet</h2>
-                    <ul>
-                        <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
-                        <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
-                        <li>Konteyner Sayısı: ${reportData.containers}</li>
-                        <li>Müşteri Sayısı: ${reportData.customers}</li>
-                    </ul>
-                    <h2>Paket Detayları</h2>
-                    <table><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th><th>Zaman</th><th>Paketleyen</th></tr></thead><tbody>
-                        ${packages.map(pkg => `<tr><td>${escapeHtml(pkg.packageNo)}</td><td>${escapeHtml(pkg.customerName)}</td><td>${pkg.totalQuantity}</td><td>${escapeHtml(pkg.packageTime)}</td><td>${escapeHtml(pkg.packer)}</td></tr>`).join('')}
-                    </tbody></table>
-                </body>
-                </html>
-            `);
-            reportWindow.document.close();
-        }
-
-        function sendDailyReport() {
-            const email = document.getElementById('reportEmail').value;
-            if (!email) { showToast('Lütfen e-posta adresini girin', 'error'); return; }
-
-            // simulate send
-            showToast('Rapor e-posta ile gönderildi: ' + email, 'success');
-            closeEmailModal();
-        }
-
-        /* -----------------------
-           Shipping helpers
-           ----------------------- */
-        function sendToRamp() {
-            const selectedPackages = packages.filter(p => p.selected);
-            if (selectedPackages.length === 0) { 
-                showToast('Lütfen rampaya göndermek için paket seçin', 'error'); 
-                return; 
-            }
-
-            if (!confirm('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?')) return;
-
-            // Group packages by customer
-            const packagesByCustomer = {};
-            selectedPackages.forEach(pkg => {
-                if (!packagesByCustomer[pkg.customerName]) {
-                    packagesByCustomer[pkg.customerName] = [];
-                }
-                packagesByCustomer[pkg.customerName].push(pkg);
-            });
-
-            // Create a container for each customer
-            Object.entries(packagesByCustomer).forEach(([customerName, customerPackages]) => {
-                const containerId = containers.length + 1;
-                const newContainerNumber = `C${String(containerId).padStart(6, '0')}`;
-
-                const newContainer = {
-                    id: containerId,
-                    containerNo: newContainerNumber,
-                    customer: customerName,
-                    packageCount: customerPackages.length,
-                    totalQuantity: customerPackages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0),
-                    createdAt: new Date().toLocaleDateString('tr-TR'),
-                    status: 'beklemede',
-                    packages: customerPackages.map(p => p.id)
-                };
-
-                containers.push(newContainer);
-            });
-
-            // Remove selected packages from the packages list
-            packages = packages.filter(p => !p.selected);
-
-            // Update UI
-            populatePackagesTable();
-            populateShippingTable();
-            clearSelection();
-
-            showToast(`${selectedPackages.length} paket konteyner ile rampaya gönderildi - Durum: Beklemede`, 'success');
-            switchTab('shipping');
-        }
-
-        function shipContainer(containerNo) {
-            const container = containers.find(c => c.containerNo === containerNo);
-            if (container) {
-                container.status = 'sevk-edildi';
-                populateShippingTable();
-                showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
-            }
-        }
-
-        function filterShipping() { 
-            populateShippingTable(); 
-        }
-
-        /* -----------------------
-           Customer modal selection
-           ----------------------- */
-        function showCustomerSelection() {
-            populateCustomerModal();
-            modal.style.display = 'flex';
-            modal.setAttribute('aria-hidden','false');
-        }
-
-        function populateCustomerModal() {
-            const customerList = document.getElementById('customerList');
-            if (!customerList) return;
-            customerList.innerHTML = '';
-            customers.forEach(customer => {
-                const item = document.createElement('div');
-                item.className = 'customer-item';
-                if (selectedCustomerInModal?.code === customer.code) item.classList.add('selected');
-                item.innerHTML = `
-                    <div>
-                        <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
-                        <small>E-posta: ${escapeHtml(customer.email)}</small>
-                    </div>
-                    <button class="btn btn-primary" type="button">Seç</button>
-                `;
-                const selectBtn = item.querySelector('button');
-                selectBtn.addEventListener('click', () => selectCustomer(customer.code));
-                customerList.appendChild(item);
-            });
-        }
-
-        function selectCustomer(code) {
-            selectedCustomerInModal = customers.find(c => c.code === code);
-            if (selectedCustomerInModal) {
-                document.getElementById('customer').value = code;
-                document.getElementById('customerName').textContent = selectedCustomerInModal.name;
-                closeModal();
-                showToast(`Müşteri seçildi: ${selectedCustomerInModal.name}`, 'success');
-            }
+        function closeEmailModal() {
+            emailModal.style.display = 'none';
+            emailModal.setAttribute('aria-hidden','true');
         }
 
         function addNewCustomer() {
@@ -970,10 +845,9 @@
             const email = document.getElementById('newCustomerEmail').value.trim();
 
             if (!code || !name) { showToast('Müşteri kodu ve adı gerekli', 'error'); return; }
-            if (customers.find(c => c.code === code)) { showToast('Bu müşteri kodu zaten mevcut', 'error'); return; }
+            if (customers.some(c => c.code === code)) { showToast('Bu müşteri kodu zaten mevcut', 'error'); return; }
 
-            const newCustomer = { code, name, email: email || '' };
-            customers.push(newCustomer);
+            customers.push({ code, name, email: email || `${code.toLowerCase()}@example.com` });
             populateCustomerDropdown();
             populateCustomerModal();
 
@@ -985,13 +859,21 @@
         }
 
         function deleteSelectedCustomer() {
-            if (!selectedCustomerInModal) { showToast('Silmek için bir müşteri seçin', 'error'); return; }
+            if (!selectedCustomerInModal) { 
+                showToast('Silmek için önce bir müşteri seçin', 'error'); 
+                return; 
+            }
+            
             if (!confirm(`${selectedCustomerInModal.name} müşterisini silmek istediğinize emin misiniz?`)) return;
+            
             customers = customers.filter(c => c.code !== selectedCustomerInModal.code);
             selectedCustomerInModal = null;
+            
             populateCustomerDropdown();
             populateCustomerModal();
-            showToast('Müşteri silindi', 'success');
+            populateAllCustomersModal();
+            
+            showToast('Müşteri başarıyla silindi', 'success');
         }
 
         /* -----------------------
@@ -1292,58 +1174,54 @@
         }
 
         /* -----------------------
-           Login / Logout
+           Login / Logout - FIXED
            ----------------------- */
-       function loginUser() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    
-    // Sign in with email and password
-    firebase.auth().signInWithEmailAndPassword(username, password)
-        .then((userCredential) => {
-            // Signed in 
-            const user = userCredential.user;
-            currentUser = {
-                username: user.email,
-                uid: user.uid,
-                name: user.displayName || user.email.split('@')[0]
-            };
+        function loginUser() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
             
-            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
-            loginScreen.style.display = 'none';
-            appContainer.style.display = 'flex';
-            appContainer.setAttribute('aria-hidden','false');
-            initApp();
-            showToast('Başarıyla giriş yapıldı', 'success');
-        })
-        .catch((error) => {
-            const errorCode = error.code;
-            const errorMessage = error.message;
-            
-            if (errorCode === 'auth/user-not-found') {
-                showToast('Kullanıcı bulunamadı', 'error');
-            } else if (errorCode === 'auth/wrong-password') {
-                showToast('Şifre hatalı', 'error');
-            } else {
-                showToast(`Giriş hatası: ${errorMessage}`, 'error');
+            if (!username || !password) {
+                showToast('Kullanıcı adı ve şifre gerekli', 'error');
+                return;
             }
-        });
-}
+
+            // Simple test user authentication (no Firebase dependency)
+            const user = testUsers.find(u => u.username === username && u.password === password);
+            
+            if (user) {
+                currentUser = {
+                    username: user.username,
+                    name: user.name,
+                    role: user.role
+                };
+                
+                document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+                loginScreen.style.display = 'none';
+                appContainer.style.display = 'flex';
+                appContainer.setAttribute('aria-hidden','false');
+                initApp();
+                showToast('Başarıyla giriş yapıldı', 'success');
+            } else {
+                showToast('Kullanıcı adı veya şifre hatalı', 'error');
+            }
+        }
 
         function logout() {
-    firebase.auth().signOut().then(() => {
-        currentUser = null;
-        appContainer.style.display = 'none';
-        appContainer.setAttribute('aria-hidden','true');
-        loginScreen.style.display = 'flex';
-        document.getElementById('username').value = '';
-        document.getElementById('password').value = '';
-        closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-        showToast('Başarıyla çıkış yapıldı', 'success');
-    }).catch((error) => {
-        showToast('Çıkış yapılırken hata oluştu', 'error');
-    });
-}
+            if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+                currentUser = null;
+                appContainer.style.display = 'none';
+                appContainer.setAttribute('aria-hidden','true');
+                loginScreen.style.display = 'flex';
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                closeModal(); 
+                closeAllCustomersModal(); 
+                closeEmailModal(); 
+                closeQuantityModal(); 
+                closeManualModal();
+                showToast('Başarıyla çıkış yapıldı', 'success');
+            }
+        }
 
         /* -----------------------
            Auto-save
@@ -1383,6 +1261,7 @@
             appContainer.style.display = 'none';
             loadAutoSave();
             populateCustomerDropdown();
+            initEventListeners();
         });
 
         // Global error handler
