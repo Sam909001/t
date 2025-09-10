@@ -38,37 +38,32 @@
         .form-group label { display:block; margin-bottom:0.5rem; font-weight:500; }
         .form-group input { width:100%; padding:0.8rem; border:1px solid #ddd; border-radius:5px; font-size:1rem; }
 
-        .btn { padding:0.8rem 1.2rem; border:none; border-radius:5px; cursor:pointer; font-size:1rem; font-weight:600; transition:all .3s; display:inline-block; text-align:center; width: 100%; }
+        .btn { padding:0.6rem 1rem; border:none; border-radius:5px; cursor:pointer; font-size:0.9rem; font-weight:600; transition:all .3s; display:inline-block; text-align:center; }
         .btn-primary { background:var(--secondary); color:#fff; }
         .btn-primary:hover { background:#2980b9; }
-        .btn-link { background:none; color:var(--secondary); text-decoration:underline; padding:0.5rem; width: auto; }
+        .btn-link { background:none; color:var(--secondary); text-decoration:underline; padding:0.5rem; }
 
         /* Main */
         .app-container { display:none; flex-direction:column; height:100vh; }
 
         /* Header */
-        .app-header { background:var(--primary); color:white; padding:0.8rem 1.2rem; display:flex; justify-content:space-between; align-items:center; }
+        .app-header { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; }
         .app-title { font-size:1.3rem; font-weight:600; }
-        .user-info { display:flex; align-items:center; gap:1rem; }
+        .user-info { display:flex; align-items:center; gap:0.8rem; }
 
-        /* Fixed logout button styling */
-        .logout-btn {
-            padding: 0.8rem 1.5rem !important;
-            border: none !important;
-            border-radius: 5px !important;
-            cursor: pointer !important;
-            font-size: 1rem !important;
-            font-weight: 600 !important;
-            transition: all 0.3s !important;
-            background: var(--accent) !important;
-            color: white !important;
-            min-width: 120px !important;
-            height: 45px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
+        .user-info button {
+            padding: 0.6rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            background: var(--accent);
+            color: white;
+            min-width: 100px;
         }
-        .logout-btn:hover { background: #c0392b !important; transform: translateY(-1px) !important; }
+        .user-info button:hover { background: #c0392b; transform: translateY(-1px); }
 
         /* Tabs */
         .tabs { display:flex; background-color:var(--dark); }
@@ -76,17 +71,17 @@
         .tab.active { background:var(--light); color:var(--primary); border-bottom:3px solid var(--secondary); }
 
         /* Content */
-        .tab-content { flex-grow:1; padding:1.2rem; overflow:hidden; }
-        .tab-pane { display:none; height: calc(100vh - 200px); overflow:auto; }
+        .tab-content { flex-grow:1; padding:1.2rem; overflow:hidden; /* internal panes will handle scrolling */ }
+        .tab-pane { display:none; height: calc(100vh - 200px); overflow:auto; } /* consistent pane sizing */
         .tab-pane.active { display:block; }
 
-        .packaging-header { display:flex; justify-content:space-between; margin-bottom:1.2rem; padding-bottom:0.8rem; border-bottom:1px solid #ddd; align-items: center; flex-wrap: wrap; }
+        .packaging-header { display:flex; justify-content:space-between; margin-bottom:1.2rem; padding-bottom:0.8rem; border-bottom:1px solid #ddd; align-items: center; }
         .customer-info { display:flex; gap:0.8rem; align-items: center; flex-wrap: wrap; }
         .info-group { display:flex; flex-direction:column; margin-bottom: 0; }
         .info-group label { font-weight:600; margin-bottom:0.2rem; font-size:0.8rem; }
         .info-group select, .info-group input { padding:0.4rem; border:1px solid #ddd; border-radius:5px; font-size:0.8rem; height: auto; }
         .info-group span { font-size: 0.9rem; }
-        .action-buttons { display:flex; gap:0.6rem; flex-wrap: wrap; }
+        .action-buttons { display:flex; gap:0.6rem; }
 
         .packaging-content {
             display: flex;
@@ -121,7 +116,7 @@
         .status-beklemede { background: var(--warning); color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; }
         .status-sevk-edildi { background: var(--success); color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; }
 
-        .app-footer { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; flex-wrap: wrap; }
+        .app-footer { background:var(--primary); color:white; padding:0.6rem 1.2rem; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; }
         .container-info { display:flex; align-items:center; gap:0.8rem; }
 
         /* Toast styles */
@@ -171,9 +166,6 @@
             .packaging-content { flex-direction:column; height:auto; }
             .barcode-section, .pending-packages, .package-details { flex: 1 1 auto; width:100%; min-width: auto; }
             .tab-pane { height: auto; }
-            .packaging-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-            .action-buttons { width: 100%; }
-            .app-footer { flex-direction: column; gap: 1rem; }
         }
     </style>
 </head>
@@ -189,7 +181,7 @@
                 <label for="password">Şifre</label>
                 <input type="password" id="password" placeholder="Şifrenizi girin" value="123456">
             </div>
-            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
+            <button type="button" class="btn btn-primary" id="loginBtn" onclick="loginUser()">Giriş Yap</button>
             <div style="text-align:center; margin-top:1rem;">
                 <button type="button" class="btn-link">Şifremi Unuttum</button>
             </div>
@@ -204,14 +196,14 @@
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Ahmet Yılmaz</span>
-                <button type="button" id="logoutBtn" class="logout-btn">Çıkış Yap</button>
+                <button type="button" id="logoutBtn" class="btn btn-danger" onclick="logout()">Çıkış Yap</button>
             </div>
         </div>
 
         <div class="tabs" role="tablist" aria-label="Ana Sekmeler">
-            <div class="tab active" data-tab="packaging" role="tab">Paketleme</div>
-            <div class="tab" data-tab="shipping" role="tab">Sevkiyat</div>
-            <div class="tab" data-tab="stock" role="tab">Stok Sorgu</div>
+            <div class="tab active" data-tab="packaging" role="tab" onclick="switchTab('packaging')">Paketleme</div>
+            <div class="tab" data-tab="shipping" role="tab" onclick="switchTab('shipping')">Sevkiyat</div>
+            <div class="tab" data-tab="stock" role="tab" onclick="switchTab('stock')">Stok Sorgu</div>
         </div>
 
         <div class="tab-content">
@@ -237,9 +229,9 @@
                         </div>
                     </div>
                     <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" id="showCustomerSelectionBtn">Müşteri Seç</button>
-                        <button type="button" class="btn" id="showAllCustomersBtn">Tüm Müş. Göster</button>
-                        <button type="button" class="btn btn-warning" id="generateDailyReportBtn">İş Sonu Raporu</button>
+                        <button type="button" class="btn btn-primary" onclick="showCustomerSelection()">Müşteri Seç</button>
+                        <button type="button" class="btn" onclick="showAllCustomers()">Tüm Müş. Göster</button>
+                        <button type="button" class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
                     </div>
                 </div>
 
@@ -248,8 +240,8 @@
                         <h3>Paket Oluştur</h3>
                         <div class="barcode-input">
                             <input type="text" id="barcodeInput" placeholder="Barkodu okutun veya girin" autofocus>
-                            <button type="button" id="searchBarcodeBtn"><i class="fas fa-search"></i></button>
-                            <button type="button" id="clearBarcodeBtn"><i class="fas fa-times"></i></button>
+                            <button type="button" onclick="searchBarcode()"><i class="fas fa-search"></i></button>
+                            <button type="button" onclick="clearBarcode()"><i class="fas fa-times"></i></button>
                         </div>
                         <div class="barcode-counter">
                             <span>Okutulan barkod sayısı: <strong id="barcodeCount">0</strong></span>
@@ -281,13 +273,13 @@
                         <div class="quick-buttons" id="quickButtons"></div>
 
                         <div class="package-actions">
-                            <button type="button" class="btn" id="showManualEntryBtn">MANUEL</button>
+                            <button type="button" class="btn" onclick="showManualEntry()">MANUEL</button>
                             <div class="definition-panel">
                                 <p>Tanımsız Adet: <span style="color: red;" id="undefinedCount">0</span></p>
                                 <p>Tanımlı Adet: <span style="color: blue;" id="definedCount">0</span></p>
                                 <p>Ortalama Adet: <span id="averageCount">0</span></p>
                             </div>
-                            <button type="button" class="btn btn-success" id="savePackageBtn">(F2) Paketle / Kaydet</button>
+                            <button type="button" class="btn btn-success" onclick="savePackage()">(F2) Paketle / Kaydet</button>
                         </div>
                     </div>
                 </div>
@@ -295,7 +287,7 @@
 
             <div class="tab-pane" id="shippingTab">
                 <h2>Sevkiyat Yönetimi</h2>
-                <div class="shipping-controls" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:10px; flex-wrap: wrap;">
+                <div class="shipping-controls" style="display:flex; gap:10px; align-items:flex-end; margin-bottom:10px;">
                     <div class="info-group">
                         <label for="shippingFilter">Filtrele</label>
                         <select id="shippingFilter">
@@ -304,7 +296,7 @@
                             <option value="sevk-edildi">Sevk Edildi</option>
                         </select>
                     </div>
-                    <button type="button" class="btn btn-primary" id="filterShippingBtn">Uygula</button>
+                    <button type="button" class="btn btn-primary" onclick="filterShipping()">Uygula</button>
                 </div>
 
                 <div style="overflow-x: auto;">
@@ -317,7 +309,7 @@
                                 <th>Toplam Adet</th>
                                 <th>Oluşturulma Tarihi</th>
                                 <th>Durum</th>
-                                <th>İşlem</th>
+                                <th>İşlemler</th>
                             </tr>
                         </thead>
                         <tbody id="shippingTableBody"></tbody>
@@ -329,8 +321,8 @@
                 <h2>Stok Sorgulama</h2>
                 <div class="stock-search">
                     <input type="text" id="stockSearch" placeholder="Ürün adı veya koduna göre ara...">
-                    <button type="button" class="btn btn-primary" id="searchStockBtn">Ara</button>
-                    <button type="button" class="btn" id="clearStockSearchBtn">Temizle</button>
+                    <button type="button" class="btn btn-primary" onclick="searchStock()">Ara</button>
+                    <button type="button" class="btn" onclick="clearStockSearch()">Temizle</button>
                 </div>
 
                 <div style="overflow-x: auto;">
@@ -355,7 +347,7 @@
                     <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" style="display:none;">
                     <label for="stockFileUpload" class="upload-button" role="button"><i class="fas fa-upload"></i> Dosya Seç</label>
                     <span id="selectedFileName" style="margin-left:10px;"></span>
-                    <button type="button" class="btn btn-primary" id="uploadStockFileBtn">Yükle</button>
+                    <button type="button" class="btn btn-primary" onclick="uploadStockFile()" style="margin-top:10px;">Yükle</button>
                     <p style="margin-top:8px; font-size:0.85rem; color:#666">Desteklenen başlık örnekleri: "Stok Kodu", "Ürün Adı", "Mevcut Adet" veya "code", "name", "quantity"</p>
                 </div>
             </div>
@@ -363,19 +355,19 @@
 
         <div class="app-footer">
             <div class="footer-actions">
-                <button type="button" class="btn" id="printLabelBtn"><i class="fas fa-print"></i> Etiket Bas</button>
-                <button type="button" class="btn" id="selectAllPackagesBtn">Tümünü Seç</button>
-                <button type="button" class="btn" id="clearSelectionBtn">Seçimi Kaldır</button>
-                <button type="button" class="btn btn-danger" id="deletePackageBtn">Paket Sil</button>
+                <button type="button" class="btn" onclick="printLabel()"><i class="fas fa-print"></i> Etiket Bas</button>
+                <button type="button" class="btn" onclick="selectAllPackages()">Tümünü Seç</button>
+                <button type="button" class="btn" onclick="clearSelection()">Seçimi Kaldır</button>
+                <button type="button" class="btn btn-danger" onclick="deletePackage()">Paket Sil</button>
             </div>
             <div class="container-info">
-                <button type="button" class="btn" id="loadCurrentContainerBtn">Mev. K.</button>
-                <button type="button" class="btn" id="createNewContainerBtn">Yeni K.</button>
+                <button type="button" class="btn" onclick="loadCurrentContainer()">Mev. K.</button>
+                <button type="button" class="btn" onclick="createNewContainer()">Yeni K.</button>
                 <span>Konteyner No: <span id="containerNumber">C000094</span></span>
             </div>
             <div class="footer-actions">
-                <button type="button" class="btn btn-danger" id="deleteContainerBtn">Konteyner Sil</button>
-                <button type="button" class="btn btn-success" id="sendToRampBtn">Kon. Rampaya Gönder</button>
+                <button type="button" class="btn btn-danger" onclick="deleteContainer()">Konteyner Sil</button>
+                <button type="button" class="btn btn-success" onclick="sendToRamp()">Kon. Rampaya Gönder</button>
             </div>
         </div>
     </div>
@@ -389,7 +381,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="modalTitle">Müşteri Seçimi</h3>
-                <button type="button" class="modal-close" id="closeModalBtn">&times;</button>
+                <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
             </div>
             <div id="modalBody">
                 <div class="customer-list" id="customerList"></div>
@@ -401,8 +393,8 @@
                     </div>
                     <div class="form-row">
                         <input type="email" id="newCustomerEmail" placeholder="E-posta">
-                        <button type="button" class="btn btn-primary" id="addNewCustomerBtn">Müşteri Ekle</button>
-                        <button type="button" class="btn btn-danger" id="deleteSelectedCustomerBtn">Müşteri Sil</button>
+                        <button type="button" class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteSelectedCustomer()">Müşteri Sil</button>
                     </div>
                 </div>
             </div>
@@ -414,7 +406,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Tüm Müşteriler</h3>
-                <button type="button" class="modal-close" id="closeAllCustomersModalBtn">&times;</button>
+                <button type="button" class="modal-close" onclick="closeAllCustomersModal()">&times;</button>
             </div>
             <div class="customer-list" id="allCustomersList" style="max-height: 400px; overflow-y: auto;"></div>
         </div>
@@ -425,14 +417,14 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>İş Sonu Raporu Gönder</h3>
-                <button type="button" class="modal-close" id="closeEmailModalBtn">&times;</button>
+                <button type="button" class="modal-close" onclick="closeEmailModal()">&times;</button>
             </div>
             <div class="email-settings">
                 <label for="reportEmail">E-posta Adresi:</label>
                 <input type="email" id="reportEmail" placeholder="rapor@firma.com">
                 <div style="display:flex;gap:8px;margin-top:8px">
-                    <button type="button" class="btn btn-primary" id="sendDailyReportBtn">Raporu Gönder</button>
-                    <button type="button" class="btn" id="previewReportBtn">Raporu Önizle</button>
+                    <button type="button" class="btn btn-primary" onclick="sendDailyReport()">Raporu Gönder</button>
+                    <button type="button" class="btn" onclick="previewReport()">Raporu Önizle</button>
                 </div>
             </div>
         </div>
@@ -444,8 +436,8 @@
             <h3 id="quantityProductName">Ürün Adı</h3>
             <input type="number" id="quantityInput" class="quantity-input" min="1" value="1">
             <div class="quantity-buttons">
-                <button type="button" class="btn btn-primary" id="confirmQuantityBtn">Onayla</button>
-                <button type="button" class="btn" id="cancelQuantityBtn">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="confirmQuantity()">Onayla</button>
+                <button type="button" class="btn" onclick="closeQuantityModal()">İptal</button>
             </div>
         </div>
     </div>
@@ -455,7 +447,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Manuel Ürün Girişi</h3>
-                <button type="button" class="modal-close" id="closeManualModalBtn">&times;</button>
+                <button type="button" class="modal-close" onclick="closeManualModal()">&times;</button>
             </div>
             <div>
                 <div class="form-group">
@@ -471,8 +463,8 @@
                     <input type="number" id="manualQuantity" min="1" value="1">
                 </div>
                 <div style="display:flex;gap:8px;margin-top:12px">
-                    <button type="button" class="btn btn-primary" id="addManualProductBtn">Ekle</button>
-                    <button type="button" class="btn" id="cancelManualBtn">İptal</button>
+                    <button type="button" class="btn btn-primary" onclick="addManualProduct()">Ekle</button>
+                    <button type="button" class="btn" onclick="closeManualModal()">İptal</button>
                 </div>
             </div>
         </div>
@@ -499,8 +491,8 @@
         const manualModal = document.getElementById('manualModal');
         const selectAllCheckbox = document.getElementById('selectAllPackages');
 
-        // Default test users
-        const testUsers = [
+        // Test users for simple login
+        const users = [
             { username: 'admin', password: '123456', name: 'Ahmet Yılmaz', role: 'admin' },
             { username: 'operator', password: '123456', name: 'Mehmet Demir', role: 'operator' }
         ];
@@ -555,104 +547,19 @@
         ];
 
         /* -----------------------
-           Event Listeners
+           Initialization
            ----------------------- */
-        function initEventListeners() {
-            // Login/Logout
-            document.getElementById('loginBtn').addEventListener('click', loginUser);
-            document.getElementById('logoutBtn').addEventListener('click', logout);
+        function initApp() {
+            populateCustomerDropdown();
+            populatePackagesTable();
+            populateShippingTable();
+            populateStockTable();
+            populateQuickButtons();
+            updateDefinitionCounts();
+            setupEventListeners();
+        }
 
-            // Tab functionality
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-            });
-
-            // Customer management
-            document.getElementById('showCustomerSelectionBtn').addEventListener('click', () => {
-                populateCustomerModal();
-                modal.style.display = 'flex';
-                modal.setAttribute('aria-hidden','false');
-            });
-
-            document.getElementById('showAllCustomersBtn').addEventListener('click', () => {
-                populateAllCustomersModal();
-                allCustomersModal.style.display = 'flex';
-                allCustomersModal.setAttribute('aria-hidden','false');
-            });
-
-            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
-            document.getElementById('closeAllCustomersModalBtn').addEventListener('click', closeAllCustomersModal);
-            document.getElementById('closeEmailModalBtn').addEventListener('click', closeEmailModal);
-
-            document.getElementById('addNewCustomerBtn').addEventListener('click', addNewCustomer);
-            document.getElementById('deleteSelectedCustomerBtn').addEventListener('click', deleteSelectedCustomer);
-
-            // Barcode functionality
-            document.getElementById('searchBarcodeBtn').addEventListener('click', searchBarcode);
-            document.getElementById('clearBarcodeBtn').addEventListener('click', clearBarcode);
-            document.getElementById('barcodeInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') searchBarcode();
-            });
-
-            // Package operations
-            document.getElementById('savePackageBtn').addEventListener('click', savePackage);
-            document.getElementById('selectAllPackagesBtn').addEventListener('click', selectAllPackages);
-            document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
-            document.getElementById('deletePackageBtn').addEventListener('click', deletePackage);
-            document.getElementById('printLabelBtn').addEventListener('click', printLabel);
-
-            // Container operations
-            document.getElementById('loadCurrentContainerBtn').addEventListener('click', loadCurrentContainer);
-            document.getElementById('createNewContainerBtn').addEventListener('click', createNewContainer);
-            document.getElementById('deleteContainerBtn').addEventListener('click', deleteContainer);
-            document.getElementById('sendToRampBtn').addEventListener('click', () => showToast('Konteyner rampaya gönderildi', 'success'));
-
-            // Stock functionality
-            document.getElementById('searchStockBtn').addEventListener('click', searchStock);
-            document.getElementById('clearStockSearchBtn').addEventListener('click', clearStockSearch);
-            document.getElementById('stockSearch').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') searchStock();
-            });
-
-            // File upload
-            document.getElementById('stockFileUpload').addEventListener('change', (e) => {
-                const fileName = e.target.files[0]?.name || '';
-                document.getElementById('selectedFileName').textContent = fileName;
-            });
-            document.getElementById('uploadStockFileBtn').addEventListener('click', uploadStockFile);
-
-            // Manual entry
-            document.getElementById('showManualEntryBtn').addEventListener('click', showManualEntry);
-            document.getElementById('closeManualModalBtn').addEventListener('click', closeManualModal);
-            document.getElementById('addManualProductBtn').addEventListener('click', addManualProduct);
-            document.getElementById('cancelManualBtn').addEventListener('click', closeManualModal);
-
-            // Quantity modal
-            document.getElementById('confirmQuantityBtn').addEventListener('click', confirmQuantity);
-            document.getElementById('cancelQuantityBtn').addEventListener('click', closeQuantityModal);
-
-            // Reports
-            document.getElementById('generateDailyReportBtn').addEventListener('click', () => {
-                emailModal.style.display = 'flex';
-                emailModal.setAttribute('aria-hidden','false');
-            });
-            document.getElementById('sendDailyReportBtn').addEventListener('click', () => {
-                showToast('İş sonu raporu gönderildi', 'success');
-                closeEmailModal();
-            });
-            document.getElementById('previewReportBtn').addEventListener('click', () => showToast('Rapor önizlemesi açılıyor...', 'success'));
-
-            // Shipping
-            document.getElementById('filterShippingBtn').addEventListener('click', filterShipping);
-
-            // Keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'F2') {
-                    e.preventDefault();
-                    savePackage();
-                }
-            });
-
+        function setupEventListeners() {
             // Customer dropdown change
             document.getElementById('customer').addEventListener('change', (e) => {
                 const selectedCustomer = customers.find(c => c.code === e.target.value);
@@ -666,18 +573,30 @@
                     cb.checked = e.target.checked;
                 });
             });
-        }
 
-        /* -----------------------
-           Initialization
-           ----------------------- */
-        function initApp() {
-            populateCustomerDropdown();
-            populatePackagesTable();
-            populateShippingTable();
-            populateStockTable();
-            populateQuickButtons();
-            updateDefinitionCounts();
+            // Barcode input Enter key
+            document.getElementById('barcodeInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchBarcode();
+            });
+
+            // Stock search Enter key
+            document.getElementById('stockSearch').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchStock();
+            });
+
+            // File upload change
+            document.getElementById('stockFileUpload').addEventListener('change', (e) => {
+                const fileName = e.target.files[0]?.name || '';
+                document.getElementById('selectedFileName').textContent = fileName;
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'F2') {
+                    e.preventDefault();
+                    savePackage();
+                }
+            });
         }
 
         function populateCustomerDropdown() {
@@ -803,30 +722,16 @@
             });
         }
 
-        function filterShipping() {
-            const filter = document.getElementById('shippingFilter').value;
-            const tbody = document.getElementById('shippingTableBody');
-            tbody.innerHTML = '';
-            
-            const filteredContainers = filter === 'all' ? containers : containers.filter(c => c.status === filter);
-            
-            filteredContainers.forEach(container => {
-                const row = document.createElement('tr');
-                const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
-                const statusText = container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi';
-                row.innerHTML = `
-                    <td>${escapeHtml(container.containerNo)}</td>
-                    <td>${escapeHtml(container.customer)}</td>
-                    <td>${container.packageCount}</td>
-                    <td>${container.totalQuantity}</td>
-                    <td>${escapeHtml(container.createdDate)}</td>
-                    <td><span class="${statusClass}">${statusText}</span></td>
-                    <td><button class="btn btn-primary" onclick="showToast('Konteyner detayları görüntüleniyor', 'success')">Detay</button></td>
-                `;
-                tbody.appendChild(row);
-            });
-            
-            showToast(`${filteredContainers.length} konteyner listelendi`, 'success');
+        function showCustomerSelection() {
+            populateCustomerModal();
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden','false');
+        }
+
+        function showAllCustomers() {
+            populateAllCustomersModal();
+            allCustomersModal.style.display = 'flex';
+            allCustomersModal.setAttribute('aria-hidden','false');
         }
 
         function closeAllCustomersModal() {
@@ -834,9 +739,23 @@
             allCustomersModal.setAttribute('aria-hidden','true');
         }
 
+        function generateDailyReport() {
+            emailModal.style.display = 'flex';
+            emailModal.setAttribute('aria-hidden','false');
+        }
+
         function closeEmailModal() {
             emailModal.style.display = 'none';
             emailModal.setAttribute('aria-hidden','true');
+        }
+
+        function sendDailyReport() {
+            showToast('İş sonu raporu gönderildi', 'success');
+            closeEmailModal();
+        }
+
+        function previewReport() {
+            showToast('Rapor önizlemesi açılıyor...', 'success');
         }
 
         function addNewCustomer() {
@@ -874,6 +793,32 @@
             populateAllCustomersModal();
             
             showToast('Müşteri başarıyla silindi', 'success');
+        }
+
+        function filterShipping() {
+            const filter = document.getElementById('shippingFilter').value;
+            const tbody = document.getElementById('shippingTableBody');
+            tbody.innerHTML = '';
+            
+            const filteredContainers = filter === 'all' ? containers : containers.filter(c => c.status === filter);
+            
+            filteredContainers.forEach(container => {
+                const row = document.createElement('tr');
+                const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
+                const statusText = container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi';
+                row.innerHTML = `
+                    <td>${escapeHtml(container.containerNo)}</td>
+                    <td>${escapeHtml(container.customer)}</td>
+                    <td>${container.packageCount}</td>
+                    <td>${container.totalQuantity}</td>
+                    <td>${escapeHtml(container.createdDate)}</td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                    <td><button class="btn btn-primary" onclick="showToast('Konteyner detayları görüntüleniyor', 'success')">Detay</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            showToast(`${filteredContainers.length} konteyner listelendi`, 'success');
         }
 
         /* -----------------------
@@ -1133,15 +1078,17 @@
             }, 1200);
         }
 
-        function loadCurrentContainer() { 
-            showToast('Mevcut konteyner yüklendi', 'success'); 
-        }
+        function loadCurrentContainer() { showToast('Mevcut konteyner yüklendi', 'success'); }
 
         function createNewContainer() {
             const newContainerNo = `C${String(containers.length + 1).padStart(6, '0')}`;
             document.getElementById('containerNumber').textContent = newContainerNo;
             currentContainer = newContainerNo;
             showToast(`Yeni konteyner oluşturuldu: ${newContainerNo}`, 'success');
+        }
+
+        function sendToRamp() {
+            showToast('Konteyner rampaya gönderildi', 'success');
         }
 
         function closeModal() {
@@ -1151,14 +1098,19 @@
         }
 
         function switchTab(tabName) {
+            // make switching robust by using data-tab attributes
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-            
             const tabElement = document.querySelector(`.tab[data-tab="${tabName}"]`);
             if (tabElement) tabElement.classList.add('active');
-            
             const pane = document.getElementById(`${tabName}Tab`);
             if (pane) pane.classList.add('active');
+            else {
+                // fallback: try known ids
+                const map = { packaging: 'packagingTab', shipping: 'shippingTab', stock: 'stockTab' };
+                const alt = document.getElementById(map[tabName]);
+                if (alt) alt.classList.add('active');
+            }
         }
 
         /* -----------------------
@@ -1169,12 +1121,13 @@
             if (!el) return;
             el.textContent = message;
             el.className = `toast ${type} show`;
+            // ensure accessible announce
             el.setAttribute('role','status');
             setTimeout(() => { el.classList.remove('show'); }, duration);
         }
 
         /* -----------------------
-           Login / Logout - FIXED
+           Login / Logout - FIXED (Simple authentication)
            ----------------------- */
         function loginUser() {
             const username = document.getElementById('username').value.trim();
@@ -1185,17 +1138,11 @@
                 return;
             }
 
-            // Simple test user authentication (no Firebase dependency)
-            const user = testUsers.find(u => u.username === username && u.password === password);
-            
+            const user = users.find(u => u.username === username && u.password === password);
+
             if (user) {
-                currentUser = {
-                    username: user.username,
-                    name: user.name,
-                    role: user.role
-                };
-                
-                document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+                currentUser = user;
+                document.getElementById('userRole').textContent = `Operatör: ${user.name}`;
                 loginScreen.style.display = 'none';
                 appContainer.style.display = 'flex';
                 appContainer.setAttribute('aria-hidden','false');
@@ -1260,11 +1207,13 @@
             loginScreen.style.display = 'flex';
             appContainer.style.display = 'none';
             loadAutoSave();
+            // pre-populate customer dropdown so it's available on login
             populateCustomerDropdown();
-            initEventListeners();
+            // set initial tab pane ids mapping if missing (ensure correct panes are visible)
+            // nothing else by default - user must login
         });
 
-        // Global error handler
+        // Global error handler (helps debugging)
         window.onerror = function(msg, url, lineNo, columnNo, error) {
             console.error('Global error', msg, url, lineNo, columnNo, error);
             showToast(`Beklenmeyen hata: ${msg} (Satır ${lineNo})`, 'error');
