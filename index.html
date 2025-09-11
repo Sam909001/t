@@ -1264,6 +1264,74 @@ async function populatePackagesTable() {
         /* -----------------------
            Login / Logout
            ----------------------- */
+
+      window.addEventListener('DOMContentLoaded', () => {
+    const loginBtn = document.getElementById("loginBtn");
+    if (loginBtn) {
+        loginBtn.onclick = async () => {
+            const email = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            if (!email || !password) {
+                alert("Lütfen kullanıcı adı ve şifre girin");
+                return;
+            }
+
+            try {
+                // Supabase login
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    showToast("Giriş başarısız: " + error.message, "error");
+                    return;
+                }
+
+                // Login successful
+                currentUser = {
+                    username: data.user.email,
+                    uid: data.user.id,
+                    name: data.user.email.split('@')[0] // Or use user_metadata if available
+                };
+                
+                document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
+                document.getElementById("loginScreen").style.display = "none";
+                document.getElementById("appContainer").style.display = "flex";
+                
+                showToast("Giriş başarılı", "success");
+                initApp();
+                
+            } catch (e) {
+                showToast("Giriş başarısız: " + e.message, "error");
+                console.error(e);
+            }
+        };
+    }
+
+    // Supabase auth state listener
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            // User is signed in
+            currentUser = {
+                username: session.user.email,
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
+            };
+            
+            document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
+            document.getElementById("loginScreen").style.display = "none";
+            document.getElementById("appContainer").style.display = "flex";
+            initApp();
+        } else {
+            // User is signed out
+            document.getElementById("loginScreen").style.display = "flex";
+            document.getElementById("appContainer").style.display = "none";
+        }
+    });
+});
+        
         function logout() {
             currentUser = null;
             appContainer.style.display = 'none';
