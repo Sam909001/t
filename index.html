@@ -612,7 +612,7 @@
 <script>
 // Supabase initialization - Secure version
 let SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-let SUPABASE_ANON_KEY = '';
+let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
 let supabase = null;
 
 // DOM elements for API key management (will be initialized after DOM loads)
@@ -823,63 +823,6 @@ document.addEventListener('DOMContentLoaded', function() {
 function showApiKeyModal() {
     document.getElementById('apiKeyInput').value = SUPABASE_ANON_KEY || '';
     document.getElementById('apiKeyModal').style.display = 'flex';
-}
-
-// API anahtarı yardımı göster
-function showApiKeyHelp() {
-    const helpWindow = window.open('', '_blank');
-    helpWindow.document.write(`
-        <html>
-        <head>
-            <title>Supabase API Anahtarı Alma Rehberi</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
-                h1 { color: #2c3e50; }
-                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
-            </style>
-        </head>
-        <body>
-            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
-            <div class="step">
-                <h3>1. Supabase hesabınıza giriş yapın</h3>
-                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
-            </div>
-            <div class="step">
-                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
-            </div>
-            <div class="step">
-                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
-            </div>
-            <div class="step">
-                <h3>4. API sekmesine gidin</h3>
-            </div>
-            <div class="step">
-                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
-                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
-            </div>
-            <div class="step">
-                <h3>Önemli Not:</h3>
-                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
-            </div>
-        </body>
-        </html>
-    `);
-}
-
-// Test Supabase connection
-async function testConnection() {
-    try {
-        const { data, error } = await supabase.from('customers').select('count').limit(1);
-        if (error) {
-            console.error('Supabase connection error:', error);
-            showToast('Veritabanı bağlantı hatası', 'error');
-        } else {
-            console.log('Supabase connection successful');
-        }
-    } catch (error) {
-        console.error('Connection test failed:', error);
-        showToast('Bağlantı testi başarısız', 'error');
-    }
 }
 
 // Authentication functions
