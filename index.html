@@ -565,21 +565,6 @@ function logout() {
     });
 }
 
-// Test Supabase connection
-async function testConnection() {
-    try {
-        const { data, error } = await supabase.from('customers').select('count');
-        if (error) {
-            console.error('Supabase connection error:', error);
-            showToast('Veritabanı bağlantı hatası', 'error');
-        } else {
-            console.log('Supabase connected successfully');
-        }
-    } catch (error) {
-        console.error('Connection test failed:', error);
-    }
-}
-
 // Initialize the application
 function initApp() {
     testConnection();
