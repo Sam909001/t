@@ -254,6 +254,12 @@
             <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
         </div>
     </div>
+        <div style="margin-top: 1rem; text-align: center;">
+        <a href="#" onclick="signupInstead()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">
+            Yeni hesap oluştur
+        </a>
+    </div>
+</div>
 
     <div class="app-container" id="appContainer" aria-hidden="true">
         <div class="app-header">
@@ -650,6 +656,19 @@ async function login() {
 
         if (error) {
             console.error('Supabase login error:', error);
+            
+            // Check if it's a user not found error (user needs to be created)
+            if (error.message.includes('Invalid login credentials') || 
+                error.message.includes('Email not confirmed') ||
+                error.message.includes('User not found')) {
+                
+                // Offer to create the user
+                if (confirm('Kullanıcı bulunamadı. Yeni kullanıcı oluşturmak ister misiniz?')) {
+                    await createUser(email, password);
+                    return;
+                }
+            }
+            
             showToast("Giriş başarısız: " + error.message, "error");
             return;
         }
@@ -665,6 +684,34 @@ async function login() {
     }
 }
 
+// Add this function to create a new user
+async function createUser(email, password) {
+    try {
+        showToast("Kullanıcı oluşturuluyor...", "warning");
+        
+        const { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password,
+        });
+
+        if (error) {
+            console.error('Signup error:', error);
+            showToast("Kullanıcı oluşturulamadı: " + error.message, "error");
+            return;
+        }
+
+        if (data.user) {
+            showToast("Kullanıcı oluşturuldu! Lütfen giriş yapın.", "success");
+            // Auto-fill the login form
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = '';
+        }
+        
+    } catch (error) {
+        console.error('Create user error:', error);
+        showToast("Kullanıcı oluşturma hatası", "error");
+    }
+}
 async function logout() {
     if (supabase) {
         try {
@@ -683,6 +730,25 @@ async function logout() {
     document.getElementById('password').value = '';
     closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
     showToast('Başarıyla çıkış yapıldı', 'success');
+}
+
+    function signupInstead() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    if (!email) {
+        showToast("Lütfen e-posta adresinizi girin", "error");
+        document.getElementById('email').focus();
+        return;
+    }
+    
+    if (!password) {
+        showToast("Lütfen şifre oluşturun", "error");
+        document.getElementById('password').focus();
+        return;
+    }
+    
+    createUser(email, password);
 }
 
 // Test Supabase connection
