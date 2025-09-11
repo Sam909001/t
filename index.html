@@ -461,7 +461,6 @@
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
 
-// Create Supabase client
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Global variables
@@ -1579,34 +1578,12 @@ async function populatePackagesTable() {
     });
 });
 
-    // Supabase auth state listener
-    supabase.auth.onAuthStateChange((event, session) => {
-        if (session) {
-            // User is signed in
-            currentUser = {
-                username: session.user.email,
-                uid: session.user.id,
-                name: session.user.email.split('@')[0]
-            };
-            
-            document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
-            document.getElementById("loginScreen").style.display = "none";
-            document.getElementById("appContainer").style.display = "flex";
-            initApp();
-        } else {
-            // User is signed out
-            document.getElementById("loginScreen").style.display = "flex";
-            document.getElementById("appContainer").style.display = "none";
-        }
-    });
-});
-        
         function logout() {
             currentUser = null;
             appContainer.style.display = 'none';
             appContainer.setAttribute('aria-hidden','true');
             loginScreen.style.display = 'flex';
-            document.getElementById('username').value = '';
+            document.getElementById('email').value = '';
             document.getElementById('password').value = '';
             closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
             showToast('Başarıyla çıkış yapıldı', 'success');
