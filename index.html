@@ -1369,6 +1369,89 @@ async function completePackage() {
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
+        // Create item details string for display
+        const itemDetails = Object.entries(currentPackage.items)
+            .map(([item, quantity]) => `${quantity} ${item}`)
+            .join(', ');
+
+        const { data, error } = await supabase
+            .from('packages')
+            .insert([{
+                package_no: packageNo,
+                customer_id: selectedCustomer.id,
+                items: currentPackage.items,
+                total_quantity: totalQuantity,
+                status: 'beklemede',
+                packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+                created_at: new Date().toISOString()
+            }])
+            .select();
+
+        if (error) {
+            console.error('Error creating package:', error);
+            showToast('Paket oluşturulurken hata: ' + error.message, 'error');
+            return;
+        }
+
+        // Show item details instead of just total quantity
+        showToast(`Paket oluşturuldu: ${packageNo} (${itemDetails})`, 'success');
+        
+        // Reset current package and quantities
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => {
+            badge.textContent = '0';
+        });
+        
+        // Refresh packages table
+        await populatePackagesTable();
+        
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showToast('Paket oluşturma hatası', 'error');
+    }
+}
+function openManualEntry() {
+    elements.manualModal.style.display = 'flex';
+    document.getElementById('manualProduct').focus();
+}
+
+function addManualProduct() {
+    const product = document.getElementById('manualProduct').value.trim();
+    const quantity = parseInt(document.getElementById('manualQuantity').value);
+
+    if (!product || !quantity || quantity <= 0) {
+        showToast('Ürün adı ve geçerli adet girin', 'error');
+        return;
+    }
+
+    // Add to current package
+    if (!currentPackage.items) currentPackage.items = {};
+    currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
+
+    showToast(`${product}: ${quantity} adet eklendi`, 'success');
+    
+    // Clear form
+    document.getElementById('manualProduct').value = '';
+    document.getElementById('manualQuantity').value = '';
+    closeManualModal();
+}
+
+async function completePackage() {
+    if (!selectedCustomer) {
+        showToast('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showToast('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    try {
+        const packageNo = `PKG-${Date.now()}`;
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect.value;
+
         const { data, error } = await supabase
             .from('packages')
             .insert([{
