@@ -763,65 +763,96 @@ async function populatePackagesTable() {
     });
 }
         
-        function populateStockTable() {
-            const tbody = document.getElementById('stockTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-            stockItems.forEach(item => {
-                const row = document.createElement('tr');
-                const statusClass = item.status === 'Kritik' ? 'status-kritik' : item.status === 'Az Stok' ? 'status-az-stok' : 'status-stokta';
-                row.innerHTML = `
-                    <td>${escapeHtml(item.code)}</td>
-                    <td>${escapeHtml(item.name)}</td>
-                    <td>${escapeHtml(item.quantity)}</td>
-                    <td>${escapeHtml(item.unit)}</td>
-                    <td>${escapeHtml(item.lastUpdate)}</td>
-                    <td><span class="${statusClass}">${escapeHtml(item.status)}</span></td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        function populateShippingTable() {
-            const tbody = document.getElementById('shippingTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            const filter = document.getElementById('shippingFilter')?.value || 'all';
-            const filteredContainers = filter === 'all' ? containers : containers.filter(c => c.status === filter);
-
-            filteredContainers.forEach(container => {
-                const row = document.createElement('tr');
-                const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
-
-                row.innerHTML = `
-                    <td>${escapeHtml(container.containerNo)}</td>
-                    <td>${escapeHtml(container.customer)}</td>
-                    <td>${escapeHtml(container.packageCount)}</td>
-                    <td>${escapeHtml(container.totalQuantity)}</td>
-                    <td>${escapeHtml(container.createdAt)}</td>
-                    <td><span class="${statusClass}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                    <td>
-                        ${container.status === 'beklemede' ? 
-                            `<button class="btn btn-success" type="button" data-container="${container.containerNo}">Sevk Et</button>` :
-                            `<span>Sevk Edildi</span>`
-                        }
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-
-            // delegate button clicks for "Sevk Et"
-            tbody.querySelectorAll('button[data-container]').forEach(btn => {
-                if (!btn._bound) {
-                    btn.addEventListener('click', function() {
-                        shipContainer(this.dataset.container);
-                    });
-                    btn._bound = true;
+        async function populateStockTable() {
+    const tbody = document.getElementById('stockTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    // Fetch stock items from Supabase
+    const { data: stockItems, error } = await supabase
+        .from('stock_items')
+        .select('*')
+        .order('name');
+    
+    if (error) {
+        console.error('Error fetching stock items:', error);
+        return;
+    }
+    
+    window.stockItems = stockItems; // Store globally
+    
+    stockItems.forEach(item => {
+        const row = document.createElement('tr');
+        const statusClass = item.quantity <= 10 ? 'status-kritik' : 
+                           item.quantity <= 50 ? 'status-az-stok' : 'status-stokta';
+        const statusText = item.quantity <= 10 ? 'Kritik' : 
+                          item.quantity <= 50 ? 'Az Stok' : 'Stokta';
+        
+        row.innerHTML = `
+            <td>${escapeHtml(item.code)}</td>
+            <td>${escapeHtml(item.name)}</td>
+            <td>${escapeHtml(item.quantity)}</td>
+            <td>${escapeHtml(item.unit)}</td>
+            <td>${new Date(item.updated_at).toLocaleDateString('tr-TR')}</td>
+            <td><span class="${statusClass}">${statusText}</span></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+        async function populateShippingTable() {
+    const tbody = document.getElementById('shippingTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    const filter = document.getElementById('shippingFilter')?.value || 'all';
+    
+    // Fetch containers from Supabase
+    let query = supabase.from('containers').select('*');
+    
+    if (filter !== 'all') {
+        query = query.eq('status', filter);
+    }
+    
+    const { data: containers, error } = await query.order('created_at', { ascending: false });
+    
+    if (error) {
+        console.error('Error fetching containers:', error);
+        return;
+    }
+    
+    window.containers = containers; // Store globally
+    
+    containers.forEach(container => {
+        const row = document.createElement('tr');
+        const statusClass = container.status === 'beklemede' ? 'status-beklemede' : 'status-sevk-edildi';
+        
+        row.innerHTML = `
+            <td>${escapeHtml(container.container_no)}</td>
+            <td>${escapeHtml(container.customer)}</td>
+            <td>${escapeHtml(container.package_count)}</td>
+            <td>${escapeHtml(container.total_quantity)}</td>
+            <td>${new Date(container.created_at).toLocaleDateString('tr-TR')}</td>
+            <td><span class="${statusClass}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+            <td>
+                ${container.status === 'beklemede' ? 
+                    `<button class="btn btn-success" type="button" data-container="${container.container_no}">Sevk Et</button>` :
+                    `<span>Sevk Edildi</span>`
                 }
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // Delegate button clicks for "Sevk Et"
+    tbody.querySelectorAll('button[data-container]').forEach(btn => {
+        if (!btn._bound) {
+            btn.addEventListener('click', function() {
+                shipContainer(this.dataset.container);
             });
+            btn._bound = true;
         }
-
+    });
+}
         /* -----------------------
            Customer modal & list
            ----------------------- */
@@ -903,45 +934,81 @@ async function populatePackagesTable() {
         /* -----------------------
            Shipping helpers
            ----------------------- */
-        function sendToRamp() {
-            const selectedPackages = packages.filter(p => p.selected);
-            if (selectedPackages.length === 0) { showToast('Lütfen rampaya göndermek için paket seçin', 'error'); return; }
-
-            if (!confirm('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?')) return;
-
-            const containerId = containers.length + 1;
-            const newContainerNumber = `C${String(containerId).padStart(6, '0')}`;
-
-            const newContainer = {
-                id: containerId,
-                containerNo: newContainerNumber,
-                customer: selectedPackages[0].customerName,
-                packageCount: selectedPackages.length,
-                totalQuantity: selectedPackages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0),
-                createdAt: new Date().toLocaleDateString('tr-TR'),
-                status: 'beklemede',
-                packages: selectedPackages.map(p => p.id)
-            };
-
-            containers.push(newContainer);
-            packages = packages.filter(p => !p.selected);
-
-            populatePackagesTable();
-            populateShippingTable();
-            clearSelection();
-
-            showToast(`${selectedPackages.length} paket konteyner(${newContainerNumber}) ile rampaya gönderildi - Durum: Beklemede`, 'success');
-            switchTab('shipping');
+        async function sendToRamp() {
+    const selectedPackages = packages.filter(p => p.selected);
+    if (selectedPackages.length === 0) { 
+        showToast('Lütfen rampaya göndermek için paket seçin', 'error'); 
+        return; 
+    }
+    
+    if (!confirm('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?')) return;
+    
+    // Create container in Supabase
+    const totalQuantity = selectedPackages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+    const containerNo = `C${String(containers.length + 1).padStart(6, '0')}`;
+    
+    const { data: newContainer, error } = await supabase
+        .from('containers')
+        .insert([{
+            container_no: containerNo,
+            customer: selectedPackages[0].customers.name,
+            package_count: selectedPackages.length,
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            package_ids: selectedPackages.map(p => p.id)
+        }])
+        .select();
+    
+    if (error) {
+        showToast('Konteyner oluşturulurken hata oluştu', 'error');
+        return;
+    }
+    
+    // Update packages to mark them as in container
+    for (const pkg of selectedPackages) {
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ container_id: newContainer[0].id })
+            .eq('id', pkg.id);
+        
+        if (updateError) {
+            showToast(`Paket ${pkg.package_no} güncellenirken hata oluştu`, 'error');
+            return;
         }
+    }
+    
+    // Update local state
+    containers.push(newContainer[0]);
+    packages = packages.filter(p => !p.selected);
+    
+    populatePackagesTable();
+    populateShippingTable();
+    clearSelection();
+    
+    showToast(`${selectedPackages.length} paket konteyner(${containerNo}) ile rampaya gönderildi - Durum: Beklemede`, 'success');
+    switchTab('shipping');
+}
 
-        function shipContainer(containerNo) {
-            const container = containers.find(c => c.containerNo === containerNo);
-            if (container) {
-                container.status = 'sevk-edildi';
-                populateShippingTable();
-                showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
-            }
-        }
+        async function shipContainer(containerNo) {
+    // Update container status in Supabase
+    const { error } = await supabase
+        .from('containers')
+        .update({ status: 'sevk-edildi' })
+        .eq('container_no', containerNo);
+    
+    if (error) {
+        showToast(`Konteyner ${containerNo} sevk durumu güncellenirken hata oluştu`, 'error');
+        return;
+    }
+    
+    // Update local state
+    const container = containers.find(c => c.container_no === containerNo);
+    if (container) {
+        container.status = 'sevk-edildi';
+        populateShippingTable();
+        showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
+    }
+}
 
         function filterShipping() { populateShippingTable(); }
 
@@ -985,15 +1052,32 @@ async function populatePackagesTable() {
             }
         }
 
-        function deleteSelectedCustomer() {
-            if (!selectedCustomerInModal) { showToast('Silmek için bir müşteri seçin', 'error'); return; }
-            if (!confirm(`${selectedCustomerInModal.name} müşterisini silmek istediğinize emin misiniz?`)) return;
-            customers = customers.filter(c => c.code !== selectedCustomerInModal.code);
-            selectedCustomerInModal = null;
-            populateCustomerDropdown();
-            populateCustomerModal();
-            showToast('Müşteri silindi', 'success');
-        }
+        async function deleteSelectedCustomer() {
+    if (!selectedCustomerInModal) { 
+        showToast('Silmek için bir müşteri seçin', 'error'); 
+        return; 
+    }
+    
+    if (!confirm(`${selectedCustomerInModal.name} müşterisini silmek istediğinize emin misiniz?`)) return;
+    
+    // Delete from Supabase
+    const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', selectedCustomerInModal.id);
+    
+    if (error) {
+        showToast('Müşteri silinirken hata oluştu', 'error');
+        return;
+    }
+    
+    // Update local state
+    customers = customers.filter(c => c.id !== selectedCustomerInModal.id);
+    selectedCustomerInModal = null;
+    populateCustomerDropdown();
+    populateCustomerModal();
+    showToast('Müşteri silindi', 'success');
+}
 
         /* -----------------------
            Quantity / quick product handling
@@ -1093,14 +1177,25 @@ async function populatePackagesTable() {
         }
 
         
-        function togglePackageSelection(id) {
-            const pkg = packages.find(p => p.id === id);
-            if (pkg) {
-                pkg.selected = !pkg.selected;
-                selectedPackage = pkg.selected ? pkg : null;
-            }
-        }
-
+        async function togglePackageSelection(id) {
+    // Update in Supabase
+    const { error } = await supabase
+        .from('packages')
+        .update({ selected: !pkg.selected })
+        .eq('id', id);
+    
+    if (error) {
+        showToast('Paket durumu güncellenirken hata oluştu', 'error');
+        return;
+    }
+    
+    // Update local state
+    const pkg = packages.find(p => p.id === id);
+    if (pkg) {
+        pkg.selected = !pkg.selected;
+        selectedPackage = pkg.selected ? pkg : null;
+    }
+}
         function selectAllPackages() {
             selectAllCheckbox.checked = true;
             packages.forEach(p => p.selected = true);
@@ -1114,25 +1209,57 @@ async function populatePackagesTable() {
             selectedPackage = null;
         }
 
-        function deletePackage() {
-            const selectedPackages = packages.filter(p => p.selected);
-            if (selectedPackages.length === 0) { showToast('Lütfen silmek için bir paket seçin', 'error'); return; }
-            if (!confirm(`${selectedPackages.length} paketi silmek istediğinize emin misiniz?`)) return;
-            packages = packages.filter(p => !p.selected);
-            populatePackagesTable();
-            clearSelection();
-            showToast(`${selectedPackages.length} paket silindi`, 'success');
+        async function deletePackage() {
+    const selectedPackages = packages.filter(p => p.selected);
+    if (selectedPackages.length === 0) { 
+        showToast('Lütfen silmek için bir paket seçin', 'error'); 
+        return; 
+    }
+    
+    if (!confirm(`${selectedPackages.length} paketi silmek istediğinize emin misiniz?`)) return;
+    
+    // Delete from Supabase
+    for (const pkg of selectedPackages) {
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .eq('id', pkg.id);
+        
+        if (error) {
+            showToast(`Paket ${pkg.package_no} silinirken hata oluştu`, 'error');
+            return;
         }
-
-        function deleteContainer() {
-            if (!confirm('Konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
-            const idx = containers.findIndex(c => c.containerNo === currentContainer);
-            if (idx !== -1) containers.splice(idx, 1);
-            document.getElementById('containerNumber').textContent = 'Yok';
-            currentContainer = null;
-            populateShippingTable();
-            showToast('Konteyner silindi', 'success');
-        }
+    }
+    
+    // Update local state
+    packages = packages.filter(p => !p.selected);
+    populatePackagesTable();
+    clearSelection();
+    showToast(`${selectedPackages.length} paket silindi`, 'success');
+}
+       async function deleteContainer() {
+    if (!confirm('Konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
+    
+    // Delete from Supabase
+    const { error } = await supabase
+        .from('containers')
+        .delete()
+        .eq('container_no', currentContainer);
+    
+    if (error) {
+        showToast('Konteyner silinirken hata oluştu', 'error');
+        return;
+    }
+    
+    // Update local state
+    const idx = containers.findIndex(c => c.container_no === currentContainer);
+    if (idx !== -1) containers.splice(idx, 1);
+    
+    document.getElementById('containerNumber').textContent = 'Yok';
+    currentContainer = null;
+    populateShippingTable();
+    showToast('Konteyner silindi', 'success');
+}
 
         function printLabel() {
             const selectedPackages = packages.filter(p => p.selected);
@@ -1203,12 +1330,69 @@ async function populatePackagesTable() {
             populateStockTable();
         }
 
-        function uploadStockFile() {
-            const fileInput = document.getElementById('stockFileUpload');
-            const file = fileInput.files[0];
-            if (!file) { showToast('Lütfen bir dosya seçin', 'error'); return; }
-            showToast('Dosya yükleniyor...', 'warning');
-
+        async function uploadStockFile() {
+    const fileInput = document.getElementById('stockFileUpload');
+    const file = fileInput.files[0];
+    if (!file) { 
+        showToast('Lütfen bir dosya seçin', 'error'); 
+        return; 
+    }
+    
+    showToast('Dosya yükleniyor...', 'warning');
+    
+    try {
+        // Parse the file (CSV or Excel)
+        let stockData = [];
+        
+        if (file.name.endsWith('.csv')) {
+            const text = await file.text();
+            stockData = Papa.parse(text, { header: true }).data;
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            const arrayBuffer = await file.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            stockData = XLSX.utils.sheet_to_json(worksheet);
+        }
+        
+        // Process and upload to Supabase
+        for (const item of stockData) {
+            // Normalize field names
+            const code = item['Stok Kodu'] || item['code'] || item['StokKodu'] || '';
+            const name = item['Ürün Adı'] || item['name'] || item['ÜrünAdı'] || item['product'] || '';
+            const quantity = parseInt(item['Mevcut Adet'] || item['quantity'] || item['MevcutAdet'] || 0);
+            const unit = item['Birim'] || item['unit'] || 'Adet';
+            
+            if (!code || !name) continue;
+            
+            // Upsert to Supabase
+            const { error } = await supabase
+                .from('stock_items')
+                .upsert({
+                    code: code,
+                    name: name,
+                    quantity: quantity,
+                    unit: unit,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'code' });
+            
+            if (error) {
+                console.error('Error upserting stock item:', error);
+            }
+        }
+        
+        showToast('Stok dosyası başarıyla yüklendi', 'success');
+        document.getElementById('selectedFileName').textContent = '';
+        fileInput.value = '';
+        
+        // Refresh the stock table
+        populateStockTable();
+        
+    } catch (error) {
+        console.error('Error processing stock file:', error);
+        showToast('Dosya işlenirken hata oluştu', 'error');
+    }
+}
             // Simulated processing
             setTimeout(() => {
                 showToast('Stok dosyası başarıyla yüklendi', 'success');
@@ -1219,13 +1403,34 @@ async function populatePackagesTable() {
 
         function loadCurrentContainer() { showToast('Mevcut konteyner yüklendi', 'success'); }
 
-        function createNewContainer() {
-            const newContainerNo = `C${String(containers.length + 1).padStart(6, '0')}`;
-            document.getElementById('containerNumber').textContent = newContainerNo;
-            currentContainer = newContainerNo;
-            showToast(`Yeni konteyner oluşturuldu: ${newContainerNo}`, 'success');
-        }
-
+        async function createNewContainer() {
+    const containerNo = `C${String(containers.length + 1).padStart(6, '0')}`;
+    
+    // Create container in Supabase
+    const { data: newContainer, error } = await supabase
+        .from('containers')
+        .insert([{
+            container_no: containerNo,
+            customer: '',
+            package_count: 0,
+            total_quantity: 0,
+            status: 'beklemede',
+            package_ids: []
+        }])
+        .select();
+    
+    if (error) {
+        showToast('Konteyner oluşturulurken hata oluştu', 'error');
+        return;
+    }
+    
+    // Update local state
+    containers.push(newContainer[0]);
+    document.getElementById('containerNumber').textContent = containerNo;
+    currentContainer = containerNo;
+    
+    showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+}
         function closeModal() {
             modal.style.display = 'none';
             modal.setAttribute('aria-hidden','true');
