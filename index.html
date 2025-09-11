@@ -172,12 +172,14 @@
         <div class="login-form">
             <h1>ProClean - Oturum Aç</h1>
             <div class="form-group">
-                <label for="username">Kullanıcı Adı</label>
-                <input type="text" id="username" placeholder="Kullanıcı adınızı girin">
-            </div>
-            <div class="form-group">
-                <label for="password">Şifre</label>
-                <input type="password" id="password" placeholder="Şifrenizi girin">
+    <label for="email">E-posta</label>
+    <input type="email" id="email" placeholder="E-posta adresinizi girin">
+</div>
+<div class="form-group">
+    <label for="password">Şifre</label>
+    <input type="password" id="password" placeholder="Şifrenizi girin">
+</div>
+<button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
             </div>
            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
             <div style="text-align:center; margin-top:1rem;">
@@ -455,29 +457,7 @@
         </div>
     </div>
 
-    <script>
-        async function login() {
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
-
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
-
-    if (error) {
-      alert(error.message);
-    } else {
-      alert('Giriş başarılı!');
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('appContainer').style.display = 'block';
-    }
-  } catch (err) {
-    alert(err.message);
-  }
-}
-        
+    <script> 
      function logout() {
     supabase.auth.signOut().then(() => {
         currentUser = null;
@@ -1492,15 +1472,15 @@ async function populatePackagesTable() {
            Login / Logout
            ----------------------- */
 
-      window.addEventListener('DOMContentLoaded', () => {
+     window.addEventListener('DOMContentLoaded', () => {
     const loginBtn = document.getElementById("loginBtn");
     if (loginBtn) {
         loginBtn.onclick = async () => {
-            const email = document.getElementById("username").value;
+            const email = document.getElementById("email").value; // Changed from username to email
             const password = document.getElementById("password").value;
 
             if (!email || !password) {
-                alert("Lütfen kullanıcı adı ve şifre girin");
+                showToast("Lütfen e-posta ve şifre girin", "error");
                 return;
             }
 
@@ -1518,9 +1498,9 @@ async function populatePackagesTable() {
 
                 // Login successful
                 currentUser = {
-                    username: data.user.email,
+                    email: data.user.email,
                     uid: data.user.id,
-                    name: data.user.email.split('@')[0] // Or use user_metadata if available
+                    name: data.user.email.split('@')[0]
                 };
                 
                 document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
@@ -1536,6 +1516,28 @@ async function populatePackagesTable() {
             }
         };
     }
+
+    // Supabase auth state listener remains the same
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            // User is signed in
+            currentUser = {
+                email: session.user.email,
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
+            };
+            
+            document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
+            document.getElementById("loginScreen").style.display = "none";
+            document.getElementById("appContainer").style.display = "flex";
+            initApp();
+        } else {
+            // User is signed out
+            document.getElementById("loginScreen").style.display = "flex";
+            document.getElementById("appContainer").style.display = "none";
+        }
+    });
+});
 
     // Supabase auth state listener
     supabase.auth.onAuthStateChange((event, session) => {
