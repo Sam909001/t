@@ -173,9 +173,56 @@
         .package-table tr.selected:hover {
             background-color: #bbdefb !important;
         }
+        
+        .api-key-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1002;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .api-key-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        .api-key-input {
+            width: 100%;
+            padding: 0.8rem;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
+    <!-- API Key Giriş Modalı -->
+    <div class="api-key-modal" id="apiKeyModal">
+        <div class="api-key-content">
+            <h2>Supabase API Anahtarı Gerekli</h2>
+            <p>Uygulamayı kullanabilmek için geçerli bir Supabase API anahtarı girmeniz gerekiyor.</p>
+            <input type="text" id="apiKeyInput" class="api-key-input" placeholder="Supabase API Anahtarınızı girin">
+            <div class="quantity-buttons">
+                <button type="button" class="btn btn-primary" onclick="saveApiKey()">Kaydet</button>
+                <button type="button" class="btn btn-secondary" onclick="showApiKeyHelp()">Yardım</button>
+            </div>
+            <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                API anahtarını nasıl alacağınızı bilmiyorsanız "Yardım" butonuna tıklayın.
+            </p>
+        </div>
+    </div>
+
     <div class="login-container" id="loginScreen">
         <div class="login-form">
             <h1>ProClean - Oturum Aç</h1>
@@ -188,10 +235,14 @@
                 <input type="password" id="password" placeholder="Şifrenizi girin">
             </div>
             <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
+            <div style="margin-top: 1rem; text-align: center;">
+                <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
+            </div>
         </div>
     </div>
 
     <div class="app-container" id="appContainer" aria-hidden="true">
+        <!-- Uygulama içeriği aynı kalacak -->
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
@@ -397,6 +448,7 @@
         </div>
     </div>
 
+    <!-- Diğer modal ve HTML içerikleri aynı kalacak -->
     <!-- Customer Modal -->
     <div class="modal" id="customerModal">
         <div class="modal-content">
@@ -499,12 +551,106 @@
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
 <script>
-// Supabase initialization
-const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhbmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
+// Supabase initialization - Varsayılan değerler
+let SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
+let SUPABASE_ANON_KEY = '';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-console.log('Supabase client initialized successfully');
+// Kullanıcının kaydettiği API anahtarını yükle
+function loadApiKey() {
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        initializeSupabase();
+        return true;
+    }
+    return false;
+}
+
+// Supabase'i başlat
+function initializeSupabase() {
+    if (!SUPABASE_ANON_KEY) {
+        showApiKeyModal();
+        return null;
+    }
+    
+    try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase client initialized successfully');
+        return supabase;
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
+        showToast('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+        showApiKeyModal();
+        return null;
+    }
+}
+
+// API anahtarını kaydet
+function saveApiKey() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    if (!apiKey) {
+        showToast('Lütfen bir API anahtarı girin', 'error');
+        return;
+    }
+    
+    localStorage.setItem('procleanApiKey', apiKey);
+    SUPABASE_ANON_KEY = apiKey;
+    supabase = initializeSupabase();
+    
+    if (supabase) {
+        document.getElementById('apiKeyModal').style.display = 'none';
+        showToast('API anahtarı kaydedildi', 'success');
+        // Bağlantıyı test et
+        testConnection();
+    }
+}
+
+// API anahtarı modalını göster
+function showApiKeyModal() {
+    document.getElementById('apiKeyInput').value = SUPABASE_ANON_KEY || '';
+    document.getElementById('apiKeyModal').style.display = 'flex';
+}
+
+// API anahtarı yardımı göster
+function showApiKeyHelp() {
+    const helpWindow = window.open('', '_blank');
+    helpWindow.document.write(`
+        <html>
+        <head>
+            <title>Supabase API Anahtarı Alma Rehberi</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+                h1 { color: #2c3e50; }
+                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
+            <div class="step">
+                <h3>1. Supabase hesabınıza giriş yapın</h3>
+                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
+            </div>
+            <div class="step">
+                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
+            </div>
+            <div class="step">
+                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
+            </div>
+            <div class="step">
+                <h3>4. API sekmesine gidin</h3>
+            </div>
+            <div class="step">
+                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
+                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
+            </div>
+            <div class="step">
+                <h3>Önemli Not:</h3>
+                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
+            </div>
+        </body>
+        </html>
+    `);
+}
 
 // Global variables
 let currentUser = null;
@@ -514,6 +660,7 @@ let packages = [];
 let containers = [];
 let currentContainer = null;
 let selectedProduct = null;
+let supabase = null;
 
 // DOM elements
 const elements = {
@@ -543,69 +690,9 @@ const elements = {
     quantityModalTitle: document.getElementById('quantityModalTitle'),
     toast: document.getElementById('toast'),
     selectAllCheckbox: document.getElementById('selectAllPackages'),
-    shippingFilter: document.getElementById('shippingFilter')
+    shippingFilter: document.getElementById('shippingFilter'),
+    apiKeyModal: document.getElementById('apiKeyModal')
 };
-
-// State persistence functions
-function saveAppState() {
-    const state = {
-        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
-        selectedPersonnelId: elements.personnelSelect.value,
-        currentContainer: currentContainer,
-    };
-    localStorage.setItem('procleanState', JSON.stringify(state));
-}
-
-function loadAppState() {
-    const savedState = localStorage.getItem('procleanState');
-    if (savedState) {
-        const state = JSON.parse(savedState);
-        
-        // Restore customer selection
-        if (state.selectedCustomerId) {
-            elements.customerSelect.value = state.selectedCustomerId;
-            // Find and set the selectedCustomer object
-            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
-            if (option) {
-                selectedCustomer = {
-                    id: state.selectedCustomerId,
-                    name: option.textContent.split(' (')[0],
-                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                };
-            }
-        }
-        
-        // Restore personnel selection
-        if (state.selectedPersonnelId) {
-            elements.personnelSelect.value = state.selectedPersonnelId;
-        }
-        
-        // Restore current container
-        if (state.currentContainer) {
-            currentContainer = state.currentContainer;
-            elements.containerNumber.textContent = currentContainer;
-        }
-    }
-}
-
-function clearAppState() {
-    localStorage.removeItem('procleanState');
-    selectedCustomer = null;
-    elements.customerSelect.value = '';
-    elements.personnelSelect.value = '';
-    currentContainer = null;
-    elements.containerNumber.textContent = 'Yok';
-    currentPackage = {};
-    
-    // Reset quantity badges
-    document.querySelectorAll('.quantity-badge').forEach(badge => {
-        badge.textContent = '0';
-    });
-    
-    // Clear package details
-    document.getElementById('packageDetailContent').innerHTML = 
-        '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
-}
 
 // Authentication functions
 async function login() {
@@ -614,6 +701,13 @@ async function login() {
 
     if (!email || !password) {
         showToast("Lütfen e-posta ve şifre girin", "error");
+        return;
+    }
+
+    // Supabase bağlantısını kontrol et
+    if (!supabase) {
+        showToast("Önce geçerli bir API anahtarı girmelisiniz", "error");
+        showApiKeyModal();
         return;
     }
 
@@ -627,7 +721,14 @@ async function login() {
 
         if (error) {
             console.error('Supabase login error:', error);
-            showToast("Giriş başarısız: " + error.message, "error");
+            
+            // API anahtarı hatasını özel olarak kontrol et
+            if (error.message.includes('Invalid API key') || error.message.includes('JWT')) {
+                showToast("Geçersiz API anahtarı. Lütfen API anahtarınızı kontrol edin.", "error");
+                showApiKeyModal();
+            } else {
+                showToast("Giriş başarısız: " + error.message, "error");
+            }
             return;
         }
 
@@ -652,7 +753,6 @@ async function logout() {
         }
     }
     
-    clearAppState();
     currentUser = null;
     elements.appContainer.style.display = 'none';
     elements.appContainer.setAttribute('aria-hidden','true');
@@ -680,15 +780,19 @@ async function testConnection() {
 }
 
 // Initialize application
-async function initApp() {
+function initApp() {
+    // Önce API anahtarını yükle
+    if (!loadApiKey()) {
+        showApiKeyModal();
+        return;
+    }
+    
+    // Sonra uygulamayı başlat
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
     // Populate dropdowns
     await populateCustomers();
     await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
     
     // Load data
     await populatePackagesTable();
@@ -697,9 +801,6 @@ async function initApp() {
     
     // Test connection
     await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000); // Save every 5 seconds
 }
 
 // Data loading functions
@@ -773,6 +874,28 @@ async function populatePersonnel() {
     }
 }
 
+async function populateProducts() {
+    try {
+        const { data: products, error } = await supabase
+            .from('products')
+            .select('*')
+            .order('name');
+
+        if (error) {
+            console.error('Error loading products:', error);
+            return;
+        }
+
+        // Update quick buttons with actual products if needed
+        // This would require modifying the quick buttons section
+        
+    } catch (error) {
+        console.error('Error in populateProducts:', error);
+    }
+}
+
+<script>
+// Replace the current populatePackagesTable function with this improved version
 async function populatePackagesTable() {
     try {
         elements.packagesTableBody.innerHTML = '';
@@ -824,49 +947,115 @@ async function populatePackagesTable() {
     }
 }
 
-async function populateStockTable() {
+// Replace the current sendToRamp function with this real implementation
+async function sendToRamp(containerNo = null) {
     try {
-        elements.stockTableBody.innerHTML = '';
+        const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
+            .map(cb => cb.value);
         
-        const { data: stockItems, error } = await supabase
-            .from('stock_items')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading stock:', error);
-            showToast('Stok verileri yüklenemedi', 'error');
+        if (selectedPackages.length === 0) {
+            showToast('Rampaya göndermek için paket seçin', 'error');
             return;
         }
 
-        if (stockItems && stockItems.length > 0) {
-            stockItems.forEach(item => {
-                const status = item.quantity <= 0 ? 'kritik' : 
-                              item.quantity <= 10 ? 'az-stok' : 'stokta';
-                              
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${item.code}</td>
-                    <td>${item.name}</td>
-                    <td>${item.quantity}</td>
-                    <td>${item.unit || 'Adet'}</td>
-                    <td><span class="status-${status}">${status === 'kritik' ? 'Kritik' : status === 'az-stok' ? 'Az Stok' : 'Stokta'}</span></td>
-                    <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                `;
-                elements.stockTableBody.appendChild(row);
-            });
+        // Use existing container or create a new one
+        let containerId;
+        if (containerNo && currentContainer) {
+            containerId = currentContainer;
         } else {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Stok verisi yok</td>';
-            elements.stockTableBody.appendChild(row);
+            const timestamp = new Date().getTime();
+            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+            
+            const { data: newContainer, error } = await supabase
+                .from('containers')
+                .insert([{
+                    container_no: containerNo,
+                    customer: selectedCustomer?.name || '',
+                    package_count: selectedPackages.length,
+                    total_quantity: await calculateTotalQuantity(selectedPackages),
+                    status: 'beklemede',
+                    created_at: new Date().toISOString()
+                }])
+                .select();
+
+            if (error) throw error;
+            
+            containerId = newContainer[0].id;
+            currentContainer = containerNo;
+            elements.containerNumber.textContent = containerNo;
+            saveAppState();
         }
+
+        // Update packages with container reference
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ 
+                container_id: containerId,
+                status: 'sevk-edildi'
+            })
+            .in('id', selectedPackages);
+
+        if (updateError) throw updateError;
+
+        showToast(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
+        
+        // Refresh tables
+        await populatePackagesTable();
+        await populateShippingTable();
         
     } catch (error) {
-        console.error('Error in populateStockTable:', error);
-        showToast('Stok tablosu yükleme hatası', 'error');
+        console.error('Error sending to ramp:', error);
+        showToast('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
     }
 }
 
+// Helper function to calculate total quantity of selected packages
+async function calculateTotalQuantity(packageIds) {
+    try {
+        const { data: packages, error } = await supabase
+            .from('packages')
+            .select('total_quantity')
+            .in('id', packageIds);
+            
+        if (error) throw error;
+        
+        return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+    } catch (error) {
+        console.error('Error calculating total quantity:', error);
+        return packageIds.length; // Fallback to package count
+    }
+}
+
+// Update the shipContainer function
+async function shipContainer(containerNo) {
+    try {
+        // First get the container ID
+        const { data: container, error: fetchError } = await supabase
+            .from('containers')
+            .select('id')
+            .eq('container_no', containerNo)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        // Update container status
+        const { error: updateError } = await supabase
+            .from('containers')
+            .update({ status: 'sevk-edildi' })
+            .eq('id', container.id);
+
+        if (updateError) throw updateError;
+
+        showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
+        await populateShippingTable();
+        
+    } catch (error) {
+        console.error('Error shipping container:', error);
+        showToast('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Update the populateShippingTable function to show real container data
 async function populateShippingTable() {
     try {
         elements.shippingTableBody.innerHTML = '';
@@ -916,6 +1105,47 @@ async function populateShippingTable() {
     }
 }
 
+// Update the createNewContainer function
+async function createNewContainer() {
+    try {
+        const timestamp = new Date().getTime();
+        const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+        
+        const { data: newContainer, error } = await supabase
+            .from('containers')
+            .insert([{
+                container_no: containerNo,
+                customer: selectedCustomer?.name || '',
+                package_count: 0,
+                total_quantity: 0,
+                status: 'beklemede',
+                created_at: new Date().toISOString()
+            }])
+            .select();
+
+        if (error) throw error;
+
+        elements.containerNumber.textContent = containerNo;
+        currentContainer = containerNo;
+        saveAppState();
+        
+        showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+        await populateShippingTable();
+        
+    } catch (error) {
+        console.error('Error creating container:', error);
+        showToast('Konteyner oluşturulurken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Update the UI to include a button for adding packages to containers
+// Add this to the packaging-header section in the HTML
+<div class="action-buttons">
+    <button type="button" class="btn btn-primary" onclick="showAllCustomers()">Müşteri Yönetimi</button>
+    <button type="button" class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
+    <button type="button" class="btn btn-success" onclick="sendToRamp()">Konteynere Ekle</button>
+</div>
+    
 // Customer operations
 async function showCustomers() {
     try {
@@ -1184,6 +1414,21 @@ async function completePackage() {
         showToast('Paket oluşturma hatası', 'error');
     }
 }
+        
+        // Reset current package and quantities
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => {
+            badge.textContent = '0';
+        });
+        
+        // Refresh packages table
+        await populatePackagesTable();
+        
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showToast('Paket oluşturma hatası', 'error');
+    }
+}
 
 function selectPackage(pkg) {
     // Remove selected class from all rows
@@ -1217,34 +1462,6 @@ function selectPackage(pkg) {
             </ul>
         ` : ''}
     `;
-}
-
-// Helper function to generate barcode
-function generateBarcode(code) {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    JsBarcode(svg, code, {
-        format: "CODE128",
-        width: 2,
-        height: 40,
-        displayValue: true
-    });
-    return svg.outerHTML;
-}
-
-// Helper function to get selected package
-function getSelectedPackage() {
-    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
-    if (!selectedRow) return null;
-    
-    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-    // In a real implementation, you would fetch the complete package data
-    // For now, we'll use the data from the row
-    return {
-        package_no: selectedRow.cells[1].textContent,
-        customers: { name: selectedRow.cells[2].textContent },
-        total_quantity: parseInt(selectedRow.cells[3].textContent),
-        created_at: selectedRow.cells[4].textContent
-    };
 }
 
 async function printLabel() {
@@ -1291,6 +1508,21 @@ async function printLabel() {
         console.error('Error printing label:', error);
         showToast('Etiket yazdırılırken hata oluştu', 'error');
     }
+}
+    // Helper function to get selected package
+function getSelectedPackage() {
+    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
+    if (!selectedRow) return null;
+    
+    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
+    // In a real implementation, you would fetch the complete package data
+    // For now, we'll use the data from the row
+    return {
+        package_no: selectedRow.cells[1].textContent,
+        customers: { name: selectedRow.cells[2].textContent },
+        total_quantity: parseInt(selectedRow.cells[3].textContent),
+        created_at: selectedRow.cells[4].textContent
+    };
 }
 
 async function deleteSelectedPackages() {
@@ -1341,110 +1573,66 @@ function updatePackageSelection() {
     elements.selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
 }
 
-// Helper function to calculate total quantity of selected packages
-async function calculateTotalQuantity(packageIds) {
-    try {
-        const { data: packages, error } = await supabase
-            .from('packages')
-            .select('total_quantity')
-            .in('id', packageIds);
-            
-        if (error) throw error;
-        
-        return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
-    } catch (error) {
-        console.error('Error calculating total quantity:', error);
-        return packageIds.length; // Fallback to package count
-    }
-}
-
 // Shipping operations
-async function sendToRamp(containerNo = null) {
+async function sendToRamp(containerNo) {
     try {
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
-            .map(cb => cb.value);
+            .map(cb => ({ id: cb.value }));
         
         if (selectedPackages.length === 0) {
             showToast('Rampaya göndermek için paket seçin', 'error');
             return;
         }
 
-        // Use existing container or create a new one
-        let containerId;
-        if (containerNo && currentContainer) {
-            containerId = currentContainer;
-        } else {
-            const timestamp = new Date().getTime();
-            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-            
-            const { data: newContainer, error } = await supabase
-                .from('containers')
-                .insert([{
-                    container_no: containerNo,
-                    customer: selectedCustomer?.name || '',
-                    package_count: selectedPackages.length,
-                    total_quantity: await calculateTotalQuantity(selectedPackages),
-                    status: 'beklemede',
-                    created_at: new Date().toISOString()
-                }])
-                .select();
+        // Create or update container
+        const { data: newContainer, error } = await supabase
+            .from('containers')
+            .insert([{
+                container_no: containerNo,
+                customer: selectedCustomer?.name || '',
+                package_count: selectedPackages.length,
+                total_quantity: selectedPackages.length, // This should be calculated properly
+                status: 'beklemede',
+                package_ids: selectedPackages.map(p => p.id)
+            }])
+            .select();
 
-            if (error) throw error;
-            
-            containerId = newContainer[0].id;
-            currentContainer = containerNo;
-            elements.containerNumber.textContent = containerNo;
-            saveAppState();
+        if (error) {
+            console.error('Error creating container:', error);
+            showToast('Konteyner oluşturulurken hata: ' + error.message, 'error');
+            return;
         }
 
         // Update packages with container reference
-        const { error: updateError } = await supabase
-            .from('packages')
-            .update({ 
-                container_id: containerId,
-                status: 'sevk-edildi'
-            })
-            .in('id', selectedPackages);
+        for (const pkg of selectedPackages) {
+            await supabase
+                .from('packages')
+                .update({ container_id: newContainer[0].id })
+                .eq('id', pkg.id);
+        }
 
-        if (updateError) throw updateError;
-
-        showToast(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
-        
-        // Refresh tables
-        await populatePackagesTable();
+        showToast(`${selectedPackages.length} paket rampaya gönderildi`, 'success');
         await populateShippingTable();
         
     } catch (error) {
         console.error('Error sending to ramp:', error);
-        showToast('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
+        showToast('Rampaya gönderilirken hata oluştu', 'error');
     }
 }
 
 async function shipContainer(containerNo) {
     try {
-        // First get the container ID
-        const { data: container, error: fetchError } = await supabase
-            .from('containers')
-            .select('id')
-            .eq('container_no', containerNo)
-            .single();
-
-        if (fetchError) throw fetchError;
-
-        // Update container status
-        const { error: updateError } = await supabase
+        await supabase
             .from('containers')
             .update({ status: 'sevk-edildi' })
-            .eq('id', container.id);
-
-        if (updateError) throw updateError;
+            .eq('container_no', containerNo);
 
         showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
         await populateShippingTable();
         
     } catch (error) {
         console.error('Error shipping container:', error);
-        showToast('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
+        showToast('Konteyner sevk edilirken hata oluştu', 'error');
     }
 }
 
@@ -1630,11 +1818,11 @@ async function createNewContainer() {
             .from('containers')
             .insert([{
                 container_no: containerNo,
-                customer: selectedCustomer?.name || '',
+                customer: '',
                 package_count: 0,
                 total_quantity: 0,
                 status: 'beklemede',
-                created_at: new Date().toISOString()
+                package_ids: []
             }])
             .select();
 
@@ -1642,14 +1830,13 @@ async function createNewContainer() {
 
         elements.containerNumber.textContent = containerNo;
         currentContainer = containerNo;
-        saveAppState();
         
         showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
         await populateShippingTable();
         
     } catch (error) {
         console.error('Error creating container:', error);
-        showToast('Konteyner oluşturulurken hata oluştu: ' + error.message, 'error');
+        showToast('Konteyner oluşturulurken hata oluştu', 'error');
     }
 }
 
@@ -1664,7 +1851,6 @@ async function deleteContainer() {
 
         elements.containerNumber.textContent = 'Yok';
         currentContainer = null;
-        saveAppState();
         
         showToast('Konteyner silindi', 'success');
         await populateShippingTable();
@@ -1760,6 +1946,14 @@ supabase.auth.onAuthStateChange((event, session) => {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
+
+        // API anahtarını yükle ve supabase'i başlat
+    if (loadApiKey()) {
+        supabase = initializeSupabase();
+    } else {
+        showApiKeyModal();
+    }
+    
     // Login button event
     document.getElementById('loginBtn').addEventListener('click', login);
     
@@ -1804,15 +1998,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
             };
             showToast(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
-            saveAppState();
         } else {
             selectedCustomer = null;
         }
-    });
-    
-    // Personnel select change
-    elements.personnelSelect.addEventListener('change', function() {
-        saveAppState();
     });
     
     // Initial state
@@ -1821,6 +2009,114 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 console.log('ProClean application initialized with Supabase authentication');
+</script>
+    <script>
+// Add these functions to handle state persistence
+function saveAppState() {
+    const state = {
+        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
+        selectedPersonnelId: elements.personnelSelect.value,
+        currentContainer: currentContainer,
+        // Add other state variables as needed
+    };
+    localStorage.setItem('procleanState', JSON.stringify(state));
+}
+
+function loadAppState() {
+    const savedState = localStorage.getItem('procleanState');
+    if (savedState) {
+        const state = JSON.parse(savedState);
+        
+        // Restore customer selection
+        if (state.selectedCustomerId) {
+            elements.customerSelect.value = state.selectedCustomerId;
+            // Find and set the selectedCustomer object
+            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+            if (option) {
+                selectedCustomer = {
+                    id: state.selectedCustomerId,
+                    name: option.textContent.split(' (')[0],
+                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
+            }
+        }
+        
+        // Restore personnel selection
+        if (state.selectedPersonnelId) {
+            elements.personnelSelect.value = state.selectedPersonnelId;
+        }
+        
+        // Restore current container
+        if (state.currentContainer) {
+            currentContainer = state.currentContainer;
+            elements.containerNumber.textContent = currentContainer;
+        }
+    }
+}
+
+function clearAppState() {
+    localStorage.removeItem('procleanState');
+    selectedCustomer = null;
+    elements.customerSelect.value = '';
+    elements.personnelSelect.value = '';
+    currentContainer = null;
+    elements.containerNumber.textContent = 'Yok';
+    currentPackage = {};
+    
+    // Reset quantity badges
+    document.querySelectorAll('.quantity-badge').forEach(badge => {
+        badge.textContent = '0';
+    });
+    
+    // Clear package details
+    document.getElementById('packageDetailContent').innerHTML = 
+        '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+}
+
+// Call loadAppState after initializing the app
+async function initApp() {
+    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    
+    // Populate dropdowns
+    await populateCustomers();
+    await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
+    
+    // Load data
+    await populatePackagesTable();
+    await populateStockTable();
+    await populateShippingTable();
+    
+    // Test connection
+    await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000); // Save every 5 seconds
+}
+
+// Update the logout function to clear state
+async function logout() {
+    if (supabase) {
+        try {
+            await supabase.auth.signOut();
+            console.log('Supabase logout successful');
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    }
+    
+    clearAppState();
+    currentUser = null;
+    elements.appContainer.style.display = 'none';
+    elements.appContainer.setAttribute('aria-hidden','true');
+    elements.loginScreen.style.display = 'flex';
+    document.getElementById('email').value = '';
+    document.getElementById('password').value = '';
+    closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
+    showToast('Başarıyla çıkış yapıldı', 'success');
+}
 </script>
 </body>
 </html>
