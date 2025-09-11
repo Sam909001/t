@@ -611,6 +611,8 @@
 
 <script>
 // Supabase initialization - Varsayılan değerler
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+let SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Global variables
 let currentUser = null;
