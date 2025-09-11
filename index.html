@@ -430,6 +430,9 @@
                 <div class="stock-search">
                     <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
                     <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
+                    <button type="button" class="btn btn-info" onclick="generateDailyReport()" style="margin-left: 0.5rem;">
+                        <i class="fas fa-file-pdf"></i> Günlük Rapor PDF
+                    </button>
                 </div>
 
                 <table class="stock-table">
@@ -849,6 +852,185 @@ async function populatePackagesTable() {
     } catch (error) {
         console.error('Error in populatePackagesTable:', error);
         showToast('Paket tablosu yükleme hatası', 'error');
+    }
+}
+
+// Generate Professional Daily Report PDF
+async function generateDailyReport() {
+    try {
+        showToast('Günlük rapor oluşturuluyor...', 'info');
+        
+        // Fetch all data for the report
+        const [packagesResponse, containersResponse, customersResponse, stockResponse] = await Promise.all([
+            supabase.from('packages').select('*, customers(name, code)').order('created_at', { ascending: false }),
+            supabase.from('containers').select('*').order('created_at', { ascending: false }),
+            supabase.from('customers').select('*').order('name'),
+            supabase.from('stock_items').select('*').in('quantity', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).order('quantity')
+        ]);
+        
+        const packages = packagesResponse.data || [];
+        const containers = containersResponse.data || [];
+        const customers = customersResponse.data || [];
+        const criticalStock = stockResponse.data || [];
+        
+        // Create PDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Header
+        const today = new Date().toLocaleDateString('tr-TR');
+        doc.setFontSize(20);
+        doc.setTextColor(44, 62, 80);
+        doc.text('ProClean Çamaşırhane', 105, 20, { align: 'center' });
+        doc.setFontSize(16);
+        doc.text('Günlük Durum Raporu', 105, 30, { align: 'center' });
+        doc.setFontSize(12);
+        doc.text(`Rapor Tarihi: ${today}`, 105, 40, { align: 'center' });
+        
+        let yPos = 55;
+        
+        // Summary Section
+        doc.setFontSize(14);
+        doc.setTextColor(52, 73, 94);
+        doc.text('📊 GÜNLÜK ÖZET', 20, yPos);
+        yPos += 10;
+        
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        const todayPackages = packages.filter(p => new Date(p.created_at).toDateString() === new Date().toDateString());
+        const pendingPackages = packages.filter(p => p.status === 'beklemede');
+        const criticalStockCount = criticalStock.filter(s => s.quantity <= 3).length;
+        const lowStockCount = criticalStock.filter(s => s.quantity > 3 && s.quantity <= 10).length;
+        
+        doc.text(`• Bugün oluşturulan paketler: ${todayPackages.length}`, 25, yPos);
+        doc.text(`• Beklemede olan paketler: ${pendingPackages.length}`, 25, yPos + 7);
+        doc.text(`• Aktif konteynerler: ${containers.length}`, 25, yPos + 14);
+        doc.text(`• Toplam müşteri sayısı: ${customers.length}`, 25, yPos + 21);
+        doc.text(`• Kritik stok (≤3): ${criticalStockCount}`, 25, yPos + 28);
+        doc.text(`• Düşük stok (4-10): ${lowStockCount}`, 25, yPos + 35);
+        
+        yPos += 50;
+        
+        // Packages Section
+        if (packages.length > 0) {
+            doc.setFontSize(14);
+            doc.setTextColor(52, 73, 94);
+            doc.text('📦 PAKET DURUMU', 20, yPos);
+            yPos += 10;
+            
+            const packageTableData = packages.slice(0, 15).map(pkg => [
+                pkg.package_no,
+                pkg.customers?.name || 'N/A',
+                pkg.total_quantity.toString(),
+                new Date(pkg.created_at).toLocaleDateString('tr-TR'),
+                pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'
+            ]);
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Durum']],
+                body: packageTableData,
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [52, 73, 94] },
+                margin: { left: 20, right: 20 }
+            });
+            
+            yPos = doc.lastAutoTable.finalY + 15;
+        }
+        
+        // Add new page if needed
+        if (yPos > 220) {
+            doc.addPage();
+            yPos = 20;
+        }
+        
+        // Critical Stock Section
+        if (criticalStock.length > 0) {
+            doc.setFontSize(14);
+            doc.setTextColor(231, 76, 60);
+            doc.text('⚠️ KRİTİK & DÜŞÜK STOK', 20, yPos);
+            yPos += 10;
+            
+            const stockTableData = criticalStock.map(item => {
+                const status = item.quantity <= 3 ? 'KRİTİK' : 'DÜŞÜK';
+                return [
+                    item.code,
+                    item.name,
+                    item.quantity.toString(),
+                    item.unit || 'Adet',
+                    status
+                ];
+            });
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['Stok Kodu', 'Ürün Adı', 'Miktar', 'Birim', 'Durum']],
+                body: stockTableData,
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [231, 76, 60] },
+                bodyStyles: {
+                    fillColor: (rowIndex, columnIndex, cell) => {
+                        return stockTableData[rowIndex][4] === 'KRİTİK' ? [255, 235, 235] : [255, 248, 235];
+                    }
+                },
+                margin: { left: 20, right: 20 }
+            });
+            
+            yPos = doc.lastAutoTable.finalY + 15;
+        }
+        
+        // Add new page if needed
+        if (yPos > 220) {
+            doc.addPage();
+            yPos = 20;
+        }
+        
+        // Containers Section
+        if (containers.length > 0) {
+            doc.setFontSize(14);
+            doc.setTextColor(52, 73, 94);
+            doc.text('📦 KONTEYNER DURUMU', 20, yPos);
+            yPos += 10;
+            
+            const containerTableData = containers.slice(0, 10).map(container => [
+                container.container_no,
+                container.package_count?.toString() || '0',
+                container.total_quantity?.toString() || '0',
+                new Date(container.created_at).toLocaleDateString('tr-TR'),
+                container.status || 'Aktif'
+            ]);
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['Konteyner No', 'Paket Sayısı', 'Toplam Adet', 'Oluşturma Tarihi', 'Durum']],
+                body: containerTableData,
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [52, 73, 94] },
+                margin: { left: 20, right: 20 }
+            });
+            
+            yPos = doc.lastAutoTable.finalY + 15;
+        }
+        
+        // Footer
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(128, 128, 128);
+            doc.text(`ProClean Çamaşırhane Yönetim Sistemi - Sayfa ${i}/${pageCount}`, 105, 285, { align: 'center' });
+            doc.text(`Rapor oluşturma: ${new Date().toLocaleString('tr-TR')}`, 105, 292, { align: 'center' });
+        }
+        
+        // Save PDF
+        const fileName = `ProClean_Gunluk_Rapor_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+        
+        showToast('Günlük rapor başarıyla oluşturuldu!', 'success');
+        
+    } catch (error) {
+        console.error('Error generating daily report:', error);
+        showToast('Rapor oluşturma hatası: ' + error.message, 'error');
     }
 }
 
