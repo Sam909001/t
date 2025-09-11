@@ -11,7 +11,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
@@ -555,6 +554,48 @@
 let SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = '';
 
+// Global variables
+let currentUser = null;
+let selectedCustomer = null;
+let currentPackage = {};
+let packages = [];
+let containers = [];
+let currentContainer = null;
+let selectedProduct = null;
+let supabase = null;
+
+// DOM elements
+const elements = {
+    loginScreen: document.getElementById('loginScreen'),
+    appContainer: document.getElementById('appContainer'),
+    userRole: document.getElementById('userRole'),
+    customerSelect: document.getElementById('customerSelect'),
+    personnelSelect: document.getElementById('personnelSelect'),
+    currentDate: document.getElementById('currentDate'),
+    barcodeInput: document.getElementById('barcodeInput'),
+    packagesTableBody: document.getElementById('packagesTableBody'),
+    stockTableBody: document.getElementById('stockTableBody'),
+    shippingTableBody: document.getElementById('shippingTableBody'),
+    containerNumber: document.getElementById('containerNumber'),
+    totalPackages: document.getElementById('totalPackages'),
+    customerModal: document.getElementById('customerModal'),
+    allCustomersModal: document.getElementById('allCustomersModal'),
+    emailModal: document.getElementById('emailModal'),
+    quantityModal: document.getElementById('quantityModal'),
+    manualModal: document.getElementById('manualModal'),
+    customerList: document.getElementById('customerList'),
+    allCustomersList: document.getElementById('allCustomersList'),
+    stockSearch: document.getElementById('stockSearch'),
+    selectedFileName: document.getElementById('selectedFileName'),
+    reportEmail: document.getElementById('reportEmail'),
+    quantityInput: document.getElementById('quantityInput'),
+    quantityModalTitle: document.getElementById('quantityModalTitle'),
+    toast: document.getElementById('toast'),
+    selectAllCheckbox: document.getElementById('selectAllPackages'),
+    shippingFilter: document.getElementById('shippingFilter'),
+    apiKeyModal: document.getElementById('apiKeyModal')
+};
+
 // Kullanıcının kaydettiği API anahtarını yükle
 function loadApiKey() {
     const savedApiKey = localStorage.getItem('procleanApiKey');
@@ -652,47 +693,21 @@ function showApiKeyHelp() {
     `);
 }
 
-// Global variables
-let currentUser = null;
-let selectedCustomer = null;
-let currentPackage = {};
-let packages = [];
-let containers = [];
-let currentContainer = null;
-let selectedProduct = null;
-let supabase = null;
-
-// DOM elements
-const elements = {
-    loginScreen: document.getElementById('loginScreen'),
-    appContainer: document.getElementById('appContainer'),
-    userRole: document.getElementById('userRole'),
-    customerSelect: document.getElementById('customerSelect'),
-    personnelSelect: document.getElementById('personnelSelect'),
-    currentDate: document.getElementById('currentDate'),
-    barcodeInput: document.getElementById('barcodeInput'),
-    packagesTableBody: document.getElementById('packagesTableBody'),
-    stockTableBody: document.getElementById('stockTableBody'),
-    shippingTableBody: document.getElementById('shippingTableBody'),
-    containerNumber: document.getElementById('containerNumber'),
-    totalPackages: document.getElementById('totalPackages'),
-    customerModal: document.getElementById('customerModal'),
-    allCustomersModal: document.getElementById('allCustomersModal'),
-    emailModal: document.getElementById('emailModal'),
-    quantityModal: document.getElementById('quantityModal'),
-    manualModal: document.getElementById('manualModal'),
-    customerList: document.getElementById('customerList'),
-    allCustomersList: document.getElementById('allCustomersList'),
-    stockSearch: document.getElementById('stockSearch'),
-    selectedFileName: document.getElementById('selectedFileName'),
-    reportEmail: document.getElementById('reportEmail'),
-    quantityInput: document.getElementById('quantityInput'),
-    quantityModalTitle: document.getElementById('quantityModalTitle'),
-    toast: document.getElementById('toast'),
-    selectAllCheckbox: document.getElementById('selectAllPackages'),
-    shippingFilter: document.getElementById('shippingFilter'),
-    apiKeyModal: document.getElementById('apiKeyModal')
-};
+// Test Supabase connection
+async function testConnection() {
+    try {
+        const { data, error } = await supabase.from('customers').select('count').limit(1);
+        if (error) {
+            console.error('Supabase connection error:', error);
+            showToast('Veritabanı bağlantı hatası', 'error');
+        } else {
+            console.log('Supabase connection successful');
+        }
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        showToast('Bağlantı testi başarısız', 'error');
+    }
+}
 
 // Authentication functions
 async function login() {
@@ -763,36 +778,78 @@ async function logout() {
     showToast('Başarıyla çıkış yapıldı', 'success');
 }
 
-// Test Supabase connection
-async function testConnection() {
-    try {
-        const { data, error } = await supabase.from('customers').select('count').limit(1);
-        if (error) {
-            console.error('Supabase connection error:', error);
-            showToast('Veritabanı bağlantı hatası', 'error');
-        } else {
-            console.log('Supabase connection successful');
+// State management functions
+function saveAppState() {
+    const state = {
+        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
+        selectedPersonnelId: elements.personnelSelect.value,
+        currentContainer: currentContainer,
+        // Add other state variables as needed
+    };
+    localStorage.setItem('procleanState', JSON.stringify(state));
+}
+
+function loadAppState() {
+    const savedState = localStorage.getItem('procleanState');
+    if (savedState) {
+        const state = JSON.parse(savedState);
+        
+        // Restore customer selection
+        if (state.selectedCustomerId) {
+            elements.customerSelect.value = state.selectedCustomerId;
+            // Find and set the selectedCustomer object
+            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+            if (option) {
+                selectedCustomer = {
+                    id: state.selectedCustomerId,
+                    name: option.textContent.split(' (')[0],
+                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
+            }
         }
-    } catch (error) {
-        console.error('Connection test failed:', error);
-        showToast('Bağlantı testi başarısız', 'error');
+        
+        // Restore personnel selection
+        if (state.selectedPersonnelId) {
+            elements.personnelSelect.value = state.selectedPersonnelId;
+        }
+        
+        // Restore current container
+        if (state.currentContainer) {
+            currentContainer = state.currentContainer;
+            elements.containerNumber.textContent = currentContainer;
+        }
     }
 }
 
-// Initialize application
-function initApp() {
-    // Önce API anahtarını yükle
-    if (!loadApiKey()) {
-        showApiKeyModal();
-        return;
-    }
+function clearAppState() {
+    localStorage.removeItem('procleanState');
+    selectedCustomer = null;
+    elements.customerSelect.value = '';
+    elements.personnelSelect.value = '';
+    currentContainer = null;
+    elements.containerNumber.textContent = 'Yok';
+    currentPackage = {};
     
-    // Sonra uygulamayı başlat
+    // Reset quantity badges
+    document.querySelectorAll('.quantity-badge').forEach(badge => {
+        badge.textContent = '0';
+    });
+    
+    // Clear package details
+    document.getElementById('packageDetailContent').innerHTML = 
+        '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+}
+
+// Initialize application
+async function initApp() {
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
     // Populate dropdowns
     await populateCustomers();
     await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
     
     // Load data
     await populatePackagesTable();
@@ -801,6 +858,9 @@ function initApp() {
     
     // Test connection
     await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000); // Save every 5 seconds
 }
 
 // Data loading functions
@@ -894,8 +954,6 @@ async function populateProducts() {
     }
 }
 
-<script>
-// Replace the current populatePackagesTable function with this improved version
 async function populatePackagesTable() {
     try {
         elements.packagesTableBody.innerHTML = '';
@@ -947,68 +1005,6 @@ async function populatePackagesTable() {
     }
 }
 
-// Replace the current sendToRamp function with this real implementation
-async function sendToRamp(containerNo = null) {
-    try {
-        const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
-            .map(cb => cb.value);
-        
-        if (selectedPackages.length === 0) {
-            showToast('Rampaya göndermek için paket seçin', 'error');
-            return;
-        }
-
-        // Use existing container or create a new one
-        let containerId;
-        if (containerNo && currentContainer) {
-            containerId = currentContainer;
-        } else {
-            const timestamp = new Date().getTime();
-            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-            
-            const { data: newContainer, error } = await supabase
-                .from('containers')
-                .insert([{
-                    container_no: containerNo,
-                    customer: selectedCustomer?.name || '',
-                    package_count: selectedPackages.length,
-                    total_quantity: await calculateTotalQuantity(selectedPackages),
-                    status: 'beklemede',
-                    created_at: new Date().toISOString()
-                }])
-                .select();
-
-            if (error) throw error;
-            
-            containerId = newContainer[0].id;
-            currentContainer = containerNo;
-            elements.containerNumber.textContent = containerNo;
-            saveAppState();
-        }
-
-        // Update packages with container reference
-        const { error: updateError } = await supabase
-            .from('packages')
-            .update({ 
-                container_id: containerId,
-                status: 'sevk-edildi'
-            })
-            .in('id', selectedPackages);
-
-        if (updateError) throw updateError;
-
-        showToast(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
-        
-        // Refresh tables
-        await populatePackagesTable();
-        await populateShippingTable();
-        
-    } catch (error) {
-        console.error('Error sending to ramp:', error);
-        showToast('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
-    }
-}
-
 // Helper function to calculate total quantity of selected packages
 async function calculateTotalQuantity(packageIds) {
     try {
@@ -1026,36 +1022,6 @@ async function calculateTotalQuantity(packageIds) {
     }
 }
 
-// Update the shipContainer function
-async function shipContainer(containerNo) {
-    try {
-        // First get the container ID
-        const { data: container, error: fetchError } = await supabase
-            .from('containers')
-            .select('id')
-            .eq('container_no', containerNo)
-            .single();
-
-        if (fetchError) throw fetchError;
-
-        // Update container status
-        const { error: updateError } = await supabase
-            .from('containers')
-            .update({ status: 'sevk-edildi' })
-            .eq('id', container.id);
-
-        if (updateError) throw updateError;
-
-        showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
-        await populateShippingTable();
-        
-    } catch (error) {
-        console.error('Error shipping container:', error);
-        showToast('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-// Update the populateShippingTable function to show real container data
 async function populateShippingTable() {
     try {
         elements.shippingTableBody.innerHTML = '';
@@ -1105,47 +1071,59 @@ async function populateShippingTable() {
     }
 }
 
-// Update the createNewContainer function
-async function createNewContainer() {
+async function populateStockTable() {
     try {
-        const timestamp = new Date().getTime();
-        const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+        elements.stockTableBody.innerHTML = '';
         
-        const { data: newContainer, error } = await supabase
-            .from('containers')
-            .insert([{
-                container_no: containerNo,
-                customer: selectedCustomer?.name || '',
-                package_count: 0,
-                total_quantity: 0,
-                status: 'beklemede',
-                created_at: new Date().toISOString()
-            }])
-            .select();
+        const { data: stockItems, error } = await supabase
+            .from('stock_items')
+            .select('*')
+            .order('name');
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error loading stock items:', error);
+            showToast('Stok verileri yüklenemedi', 'error');
+            return;
+        }
 
-        elements.containerNumber.textContent = containerNo;
-        currentContainer = containerNo;
-        saveAppState();
-        
-        showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
-        await populateShippingTable();
+        if (stockItems && stockItems.length > 0) {
+            stockItems.forEach(item => {
+                const row = document.createElement('tr');
+                
+                // Determine stock status
+                let statusClass = 'status-stokta';
+                let statusText = 'Stokta';
+                
+                if (item.quantity <= 0) {
+                    statusClass = 'status-kritik';
+                    statusText = 'Kritik';
+                } else if (item.quantity < 10) {
+                    statusClass = 'status-az-stok';
+                    statusText = 'Az Stok';
+                }
+                
+                row.innerHTML = `
+                    <td>${item.code}</td>
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.unit || 'Adet'}</td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                    <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                `;
+                elements.stockTableBody.appendChild(row);
+            });
+        } else {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Stok verisi yok</td>';
+            elements.stockTableBody.appendChild(row);
+        }
         
     } catch (error) {
-        console.error('Error creating container:', error);
-        showToast('Konteyner oluşturulurken hata oluştu: ' + error.message, 'error');
+        console.error('Error in populateStockTable:', error);
+        showToast('Stok tablosu yükleme hatası', 'error');
     }
 }
 
-// Update the UI to include a button for adding packages to containers
-// Add this to the packaging-header section in the HTML
-<div class="action-buttons">
-    <button type="button" class="btn btn-primary" onclick="showAllCustomers()">Müşteri Yönetimi</button>
-    <button type="button" class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
-    <button type="button" class="btn btn-success" onclick="sendToRamp()">Konteynere Ekle</button>
-</div>
-    
 // Customer operations
 async function showCustomers() {
     try {
@@ -1414,21 +1392,6 @@ async function completePackage() {
         showToast('Paket oluşturma hatası', 'error');
     }
 }
-        
-        // Reset current package and quantities
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => {
-            badge.textContent = '0';
-        });
-        
-        // Refresh packages table
-        await populatePackagesTable();
-        
-    } catch (error) {
-        console.error('Error in completePackage:', error);
-        showToast('Paket oluşturma hatası', 'error');
-    }
-}
 
 function selectPackage(pkg) {
     // Remove selected class from all rows
@@ -1462,6 +1425,34 @@ function selectPackage(pkg) {
             </ul>
         ` : ''}
     `;
+}
+
+function generateBarcode(text) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    JsBarcode(svg, text, {
+        format: "CODE128",
+        lineColor: "#000",
+        width: 2,
+        height: 40,
+        displayValue: true
+    });
+    return svg.outerHTML;
+}
+
+// Helper function to get selected package
+function getSelectedPackage() {
+    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
+    if (!selectedRow) return null;
+    
+    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
+    // In a real implementation, you would fetch the complete package data
+    // For now, we'll use the data from the row
+    return {
+        package_no: selectedRow.cells[1].textContent,
+        customers: { name: selectedRow.cells[2].textContent },
+        total_quantity: parseInt(selectedRow.cells[3].textContent),
+        created_at: selectedRow.cells[4].textContent
+    };
 }
 
 async function printLabel() {
@@ -1508,21 +1499,6 @@ async function printLabel() {
         console.error('Error printing label:', error);
         showToast('Etiket yazdırılırken hata oluştu', 'error');
     }
-}
-    // Helper function to get selected package
-function getSelectedPackage() {
-    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
-    if (!selectedRow) return null;
-    
-    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-    // In a real implementation, you would fetch the complete package data
-    // For now, we'll use the data from the row
-    return {
-        package_no: selectedRow.cells[1].textContent,
-        customers: { name: selectedRow.cells[2].textContent },
-        total_quantity: parseInt(selectedRow.cells[3].textContent),
-        created_at: selectedRow.cells[4].textContent
-    };
 }
 
 async function deleteSelectedPackages() {
@@ -1574,65 +1550,92 @@ function updatePackageSelection() {
 }
 
 // Shipping operations
-async function sendToRamp(containerNo) {
+async function sendToRamp(containerNo = null) {
     try {
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
-            .map(cb => ({ id: cb.value }));
+            .map(cb => cb.value);
         
         if (selectedPackages.length === 0) {
             showToast('Rampaya göndermek için paket seçin', 'error');
             return;
         }
 
-        // Create or update container
-        const { data: newContainer, error } = await supabase
-            .from('containers')
-            .insert([{
-                container_no: containerNo,
-                customer: selectedCustomer?.name || '',
-                package_count: selectedPackages.length,
-                total_quantity: selectedPackages.length, // This should be calculated properly
-                status: 'beklemede',
-                package_ids: selectedPackages.map(p => p.id)
-            }])
-            .select();
+        // Use existing container or create a new one
+        let containerId;
+        if (containerNo && currentContainer) {
+            containerId = currentContainer;
+        } else {
+            const timestamp = new Date().getTime();
+            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+            
+            const { data: newContainer, error } = await supabase
+                .from('containers')
+                .insert([{
+                    container_no: containerNo,
+                    customer: selectedCustomer?.name || '',
+                    package_count: selectedPackages.length,
+                    total_quantity: await calculateTotalQuantity(selectedPackages),
+                    status: 'beklemede',
+                    created_at: new Date().toISOString()
+                }])
+                .select();
 
-        if (error) {
-            console.error('Error creating container:', error);
-            showToast('Konteyner oluşturulurken hata: ' + error.message, 'error');
-            return;
+            if (error) throw error;
+            
+            containerId = newContainer[0].id;
+            currentContainer = containerNo;
+            elements.containerNumber.textContent = containerNo;
+            saveAppState();
         }
 
         // Update packages with container reference
-        for (const pkg of selectedPackages) {
-            await supabase
-                .from('packages')
-                .update({ container_id: newContainer[0].id })
-                .eq('id', pkg.id);
-        }
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ 
+                container_id: containerId,
+                status: 'sevk-edildi'
+            })
+            .in('id', selectedPackages);
 
-        showToast(`${selectedPackages.length} paket rampaya gönderildi`, 'success');
+        if (updateError) throw updateError;
+
+        showToast(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
+        
+        // Refresh tables
+        await populatePackagesTable();
         await populateShippingTable();
         
     } catch (error) {
         console.error('Error sending to ramp:', error);
-        showToast('Rampaya gönderilirken hata oluştu', 'error');
+        showToast('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
     }
 }
 
 async function shipContainer(containerNo) {
     try {
-        await supabase
+        // First get the container ID
+        const { data: container, error: fetchError } = await supabase
+            .from('containers')
+            .select('id')
+            .eq('container_no', containerNo)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        // Update container status
+        const { error: updateError } = await supabase
             .from('containers')
             .update({ status: 'sevk-edildi' })
-            .eq('container_no', containerNo);
+            .eq('id', container.id);
+
+        if (updateError) throw updateError;
 
         showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
         await populateShippingTable();
         
     } catch (error) {
         console.error('Error shipping container:', error);
-        showToast('Konteyner sevk edilirken hata oluştu', 'error');
+        showToast('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
     }
 }
 
@@ -1923,33 +1926,37 @@ function escapeHtml(text) {
 }
 
 // Initialize auth state listener
-supabase.auth.onAuthStateChange((event, session) => {
-    console.log('Auth state change:', event, session?.user?.email || 'No user');
-    
-    if (session) {
-        currentUser = {
-            email: session.user.email,
-            uid: session.user.id,
-            name: session.user.email.split('@')[0]
-        };
+function setupAuthListener() {
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change:', event, session?.user?.email || 'No user');
         
-        elements.userRole.textContent = `Operatör: ${currentUser.name}`;
-        elements.loginScreen.style.display = "none";
-        elements.appContainer.style.display = "flex";
-        
-        initApp();
-    } else {
-        elements.loginScreen.style.display = "flex";
-        elements.appContainer.style.display = "none";
-    }
-});
+        if (session) {
+            currentUser = {
+                email: session.user.email,
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
+            };
+            
+            elements.userRole.textContent = `Operatör: ${currentUser.name}`;
+            elements.loginScreen.style.display = "none";
+            elements.appContainer.style.display = "flex";
+            
+            initApp();
+        } else {
+            elements.loginScreen.style.display = "flex";
+            elements.appContainer.style.display = "none";
+        }
+    });
+}
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-
-        // API anahtarını yükle ve supabase'i başlat
+    // API anahtarını yükle ve supabase'i başlat
     if (loadApiKey()) {
         supabase = initializeSupabase();
+        if (supabase) {
+            setupAuthListener();
+        }
     } else {
         showApiKeyModal();
     }
@@ -2009,114 +2016,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 console.log('ProClean application initialized with Supabase authentication');
-</script>
-    <script>
-// Add these functions to handle state persistence
-function saveAppState() {
-    const state = {
-        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
-        selectedPersonnelId: elements.personnelSelect.value,
-        currentContainer: currentContainer,
-        // Add other state variables as needed
-    };
-    localStorage.setItem('procleanState', JSON.stringify(state));
-}
-
-function loadAppState() {
-    const savedState = localStorage.getItem('procleanState');
-    if (savedState) {
-        const state = JSON.parse(savedState);
-        
-        // Restore customer selection
-        if (state.selectedCustomerId) {
-            elements.customerSelect.value = state.selectedCustomerId;
-            // Find and set the selectedCustomer object
-            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
-            if (option) {
-                selectedCustomer = {
-                    id: state.selectedCustomerId,
-                    name: option.textContent.split(' (')[0],
-                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                };
-            }
-        }
-        
-        // Restore personnel selection
-        if (state.selectedPersonnelId) {
-            elements.personnelSelect.value = state.selectedPersonnelId;
-        }
-        
-        // Restore current container
-        if (state.currentContainer) {
-            currentContainer = state.currentContainer;
-            elements.containerNumber.textContent = currentContainer;
-        }
-    }
-}
-
-function clearAppState() {
-    localStorage.removeItem('procleanState');
-    selectedCustomer = null;
-    elements.customerSelect.value = '';
-    elements.personnelSelect.value = '';
-    currentContainer = null;
-    elements.containerNumber.textContent = 'Yok';
-    currentPackage = {};
-    
-    // Reset quantity badges
-    document.querySelectorAll('.quantity-badge').forEach(badge => {
-        badge.textContent = '0';
-    });
-    
-    // Clear package details
-    document.getElementById('packageDetailContent').innerHTML = 
-        '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
-}
-
-// Call loadAppState after initializing the app
-async function initApp() {
-    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-    
-    // Populate dropdowns
-    await populateCustomers();
-    await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
-    
-    // Load data
-    await populatePackagesTable();
-    await populateStockTable();
-    await populateShippingTable();
-    
-    // Test connection
-    await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000); // Save every 5 seconds
-}
-
-// Update the logout function to clear state
-async function logout() {
-    if (supabase) {
-        try {
-            await supabase.auth.signOut();
-            console.log('Supabase logout successful');
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
-    }
-    
-    clearAppState();
-    currentUser = null;
-    elements.appContainer.style.display = 'none';
-    elements.appContainer.setAttribute('aria-hidden','true');
-    elements.loginScreen.style.display = 'flex';
-    document.getElementById('email').value = '';
-    document.getElementById('password').value = '';
-    closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-    showToast('Başarıyla çıkış yapıldı', 'success');
-}
 </script>
 </body>
 </html>
