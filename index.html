@@ -473,6 +473,29 @@
         /* -----------------------
            Data & State
            ----------------------- */
+
+        async function login() {
+  const email = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+
+    if (error) {
+      alert(error.message);
+    } else {
+      alert('Giriş başarılı!');
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appContainer').style.display = 'block';
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+} 
+        
         const users = [
             { username: "operator", password: "1234", role: "operator", name: "Ahmet Yılmaz" },
             { username: "supervisor", password: "1234", role: "supervisor", name: "Mehmet Demir" }
