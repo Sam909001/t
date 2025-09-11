@@ -481,6 +481,37 @@ const loginScreen = document.getElementById('loginScreen');
 const appContainer = document.getElementById('appContainer');
 const toast = document.getElementById('toast');
 
+        // Debug: Test Supabase connection
+async function testSupabaseConnection() {
+    console.log("Testing Supabase connection...");
+    
+    try {
+        // Test auth capabilities
+        const { data: authData, error: authError } = await supabase.auth.getSession();
+        if (authError) {
+            console.error("Auth test failed:", authError);
+            showToast("Kimlik doğrulama hatası: " + authError.message, "error");
+        } else {
+            console.log("Auth test successful:", authData);
+        }
+        
+        // Test database connection
+        const { data: dbData, error: dbError } = await supabase.from('customers').select('count');
+        if (dbError) {
+            console.error("Database test failed:", dbError);
+            showToast("Veritabanı bağlantı hatası: " + dbError.message, "error");
+        } else {
+            console.log("Database test successful:", dbData);
+        }
+    } catch (error) {
+        console.error("Connection test failed completely:", error);
+        showToast("Bağlantı testi başarısız: " + error.message, "error");
+    }
+}
+
+// Call this function after Supabase initialization
+testSupabaseConnection();
+        
 // Login function
 window.addEventListener('DOMContentLoaded', () => {
     const loginBtn = document.getElementById("loginBtn");
