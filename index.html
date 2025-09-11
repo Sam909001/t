@@ -614,64 +614,154 @@
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 let SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Global variables
-let currentUser = null;
-let selectedCustomer = null;
-let currentPackage = {};
-let packages = [];
-let containers = [];
-let currentContainer = null;
-let selectedProduct = null;
-let supabase = null;
-let currentEditingStockId = null;
+// Supabase initialization - Secure version
+let SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
+let SUPABASE_ANON_KEY = '';
 
-// DOM elements
-const elements = {
-    loginScreen: document.getElementById('loginScreen'),
-    appContainer: document.getElementById('appContainer'),
-    userRole: document.getElementById('userRole'),
-    customerSelect: document.getElementById('customerSelect'),
-    personnelSelect: document.getElementById('personnelSelect'),
-    currentDate: document.getElementById('currentDate'),
-    barcodeInput: document.getElementById('barcodeInput'),
-    packagesTableBody: document.getElementById('packagesTableBody'),
-    stockTableBody: document.getElementById('stockTableBody'),
-    shippingTableBody: document.getElementById('shippingTableBody'),
-    containerNumber: document.getElementById('containerNumber'),
-    totalPackages: document.getElementById('totalPackages'),
-    customerModal: document.getElementById('customerModal'),
-    allCustomersModal: document.getElementById('allCustomersModal'),
-    emailModal: document.getElementById('emailModal'),
-    quantityModal: document.getElementById('quantityModal'),
-    manualModal: document.getElementById('manualModal'),
-    customerList: document.getElementById('customerList'),
-    allCustomersList: document.getElementById('allCustomersList'),
-    stockSearch: document.getElementById('stockSearch'),
-    selectedFileName: document.getElementById('selectedFileName'),
-    reportEmail: document.getElementById('reportEmail'),
-    quantityInput: document.getElementById('quantityInput'),
-    quantityModalTitle: document.getElementById('quantityModalTitle'),
-    toast: document.getElementById('toast'),
-    selectAllCheckbox: document.getElementById('selectAllPackages'),
-    shippingFilter: document.getElementById('shippingFilter'),
-    apiKeyModal: document.getElementById('apiKeyModal')
+// DOM elements for API key management
+const apiKeyElements = {
+    apiKeyModal: document.getElementById('apiKeyModal'),
+    apiKeyInput: document.getElementById('apiKeyInput'),
+    apiKeySaveBtn: document.querySelector('.api-key-modal .btn-primary')
 };
 
-// Kullanıcının kaydettiği API anahtarını yükle
+// Initialize the application securely
+function initAppSecurely() {
+    // Try to load API key from secure storage
+    if (!loadApiKey()) {
+        // No API key found, show the modal
+        showApiKeyModal();
+        // Disable login until API key is provided
+        document.getElementById('loginBtn').disabled = true;
+        return;
+    }
+    
+    // API key found, initialize Supabase
+    supabase = initializeSupabase();
+    if (supabase) {
+        // Enable login button
+        document.getElementById('loginBtn').disabled = false;
+        // Set up auth listener
+        setupAuthListener();
+    }
+}
+
+// Enhanced API key management
 function loadApiKey() {
+    // Try to get API key from secure storage
+    // Note: localStorage is not truly secure but better than hardcoding
     const savedApiKey = localStorage.getItem('procleanApiKey');
+    
     if (savedApiKey) {
         SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
+        
+        // Mask the key for display (show only first and last 4 characters)
+        const maskedKey = savedApiKey.length > 8 
+            ? `${savedApiKey.substring(0, 4)}...${savedApiKey.substring(savedApiKey.length - 4)}`
+            : '****';
+            
+        console.log('Loaded API key:', maskedKey);
         return true;
     }
+    
     return false;
 }
 
-// Supabase'i başlat
+// Enhanced save API key function
+function saveApiKey() {
+    const apiKey = apiKeyElements.apiKeyInput.value.trim();
+    
+    if (!apiKey) {
+        showToast('Lütfen bir API anahtarı girin', 'error');
+        return;
+    }
+    
+    // Basic validation for Supabase key format
+    if (!apiKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')) {
+        if (!confirm('Bu geçerli bir Supabase API anahtarı gibi görünmüyor. Devam etmek istiyor musunuz?')) {
+            return;
+        }
+    }
+    
+    // Save to secure storage
+    localStorage.setItem('procleanApiKey', apiKey);
+    SUPABASE_ANON_KEY = apiKey;
+    
+    // Initialize Supabase with the new key
+    supabase = initializeSupabase();
+    
+    if (supabase) {
+        // Hide modal and enable login
+        apiKeyElements.apiKeyModal.style.display = 'none';
+        document.getElementById('loginBtn').disabled = false;
+        
+        // Test connection
+        testConnection();
+        
+        showToast('API anahtarı kaydedildi', 'success');
+    }
+}
+
+// Enhanced connection testing
+async function testConnection() {
+    try {
+        showToast('Bağlantı test ediliyor...', 'warning');
+        
+        const { data, error } = await supabase.from('customers').select('count').limit(1);
+        
+        if (error) {
+            console.error('Supabase connection error:', error);
+            
+            if (error.message.includes('JWT')) {
+                showToast('Geçersiz API anahtarı. Lütfen doğru anahtarı girin.', 'error');
+                // Remove invalid key
+                localStorage.removeItem('procleanApiKey');
+                SUPABASE_ANON_KEY = '';
+                showApiKeyModal();
+                return false;
+            }
+            
+            showToast('Veritabanı bağlantı hatası: ' + error.message, 'error');
+            return false;
+        }
+        
+        showToast('Bağlantı başarılı!', 'success');
+        return true;
+        
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        showToast('Bağlantı testi başarısız', 'error');
+        return false;
+    }
+}
+
+// API key management UI functions
+function showApiKeyModal() {
+    // Don't show current key value for security
+    apiKeyElements.apiKeyInput.value = '';
+    apiKeyElements.apiKeyModal.style.display = 'flex';
+    apiKeyElements.apiKeyInput.focus();
+}
+
+function setupApiKeyEventListeners() {
+    // Enter key support in API key input
+    apiKeyElements.apiKeyInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            saveApiKey();
+        }
+    });
+    
+    // API key help
+    const apiKeyHelpBtn = document.querySelector('.api-key-modal .btn-secondary');
+    if (apiKeyHelpBtn) {
+        apiKeyHelpBtn.addEventListener('click', showApiKeyHelp);
+    }
+}
+
+// Replace your current Supabase initialization code
 function initializeSupabase() {
     if (!SUPABASE_ANON_KEY) {
-        showApiKeyModal();
+        console.error('No Supabase API key available');
         return null;
     }
     
@@ -682,10 +772,17 @@ function initializeSupabase() {
     } catch (error) {
         console.error('Supabase initialization error:', error);
         showToast('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
-        showApiKeyModal();
         return null;
     }
 }
+
+// Update your DOMContentLoaded event listener
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up API key event listeners
+    setupApiKeyEventListeners();
+    
+    // Initialize the app securely
+    initAppSecurely();
 
 // API anahtarını kaydet
 function saveApiKey() {
