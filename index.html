@@ -172,21 +172,22 @@
         <div class="login-form">
             <h1>ProClean - Oturum Aç</h1>
             <div class="form-group">
-    <label for="email">E-posta</label>
-    <input type="email" id="email" placeholder="E-posta adresinizi girin">
-</div>
-<div class="form-group">
-    <label for="password">Şifre</label>
-    <input type="password" id="password" placeholder="Şifrenizi girin">
-</div>
-<button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
+                <label for="email">E-posta</label>
+                <input type="email" id="email" placeholder="E-posta adresinizi girin">
             </div>
+            <div class="form-group">
+                <label for="password">Şifre</label>
+                <input type="password" id="password" placeholder="Şifrenizi girin">
+            </div>
+            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
+            <div style="text-align:center; margin-top:1rem;">
                 <button type="button" class="btn-link">Şifremi Unuttum</button>
             </div>
         </div>
     </div>
 
     <div class="app-container" id="appContainer" aria-hidden="true">
+        <!-- Rest of your app container content remains the same -->
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
@@ -455,14 +456,107 @@
         </div>
     </div>
 
-    <script> 
-     function logout() {
+    <script>
+// Supabase initialization
+const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhbmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
+
+// Create Supabase client
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Global variables
+let currentUser = null;
+let customers = [];
+let packages = [];
+let containers = [];
+let stockItems = [];
+let selectedCustomerInModal = null;
+let selectedPackage = null;
+let currentContainer = "C000094";
+let currentQuantityProduct = null;
+let barcodeCount = 0;
+
+// DOM refs
+const loginScreen = document.getElementById('loginScreen');
+const appContainer = document.getElementById('appContainer');
+const toast = document.getElementById('toast');
+
+// Login function
+window.addEventListener('DOMContentLoaded', () => {
+    const loginBtn = document.getElementById("loginBtn");
+    if (loginBtn) {
+        loginBtn.onclick = async () => {
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            if (!email || !password) {
+                showToast("Lütfen e-posta ve şifre girin", "error");
+                return;
+            }
+
+            try {
+                // Supabase login
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    showToast("Giriş başarısız: " + error.message, "error");
+                    return;
+                }
+
+                // Login successful
+                currentUser = {
+                    email: data.user.email,
+                    uid: data.user.id,
+                    name: data.user.email.split('@')[0]
+                };
+                
+                document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
+                document.getElementById("loginScreen").style.display = "none";
+                document.getElementById("appContainer").style.display = "flex";
+                
+                showToast("Giriş başarılı", "success");
+                initApp();
+                
+            } catch (e) {
+                showToast("Giriş başarısız: " + e.message, "error");
+                console.error(e);
+            }
+        };
+    }
+
+    // Supabase auth state listener
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            // User is signed in
+            currentUser = {
+                email: session.user.email,
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
+            };
+            
+            document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
+            document.getElementById("loginScreen").style.display = "none";
+            document.getElementById("appContainer").style.display = "flex";
+            initApp();
+        } else {
+            // User is signed out
+            document.getElementById("loginScreen").style.display = "flex";
+            document.getElementById("appContainer").style.display = "none";
+        }
+    });
+});
+
+// Logout function
+function logout() {
     supabase.auth.signOut().then(() => {
         currentUser = null;
         appContainer.style.display = 'none';
         appContainer.setAttribute('aria-hidden','true');
         loginScreen.style.display = 'flex';
-        document.getElementById('username').value = '';
+        document.getElementById('email').value = '';
         document.getElementById('password').value = '';
         closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
         showToast('Başarıyla çıkış yapıldı', 'success');
@@ -470,118 +564,58 @@
         showToast('Çıkış yapılırken hata oluştu', 'error');
     });
 }
-        /* -----------------------
-           Data & State
-           ----------------------- */
 
-        async function login() {
-  const email = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
-
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
-
-    if (error) {
-      alert(error.message);
-    } else {
-      alert('Giriş başarılı!');
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('appContainer').style.display = 'block';
-    }
-  } catch (err) {
-    alert(err.message);
-  }
-} 
-        
-        const users = [
-            { username: "operator", password: "1234", role: "operator", name: "Ahmet Yılmaz" },
-            { username: "supervisor", password: "1234", role: "supervisor", name: "Mehmet Demir" }
-        ];
-
-        let customers = [
-            { code: "P0006", name: "LALELİ HAMİT", email: "hamit@lalelitextile.com" },
-            { code: "P0007", name: "BEYOĞLU TEKSTİL", email: "info@beyoglutextile.com" },
-            { code: "P0008", name: "ŞİŞLİ OTEL", email: "reservations@sisliotel.com" },
-            { code: "P0009", name: "KADIKÖY GIDA", email: "siparis@kadikoyglda.com" },
-            { code: "P0010", name: "ATAŞEHIR LTD", email: "muhasebe@atasehirltd.com" }
-        ];
-
-        let packages = [
-            { id: 1, packageNo: "PKG-0001", totalQuantity: 5, packageTime: "12.05.2023 14:30", customerCode: "P0006", customerName: "LALELİ HAMİT", packer: "Ahmet Yılmaz", selected: false },
-            { id: 2, packageNo: "PKG-0002", totalQuantity: 3, packageTime: "12.05.2023 14:45", customerCode: "P0006", customerName: "LALELİ HAMİT", packer: "Ahmet Yılmaz", selected: false }
-        ];
-
-        let containers = [
-            { id: 1, containerNo: "C000094", customer: "LALELİ HAMİT", packageCount: 2, totalQuantity: 8, createdAt: "12.05.2023", status: "beklemede", packages: [1,2] },
-            { id: 2, containerNo: "C000095", customer: "BEYOĞLU TEKSTİL", packageCount: 1, totalQuantity: 4, createdAt: "13.05.2023", status: "sevk-edildi", packages: [] }
-        ];
-
-        const products = [
-            { code: "PRD001", name: "Çarşaf", quantity: 0 },
-            { code: "PRD002", name: "Büyük Çarşaf", quantity: 0 },
-            { code: "PRD003", name: "Havlu", quantity: 0 },
-            { code: "PRD004", name: "Büyük havlu", quantity: 0 },
-            { code: "PRD005", name: "Alez", quantity: 0 },
-            { code: "PRD006", name: "Nevresim", quantity: 0 },
-            { code: "PRD007", name: "Pıke", quantity: 0 },
-            { code: "PRD008", name: "Yastık", quantity: 0 },
-            { code: "PRD009", name: "Yastık kılıfı", quantity: 0 }
-        ];
-
-        let stockItems = [
-            { code: "STK001", name: "Temizlik Maddesi A", quantity: 150, unit: "Adet", lastUpdate: "12.05.2023", status: "Stokta" },
-            { code: "STK002", name: "Deterjan Premium", quantity: 75, unit: "Kg", lastUpdate: "11.05.2023", status: "Az Stok" },
-            { code: "STK003", name: "Yumuşatıcı", quantity: 200, unit: "Lt", lastUpdate: "10.05.2023", status: "Stokta" },
-            { code: "STK004", name: "Leke Çıkarıcı", quantity: 5, unit: "Adet", lastUpdate: "12.05.2023", status: "Kritik" }
-        ];
-
-        let currentUser = null;
-        let selectedCustomerInModal = null;
-        let selectedPackage = null;
-        let currentContainer = "C000094";
-        let currentQuantityProduct = null;
-        let barcodeCount = 0;
-
-        // DOM refs
-        const loginScreen = document.getElementById('loginScreen');
-        const appContainer = document.getElementById('appContainer');
-        const toast = document.getElementById('toast');
-        const modal = document.getElementById('customerModal');
-        const allCustomersModal = document.getElementById('allCustomersModal');
-        const emailModal = document.getElementById('emailModal');
-        const quantityModal = document.getElementById('quantityModal');
-        const manualModal = document.getElementById('manualModal');
-        const selectAllCheckbox = document.getElementById('selectAllPackages');
-
-        /* -----------------------
-           Initialization
-           ----------------------- */
-        function initApp() {
-            // avoid re-binding listeners multiple times
-            if (!window._proclean_listeners_initialized) {
-                setupEventListeners();
-                window._proclean_listeners_initialized = true;
-            }
-
-            populateCustomerDropdown();
-            populateQuickButtons();
-            populatePackagesTable();
-            populateStockTable();
-            populateShippingTable();
+// Test Supabase connection
+async function testConnection() {
+    try {
+        const { data, error } = await supabase.from('customers').select('count');
+        if (error) {
+            console.error('Supabase connection error:', error);
+            showToast('Veritabanı bağlantı hatası', 'error');
+        } else {
+            console.log('Supabase connected successfully');
         }
+    } catch (error) {
+        console.error('Connection test failed:', error);
+    }
+}
 
-        function setupEventListeners() {
-            // Barcode input enter
-            const bInput = document.getElementById('barcodeInput');
-            if (bInput && !bInput._bound) {
-                bInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') searchBarcode();
-                });
-                bInput._bound = true;
-            }
+// Initialize the application
+function initApp() {
+    testConnection();
+    
+    if (!window._proclean_listeners_initialized) {
+        setupEventListeners();
+        window._proclean_listeners_initialized = true;
+    }
+
+    populateCustomerDropdown();
+    populateQuickButtons();
+    populatePackagesTable();
+    populateStockTable();
+    populateShippingTable();
+}
+
+// Toast function
+function showToast(message, type = 'success', duration = 3000) {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = message;
+    el.className = `toast ${type} show`;
+    el.setAttribute('role','status');
+    setTimeout(() => { el.classList.remove('show'); }, duration);
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Barcode input enter
+    const bInput = document.getElementById('barcodeInput');
+    if (bInput && !bInput._bound) {
+        bInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchBarcode();
+        });
+        bInput._bound = true;
+    }
 
             const stockInput = document.getElementById('stockSearch');
             if (stockInput && !stockInput._bound) {
