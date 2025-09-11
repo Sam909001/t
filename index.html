@@ -187,7 +187,6 @@
     </div>
 
     <div class="app-container" id="appContainer" aria-hidden="true">
-        <!-- Rest of your app container content remains the same -->
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
@@ -212,10 +211,7 @@
                         </div>
                         <div class="info-group">
                             <label for="personnel">Personel</label>
-                            <select id="personnel">
-                                <option value="user1">Paket1 - Ahmet Yılmaz</option>
-                                <option value="user2">Paket2 - Mehmet Demir</option>
-                            </select>
+                            <select id="personnel"></select>
                         </div>
                         <div class="info-group">
                             <label>Müşteri Adı</label>
@@ -469,7 +465,7 @@ let customers = [];
 let packages = [];
 let containers = [];
 let stockItems = [];
-let products = []; // Added missing products array
+let products = [];
 let selectedCustomerInModal = null;
 let selectedPackage = null;
 let currentContainer = "C000094";
@@ -605,19 +601,20 @@ function logout() {
 }
 
 // Initialize the application
-function initApp() {
-    testConnection();
+async function initApp() {
+    await testConnection();
     
     if (!window._proclean_listeners_initialized) {
         setupEventListeners();
         window._proclean_listeners_initialized = true;
     }
 
-    populateCustomerDropdown();
-    populateQuickButtons();
-    populatePackagesTable();
-    populateStockTable();
-    populateShippingTable();
+    await populateCustomerDropdown();
+    await populatePersonnelDropdown();
+    await populateProducts();
+    await populatePackagesTable();
+    await populateStockTable();
+    await populateShippingTable();
 }
 
 // Toast function
@@ -688,10 +685,10 @@ function setupEventListeners() {
 }
 
 /* -----------------------
-   Populate helpers
+   Database Operations
    ----------------------- */
-// Replace all customer operations with Supabase equivalents
 
+// Populate customer dropdown from Supabase
 async function populateCustomerDropdown() {
     const customerSelect = document.getElementById('customer');
     if (!customerSelect) return;
@@ -705,70 +702,86 @@ async function populateCustomerDropdown() {
     
     if (error) {
         console.error('Error fetching customers:', error);
+        showToast('Müşteriler yüklenirken hata oluştu', 'error');
         return;
     }
     
-    window.customers = customers; // Store globally
+    window.customers = customers;
     
     customers.forEach(customer => {
         const option = document.createElement('option');
-        option.value = customer.id; // Use ID instead of code
+        option.value = customer.id;
         option.textContent = `${customer.code} - ${customer.name}`;
+        option.setAttribute('data-name', customer.name);
         customerSelect.appendChild(option);
+    });
+
+    // Add change event to update customer name display
+    customerSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const customerName = selectedOption.getAttribute('data-name') || 'Lütfen müşteri seçin';
+        document.getElementById('customerName').textContent = customerName;
     });
 }
 
-async function addNewCustomer() {
-    const code = document.getElementById('newCustomerCode').value.trim();
-    const name = document.getElementById('newCustomerName').value.trim();
-    const email = document.getElementById('newCustomerEmail').value.trim();
-
-    if (!code || !name) { showToast('Müşteri kodu ve adı gerekli', 'error'); return; }
-
-    // Check if customer code exists in Supabase
-    const { data: existingCustomer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('code', code)
-        .single();
-
-    if (existingCustomer) { showToast('Bu müşteri kodu zaten mevcut', 'error'); return; }
-
-    // Insert new customer
-    const { data, error } = await supabase
-        .from('customers')
-        .insert([{ code, name, email: email || '' }])
-        .select();
-
+// Populate personnel dropdown from Supabase
+async function populatePersonnelDropdown() {
+    const personnelSelect = document.getElementById('personnel');
+    if (!personnelSelect) return;
+    personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+    
+    // Fetch personnel from Supabase
+    const { data: personnel, error } = await supabase
+        .from('personnel')
+        .select('*')
+        .order('name');
+    
     if (error) {
-        showToast('Müşteri eklenirken hata oluştu', 'error');
+        console.error('Error fetching personnel:', error);
+        // If personnel table doesn't exist, use current user as default
+        if (currentUser) {
+            const option = document.createElement('option');
+            option.value = currentUser.uid;
+            option.textContent = `${currentUser.name} (Mevcut Kullanıcı)`;
+            personnelSelect.appendChild(option);
+        }
         return;
     }
-
-    showToast(`Yeni müşteri eklendi: ${name}`, 'success');
-    populateCustomerDropdown();
     
-    document.getElementById('newCustomerCode').value = '';
-    document.getElementById('newCustomerName').value = '';
-    document.getElementById('newCustomerEmail').value = '';
+    personnel.forEach(person => {
+        const option = document.createElement('option');
+        option.value = person.id;
+        option.textContent = `${person.code} - ${person.name}`;
+        personnelSelect.appendChild(option);
+    });
 }
 
+// Populate products from Supabase
+async function populateProducts() {
+    const { data: products, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+    
+    if (error) {
+        console.error('Error fetching products:', error);
+        showToast('Ürünler yüklenirken hata oluştu', 'error');
+        return;
+    }
+    
+    window.products = products.map(product => ({
+        ...product,
+        quantity: 0 // Initialize quantity for package operations
+    }));
+    
+    populateQuickButtons();
+}
+
+// Populate quick buttons with real products
 function populateQuickButtons() {
     const quickButtons = document.getElementById('quickButtons');
     if (!quickButtons) return;
     quickButtons.innerHTML = '';
-    
-    // Create some sample products if none exist
-    if (products.length === 0) {
-        products = [
-            { code: 'TSHIRT', name: 'Tişört', quantity: 0 },
-            { code: 'PANTS', name: 'Pantolon', quantity: 0 },
-            { code: 'TOWEL', name: 'Havlu', quantity: 0 },
-            { code: 'SHEET', name: 'Çarşaf', quantity: 0 },
-            { code: 'PILLOW', name: 'Yastık', quantity: 0 },
-            { code: 'BLANKET', name: 'Battaniye', quantity: 0 }
-        ];
-    }
     
     products.forEach(product => {
         const button = document.createElement('button');
@@ -780,47 +793,90 @@ function populateQuickButtons() {
     });
 }
 
+// Save package to Supabase
 async function savePackage() {
     const selectedCustomerId = document.getElementById('customer').value;
     const selectedCustomer = customers.find(c => c.id == selectedCustomerId);
+    const selectedPersonnelId = document.getElementById('personnel').value;
 
-    if (!selectedCustomer) { showToast('Lütfen bir müşteri seçin', 'error'); return; }
+    if (!selectedCustomer) { 
+        showToast('Lütfen bir müşteri seçin', 'error'); 
+        return; 
+    }
 
-    const totalQuantity = products.reduce((sum, p) => sum + p.quantity, 0);
-    if (totalQuantity === 0) { showToast('Paket için en az bir ürün ekleyin', 'error'); return; }
-
-    const packageNo = `PKG-${String(packages.length + 1).padStart(4, '0')}`;
-    
-    // Save to Supabase
-    const { data, error } = await supabase
-        .from('packages')
-        .insert([{
-            package_no: packageNo,
-            total_quantity: totalQuantity,
-            customer_id: selectedCustomerId,
-            packer: currentUser?.name || 'Bilinmiyor'
-        }])
-        .select();
-
-    if (error) {
-        showToast('Paket kaydedilirken hata oluştu', 'error');
+    if (!selectedPersonnelId) {
+        showToast('Lütfen bir personel seçin', 'error');
         return;
     }
 
-    showToast(`Paket kaydedildi: ${packageNo}`, 'success');
+    const totalQuantity = products.reduce((sum, p) => sum + p.quantity, 0);
+    if (totalQuantity === 0) { 
+        showToast('Paket için en az bir ürün ekleyin', 'error'); 
+        return; 
+    }
+
+    // Generate package number based on timestamp
+    const timestamp = new Date().getTime();
+    const packageNo = `PKG-${timestamp.toString().slice(-6)}`;
     
-    // Reset UI
-    products.forEach(p => p.quantity = 0);
-    barcodeCount = 0;
-    populateQuickButtons();
-    clearBarcode();
-    document.getElementById('barcodeCount').textContent = '0';
-    updateDefinitionCounts();
-    
-    // Refresh packages table
-    populatePackagesTable();
+    try {
+        // Save package to Supabase
+        const { data: packageData, error: packageError } = await supabase
+            .from('packages')
+            .insert([{
+                package_no: packageNo,
+                total_quantity: totalQuantity,
+                customer_id: selectedCustomerId,
+                personnel_id: selectedPersonnelId,
+                packer: currentUser?.name || 'Bilinmiyor'
+            }])
+            .select();
+
+        if (packageError) {
+            throw new Error(`Paket kaydedilirken hata oluştu: ${packageError.message}`);
+        }
+
+        // Save package items
+        const packageItems = products
+            .filter(p => p.quantity > 0)
+            .map(p => ({
+                package_id: packageData[0].id,
+                product_id: p.id,
+                quantity: p.quantity,
+                product_code: p.code,
+                product_name: p.name
+            }));
+
+        if (packageItems.length > 0) {
+            const { error: itemsError } = await supabase
+                .from('package_items')
+                .insert(packageItems);
+
+            if (itemsError) {
+                throw new Error(`Paket ürünleri kaydedilirken hata oluştu: ${itemsError.message}`);
+            }
+        }
+
+        showToast(`Paket kaydedildi: ${packageNo}`, 'success');
+        
+        // Reset UI
+        products.forEach(p => p.quantity = 0);
+        barcodeCount = 0;
+        populateQuickButtons();
+        clearBarcode();
+        document.getElementById('barcodeCount').textContent = '0';
+        updateDefinitionCounts();
+        
+        // Refresh packages table
+        await populatePackagesTable();
+        
+    } catch (error) {
+        console.error('Error saving package:', error);
+        showToast(error.message, 'error');
+    }
 }
 
+// Populate packages table from Supabase
 async function populatePackagesTable() {
     const tbody = document.getElementById('packagesTableBody');
     if (!tbody) return;
@@ -831,33 +887,43 @@ async function populatePackagesTable() {
         .from('packages')
         .select(`
             *,
-            customers (code, name)
+            customers (code, name),
+            personnel (code, name)
         `)
         .order('created_at', { ascending: false });
 
     if (error) {
         console.error('Error fetching packages:', error);
+        showToast('Paketler yüklenirken hata oluştu', 'error');
         return;
     }
 
-    window.packages = packages; // Store globally
+    window.packages = packages;
+
+    if (packages.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="8" style="text-align:center;color:#666;padding:12px">Henüz paket bulunmamaktadır</td>`;
+        tbody.appendChild(row);
+        return;
+    }
 
     packages.forEach((pkg, index) => {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><input type="checkbox" ${pkg.selected ? 'checked' : ''} onchange="togglePackageSelection('${pkg.id}')" data-id="${pkg.id}"></td>
             <td>${index + 1}</td>
-            <td>${pkg.package_no}</td>
+            <td>${escapeHtml(pkg.package_no)}</td>
             <td>${pkg.total_quantity}</td>
             <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
-            <td>${pkg.customers.code}</td>
-            <td>${pkg.customers.name}</td>
-            <td>${pkg.packer}</td>
+            <td>${escapeHtml(pkg.customers?.code || 'N/A')}</td>
+            <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
+            <td>${escapeHtml(pkg.packer)}</td>
         `;
         tbody.appendChild(row);
     });
 }
 
+// Populate stock table from Supabase
 async function populateStockTable() {
     const tbody = document.getElementById('stockTableBody');
     if (!tbody) return;
@@ -871,10 +937,18 @@ async function populateStockTable() {
     
     if (error) {
         console.error('Error fetching stock items:', error);
+        showToast('Stok bilgileri yüklenirken hata oluştu', 'error');
         return;
     }
     
-    window.stockItems = stockItems; // Store globally
+    window.stockItems = stockItems;
+
+    if (stockItems.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="6" style="text-align:center;color:#666;padding:12px">Henüz stok kaydı bulunmamaktadır</td>`;
+        tbody.appendChild(row);
+        return;
+    }
     
     stockItems.forEach(item => {
         const row = document.createElement('tr');
@@ -895,6 +969,7 @@ async function populateStockTable() {
     });
 }
 
+// Populate shipping table from Supabase
 async function populateShippingTable() {
     const tbody = document.getElementById('shippingTableBody');
     if (!tbody) return;
@@ -913,10 +988,18 @@ async function populateShippingTable() {
     
     if (error) {
         console.error('Error fetching containers:', error);
+        showToast('Konteyner bilgileri yüklenirken hata oluştu', 'error');
         return;
     }
     
-    window.containers = containers; // Store globally
+    window.containers = containers;
+
+    if (containers.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="7" style="text-align:center;color:#666;padding:12px">Henüz konteyner bulunmamaktadır</td>`;
+        tbody.appendChild(row);
+        return;
+    }
     
     containers.forEach(container => {
         const row = document.createElement('tr');
@@ -951,12 +1034,16 @@ async function populateShippingTable() {
 }
 
 /* -----------------------
-   Customer modal & list
+   Customer Operations
    ----------------------- */
-function showAllCustomers() {
+
+async function showAllCustomers() {
     const allCustomersList = document.getElementById('allCustomersList');
     if (!allCustomersList) return;
     allCustomersList.innerHTML = '';
+
+    // Refresh customers list
+    await populateCustomerDropdown();
 
     customers.forEach(customer => {
         const item = document.createElement('div');
@@ -964,7 +1051,7 @@ function showAllCustomers() {
         item.innerHTML = `
             <div>
                 <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
-                <small>E-posta: ${escapeHtml(customer.email)}</small>
+                <small>E-posta: ${escapeHtml(customer.email || 'Belirtilmemiş')}</small>
             </div>
         `;
         allCustomersList.appendChild(item);
@@ -979,16 +1066,27 @@ function closeAllCustomersModal() {
     allCustomersModal.setAttribute('aria-hidden', 'true');
 }
 
-function generateDailyReport() { emailModal.style.display = 'flex'; emailModal.setAttribute('aria-hidden','false'); }
-function closeEmailModal() { emailModal.style.display = 'none'; emailModal.setAttribute('aria-hidden','true'); }
+function generateDailyReport() { 
+    emailModal.style.display = 'flex'; 
+    emailModal.setAttribute('aria-hidden','false'); 
+}
 
-function previewReport() {
+function closeEmailModal() { 
+    emailModal.style.display = 'none'; 
+    emailModal.setAttribute('aria-hidden','true'); 
+}
+
+async function previewReport() {
+    // Fetch fresh data for the report
+    await populatePackagesTable();
+    await populateShippingTable();
+
     const reportData = {
         date: new Date().toLocaleDateString('tr-TR'),
         totalPackages: packages.length,
         totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
         containers: containers.length,
-        customers: [...new Set(packages.map(p => p.customers.name))].length,
+        customers: [...new Set(packages.map(p => p.customers?.name))].length,
         operator: currentUser?.name || 'Bilinmiyor'
     };
 
@@ -1011,7 +1109,7 @@ function previewReport() {
             </ul>
             <h2>Paket Detayları</h2>
             <table><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th><th>Zaman</th><th>Paketleyen</th></tr></thead><tbody>
-                ${packages.map(pkg => `<tr><td>${escapeHtml(pkg.package_no)}</td><td>${escapeHtml(pkg.customers.name)}</td><td>${pkg.total_quantity}</td><td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td><td>${escapeHtml(pkg.packer)}</td></tr>`).join('')}
+                ${packages.map(pkg => `<tr><td>${escapeHtml(pkg.package_no)}</td><td>${escapeHtml(pkg.customers?.name || 'N/A')}</td><td>${pkg.total_quantity}</td><td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td><td>${escapeHtml(pkg.packer)}</td></tr>`).join('')}
             </tbody></table>
         </body>
         </html>
@@ -1019,95 +1117,23 @@ function previewReport() {
     reportWindow.document.close();
 }
 
-function sendDailyReport() {
+async function sendDailyReport() {
     const email = document.getElementById('reportEmail').value;
-    if (!email) { showToast('Lütfen e-posta adresini girin', 'error'); return; }
-
-    // simulate send
-    showToast('Rapor e-posta ile gönderildi: ' + email, 'success');
-    closeEmailModal();
-}
-
-/* -----------------------
-   Shipping helpers
-   ----------------------- */
-async function sendToRamp() {
-    const selectedPackages = packages.filter(p => p.selected);
-    if (selectedPackages.length === 0) { 
-        showToast('Lütfen rampaya göndermek için paket seçin', 'error'); 
+    if (!email) { 
+        showToast('Lütfen e-posta adresini girin', 'error'); 
         return; 
     }
-    
-    if (!confirm('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?')) return;
-    
-    // Create container in Supabase
-    const totalQuantity = selectedPackages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
-    const containerNo = `C${String(containers.length + 1).padStart(6, '0')}`;
-    
-    const { data: newContainer, error } = await supabase
-        .from('containers')
-        .insert([{
-            container_no: containerNo,
-            customer: selectedPackages[0].customers.name,
-            package_count: selectedPackages.length,
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            package_ids: selectedPackages.map(p => p.id)
-        }])
-        .select();
-    
-    if (error) {
-        showToast('Konteyner oluşturulurken hata oluştu', 'error');
-        return;
-    }
-    
-    // Update packages to mark them as in container
-    for (const pkg of selectedPackages) {
-        const { error: updateError } = await supabase
-            .from('packages')
-            .update({ container_id: newContainer[0].id })
-            .eq('id', pkg.id);
-        
-        if (updateError) {
-            showToast(`Paket ${pkg.package_no} güncellenirken hata oluştu`, 'error');
-            return;
-        }
-    }
-    
-    // Update local state
-    containers.push(newContainer[0]);
-    packages = packages.filter(p => !p.selected);
-    
-    populatePackagesTable();
-    populateShippingTable();
-    clearSelection();
-    
-    showToast(`${selectedPackages.length} paket konteyner(${containerNo}) ile rampaya gönderildi - Durum: Beklemede`, 'success');
-    switchTab('shipping');
-}
 
-async function shipContainer(containerNo) {
-    // Update container status in Supabase
-    const { error } = await supabase
-        .from('containers')
-        .update({ status: 'sevk-edildi' })
-        .eq('container_no', containerNo);
-    
-    if (error) {
-        showToast(`Konteyner ${containerNo} sevk durumu güncellenirken hata oluştu', 'error`);
-        return;
-    }
-    
-    // Update local state
-    const container = containers.find(c => c.container_no === containerNo);
-    if (container) {
-        container.status = 'sevk-edildi';
-        populateShippingTable();
-        showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
+    try {
+        // In a real implementation, you would integrate with a email service
+        // For now, we'll just show a success message
+        showToast('Rapor e-posta ile gönderildi: ' + email, 'success');
+        closeEmailModal();
+    } catch (error) {
+        console.error('Error sending report:', error);
+        showToast('Rapor gönderilirken hata oluştu', 'error');
     }
 }
-
-function filterShipping() { populateShippingTable(); }
 
 /* -----------------------
    Customer modal selection
@@ -1129,7 +1155,7 @@ function populateCustomerModal() {
         item.innerHTML = `
             <div>
                 <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
-                <small>E-posta: ${escapeHtml(customer.email)}</small>
+                <small>E-posta: ${escapeHtml(customer.email || 'Belirtilmemiş')}</small>
             </div>
             <button class="btn btn-primary" type="button">Seç</button>
         `;
@@ -1142,10 +1168,56 @@ function populateCustomerModal() {
 function selectCustomer(code) {
     selectedCustomerInModal = customers.find(c => c.code === code);
     if (selectedCustomerInModal) {
-        document.getElementById('customer').value = code;
+        document.getElementById('customer').value = selectedCustomerInModal.id;
         document.getElementById('customerName').textContent = selectedCustomerInModal.name;
         closeModal();
         showToast(`Müşteri seçildi: ${selectedCustomerInModal.name}`, 'success');
+    }
+}
+
+async function addNewCustomer() {
+    const code = document.getElementById('newCustomerCode').value.trim();
+    const name = document.getElementById('newCustomerName').value.trim();
+    const email = document.getElementById('newCustomerEmail').value.trim();
+
+    if (!code || !name) { 
+        showToast('Müşteri kodu ve adı gerekli', 'error'); 
+        return; 
+    }
+
+    try {
+        // Check if customer code exists in Supabase
+        const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('code', code)
+            .single();
+
+        if (existingCustomer) { 
+            showToast('Bu müşteri kodu zaten mevcut', 'error'); 
+            return; 
+        }
+
+        // Insert new customer
+        const { data, error } = await supabase
+            .from('customers')
+            .insert([{ code, name, email: email || '' }])
+            .select();
+
+        if (error) {
+            throw new Error(`Müşteri eklenirken hata oluştu: ${error.message}`);
+        }
+
+        showToast(`Yeni müşteri eklendi: ${name}`, 'success');
+        await populateCustomerDropdown();
+        
+        document.getElementById('newCustomerCode').value = '';
+        document.getElementById('newCustomerName').value = '';
+        document.getElementById('newCustomerEmail').value = '';
+        
+    } catch (error) {
+        console.error('Error adding customer:', error);
+        showToast(error.message, 'error');
     }
 }
 
@@ -1157,27 +1229,32 @@ async function deleteSelectedCustomer() {
     
     if (!confirm(`${selectedCustomerInModal.name} müşterisini silmek istediğinize emin misiniz?`)) return;
     
-    // Delete from Supabase
-    const { error } = await supabase
-        .from('customers')
-        .delete()
-        .eq('id', selectedCustomerInModal.id);
-    
-    if (error) {
-        showToast('Müşteri silinirken hata oluştu', 'error');
-        return;
+    try {
+        // Delete from Supabase
+        const { error } = await supabase
+            .from('customers')
+            .delete()
+            .eq('id', selectedCustomerInModal.id);
+        
+        if (error) {
+            throw new Error(`Müşteri silinirken hata oluştu: ${error.message}`);
+        }
+        
+        // Update local state
+        customers = customers.filter(c => c.id !== selectedCustomerInModal.id);
+        selectedCustomerInModal = null;
+        await populateCustomerDropdown();
+        populateCustomerModal();
+        showToast('Müşteri silindi', 'success');
+        
+    } catch (error) {
+        console.error('Error deleting customer:', error);
+        showToast(error.message, 'error');
     }
-    
-    // Update local state
-    customers = customers.filter(c => c.id !== selectedCustomerInModal.id);
-    selectedCustomerInModal = null;
-    populateCustomerDropdown();
-    populateCustomerModal();
-    showToast('Müşteri silindi', 'success');
 }
 
 /* -----------------------
-   Quantity / quick product handling
+   Product Operations
    ----------------------- */
 function openQuantityModal(product) {
     currentQuantityProduct = product;
@@ -1221,21 +1298,61 @@ function closeManualModal() {
     document.getElementById('manualQuantity').value = '1';
 }
 
-function addManualProduct() {
+async function addManualProduct() {
     const code = document.getElementById('manualProductCode').value.trim();
     const name = document.getElementById('manualProductName').value.trim();
     const quantity = parseInt(document.getElementById('manualQuantity').value, 10) || 0;
 
-    if (!code || !name || quantity < 1) { showToast("Tüm alanlar gerekli ve miktar 1'den büyük olmalı", 'error'); return; }
+    if (!code || !name || quantity < 1) { 
+        showToast("Tüm alanlar gerekli ve miktar 1'den büyük olmalı", 'error'); 
+        return; 
+    }
 
-    let product = products.find(p => p.code === code);
-    if (!product) { product = { code, name, quantity: 0 }; products.push(product); }
+    try {
+        // Check if product exists in database
+        let product = products.find(p => p.code === code);
+        
+        if (!product) {
+            // Try to find product in database
+            const { data: existingProduct } = await supabase
+                .from('products')
+                .select('*')
+                .eq('code', code)
+                .single();
 
-    product.quantity += quantity;
-    populateQuickButtons();
-    updateDefinitionCounts();
-    closeManualModal();
-    showToast(`${name}: ${quantity} adet eklendi`, 'success');
+            if (existingProduct) {
+                product = { ...existingProduct, quantity: 0 };
+                products.push(product);
+            } else {
+                // Create new product
+                const { data: newProduct } = await supabase
+                    .from('products')
+                    .insert([{ code, name }])
+                    .select()
+                    .single();
+
+                if (newProduct) {
+                    product = { ...newProduct, quantity: 0 };
+                    products.push(product);
+                    await populateProducts(); // Refresh products list
+                }
+            }
+        }
+
+        if (product) {
+            product.quantity += quantity;
+            populateQuickButtons();
+            updateDefinitionCounts();
+            closeManualModal();
+            showToast(`${name}: ${quantity} adet eklendi`, 'success');
+        } else {
+            showToast('Ürün eklenirken hata oluştu', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error adding manual product:', error);
+        showToast('Ürün eklenirken hata oluştu', 'error');
+    }
 }
 
 function updateDefinitionCounts() {
@@ -1249,7 +1366,7 @@ function updateDefinitionCounts() {
 }
 
 /* -----------------------
-   Barcode, package, selection
+   Barcode Operations
    ----------------------- */
 function searchBarcode() {
     const barcode = document.getElementById('barcodeInput').value.trim();
@@ -1273,23 +1390,31 @@ function clearBarcode() {
     document.getElementById('barcode').innerHTML = '';
 }
 
+/* -----------------------
+   Package Selection
+   ----------------------- */
 async function togglePackageSelection(id) {
-    // Update in Supabase
-    const pkg = packages.find(p => p.id === id);
-    const { error } = await supabase
-        .from('packages')
-        .update({ selected: !pkg.selected })
-        .eq('id', id);
-    
-    if (error) {
-        showToast('Paket durumu güncellenirken hata oluştu', 'error');
-        return;
-    }
-    
-    // Update local state
-    if (pkg) {
+    try {
+        const pkg = packages.find(p => p.id === id);
+        if (!pkg) return;
+
+        // Update in Supabase
+        const { error } = await supabase
+            .from('packages')
+            .update({ selected: !pkg.selected })
+            .eq('id', id);
+        
+        if (error) {
+            throw new Error(`Paket durumu güncellenirken hata oluştu: ${error.message}`);
+        }
+        
+        // Update local state
         pkg.selected = !pkg.selected;
         selectedPackage = pkg.selected ? pkg : null;
+        
+    } catch (error) {
+        console.error('Error toggling package selection:', error);
+        showToast(error.message, 'error');
     }
 }
 
@@ -1315,79 +1440,116 @@ async function deletePackage() {
     
     if (!confirm(`${selectedPackages.length} paketi silmek istediğinize emin misiniz?`)) return;
     
-    // Delete from Supabase
-    for (const pkg of selectedPackages) {
-        const { error } = await supabase
-            .from('packages')
-            .delete()
-            .eq('id', pkg.id);
-        
-        if (error) {
-            showToast(`Paket ${pkg.package_no} silinirken hata oluştu`, 'error');
-            return;
+    try {
+        // Delete from Supabase
+        for (const pkg of selectedPackages) {
+            // First delete package items
+            await supabase
+                .from('package_items')
+                .delete()
+                .eq('package_id', pkg.id);
+                
+            // Then delete the package
+            const { error } = await supabase
+                .from('packages')
+                .delete()
+                .eq('id', pkg.id);
+            
+            if (error) {
+                throw new Error(`Paket ${pkg.package_no} silinirken hata oluştu: ${error.message}`);
+            }
         }
+        
+        // Update local state
+        packages = packages.filter(p => !p.selected);
+        await populatePackagesTable();
+        clearSelection();
+        showToast(`${selectedPackages.length} paket silindi`, 'success');
+        
+    } catch (error) {
+        console.error('Error deleting package:', error);
+        showToast(error.message, 'error');
     }
-    
-    // Update local state
-    packages = packages.filter(p => !p.selected);
-    populatePackagesTable();
-    clearSelection();
-    showToast(`${selectedPackages.length} paket silindi`, 'success');
 }
 
 async function deleteContainer() {
     if (!confirm('Konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
     
-    // Delete from Supabase
-    const { error } = await supabase
-        .from('containers')
-        .delete()
-        .eq('container_no', currentContainer);
-    
-    if (error) {
-        showToast('Konteyner silinirken hata oluştu', 'error');
-        return;
+    try {
+        // Delete from Supabase
+        const { error } = await supabase
+            .from('containers')
+            .delete()
+            .eq('container_no', currentContainer);
+        
+        if (error) {
+            throw new Error(`Konteyner silinirken hata oluştu: ${error.message}`);
+        }
+        
+        // Update local state
+        const idx = containers.findIndex(c => c.container_no === currentContainer);
+        if (idx !== -1) containers.splice(idx, 1);
+        
+        document.getElementById('containerNumber').textContent = 'Yok';
+        currentContainer = null;
+        await populateShippingTable();
+        showToast('Konteyner silindi', 'success');
+        
+    } catch (error) {
+        console.error('Error deleting container:', error);
+        showToast(error.message, 'error');
     }
-    
-    // Update local state
-    const idx = containers.findIndex(c => c.container_no === currentContainer);
-    if (idx !== -1) containers.splice(idx, 1);
-    
-    document.getElementById('containerNumber').textContent = 'Yok';
-    currentContainer = null;
-    populateShippingTable();
-    showToast('Konteyner silindi', 'success');
 }
 
-function printLabel() {
+async function printLabel() {
     const selectedPackages = packages.filter(p => p.selected);
-    if (selectedPackages.length === 0) { showToast('Lütfen yazdırmak için bir paket seçin', 'error'); return; }
+    if (selectedPackages.length === 0) { 
+        showToast('Lütfen yazdırmak için bir paket seçin', 'error'); 
+        return; 
+    }
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html><head><title>Paket Etiketleri</title><style>body{font-family:Arial}.label{width:300px;height:150px;border:1px solid #000;margin:10px;padding:10px;display:inline-block;page-break-inside:avoid}</style><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script></head><body><h1>Paket Etiketleri</h1>
-    `);
+    try {
+        // Fetch package items for selected packages
+        const packageIds = selectedPackages.map(p => p.id);
+        const { data: packageItems } = await supabase
+            .from('package_items')
+            .select('*')
+            .in('package_id', packageIds);
 
-    selectedPackages.forEach(pkg => {
+        const printWindow = window.open('', '_blank');
         printWindow.document.write(`
-            <div class="label">
-                <h3>${escapeHtml(pkg.customers.name)}</h3>
-                <p>Paket No: ${escapeHtml(pkg.package_no)}</p>
-                <p>Adet: ${pkg.total_quantity}</p>
-                <svg id="barcode-${pkg.id}"></svg>
-                <script>JsBarcode("#barcode-${pkg.id}", "${pkg.package_no}", { format: "CODE128", displayValue:true, fontSize:12, height:30 });<\/script>
-            </div>
+            <html><head><title>Paket Etiketleri</title><style>body{font-family:Arial}.label{width:300px;height:150px;border:1px solid #000;margin:10px;padding:10px;display:inline-block;page-break-inside:avoid}</style><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script></head><body><h1>Paket Etiketleri</h1>
         `);
-    });
 
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    setTimeout(() => printWindow.print(), 500);
-    showToast(`${selectedPackages.length} paket için etiket yazdırılıyor...`, 'success');
+        selectedPackages.forEach(pkg => {
+            const itemsForPackage = packageItems?.filter(item => item.package_id === pkg.id) || [];
+            const itemsList = itemsForPackage.map(item => `${item.product_name}: ${item.quantity}`).join('<br>');
+            
+            printWindow.document.write(`
+                <div class="label">
+                    <h3>${escapeHtml(pkg.customers?.name || 'N/A')}</h3>
+                    <p>Paket No: ${escapeHtml(pkg.package_no)}</p>
+                    <p>Toplam Adet: ${pkg.total_quantity}</p>
+                    <small>${itemsList}</small>
+                    <svg id="barcode-${pkg.id}"></svg>
+                    <script>JsBarcode("#barcode-${pkg.id}", "${pkg.package_no}", { format: "CODE128", displayValue:true, fontSize:12, height:30 });<\/script>
+                </div>
+            `);
+        });
+
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        setTimeout(() => printWindow.print(), 500);
+        showToast(`${selectedPackages.length} paket için etiket yazdırılıyor...`, 'success');
+        
+    } catch (error) {
+        console.error('Error printing labels:', error);
+        showToast('Etiket yazdırılırken hata oluştu', 'error');
+    }
 }
 
 /* -----------------------
-   Stock search & upload
+   Stock Operations
    ----------------------- */
 function searchStock() {
     const searchTerm = (document.getElementById('stockSearch').value || '').toLowerCase();
@@ -1401,9 +1563,9 @@ function searchStock() {
     );
 
     if (filteredItems.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="6" style="text-align:center;color:#666;padding:12px">Eşleşen stok bulunamadı</td>`;
-        tbody.appendChild(tr);
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="6" style="text-align:center;color:#666;padding:12px">Eşleşen stok bulunamadı</td>`;
+        tbody.appendChild(row);
         return;
     }
 
@@ -1486,7 +1648,7 @@ async function uploadStockFile() {
         fileInput.value = '';
         
         // Refresh the stock table
-        populateStockTable();
+        await populateStockTable();
         
     } catch (error) {
         console.error('Error processing stock file:', error);
@@ -1494,35 +1656,140 @@ async function uploadStockFile() {
     }
 }
 
-function loadCurrentContainer() { showToast('Mevcut konteyner yüklendi', 'success'); }
+function loadCurrentContainer() { 
+    showToast('Mevcut konteyner yüklendi', 'success'); 
+}
 
 async function createNewContainer() {
-    const containerNo = `C${String(containers.length + 1).padStart(6, '0')}`;
-    
-    // Create container in Supabase
-    const { data: newContainer, error } = await supabase
-        .from('containers')
-        .insert([{
-            container_no: containerNo,
-            customer: '',
-            package_count: 0,
-            total_quantity: 0,
-            status: 'beklemede',
-            package_ids: []
-        }])
-        .select();
-    
-    if (error) {
-        showToast('Konteyner oluşturulurken hata oluştu', 'error');
-        return;
+    try {
+        // Generate container number based on timestamp
+        const timestamp = new Date().getTime();
+        const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+        
+        // Create container in Supabase
+        const { data: newContainer, error } = await supabase
+            .from('containers')
+            .insert([{
+                container_no: containerNo,
+                customer: '',
+                package_count: 0,
+                total_quantity: 0,
+                status: 'beklemede',
+                package_ids: []
+            }])
+            .select();
+        
+        if (error) {
+            throw new Error(`Konteyner oluşturulurken hata oluştu: ${error.message}`);
+        }
+        
+        // Update local state
+        containers.push(newContainer[0]);
+        document.getElementById('containerNumber').textContent = containerNo;
+        currentContainer = containerNo;
+        
+        showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+        await populateShippingTable();
+        
+    } catch (error) {
+        console.error('Error creating container:', error);
+        showToast(error.message, 'error');
+    }
+}
+
+/* -----------------------
+   Shipping Operations
+   ----------------------- */
+async function sendToRamp() {
+    const selectedPackages = packages.filter(p => p.selected);
+    if (selectedPackages.length === 0) { 
+        showToast('Lütfen rampaya göndermek için paket seçin', 'error'); 
+        return; 
     }
     
-    // Update local state
-    containers.push(newContainer[0]);
-    document.getElementById('containerNumber').textContent = containerNo;
-    currentContainer = containerNo;
+    if (!confirm('Seçilen paketleri rampaya göndermek istediğinize emin misiniz?')) return;
     
-    showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+    try {
+        const totalQuantity = selectedPackages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+        
+        // Generate container number based on timestamp
+        const timestamp = new Date().getTime();
+        const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+        
+        // Create container in Supabase
+        const { data: newContainer, error: containerError } = await supabase
+            .from('containers')
+            .insert([{
+                container_no: containerNo,
+                customer: selectedPackages[0].customers?.name || 'Bilinmiyor',
+                package_count: selectedPackages.length,
+                total_quantity: totalQuantity,
+                status: 'beklemede',
+                package_ids: selectedPackages.map(p => p.id)
+            }])
+            .select();
+        
+        if (containerError) {
+            throw new Error(`Konteyner oluşturulurken hata oluştu: ${containerError.message}`);
+        }
+        
+        // Update packages to mark them as in container
+        for (const pkg of selectedPackages) {
+            const { error: updateError } = await supabase
+                .from('packages')
+                .update({ container_id: newContainer[0].id })
+                .eq('id', pkg.id);
+            
+            if (updateError) {
+                throw new Error(`Paket ${pkg.package_no} güncellenirken hata oluştu: ${updateError.message}`);
+            }
+        }
+        
+        // Update local state
+        containers.push(newContainer[0]);
+        packages = packages.filter(p => !p.selected);
+        
+        await populatePackagesTable();
+        await populateShippingTable();
+        clearSelection();
+        
+        showToast(`${selectedPackages.length} paket konteyner(${containerNo}) ile rampaya gönderildi - Durum: Beklemede`, 'success');
+        switchTab('shipping');
+        
+    } catch (error) {
+        console.error('Error sending to ramp:', error);
+        showToast(error.message, 'error');
+    }
+}
+
+async function shipContainer(containerNo) {
+    try {
+        // Update container status in Supabase
+        const { error } = await supabase
+            .from('containers')
+            .update({ status: 'sevk-edildi' })
+            .eq('container_no', containerNo);
+        
+        if (error) {
+            throw new Error(`Konteyner ${containerNo} sevk durumu güncellenirken hata oluştu: ${error.message}`);
+        }
+        
+        // Update local state
+        const container = containers.find(c => c.container_no === containerNo);
+        if (container) {
+            container.status = 'sevk-edildi';
+            await populateShippingTable();
+            showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
+        }
+        
+    } catch (error) {
+        console.error('Error shipping container:', error);
+        showToast(error.message, 'error');
+    }
+}
+
+function filterShipping() { 
+    populateShippingTable(); 
 }
 
 function closeModal() {
@@ -1532,63 +1799,33 @@ function closeModal() {
 }
 
 function switchTab(tabName) {
-    // make switching robust by using data-tab attributes
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    
     const tabElement = document.querySelector(`.tab[data-tab="${tabName}"]`);
     if (tabElement) tabElement.classList.add('active');
+    
     const pane = document.getElementById(`${tabName}Tab`);
     if (pane) pane.classList.add('active');
-    else {
-        // fallback: try known ids
-        const map = { packaging: 'packagingTab', shipping: 'shippingTab', stock: 'stockTab' };
-        const alt = document.getElementById(map[tabName]);
-        if (alt) alt.classList.add('active');
-    }
 }
-
-/* -----------------------
-   Auto-save
-   ----------------------- */
-function autoSave() {
-    try {
-        const appData = { customers, packages, containers, stockItems, timestamp: new Date().toISOString() };
-        localStorage.setItem('proclean_data', JSON.stringify(appData));
-    } catch (e) { console.warn('Auto-save failed', e); }
-}
-
-function loadAutoSave() {
-    const savedData = localStorage.getItem('proclean_data');
-    if (!savedData) return;
-    try {
-        const data = JSON.parse(savedData);
-        if (data.customers) customers = data.customers;
-        if (data.packages) packages = data.packages;
-        if (data.containers) containers = data.containers;
-        if (data.stockItems) stockItems = data.stockItems;
-    } catch (e) { console.error('Error loading saved data:', e); }
-}
-
-setInterval(autoSave, 30000);
 
 /* -----------------------
    Utilities
    ----------------------- */
 function escapeHtml(s) {
     if (s === null || s === undefined) return '';
-    return String(s).replace(/[&<>"']/g, function (m) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]; });
+    return String(s).replace(/[&<>"']/g, function (m) { 
+        return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]; 
+    });
 }
 
 // On load
 window.addEventListener('load', function() {
     loginScreen.style.display = 'flex';
     appContainer.style.display = 'none';
-    loadAutoSave();
-    // pre-populate customer dropdown so it's available on login
-    populateCustomerDropdown();
 });
 
-// Global error handler (helps debugging)
+// Global error handler
 window.onerror = function(msg, url, lineNo, columnNo, error) {
     console.error('Global error', msg, url, lineNo, columnNo, error);
     showToast(`Beklenmeyen hata: ${msg} (Satır ${lineNo})`, 'error');
