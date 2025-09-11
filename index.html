@@ -1417,6 +1417,8 @@ function selectPackage(pkg) {
         const checkbox = rows[i].querySelector('input[type="checkbox"]');
         if (checkbox && checkbox.value === pkg.id) {
             rows[i].classList.add('selected');
+            // Store the actual package data for later use
+            rows[i]._packageData = pkg;
             break;
         }
     }
@@ -1456,17 +1458,24 @@ function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
     if (!selectedRow) return null;
     
-    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-    // In a real implementation, you would fetch the complete package data
-    // For now, we'll use the data from the row
+    // Return the stored package data if available
+    if (selectedRow._packageData) {
+        return selectedRow._packageData;
+    }
+    
+    // Fallback to row data extraction
+    const packageNo = selectedRow.cells[1].textContent;
+    const customerName = selectedRow.cells[2].textContent;
+    const totalQuantity = parseInt(selectedRow.cells[3].textContent);
+    const date = selectedRow.cells[4].textContent;
+    
     return {
-        package_no: selectedRow.cells[1].textContent,
-        customers: { name: selectedRow.cells[2].textContent },
-        total_quantity: parseInt(selectedRow.cells[3].textContent),
-        created_at: selectedRow.cells[4].textContent
+        package_no: packageNo,
+        customers: { name: customerName },
+        total_quantity: totalQuantity,
+        created_at: date
     };
 }
-
 async function printLabel() {
     const selectedPackage = getSelectedPackage();
     if (!selectedPackage) {
