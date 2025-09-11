@@ -474,6 +474,7 @@ let selectedPackage = null;
 let currentContainer = "C000094";
 let currentQuantityProduct = null;
 let barcodeCount = 0;
+let products = [];
 
 // DOM refs
 const loginScreen = document.getElementById('loginScreen');
@@ -494,6 +495,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
+                showToast("Giriş yapılıyor...", "warning");
+                
                 // Supabase login
                 const { data, error } = await supabase.auth.signInWithPassword({
                     email: email,
@@ -501,7 +504,16 @@ window.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (error) {
-                    showToast("Giriş başarısız: " + error.message, "error");
+                    console.error("Login error:", error);
+                    
+                    // More specific error messages
+                    if (error.message.includes("Invalid login credentials")) {
+                        showToast("Geçersiz e-posta veya şifre", "error");
+                    } else if (error.message.includes("Email not confirmed")) {
+                        showToast("E-posta adresiniz doğrulanmamış", "error");
+                    } else {
+                        showToast("Giriş başarısız: " + error.message, "error");
+                    }
                     return;
                 }
 
@@ -520,11 +532,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 initApp();
                 
             } catch (e) {
-                showToast("Giriş başarısız: " + e.message, "error");
-                console.error(e);
+                console.error("Login exception:", e);
+                showToast("Giriş işlemi sırasında hata oluştu", "error");
             }
         };
     }
+
+    // Add Enter key support for login form
+    document.getElementById("password").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+            document.getElementById("loginBtn").click();
+        }
+    });
+});
 
     // Supabase auth state listener
     supabase.auth.onAuthStateChange((event, session) => {
@@ -1506,6 +1526,89 @@ async function populatePackagesTable() {
             el.setAttribute('role','status');
             setTimeout(() => { el.classList.remove('show'); }, duration);
         }
+
+         /* -----------------------
+           Login / Logout
+           ----------------------- */
+
+     window.addEventListener('DOMContentLoaded', () => {
+    const loginBtn = document.getElementById("loginBtn");
+    if (loginBtn) {
+        loginBtn.onclick = async () => {
+            const email = document.getElementById("email").value; // Changed from username to email
+            const password = document.getElementById("password").value;
+
+            if (!email || !password) {
+                showToast("Lütfen e-posta ve şifre girin", "error");
+                return;
+            }
+
+            try {
+                // Supabase login
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    showToast("Giriş başarısız: " + error.message, "error");
+                    return;
+                }
+
+                // Login successful
+                currentUser = {
+                    email: data.user.email,
+                    uid: data.user.id,
+                    name: data.user.email.split('@')[0]
+                };
+                
+                document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
+                document.getElementById("loginScreen").style.display = "none";
+                document.getElementById("appContainer").style.display = "flex";
+                
+                showToast("Giriş başarılı", "success");
+                initApp();
+                
+            } catch (e) {
+                showToast("Giriş başarısız: " + e.message, "error");
+                console.error(e);
+            }
+        };
+    }
+
+    // Supabase auth state listener remains the same
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            // User is signed in
+            currentUser = {
+                email: session.user.email,
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
+            };
+            
+            document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
+            document.getElementById("loginScreen").style.display = "none";
+            document.getElementById("appContainer").style.display = "flex";
+            initApp();
+        } else {
+            // User is signed out
+            document.getElementById("loginScreen").style.display = "flex";
+            document.getElementById("appContainer").style.display = "none";
+        }
+    });
+});
+
+        function logout() {
+            currentUser = null;
+            appContainer.style.display = 'none';
+            appContainer.setAttribute('aria-hidden','true');
+            loginScreen.style.display = 'flex';
+            document.getElementById('email').value = '';
+            document.getElementById('password').value = '';
+            closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
+            showToast('Başarıyla çıkış yapıldı', 'success');
+        }
+
         /* -----------------------
            Auto-save
            ----------------------- */
