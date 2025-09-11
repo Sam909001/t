@@ -411,41 +411,89 @@
                 </table>
             </div>
 
-            <div class="tab-pane" id="stockTab">
-                <div class="stock-search">
-                    <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
-                    <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
-                </div>
+           <div class="tab-pane" id="stockTab">
+    <div class="stock-search">
+        <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
+        <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
+        <button type="button" class="btn btn-success" onclick="addNewStockItem()">Yeni Stok Ekle</button>
+    </div>
 
-                <table class="stock-table">
-                    <thead>
-                        <tr>
-                            <th>Stok Kodu</th>
-                            <th>Ürün Adı</th>
-                            <th>Mevcut Adet</th>
-                            <th>Birim</th>
-                            <th>Durum</th>
-                            <th>Son Güncelleme</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stockTableBody">
-                        <!-- Stock data will be populated here -->
-                    </tbody>
-                </table>
+    <table class="stock-table">
+        <thead>
+            <tr>
+                <th>Stok Kodu</th>
+                <th>Ürün Adı</th>
+                <th>Mevcut Adet</th>
+                <th>Birim</th>
+                <th>Durum</th>
+                <th>Son Güncelleme</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody id="stockTableBody">
+            <!-- Stock data will be populated here -->
+        </tbody>
+    </table>
 
-                <div class="file-upload">
-                    <h3>Stok Dosyası Yükle</h3>
-                    <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
-                    <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
-                    <div>
-                        <span id="selectedFileName"></span>
-                    </div>
-                    <button type="button" class="upload-button" onclick="uploadStockFile()">
-                        <i class="fas fa-upload"></i> Dosya Yükle
-                    </button>
-                </div>
-            </div>
+    <div class="file-upload">
+        <h3>Stok Dosyası Yükle</h3>
+        <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
+        <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
+        <div>
+            <span id="selectedFileName"></span>
         </div>
+        <button type="button" class="upload-button" onclick="uploadStockFile()">
+            <i class="fas fa-upload"></i> Dosya Yükle
+        </button>
+    </div>
+</div>
+
+<!-- Stock Edit Modal -->
+<div class="modal" id="stockEditModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="stockEditModalTitle">Stok Düzenle</h3>
+            <button type="button" class="modal-close" onclick="closeStockEditModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label for="editStockCode">Stok Kodu</label>
+            <input type="text" id="editStockCode" placeholder="Stok kodu">
+        </div>
+        <div class="form-group">
+            <label for="editProductName">Ürün Adı</label>
+            <input type="text" id="editProductName" placeholder="Ürün adı">
+        </div>
+        <div class="form-group">
+            <label for="editQuantity">Mevcut Adet</label>
+            <input type="number" id="editQuantity" min="0" placeholder="Mevcut adet">
+        </div>
+        <div class="form-group">
+            <label for="editUnit">Birim</label>
+            <select id="editUnit">
+                <option value="Adet">Adet</option>
+                <option value="Kg">Kg</option>
+                <option value="Lt">Lt</option>
+                <option value="Metre">Metre</option>
+                <option value="Kutu">Kutu</option>
+                <option value="Paket">Paket</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="editStatus">Durum</label>
+            <select id="editStatus">
+                <option value="Stokta">Stokta</option>
+                <option value="Az Stok">Az Stok</option>
+                <option value="Kritik">Kritik</option>
+                <option value="Tükendi">Tükendi</option>
+            </select>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="btn btn-secondary" onclick="closeStockEditModal()">İptal</button>
+            <button type="button" class="btn btn-primary" onclick="saveStockChanges()">Kaydet</button>
+            <button type="button" class="btn btn-danger" id="deleteStockBtn" onclick="deleteStockItem()" style="display: none;">Sil</button>
+        </div>
+    </div>
+</div>
 
         <div class="app-footer">
             <div class="container-info">
@@ -575,6 +623,7 @@ let containers = [];
 let currentContainer = null;
 let selectedProduct = null;
 let supabase = null;
+let currentEditingStockId = null;
 
 // DOM elements
 const elements = {
@@ -1083,6 +1132,7 @@ async function populateShippingTable() {
     }
 }
 
+// Function to populate stock table with edit capabilities
 async function populateStockTable() {
     try {
         elements.stockTableBody.innerHTML = '';
@@ -1108,25 +1158,31 @@ async function populateStockTable() {
                 
                 if (item.quantity <= 0) {
                     statusClass = 'status-kritik';
-                    statusText = 'Kritik';
-                } else if (item.quantity < 10) {
+                    statusText = 'Tükendi';
+                } else if (item.quantity < item.min_stock_level || (item.min_stock_level === null && item.quantity < 10)) {
                     statusClass = 'status-az-stok';
                     statusText = 'Az Stok';
+                } else if (item.quantity < item.critical_stock_level || (item.critical_stock_level === null && item.quantity < 5)) {
+                    statusClass = 'status-kritik';
+                    statusText = 'Kritik';
                 }
                 
                 row.innerHTML = `
                     <td>${item.code}</td>
                     <td>${item.name}</td>
-                    <td>${item.quantity}</td>
+                    <td>${item.quantity} ${item.unit || 'Adet'}</td>
                     <td>${item.unit || 'Adet'}</td>
                     <td><span class="${statusClass}">${statusText}</span></td>
                     <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                    <td>
+                        <button onclick="editStockItem('${item.id}')" class="btn btn-warning btn-sm">Düzenle</button>
+                    </td>
                 `;
                 elements.stockTableBody.appendChild(row);
             });
         } else {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Stok verisi yok</td>';
+            row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
             elements.stockTableBody.appendChild(row);
         }
         
@@ -1136,6 +1192,174 @@ async function populateStockTable() {
     }
 }
 
+// Function to edit stock item
+async function editStockItem(stockId) {
+    try {
+        const { data: stockItem, error } = await supabase
+            .from('stock_items')
+            .select('*')
+            .eq('id', stockId)
+            .single();
+
+        if (error) {
+            console.error('Error loading stock item:', error);
+            showToast('Stok verisi yüklenemedi', 'error');
+            return;
+        }
+
+        // Set current editing stock ID
+        currentEditingStockId = stockId;
+
+        // Populate modal fields
+        document.getElementById('editStockCode').value = stockItem.code || '';
+        document.getElementById('editProductName').value = stockItem.name || '';
+        document.getElementById('editQuantity').value = stockItem.quantity || 0;
+        document.getElementById('editUnit').value = stockItem.unit || 'Adet';
+        
+        // Determine status based on quantity
+        let status = 'Stokta';
+        if (stockItem.quantity <= 0) {
+            status = 'Tükendi';
+        } else if (stockItem.quantity < (stockItem.min_stock_level || 10)) {
+            status = 'Az Stok';
+        } else if (stockItem.quantity < (stockItem.critical_stock_level || 5)) {
+            status = 'Kritik';
+        }
+        document.getElementById('editStatus').value = status;
+        
+        // Show delete button for existing items
+        document.getElementById('deleteStockBtn').style.display = 'inline-block';
+        
+        // Show modal
+        document.getElementById('stockEditModalTitle').textContent = 'Stok Düzenle';
+        document.getElementById('stockEditModal').style.display = 'flex';
+        
+    } catch (error) {
+        console.error('Error in editStockItem:', error);
+        showToast('Stok düzenleme hatası', 'error');
+    }
+}
+
+// Function to add new stock item
+function addNewStockItem() {
+    // Reset modal fields
+    document.getElementById('editStockCode').value = '';
+    document.getElementById('editProductName').value = '';
+    document.getElementById('editQuantity').value = '';
+    document.getElementById('editUnit').value = 'Adet';
+    document.getElementById('editStatus').value = 'Stokta';
+    
+    // Hide delete button for new items
+    document.getElementById('deleteStockBtn').style.display = 'none';
+    
+    // Set current editing stock ID to null for new items
+    currentEditingStockId = null;
+    
+    // Show modal
+    document.getElementById('stockEditModalTitle').textContent = 'Yeni Stok Ekle';
+    document.getElementById('stockEditModal').style.display = 'flex';
+}
+
+// Function to save stock changes
+async function saveStockChanges() {
+    try {
+        const code = document.getElementById('editStockCode').value.trim();
+        const name = document.getElementById('editProductName').value.trim();
+        const quantity = parseInt(document.getElementById('editQuantity').value);
+        const unit = document.getElementById('editUnit').value;
+        
+        if (!code || !name || isNaN(quantity)) {
+            showToast('Lütfen zorunlu alanları doldurun', 'error');
+            return;
+        }
+        
+        if (currentEditingStockId) {
+            // Update existing stock item
+            const { error } = await supabase
+                .from('stock_items')
+                .update({
+                    code: code,
+                    name: name,
+                    quantity: quantity,
+                    unit: unit,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', currentEditingStockId);
+
+            if (error) {
+                console.error('Error updating stock item:', error);
+                showToast('Stok güncellenirken hata oluştu: ' + error.message, 'error');
+                return;
+            }
+            
+            showToast('Stok başarıyla güncellendi', 'success');
+        } else {
+            // Add new stock item
+            const { error } = await supabase
+                .from('stock_items')
+                .insert([{
+                    code: code,
+                    name: name,
+                    quantity: quantity,
+                    unit: unit,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }]);
+
+            if (error) {
+                console.error('Error adding stock item:', error);
+                showToast('Stok eklenirken hata oluştu: ' + error.message, 'error');
+                return;
+            }
+            
+            showToast('Stok başarıyla eklendi', 'success');
+        }
+        
+        // Close modal and refresh table
+        closeStockEditModal();
+        await populateStockTable();
+        
+    } catch (error) {
+        console.error('Error in saveStockChanges:', error);
+        showToast('Stok kaydetme hatası', 'error');
+    }
+}
+
+// Function to delete stock item
+async function deleteStockItem() {
+    if (!currentEditingStockId) return;
+    
+    if (!confirm('Bu stok öğesini silmek istediğinize emin misiniz?')) return;
+    
+    try {
+        const { error } = await supabase
+            .from('stock_items')
+            .delete()
+            .eq('id', currentEditingStockId);
+
+        if (error) {
+            console.error('Error deleting stock item:', error);
+            showToast('Stok silinirken hata oluştu: ' + error.message, 'error');
+            return;
+        }
+        
+        showToast('Stok başarıyla silindi', 'success');
+        
+        // Close modal and refresh table
+        closeStockEditModal();
+        await populateStockTable();
+        
+    } catch (error) {
+        console.error('Error in deleteStockItem:', error);
+        showToast('Stok silme hatası', 'error');
+    }
+}
+
+// Function to close stock edit modal
+function closeStockEditModal() {
+    document.getElementById('stockEditModal').style.display = 'none';
+    currentEditingStockId = null;
+}
 // Customer operations
 async function showCustomers() {
     try {
