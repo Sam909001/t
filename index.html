@@ -391,7 +391,7 @@
         </div>
     </div>
 
-    <!-All Customers Modal -->
+    <!-- All Customers Modal -->
     <div class="modal" id="allCustomersModal" aria-hidden="true">
         <div class="modal-content">
             <div class="modal-header">
@@ -457,7 +457,7 @@
     </div>
 
 <script>
-// Supabase initialization - KEEP ONLY THIS ONE
+// Supabase initialization
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
 
@@ -469,17 +469,38 @@ let customers = [];
 let packages = [];
 let containers = [];
 let stockItems = [];
+let products = []; // Added missing products array
 let selectedCustomerInModal = null;
 let selectedPackage = null;
 let currentContainer = "C000094";
 let currentQuantityProduct = null;
 let barcodeCount = 0;
-let products = [];
 
 // DOM refs
 const loginScreen = document.getElementById('loginScreen');
 const appContainer = document.getElementById('appContainer');
 const toast = document.getElementById('toast');
+const modal = document.getElementById('customerModal');
+const allCustomersModal = document.getElementById('allCustomersModal');
+const emailModal = document.getElementById('emailModal');
+const quantityModal = document.getElementById('quantityModal');
+const manualModal = document.getElementById('manualModal');
+const selectAllCheckbox = document.getElementById('selectAllPackages');
+
+// Test Supabase connection
+async function testConnection() {
+    try {
+        const { data, error } = await supabase.from('customers').select('count').limit(1);
+        if (error) {
+            console.error('Supabase connection error:', error);
+            showToast('Veritabanı bağlantı hatası', 'error');
+        } else {
+            console.log('Supabase connected successfully');
+        }
+    } catch (e) {
+        console.error('Connection test failed:', e);
+    }
+}
 
 // Login function
 window.addEventListener('DOMContentLoaded', () => {
@@ -544,7 +565,6 @@ window.addEventListener('DOMContentLoaded', () => {
             document.getElementById("loginBtn").click();
         }
     });
-});
 
     // Supabase auth state listener
     supabase.auth.onAuthStateChange((event, session) => {
@@ -621,56 +641,56 @@ function setupEventListeners() {
         bInput._bound = true;
     }
 
-            const stockInput = document.getElementById('stockSearch');
-            if (stockInput && !stockInput._bound) {
-                stockInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') searchStock();
-                });
-                stockInput._bound = true;
-            }
+    const stockInput = document.getElementById('stockSearch');
+    if (stockInput && !stockInput._bound) {
+        stockInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchStock();
+        });
+        stockInput._bound = true;
+    }
 
-            const fileInput = document.getElementById('stockFileUpload');
-            if (fileInput && !fileInput._bound) {
-                fileInput.addEventListener('change', function(e) {
-                    const fileName = e.target.files[0]?.name || '';
-                    document.getElementById('selectedFileName').textContent = fileName;
-                });
-                fileInput._bound = true;
-            }
+    const fileInput = document.getElementById('stockFileUpload');
+    if (fileInput && !fileInput._bound) {
+        fileInput.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || '';
+            document.getElementById('selectedFileName').textContent = fileName;
+        });
+        fileInput._bound = true;
+    }
 
-            if (selectAllCheckbox && !selectAllCheckbox._bound) {
-                selectAllCheckbox.addEventListener('change', function() {
-                    if (this.checked) selectAllPackages(); else clearSelection();
-                });
-                selectAllCheckbox._bound = true;
-            }
+    if (selectAllCheckbox && !selectAllCheckbox._bound) {
+        selectAllCheckbox.addEventListener('change', function() {
+            if (this.checked) selectAllPackages(); else clearSelection();
+        });
+        selectAllCheckbox._bound = true;
+    }
 
-            // F2 and ESC handling
-            if (!document._proclean_keybound) {
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'F2') { e.preventDefault(); savePackage(); }
-                    if (e.key === 'Escape') {
-                        closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-                    }
-                });
-                document._proclean_keybound = true;
+    // F2 and ESC handling
+    if (!document._proclean_keybound) {
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F2') { e.preventDefault(); savePackage(); }
+            if (e.key === 'Escape') {
+                closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
             }
+        });
+        document._proclean_keybound = true;
+    }
 
-            // Additional shortcuts (Ctrl)
-            if (!document._proclean_ctrlbound) {
-                document.addEventListener('keydown', function(e) {
-                    if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); savePackage(); }
-                    if (e.ctrlKey && e.key.toLowerCase() === 'p') { e.preventDefault(); printLabel(); }
-                    if (e.ctrlKey && e.key.toLowerCase() === 'n') { e.preventDefault(); createNewContainer(); }
-                });
-                document._proclean_ctrlbound = true;
-            }
-        }
+    // Additional shortcuts (Ctrl)
+    if (!document._proclean_ctrlbound) {
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); savePackage(); }
+            if (e.ctrlKey && e.key.toLowerCase() === 'p') { e.preventDefault(); printLabel(); }
+            if (e.ctrlKey && e.key.toLowerCase() === 'n') { e.preventDefault(); createNewContainer(); }
+        });
+        document._proclean_ctrlbound = true;
+    }
+}
 
-        /* -----------------------
-           Populate helpers
-           ----------------------- */
-        // Replace all customer operations with Supabase equivalents
+/* -----------------------
+   Populate helpers
+   ----------------------- */
+// Replace all customer operations with Supabase equivalents
 
 async function populateCustomerDropdown() {
     const customerSelect = document.getElementById('customer');
@@ -732,21 +752,35 @@ async function addNewCustomer() {
     document.getElementById('newCustomerName').value = '';
     document.getElementById('newCustomerEmail').value = '';
 }
-        function populateQuickButtons() {
-            const quickButtons = document.getElementById('quickButtons');
-            if (!quickButtons) return;
-            quickButtons.innerHTML = '';
-            products.forEach(product => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'quick-btn';
-                button.innerHTML = `${product.name}${product.quantity > 0 ? `<div class="quantity-badge">${product.quantity}</div>` : ''}`;
-                button.onclick = () => openQuantityModal(product);
-                quickButtons.appendChild(button);
-            });
-        }
 
-        async function savePackage() {
+function populateQuickButtons() {
+    const quickButtons = document.getElementById('quickButtons');
+    if (!quickButtons) return;
+    quickButtons.innerHTML = '';
+    
+    // Create some sample products if none exist
+    if (products.length === 0) {
+        products = [
+            { code: 'TSHIRT', name: 'Tişört', quantity: 0 },
+            { code: 'PANTS', name: 'Pantolon', quantity: 0 },
+            { code: 'TOWEL', name: 'Havlu', quantity: 0 },
+            { code: 'SHEET', name: 'Çarşaf', quantity: 0 },
+            { code: 'PILLOW', name: 'Yastık', quantity: 0 },
+            { code: 'BLANKET', name: 'Battaniye', quantity: 0 }
+        ];
+    }
+    
+    products.forEach(product => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'quick-btn';
+        button.innerHTML = `${product.name}${product.quantity > 0 ? `<div class="quantity-badge">${product.quantity}</div>` : ''}`;
+        button.onclick = () => openQuantityModal(product);
+        quickButtons.appendChild(button);
+    });
+}
+
+async function savePackage() {
     const selectedCustomerId = document.getElementById('customer').value;
     const selectedCustomer = customers.find(c => c.id == selectedCustomerId);
 
@@ -823,8 +857,8 @@ async function populatePackagesTable() {
         tbody.appendChild(row);
     });
 }
-        
-        async function populateStockTable() {
+
+async function populateStockTable() {
     const tbody = document.getElementById('stockTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -860,7 +894,8 @@ async function populatePackagesTable() {
         tbody.appendChild(row);
     });
 }
-        async function populateShippingTable() {
+
+async function populateShippingTable() {
     const tbody = document.getElementById('shippingTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -914,88 +949,89 @@ async function populatePackagesTable() {
         }
     });
 }
-        /* -----------------------
-           Customer modal & list
-           ----------------------- */
-        function showAllCustomers() {
-            const allCustomersList = document.getElementById('allCustomersList');
-            if (!allCustomersList) return;
-            allCustomersList.innerHTML = '';
 
-            customers.forEach(customer => {
-                const item = document.createElement('div');
-                item.className = 'customer-item';
-                item.innerHTML = `
-                    <div>
-                        <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
-                        <small>E-posta: ${escapeHtml(customer.email)}</small>
-                    </div>
-                `;
-                allCustomersList.appendChild(item);
-            });
+/* -----------------------
+   Customer modal & list
+   ----------------------- */
+function showAllCustomers() {
+    const allCustomersList = document.getElementById('allCustomersList');
+    if (!allCustomersList) return;
+    allCustomersList.innerHTML = '';
 
-            allCustomersModal.style.display = 'flex';
-            allCustomersModal.setAttribute('aria-hidden', 'false');
-        }
+    customers.forEach(customer => {
+        const item = document.createElement('div');
+        item.className = 'customer-item';
+        item.innerHTML = `
+            <div>
+                <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
+                <small>E-posta: ${escapeHtml(customer.email)}</small>
+            </div>
+        `;
+        allCustomersList.appendChild(item);
+    });
 
-        function closeAllCustomersModal() {
-            allCustomersModal.style.display = 'none';
-            allCustomersModal.setAttribute('aria-hidden', 'true');
-        }
+    allCustomersModal.style.display = 'flex';
+    allCustomersModal.setAttribute('aria-hidden', 'false');
+}
 
-        function generateDailyReport() { emailModal.style.display = 'flex'; emailModal.setAttribute('aria-hidden','false'); }
-        function closeEmailModal() { emailModal.style.display = 'none'; emailModal.setAttribute('aria-hidden','true'); }
+function closeAllCustomersModal() {
+    allCustomersModal.style.display = 'none';
+    allCustomersModal.setAttribute('aria-hidden', 'true');
+}
 
-        function previewReport() {
-            const reportData = {
-                date: new Date().toLocaleDateString('tr-TR'),
-                totalPackages: packages.length,
-                totalItems: packages.reduce((sum, pkg) => sum + pkg.totalQuantity, 0),
-                containers: containers.length,
-                customers: [...new Set(packages.map(p => p.customerName))].length,
-                operator: currentUser?.name || 'Bilinmiyor'
-            };
+function generateDailyReport() { emailModal.style.display = 'flex'; emailModal.setAttribute('aria-hidden','false'); }
+function closeEmailModal() { emailModal.style.display = 'none'; emailModal.setAttribute('aria-hidden','true'); }
 
-            const reportWindow = window.open('', '_blank');
-            reportWindow.document.write(`
-                <html>
-                <head>
-                    <title>İş Sonu Raporu - ${reportData.date}</title>
-                    <style>body{font-family:Arial;margin:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px}</style>
-                </head>
-                <body>
-                    <h1>ProClean - İş Sonu Raporu</h1>
-                    <p>Tarih: ${reportData.date} | Operatör: ${reportData.operator}</p>
-                    <h2>Özet</h2>
-                    <ul>
-                        <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
-                        <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
-                        <li>Konteyner Sayısı: ${reportData.containers}</li>
-                        <li>Müşteri Sayısı: ${reportData.customers}</li>
-                    </ul>
-                    <h2>Paket Detayları</h2>
-                    <table><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th><th>Zaman</th><th>Paketleyen</th></tr></thead><tbody>
-                        ${packages.map(pkg => `<tr><td>${escapeHtml(pkg.packageNo)}</td><td>${escapeHtml(pkg.customerName)}</td><td>${pkg.totalQuantity}</td><td>${escapeHtml(pkg.packageTime)}</td><td>${escapeHtml(pkg.packer)}</td></tr>`).join('')}
-                    </tbody></table>
-                </body>
-                </html>
-            `);
-            reportWindow.document.close();
-        }
+function previewReport() {
+    const reportData = {
+        date: new Date().toLocaleDateString('tr-TR'),
+        totalPackages: packages.length,
+        totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+        containers: containers.length,
+        customers: [...new Set(packages.map(p => p.customers.name))].length,
+        operator: currentUser?.name || 'Bilinmiyor'
+    };
 
-        function sendDailyReport() {
-            const email = document.getElementById('reportEmail').value;
-            if (!email) { showToast('Lütfen e-posta adresini girin', 'error'); return; }
+    const reportWindow = window.open('', '_blank');
+    reportWindow.document.write(`
+        <html>
+        <head>
+            <title>İş Sonu Raporu - ${reportData.date}</title>
+            <style>body{font-family:Arial;margin:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px}</style>
+        </head>
+        <body>
+            <h1>ProClean - İş Sonu Raporu</h1>
+            <p>Tarih: ${reportData.date} | Operatör: ${reportData.operator}</p>
+            <h2>Özet</h2>
+            <ul>
+                <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
+                <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
+                <li>Konteyner Sayısı: ${reportData.containers}</li>
+                <li>Müşteri Sayısı: ${reportData.customers}</li>
+            </ul>
+            <h2>Paket Detayları</h2>
+            <table><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th><th>Zaman</th><th>Paketleyen</th></tr></thead><tbody>
+                ${packages.map(pkg => `<tr><td>${escapeHtml(pkg.package_no)}</td><td>${escapeHtml(pkg.customers.name)}</td><td>${pkg.total_quantity}</td><td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td><td>${escapeHtml(pkg.packer)}</td></tr>`).join('')}
+            </tbody></table>
+        </body>
+        </html>
+    `);
+    reportWindow.document.close();
+}
 
-            // simulate send
-            showToast('Rapor e-posta ile gönderildi: ' + email, 'success');
-            closeEmailModal();
-        }
+function sendDailyReport() {
+    const email = document.getElementById('reportEmail').value;
+    if (!email) { showToast('Lütfen e-posta adresini girin', 'error'); return; }
 
-        /* -----------------------
-           Shipping helpers
-           ----------------------- */
-        async function sendToRamp() {
+    // simulate send
+    showToast('Rapor e-posta ile gönderildi: ' + email, 'success');
+    closeEmailModal();
+}
+
+/* -----------------------
+   Shipping helpers
+   ----------------------- */
+async function sendToRamp() {
     const selectedPackages = packages.filter(p => p.selected);
     if (selectedPackages.length === 0) { 
         showToast('Lütfen rampaya göndermek için paket seçin', 'error'); 
@@ -1050,7 +1086,7 @@ async function populatePackagesTable() {
     switchTab('shipping');
 }
 
-        async function shipContainer(containerNo) {
+async function shipContainer(containerNo) {
     // Update container status in Supabase
     const { error } = await supabase
         .from('containers')
@@ -1058,7 +1094,7 @@ async function populatePackagesTable() {
         .eq('container_no', containerNo);
     
     if (error) {
-        showToast(`Konteyner ${containerNo} sevk durumu güncellenirken hata oluştu`, 'error');
+        showToast(`Konteyner ${containerNo} sevk durumu güncellenirken hata oluştu', 'error`);
         return;
     }
     
@@ -1071,49 +1107,49 @@ async function populatePackagesTable() {
     }
 }
 
-        function filterShipping() { populateShippingTable(); }
+function filterShipping() { populateShippingTable(); }
 
-        /* -----------------------
-           Customer modal selection
-           ----------------------- */
-        function showCustomerSelection() {
-            populateCustomerModal();
-            modal.style.display = 'flex';
-            modal.setAttribute('aria-hidden','false');
-        }
+/* -----------------------
+   Customer modal selection
+   ----------------------- */
+function showCustomerSelection() {
+    populateCustomerModal();
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden','false');
+}
 
-        function populateCustomerModal() {
-            const customerList = document.getElementById('customerList');
-            if (!customerList) return;
-            customerList.innerHTML = '';
-            customers.forEach(customer => {
-                const item = document.createElement('div');
-                item.className = 'customer-item';
-                if (selectedCustomerInModal?.code === customer.code) item.classList.add('selected');
-                item.innerHTML = `
-                    <div>
-                        <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
-                        <small>E-posta: ${escapeHtml(customer.email)}</small>
-                    </div>
-                    <button class="btn btn-primary" type="button">Seç</button>
-                `;
-                const selectBtn = item.querySelector('button');
-                selectBtn.addEventListener('click', () => selectCustomer(customer.code));
-                customerList.appendChild(item);
-            });
-        }
+function populateCustomerModal() {
+    const customerList = document.getElementById('customerList');
+    if (!customerList) return;
+    customerList.innerHTML = '';
+    customers.forEach(customer => {
+        const item = document.createElement('div');
+        item.className = 'customer-item';
+        if (selectedCustomerInModal?.code === customer.code) item.classList.add('selected');
+        item.innerHTML = `
+            <div>
+                <strong>${escapeHtml(customer.code)} - ${escapeHtml(customer.name)}</strong><br>
+                <small>E-posta: ${escapeHtml(customer.email)}</small>
+            </div>
+            <button class="btn btn-primary" type="button">Seç</button>
+        `;
+        const selectBtn = item.querySelector('button');
+        selectBtn.addEventListener('click', () => selectCustomer(customer.code));
+        customerList.appendChild(item);
+    });
+}
 
-        function selectCustomer(code) {
-            selectedCustomerInModal = customers.find(c => c.code === code);
-            if (selectedCustomerInModal) {
-                document.getElementById('customer').value = code;
-                document.getElementById('customerName').textContent = selectedCustomerInModal.name;
-                closeModal();
-                showToast(`Müşteri seçildi: ${selectedCustomerInModal.name}`, 'success');
-            }
-        }
+function selectCustomer(code) {
+    selectedCustomerInModal = customers.find(c => c.code === code);
+    if (selectedCustomerInModal) {
+        document.getElementById('customer').value = code;
+        document.getElementById('customerName').textContent = selectedCustomerInModal.name;
+        closeModal();
+        showToast(`Müşteri seçildi: ${selectedCustomerInModal.name}`, 'success');
+    }
+}
 
-        async function deleteSelectedCustomer() {
+async function deleteSelectedCustomer() {
     if (!selectedCustomerInModal) { 
         showToast('Silmek için bir müşteri seçin', 'error'); 
         return; 
@@ -1140,106 +1176,106 @@ async function populatePackagesTable() {
     showToast('Müşteri silindi', 'success');
 }
 
-        /* -----------------------
-           Quantity / quick product handling
-           ----------------------- */
-        function openQuantityModal(product) {
-            currentQuantityProduct = product;
-            document.getElementById('quantityProductName').textContent = product.name;
-            document.getElementById('quantityInput').value = 1;
-            quantityModal.style.display = 'flex';
-            quantityModal.setAttribute('aria-hidden','false');
-            document.getElementById('quantityInput').focus();
-        }
+/* -----------------------
+   Quantity / quick product handling
+   ----------------------- */
+function openQuantityModal(product) {
+    currentQuantityProduct = product;
+    document.getElementById('quantityProductName').textContent = product.name;
+    document.getElementById('quantityInput').value = 1;
+    quantityModal.style.display = 'flex';
+    quantityModal.setAttribute('aria-hidden','false');
+    document.getElementById('quantityInput').focus();
+}
 
-        function confirmQuantity() {
-            const quantity = parseInt(document.getElementById('quantityInput').value, 10) || 0;
-            if (quantity > 0 && currentQuantityProduct) {
-                currentQuantityProduct.quantity += quantity;
-                populateQuickButtons();
-                updateDefinitionCounts();
-                showToast(`${currentQuantityProduct.name}: ${quantity} adet eklendi`, 'success');
-                closeQuantityModal();
-            } else {
-                showToast('Geçerli bir miktar girin', 'error');
-            }
-        }
+function confirmQuantity() {
+    const quantity = parseInt(document.getElementById('quantityInput').value, 10) || 0;
+    if (quantity > 0 && currentQuantityProduct) {
+        currentQuantityProduct.quantity += quantity;
+        populateQuickButtons();
+        updateDefinitionCounts();
+        showToast(`${currentQuantityProduct.name}: ${quantity} adet eklendi`, 'success');
+        closeQuantityModal();
+    } else {
+        showToast('Geçerli bir miktar girin', 'error');
+    }
+}
 
-        function closeQuantityModal() {
-            quantityModal.style.display = 'none';
-            quantityModal.setAttribute('aria-hidden','true');
-            currentQuantityProduct = null;
-        }
+function closeQuantityModal() {
+    quantityModal.style.display = 'none';
+    quantityModal.setAttribute('aria-hidden','true');
+    currentQuantityProduct = null;
+}
 
-        function showManualEntry() {
-            manualModal.style.display = 'flex';
-            manualModal.setAttribute('aria-hidden','false');
-            document.getElementById('manualProductCode').focus();
-        }
+function showManualEntry() {
+    manualModal.style.display = 'flex';
+    manualModal.setAttribute('aria-hidden','false');
+    document.getElementById('manualProductCode').focus();
+}
 
-        function closeManualModal() {
-            manualModal.style.display = 'none';
-            manualModal.setAttribute('aria-hidden','true');
-            document.getElementById('manualProductCode').value = '';
-            document.getElementById('manualProductName').value = '';
-            document.getElementById('manualQuantity').value = '1';
-        }
+function closeManualModal() {
+    manualModal.style.display = 'none';
+    manualModal.setAttribute('aria-hidden','true');
+    document.getElementById('manualProductCode').value = '';
+    document.getElementById('manualProductName').value = '';
+    document.getElementById('manualQuantity').value = '1';
+}
 
-        function addManualProduct() {
-            const code = document.getElementById('manualProductCode').value.trim();
-            const name = document.getElementById('manualProductName').value.trim();
-            const quantity = parseInt(document.getElementById('manualQuantity').value, 10) || 0;
+function addManualProduct() {
+    const code = document.getElementById('manualProductCode').value.trim();
+    const name = document.getElementById('manualProductName').value.trim();
+    const quantity = parseInt(document.getElementById('manualQuantity').value, 10) || 0;
 
-            if (!code || !name || quantity < 1) { showToast("Tüm alanlar gerekli ve miktar 1'den büyük olmalı", 'error'); return; }
+    if (!code || !name || quantity < 1) { showToast("Tüm alanlar gerekli ve miktar 1'den büyük olmalı", 'error'); return; }
 
-            let product = products.find(p => p.code === code);
-            if (!product) { product = { code, name, quantity: 0 }; products.push(product); }
+    let product = products.find(p => p.code === code);
+    if (!product) { product = { code, name, quantity: 0 }; products.push(product); }
 
-            product.quantity += quantity;
-            populateQuickButtons();
-            updateDefinitionCounts();
-            closeManualModal();
-            showToast(`${name}: ${quantity} adet eklendi`, 'success');
-        }
+    product.quantity += quantity;
+    populateQuickButtons();
+    updateDefinitionCounts();
+    closeManualModal();
+    showToast(`${name}: ${quantity} adet eklendi`, 'success');
+}
 
-        function updateDefinitionCounts() {
-            const defined = products.filter(p => p.quantity > 0).reduce((sum, p) => sum + p.quantity, 0);
-            const undefinedCount = Math.max(0, barcodeCount - defined);
-            const average = packages.length > 0 ? Math.round(packages.reduce((sum, p) => sum + p.totalQuantity, 0) / packages.length) : 0;
+function updateDefinitionCounts() {
+    const defined = products.filter(p => p.quantity > 0).reduce((sum, p) => sum + p.quantity, 0);
+    const undefinedCount = Math.max(0, barcodeCount - defined);
+    const average = packages.length > 0 ? Math.round(packages.reduce((sum, p) => sum + p.total_quantity, 0) / packages.length) : 0;
 
-            document.getElementById('definedCount').textContent = defined;
-            document.getElementById('undefinedCount').textContent = undefinedCount;
-            document.getElementById('averageCount').textContent = average;
-        }
+    document.getElementById('definedCount').textContent = defined;
+    document.getElementById('undefinedCount').textContent = undefinedCount;
+    document.getElementById('averageCount').textContent = average;
+}
 
-        /* -----------------------
-           Barcode, package, selection
-           ----------------------- */
-        function searchBarcode() {
-            const barcode = document.getElementById('barcodeInput').value.trim();
-            if (!barcode) return;
-            barcodeCount++;
-            document.getElementById('barcodeCount').textContent = barcodeCount;
+/* -----------------------
+   Barcode, package, selection
+   ----------------------- */
+function searchBarcode() {
+    const barcode = document.getElementById('barcodeInput').value.trim();
+    if (!barcode) return;
+    barcodeCount++;
+    document.getElementById('barcodeCount').textContent = barcodeCount;
 
-            try {
-                JsBarcode("#barcode", barcode, { format: "CODE128", displayValue: true, fontSize: 12, height: 40 });
-            } catch (e) {
-                showToast('Geçersiz barkod formatı', 'error');
-            }
+    try {
+        JsBarcode("#barcode", barcode, { format: "CODE128", displayValue: true, fontSize: 12, height: 40 });
+    } catch (e) {
+        showToast('Geçersiz barkod formatı', 'error');
+    }
 
-            updateDefinitionCounts();
-            showToast(`Barkod okundu: ${barcode}`, 'success');
-            document.getElementById('barcodeInput').value = '';
-        }
+    updateDefinitionCounts();
+    showToast(`Barkod okundu: ${barcode}`, 'success');
+    document.getElementById('barcodeInput').value = '';
+}
 
-        function clearBarcode() {
-            document.getElementById('barcodeInput').value = '';
-            document.getElementById('barcode').innerHTML = '';
-        }
+function clearBarcode() {
+    document.getElementById('barcodeInput').value = '';
+    document.getElementById('barcode').innerHTML = '';
+}
 
-        
-        async function togglePackageSelection(id) {
+async function togglePackageSelection(id) {
     // Update in Supabase
+    const pkg = packages.find(p => p.id === id);
     const { error } = await supabase
         .from('packages')
         .update({ selected: !pkg.selected })
@@ -1251,26 +1287,26 @@ async function populatePackagesTable() {
     }
     
     // Update local state
-    const pkg = packages.find(p => p.id === id);
     if (pkg) {
         pkg.selected = !pkg.selected;
         selectedPackage = pkg.selected ? pkg : null;
     }
 }
-        function selectAllPackages() {
-            selectAllCheckbox.checked = true;
-            packages.forEach(p => p.selected = true);
-            document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => cb.checked = true);
-        }
 
-        function clearSelection() {
-            selectAllCheckbox.checked = false;
-            packages.forEach(p => p.selected = false);
-            document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => cb.checked = false);
-            selectedPackage = null;
-        }
+function selectAllPackages() {
+    selectAllCheckbox.checked = true;
+    packages.forEach(p => p.selected = true);
+    document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => cb.checked = true);
+}
 
-        async function deletePackage() {
+function clearSelection() {
+    selectAllCheckbox.checked = false;
+    packages.forEach(p => p.selected = false);
+    document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => cb.checked = false);
+    selectedPackage = null;
+}
+
+async function deletePackage() {
     const selectedPackages = packages.filter(p => p.selected);
     if (selectedPackages.length === 0) { 
         showToast('Lütfen silmek için bir paket seçin', 'error'); 
@@ -1298,7 +1334,8 @@ async function populatePackagesTable() {
     clearSelection();
     showToast(`${selectedPackages.length} paket silindi`, 'success');
 }
-       async function deleteContainer() {
+
+async function deleteContainer() {
     if (!confirm('Konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
     
     // Delete from Supabase
@@ -1322,76 +1359,78 @@ async function populatePackagesTable() {
     showToast('Konteyner silindi', 'success');
 }
 
-        function printLabel() {
-            const selectedPackages = packages.filter(p => p.selected);
-            if (selectedPackages.length === 0) { showToast('Lütfen yazdırmak için bir paket seçin', 'error'); return; }
+function printLabel() {
+    const selectedPackages = packages.filter(p => p.selected);
+    if (selectedPackages.length === 0) { showToast('Lütfen yazdırmak için bir paket seçin', 'error'); return; }
 
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html><head><title>Paket Etiketleri</title><style>body{font-family:Arial}.label{width:300px;height:150px;border:1px solid #000;margin:10px;padding:10px;display:inline-block;page-break-inside:avoid}</style><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script></head><body><h1>Paket Etiketleri</h1>
-            `);
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html><head><title>Paket Etiketleri</title><style>body{font-family:Arial}.label{width:300px;height:150px;border:1px solid #000;margin:10px;padding:10px;display:inline-block;page-break-inside:avoid}</style><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script></head><body><h1>Paket Etiketleri</h1>
+    `);
 
-            selectedPackages.forEach(pkg => {
-                printWindow.document.write(`
-                    <div class="label">
-                        <h3>${escapeHtml(pkg.customerName)}</h3>
-                        <p>Paket No: ${escapeHtml(pkg.packageNo)}</p>
-                        <p>Adet: ${pkg.totalQuantity}</p>
-                        <svg id="barcode-${pkg.id}"></svg>
-                        <script>JsBarcode("#barcode-${pkg.id}", "${pkg.packageNo}", { format: "CODE128", displayValue:true, fontSize:12, height:30 });<\/script>
-                    </div>
-                `);
-            });
+    selectedPackages.forEach(pkg => {
+        printWindow.document.write(`
+            <div class="label">
+                <h3>${escapeHtml(pkg.customers.name)}</h3>
+                <p>Paket No: ${escapeHtml(pkg.package_no)}</p>
+                <p>Adet: ${pkg.total_quantity}</p>
+                <svg id="barcode-${pkg.id}"></svg>
+                <script>JsBarcode("#barcode-${pkg.id}", "${pkg.package_no}", { format: "CODE128", displayValue:true, fontSize:12, height:30 });<\/script>
+            </div>
+        `);
+    });
 
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
-            setTimeout(() => printWindow.print(), 500);
-            showToast(`${selectedPackages.length} paket için etiket yazdırılıyor...`, 'success');
-        }
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+    showToast(`${selectedPackages.length} paket için etiket yazdırılıyor...`, 'success');
+}
 
-        /* -----------------------
-           Stock search & upload
-           ----------------------- */
-        function searchStock() {
-            const searchTerm = (document.getElementById('stockSearch').value || '').toLowerCase();
-            const tbody = document.getElementById('stockTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
+/* -----------------------
+   Stock search & upload
+   ----------------------- */
+function searchStock() {
+    const searchTerm = (document.getElementById('stockSearch').value || '').toLowerCase();
+    const tbody = document.getElementById('stockTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
 
-            const filteredItems = stockItems.filter(item =>
-                item.name.toLowerCase().includes(searchTerm) ||
-                item.code.toLowerCase().includes(searchTerm)
-            );
+    const filteredItems = stockItems.filter(item =>
+        item.name.toLowerCase().includes(searchTerm) ||
+        item.code.toLowerCase().includes(searchTerm)
+    );
 
-            if (filteredItems.length === 0) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td colspan="6" style="text-align:center;color:#666;padding:12px">Eşleşen stok bulunamadı</td>`;
-                tbody.appendChild(tr);
-                return;
-            }
+    if (filteredItems.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6" style="text-align:center;color:#666;padding:12px">Eşleşen stok bulunamadı</td>`;
+        tbody.appendChild(tr);
+        return;
+    }
 
-            filteredItems.forEach(item => {
-                const row = document.createElement('tr');
-                const statusClass = item.status === 'Kritik' ? 'status-kritik' : item.status === 'Az Stok' ? 'status-az-stok' : 'status-stokta';
-                row.innerHTML = `
-                    <td>${escapeHtml(item.code)}</td>
-                    <td>${escapeHtml(item.name)}</td>
-                    <td>${escapeHtml(item.quantity)}</td>
-                    <td>${escapeHtml(item.unit)}</td>
-                    <td>${escapeHtml(item.lastUpdate)}</td>
-                    <td><span class="${statusClass}">${escapeHtml(item.status)}</span></td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
+    filteredItems.forEach(item => {
+        const row = document.createElement('tr');
+        const statusClass = item.quantity <= 10 ? 'status-kritik' : item.quantity <= 50 ? 'status-az-stok' : 'status-stokta';
+        const statusText = item.quantity <= 10 ? 'Kritik' : item.quantity <= 50 ? 'Az Stok' : 'Stokta';
+        
+        row.innerHTML = `
+            <td>${escapeHtml(item.code)}</td>
+            <td>${escapeHtml(item.name)}</td>
+            <td>${escapeHtml(item.quantity)}</td>
+            <td>${escapeHtml(item.unit)}</td>
+            <td>${new Date(item.updated_at).toLocaleDateString('tr-TR')}</td>
+            <td><span class="${statusClass}">${statusText}</span></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
 
-        function clearStockSearch() {
-            const stockInput = document.getElementById('stockSearch');
-            if (stockInput) stockInput.value = '';
-            populateStockTable();
-        }
+function clearStockSearch() {
+    const stockInput = document.getElementById('stockSearch');
+    if (stockInput) stockInput.value = '';
+    populateStockTable();
+}
 
-        async function uploadStockFile() {
+async function uploadStockFile() {
     const fileInput = document.getElementById('stockFileUpload');
     const file = fileInput.files[0];
     if (!file) { 
@@ -1454,17 +1493,10 @@ async function populatePackagesTable() {
         showToast('Dosya işlenirken hata oluştu', 'error');
     }
 }
-            // Simulated processing
-            setTimeout(() => {
-                showToast('Stok dosyası başarıyla yüklendi', 'success');
-                document.getElementById('selectedFileName').textContent = '';
-                fileInput.value = '';
-            }, 1200);
-        }
 
-        function loadCurrentContainer() { showToast('Mevcut konteyner yüklendi', 'success'); }
+function loadCurrentContainer() { showToast('Mevcut konteyner yüklendi', 'success'); }
 
-        async function createNewContainer() {
+async function createNewContainer() {
     const containerNo = `C${String(containers.length + 1).padStart(6, '0')}`;
     
     // Create container in Supabase
@@ -1492,172 +1524,76 @@ async function populatePackagesTable() {
     
     showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
 }
-        function closeModal() {
-            modal.style.display = 'none';
-            modal.setAttribute('aria-hidden','true');
-            selectedCustomerInModal = null;
-        }
 
-        function switchTab(tabName) {
-            // make switching robust by using data-tab attributes
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-            const tabElement = document.querySelector(`.tab[data-tab="${tabName}"]`);
-            if (tabElement) tabElement.classList.add('active');
-            const pane = document.getElementById(`${tabName}Tab`);
-            if (pane) pane.classList.add('active');
-            else {
-                // fallback: try known ids
-                const map = { packaging: 'packagingTab', shipping: 'shippingTab', stock: 'stockTab' };
-                const alt = document.getElementById(map[tabName]);
-                if (alt) alt.classList.add('active');
-            }
-        }
+function closeModal() {
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden','true');
+    selectedCustomerInModal = null;
+}
 
-        /* -----------------------
-           Toast / alert helpers
-           ----------------------- */
-        function showToast(message, type = 'success', duration = 3000) {
-            const el = document.getElementById('toast');
-            if (!el) return;
-            el.textContent = message;
-            el.className = `toast ${type} show`;
-            // ensure accessible announce
-            el.setAttribute('role','status');
-            setTimeout(() => { el.classList.remove('show'); }, duration);
-        }
-
-         /* -----------------------
-           Login / Logout
-           ----------------------- */
-
-     window.addEventListener('DOMContentLoaded', () => {
-    const loginBtn = document.getElementById("loginBtn");
-    if (loginBtn) {
-        loginBtn.onclick = async () => {
-            const email = document.getElementById("email").value; // Changed from username to email
-            const password = document.getElementById("password").value;
-
-            if (!email || !password) {
-                showToast("Lütfen e-posta ve şifre girin", "error");
-                return;
-            }
-
-            try {
-                // Supabase login
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password
-                });
-
-                if (error) {
-                    showToast("Giriş başarısız: " + error.message, "error");
-                    return;
-                }
-
-                // Login successful
-                currentUser = {
-                    email: data.user.email,
-                    uid: data.user.id,
-                    name: data.user.email.split('@')[0]
-                };
-                
-                document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
-                document.getElementById("loginScreen").style.display = "none";
-                document.getElementById("appContainer").style.display = "flex";
-                
-                showToast("Giriş başarılı", "success");
-                initApp();
-                
-            } catch (e) {
-                showToast("Giriş başarısız: " + e.message, "error");
-                console.error(e);
-            }
-        };
+function switchTab(tabName) {
+    // make switching robust by using data-tab attributes
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    const tabElement = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    if (tabElement) tabElement.classList.add('active');
+    const pane = document.getElementById(`${tabName}Tab`);
+    if (pane) pane.classList.add('active');
+    else {
+        // fallback: try known ids
+        const map = { packaging: 'packagingTab', shipping: 'shippingTab', stock: 'stockTab' };
+        const alt = document.getElementById(map[tabName]);
+        if (alt) alt.classList.add('active');
     }
+}
 
-    // Supabase auth state listener remains the same
-    supabase.auth.onAuthStateChange((event, session) => {
-        if (session) {
-            // User is signed in
-            currentUser = {
-                email: session.user.email,
-                uid: session.user.id,
-                name: session.user.email.split('@')[0]
-            };
-            
-            document.getElementById("userRole").textContent = `Operatör: ${currentUser.name}`;
-            document.getElementById("loginScreen").style.display = "none";
-            document.getElementById("appContainer").style.display = "flex";
-            initApp();
-        } else {
-            // User is signed out
-            document.getElementById("loginScreen").style.display = "flex";
-            document.getElementById("appContainer").style.display = "none";
-        }
-    });
+/* -----------------------
+   Auto-save
+   ----------------------- */
+function autoSave() {
+    try {
+        const appData = { customers, packages, containers, stockItems, timestamp: new Date().toISOString() };
+        localStorage.setItem('proclean_data', JSON.stringify(appData));
+    } catch (e) { console.warn('Auto-save failed', e); }
+}
+
+function loadAutoSave() {
+    const savedData = localStorage.getItem('proclean_data');
+    if (!savedData) return;
+    try {
+        const data = JSON.parse(savedData);
+        if (data.customers) customers = data.customers;
+        if (data.packages) packages = data.packages;
+        if (data.containers) containers = data.containers;
+        if (data.stockItems) stockItems = data.stockItems;
+    } catch (e) { console.error('Error loading saved data:', e); }
+}
+
+setInterval(autoSave, 30000);
+
+/* -----------------------
+   Utilities
+   ----------------------- */
+function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, function (m) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]; });
+}
+
+// On load
+window.addEventListener('load', function() {
+    loginScreen.style.display = 'flex';
+    appContainer.style.display = 'none';
+    loadAutoSave();
+    // pre-populate customer dropdown so it's available on login
+    populateCustomerDropdown();
 });
 
-        function logout() {
-            currentUser = null;
-            appContainer.style.display = 'none';
-            appContainer.setAttribute('aria-hidden','true');
-            loginScreen.style.display = 'flex';
-            document.getElementById('email').value = '';
-            document.getElementById('password').value = '';
-            closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-            showToast('Başarıyla çıkış yapıldı', 'success');
-        }
-
-        /* -----------------------
-           Auto-save
-           ----------------------- */
-        function autoSave() {
-            try {
-                const appData = { customers, packages, containers, stockItems, timestamp: new Date().toISOString() };
-                localStorage.setItem('proclean_data', JSON.stringify(appData));
-            } catch (e) { console.warn('Auto-save failed', e); }
-        }
-
-        function loadAutoSave() {
-            const savedData = localStorage.getItem('proclean_data');
-            if (!savedData) return;
-            try {
-                const data = JSON.parse(savedData);
-                if (data.customers) customers = data.customers;
-                if (data.packages) packages = data.packages;
-                if (data.containers) containers = data.containers;
-                if (data.stockItems) stockItems = data.stockItems;
-            } catch (e) { console.error('Error loading saved data:', e); }
-        }
-
-        setInterval(autoSave, 30000);
-
-        /* -----------------------
-           Utilities
-           ----------------------- */
-        function escapeHtml(s) {
-            if (s === null || s === undefined) return '';
-            return String(s).replace(/[&<>"']/g, function (m) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]; });
-        }
-
-        // On load
-        window.addEventListener('load', function() {
-            loginScreen.style.display = 'flex';
-            appContainer.style.display = 'none';
-            loadAutoSave();
-            // pre-populate customer dropdown so it's available on login
-            populateCustomerDropdown();
-            // set initial tab pane ids mapping if missing (ensure correct panes are visible)
-            // nothing else by default - user must login
-        });
-
-        // Global error handler (helps debugging)
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.error('Global error', msg, url, lineNo, columnNo, error);
-            showToast(`Beklenmeyen hata: ${msg} (Satır ${lineNo})`, 'error');
-            return false;
-        };
+// Global error handler (helps debugging)
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error('Global error', msg, url, lineNo, columnNo, error);
+    showToast(`Beklenmeyen hata: ${msg} (Satır ${lineNo})`, 'error');
+    return false;
+};
 </script>
 </body>
 </html>
