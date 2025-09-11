@@ -7,6 +7,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
@@ -433,6 +434,9 @@
                     <button type="button" class="btn btn-info" onclick="generateDailyReport()" style="margin-left: 0.5rem;">
                         <i class="fas fa-file-pdf"></i> Günlük Rapor PDF
                     </button>
+                    <button type="button" class="btn btn-warning" onclick="showEmailConfigModal()" style="margin-left: 0.5rem;">
+                        <i class="fas fa-envelope-open-text"></i> Email Ayarları
+                    </button>
                 </div>
 
                 <table class="stock-table">
@@ -852,6 +856,322 @@ async function populatePackagesTable() {
     } catch (error) {
         console.error('Error in populatePackagesTable:', error);
         showToast('Paket tablosu yükleme hatası', 'error');
+    }
+}
+
+// Real Email System with Supabase Integration
+const EMAIL_CONFIG = {
+    serviceId: 'service_proclean', // Will be set from environment
+    templateId: 'template_proclean',
+    userId: 'user_proclean'
+};
+
+// Initialize EmailJS
+async function initializeEmailSystem() {
+    try {
+        // Initialize EmailJS
+        if (typeof emailjs !== 'undefined') {
+            emailjs.init(EMAIL_CONFIG.userId);
+            console.log('EmailJS initialized successfully');
+        } else {
+            console.error('EmailJS library not loaded');
+        }
+    } catch (error) {
+        console.error('Error initializing email system:', error);
+    }
+}
+
+// Send real email function
+async function sendEmail(recipientEmail, subject, message, type = 'notification') {
+    try {
+        if (!recipientEmail || !subject || !message) {
+            throw new Error('Email, konu ve mesaj gerekli');
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(recipientEmail)) {
+            throw new Error('Geçersiz email adresi');
+        }
+
+        // Prepare email data
+        const emailData = {
+            to_email: recipientEmail,
+            subject: subject,
+            message: message,
+            from_name: 'ProClean Çamaşırhane',
+            company_name: 'ProClean Çamaşırhane Yönetim Sistemi',
+            timestamp: new Date().toLocaleString('tr-TR'),
+            type: type
+        };
+
+        // Send email using EmailJS
+        const response = await emailjs.send(
+            EMAIL_CONFIG.serviceId,
+            EMAIL_CONFIG.templateId,
+            emailData
+        );
+
+        // Log email to database
+        await logEmailToDatabase(recipientEmail, subject, message, type, 'sent');
+
+        console.log('Email sent successfully:', response);
+        return { success: true, message: 'Email başarıyla gönderildi' };
+
+    } catch (error) {
+        console.error('Error sending email:', error);
+        
+        // Log failed email to database
+        await logEmailToDatabase(recipientEmail, subject, message, type, 'failed', error.message);
+        
+        throw new Error('Email gönderme hatası: ' + error.message);
+    }
+}
+
+// Log email to Supabase database
+async function logEmailToDatabase(recipientEmail, subject, message, type, status, errorMessage = null) {
+    try {
+        const emailLog = {
+            recipient_email: recipientEmail,
+            subject: subject,
+            message: message,
+            type: type,
+            status: status,
+            error_message: errorMessage,
+            sent_at: new Date().toISOString(),
+            user_email: supabase.auth.user()?.email || 'system'
+        };
+
+        const { error } = await supabase
+            .from('email_logs')
+            .insert([emailLog]);
+
+        if (error) {
+            console.error('Error logging email to database:', error);
+        }
+    } catch (error) {
+        console.error('Error in logEmailToDatabase:', error);
+    }
+}
+
+// Send package ready notification
+async function sendPackageReadyNotification(packageData, customerEmail) {
+    try {
+        if (!customerEmail) {
+            throw new Error('Müşteri email adresi bulunamadı');
+        }
+
+        const subject = `Paketiniz Hazır - ${packageData.package_no}`;
+        const message = `
+Sayın ${packageData.customers?.name || 'Müşteri'},
+
+Paketiniz hazır ve teslim alınabilir:
+
+📦 Paket No: ${packageData.package_no}
+📅 Hazırlanma Tarihi: ${new Date(packageData.created_at).toLocaleDateString('tr-TR')}
+📋 Toplam Adet: ${packageData.total_quantity}
+🏷️ Durum: ${packageData.status === 'beklemede' ? 'Teslim Bekliyor' : 'Teslim Edildi'}
+
+Paketinizi teslim almak için lütfen paket numaranızı belirterek firmamıza başvurun.
+
+Teşekkür ederiz,
+ProClean Çamaşırhane Ekibi
+        `;
+
+        const result = await sendEmail(customerEmail, subject, message, 'package_ready');
+        showToast('Müşteriye bildirim emaili gönderildi', 'success');
+        return result;
+
+    } catch (error) {
+        console.error('Error sending package ready notification:', error);
+        showToast('Email gönderme hatası: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+// Send daily report via email
+async function sendDailyReportEmail(recipientEmail) {
+    try {
+        // Fetch daily data
+        const today = new Date().toISOString().split('T')[0];
+        
+        const [packagesResponse, containersResponse, stockResponse] = await Promise.all([
+            supabase.from('packages').select('*, customers(name)').gte('created_at', today),
+            supabase.from('containers').select('*').gte('created_at', today),
+            supabase.from('stock_items').select('*').lte('quantity', 10)
+        ]);
+
+        const todayPackages = packagesResponse.data || [];
+        const todayContainers = containersResponse.data || [];
+        const lowStock = stockResponse.data || [];
+
+        const subject = `ProClean Günlük Rapor - ${new Date().toLocaleDateString('tr-TR')}`;
+        const message = `
+📊 GÜNLÜK RAPOR - ${new Date().toLocaleDateString('tr-TR')}
+
+📦 GÜNÜN ÖZETİ:
+• Bugün oluşturulan paketler: ${todayPackages.length}
+• Bugün oluşturulan konteynerler: ${todayContainers.length}
+• Düşük stok uyarısı: ${lowStock.length} ürün
+
+⚠️ KRİTİK STOKLAR:
+${lowStock.filter(s => s.quantity <= 3).map(item => 
+    `• ${item.name}: ${item.quantity} ${item.unit || 'adet'}`
+).join('\n') || 'Kritik stok yok'}
+
+📋 DÜŞÜK STOKLAR:
+${lowStock.filter(s => s.quantity > 3 && s.quantity <= 10).map(item => 
+    `• ${item.name}: ${item.quantity} ${item.unit || 'adet'}`
+).join('\n') || 'Düşük stok yok'}
+
+Detaylı rapor için sisteme giriş yapın.
+
+ProClean Çamaşırhane Yönetim Sistemi
+        `;
+
+        const result = await sendEmail(recipientEmail, subject, message, 'daily_report');
+        showToast('Günlük rapor emaili gönderildi', 'success');
+        return result;
+
+    } catch (error) {
+        console.error('Error sending daily report email:', error);
+        showToast('Günlük rapor email hatası: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+// Send low stock alert
+async function sendLowStockAlert(adminEmail) {
+    try {
+        const { data: lowStock, error } = await supabase
+            .from('stock_items')
+            .select('*')
+            .lte('quantity', 5)
+            .order('quantity');
+
+        if (error) throw error;
+
+        if (lowStock && lowStock.length > 0) {
+            const subject = '⚠️ ProClean Stok Uyarısı';
+            const criticalItems = lowStock.filter(item => item.quantity <= 2);
+            const lowItems = lowStock.filter(item => item.quantity > 2);
+
+            const message = `
+🚨 STOK UYARISI - ${new Date().toLocaleDateString('tr-TR')}
+
+⛔ KRİTİK STOKLAR (≤2):
+${criticalItems.map(item => 
+    `• ${item.name} (${item.code}): ${item.quantity} ${item.unit || 'adet'}`
+).join('\n') || 'Kritik stok yok'}
+
+⚠️ DÜŞÜK STOKLAR (3-5):
+${lowItems.map(item => 
+    `• ${item.name} (${item.code}): ${item.quantity} ${item.unit || 'adet'}`
+).join('\n') || 'Düşük stok yok'}
+
+Lütfen acil olarak stok tedariği yapın.
+
+ProClean Stok Yönetim Sistemi
+            `;
+
+            const result = await sendEmail(adminEmail, subject, message, 'stock_alert');
+            showToast('Stok uyarı emaili gönderildi', 'success');
+            return result;
+        }
+
+    } catch (error) {
+        console.error('Error sending low stock alert:', error);
+        showToast('Stok uyarı email hatası: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+// Email configuration modal
+function showEmailConfigModal() {
+    const modal = document.getElementById('emailConfigModal');
+    if (!modal) {
+        // Create email config modal
+        const modalHTML = `
+            <div class="modal" id="emailConfigModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Email Ayarları</h3>
+                        <span class="close" onclick="closeEmailConfigModal()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <form id="emailConfigForm">
+                            <div class="form-group">
+                                <label>Service ID:</label>
+                                <input type="text" id="emailServiceId" placeholder="EmailJS Service ID" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Template ID:</label>
+                                <input type="text" id="emailTemplateId" placeholder="EmailJS Template ID" required>
+                            </div>
+                            <div class="form-group">
+                                <label>User ID:</label>
+                                <input type="text" id="emailUserId" placeholder="EmailJS User ID" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Test Email:</label>
+                                <input type="email" id="testEmail" placeholder="test@example.com">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeEmailConfigModal()">İptal</button>
+                        <button class="btn btn-primary" onclick="saveEmailConfig()">Kaydet</button>
+                        <button class="btn btn-info" onclick="testEmailConfig()">Test Et</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    document.getElementById('emailConfigModal').style.display = 'flex';
+}
+
+function closeEmailConfigModal() {
+    document.getElementById('emailConfigModal').style.display = 'none';
+}
+
+function saveEmailConfig() {
+    const serviceId = document.getElementById('emailServiceId').value.trim();
+    const templateId = document.getElementById('emailTemplateId').value.trim();
+    const userId = document.getElementById('emailUserId').value.trim();
+    
+    if (!serviceId || !templateId || !userId) {
+        showToast('Tüm alanları doldurun', 'error');
+        return;
+    }
+    
+    EMAIL_CONFIG.serviceId = serviceId;
+    EMAIL_CONFIG.templateId = templateId;
+    EMAIL_CONFIG.userId = userId;
+    
+    // Save to localStorage
+    localStorage.setItem('proclean_email_config', JSON.stringify(EMAIL_CONFIG));
+    
+    // Reinitialize EmailJS
+    initializeEmailSystem();
+    
+    showToast('Email ayarları kaydedildi', 'success');
+    closeEmailConfigModal();
+}
+
+async function testEmailConfig() {
+    const testEmail = document.getElementById('testEmail').value.trim();
+    if (!testEmail) {
+        showToast('Test email adresi girin', 'error');
+        return;
+    }
+    
+    try {
+        await sendEmail(testEmail, 'ProClean Test Email', 'Bu bir test emailidir. Email sistemi çalışıyor!', 'test');
+        showToast('Test emaili gönderildi!', 'success');
+    } catch (error) {
+        showToast('Test email hatası: ' + error.message, 'error');
     }
 }
 
