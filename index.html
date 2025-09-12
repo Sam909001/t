@@ -1420,6 +1420,17 @@ select:focus, input:focus {
     }
 }
 
+        // Enhanced validation for customer codes
+function isValidCustomerCode(code) {
+    return /^P\d+$/.test(code);
+}
+
+// Use in addNewCustomer function
+if (!isValidCustomerCode(code)) {
+    showToast('Müşteri kodu "P" harfi ile başlamalı ve rakam içermelidir (Örn: P0005)', 'error');
+    return;
+}
+
         async function deleteCustomer(customerId) {
             if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
 
@@ -1505,6 +1516,14 @@ select:focus, input:focus {
     
     elements.barcodeInput.value = '';
     elements.barcodeInput.focus();
+}
+        
+    function openQuantityModal(productName) {
+    selectedProduct = productName;
+    document.getElementById('quantityModalTitle').textContent = `${productName} - Adet Girin`;
+    document.getElementById('quantityInput').value = '';
+    document.getElementById('quantityModal').style.display = 'flex';
+    document.getElementById('quantityInput').focus();
 }
         
         function confirmQuantity() {
