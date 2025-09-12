@@ -372,6 +372,103 @@ select:focus, input:focus {
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+        /* Loading indicators */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--secondary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+        
+        /* Error message styling */
+        .error-message {
+            color: var(--accent);
+            font-size: 0.8rem;
+            margin-top: 0.4rem;
+        }
+        
+        /* Success message styling */
+        .success-message {
+            color: var(--success);
+            font-size: 0.8rem;
+            margin-top: 0.4rem;
+        }
+        
+        /* Enhanced table styling */
+        .table-container {
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        
+        /* Pagination controls */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
+            gap: 0.5rem;
+        }
+        
+        .pagination button {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .pagination button.active {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+        
+        /* Offline indicator enhancement */
+        .offline-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .offline-indicator .icon {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -628,6 +725,11 @@ select:focus, input:focus {
         </div>
     </div>
 
+     <!-- Add loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
     <!-- Diğer modal ve HTML içerikleri aynı kalacak -->
     <!-- Customer Modal -->
     <div class="modal" id="customerModal">
@@ -736,15 +838,24 @@ let SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
 
 // Global variables
-let currentUser = null;
-let selectedCustomer = null;
-let currentPackage = {};
-let packages = [];
-let containers = [];
-let currentContainer = null;
-let selectedProduct = null;
-let supabase = null;
-
+const appState = {
+        currentUser: null,
+        selectedCustomer: null,
+        currentPackage: {},
+        packages: [],
+        containers: [],
+        currentContainer: null,
+        selectedProduct: null,
+        supabase: null,
+        isOnline: true,
+        offlineQueue: [],
+        pagination: {
+            packages: { page: 1, perPage: 20, total: 0 },
+            shipping: { page: 1, perPage: 20, total: 0 },
+            stock: { page: 1, perPage: 50, total: 0 }
+        }
+    };
+    
 // DOM elements
 const elements = {
     loginScreen: document.getElementById('loginScreen'),
@@ -789,23 +900,54 @@ function loadApiKey() {
 }
 
 // Supabase'i başlat
-function initializeSupabase() {
-    if (!SUPABASE_ANON_KEY) {
-        showApiKeyModal();
-        return null;
+f async function initializeSupabase() {
+        try {
+            if (!SUPABASE_ANON_KEY) {
+                showApiKeyModal();
+                return null;
+            }
+            
+            showLoading(true);
+            
+            // Test connection first
+            const testClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const { error: testError } = await testClient.from('customers').select('count').limit(1);
+            
+            if (testError) {
+                console.error('Supabase connection test failed:', testError);
+                
+                if (testError.message.includes('Invalid API key') || testError.message.includes('JWT')) {
+                    showToast('Geçersiz API anahtarı. Lütfen API anahtarınızı kontrol edin.', 'error');
+                    showApiKeyModal();
+                } else if (testError.message.includes('Failed to fetch')) {
+                    showToast('Sunucuya bağlanılamıyor. Çevrimdışı moda geçiliyor.', 'warning');
+                    appState.isOnline = false;
+                    document.getElementById('offlineIndicator').style.display = 'block';
+                } else {
+                    showToast('Veritabanı bağlantı hatası: ' + testError.message, 'error');
+                }
+                
+                return null;
+            }
+            
+            // Initialize the actual client
+            appState.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase client initialized successfully');
+            
+            // Set up realtime subscriptions for data sync
+            setupRealtimeSubscriptions();
+            
+            return appState.supabase;
+            
+        } catch (error) {
+            console.error('Supabase initialization error:', error);
+            showToast('Supabase başlatılamadı: ' + error.message, 'error');
+            return null;
+        } finally {
+            showLoading(false);
+        }
     }
-    
-    try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized successfully');
-        return supabase;
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        showToast('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
-        showApiKeyModal();
-        return null;
-    }
-}
+
 
 // API anahtarını kaydet
 function saveApiKey() {
