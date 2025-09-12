@@ -1405,38 +1405,40 @@ async function completePackage() {
     }
 }
 
-function selectPackage(pkg) {
+async function selectPackage(pkg) {
     // Remove selected class from all rows
     document.querySelectorAll('#packagesTableBody tr').forEach(row => {
         row.classList.remove('selected');
     });
     
-    // Add selected class to the clicked row
+    // Find and select the correct row
     const rows = document.querySelectorAll('#packagesTableBody tr');
     for (let i = 0; i < rows.length; i++) {
         const checkbox = rows[i].querySelector('input[type="checkbox"]');
         if (checkbox && checkbox.value === pkg.id) {
             rows[i].classList.add('selected');
+            
+            // Update package details
+            const detailContent = document.getElementById('packageDetailContent');
+            detailContent.innerHTML = `
+                <h4>Paket: ${pkg.package_no}</h4>
+                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+                <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
+                <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
+                <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
+                ${pkg.items ? `
+                    <h5>Ürünler:</h5>
+                    <ul>
+                        ${Object.entries(pkg.items).map(([product, quantity]) => 
+                            `<li>${product}: ${quantity} adet</li>`
+                        ).join('')}
+                    </ul>
+                ` : ''}
+                <button onclick="printSpecificLabel('${pkg.id}')" class="btn btn-warning" style="margin-top: 10px;">Etiket Yazdır</button>
+            `;
             break;
         }
     }
-    
-    const detailContent = document.getElementById('packageDetailContent');
-    detailContent.innerHTML = `
-        <h4>Paket: ${pkg.package_no}</h4>
-        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
-        <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
-        <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
-        ${pkg.items ? `
-            <h5>Ürünler:</h5>
-            <ul>
-                ${Object.entries(pkg.items).map(([product, quantity]) => 
-                    `<li>${product}: ${quantity} adet</li>`
-                ).join('')}
-            </ul>
-        ` : ''}
-    `;
 }
 
 function generateBarcode(text) {
@@ -1468,11 +1470,15 @@ function getSelectedPackage() {
 }
 
 async function printLabel() {
-    const selectedPackage = getSelectedPackage();
-    if (!selectedPackage) {
+    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
+    if (!selectedRow) {
         showToast('Etiket yazdırmak için bir paket seçin', 'error');
         return;
     }
+    
+    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
+    await printSpecificLabel(packageId);
+}
 
     try {
         // Generate barcode
