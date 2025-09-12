@@ -1432,26 +1432,44 @@ select:focus, input:focus {
         }
 
         // Package operations
-        function processBarcode() {
-            const barcode = elements.barcodeInput.value.trim();
-            if (!barcode) {
-                showToast('Barkod girin', 'error');
-                return;
-            }
+      async function processBarcode() {
+    const barcode = elements.barcodeInput.value.trim();
+    if (!barcode) {
+        showToast('Barkod girin', 'error');
+        return;
+    }
 
-            // Process barcode logic here
-            showToast(`Barkod işlendi: ${barcode}`, 'success');
-            elements.barcodeInput.value = '';
-            elements.barcodeInput.focus();
+    try {
+        // Check if barcode corresponds to a product in stock
+        const { data: product, error } = await supabase
+            .from('stock_items')
+            .select('*')
+            .eq('barcode', barcode)
+            .single();
+
+        if (error || !product) {
+            showToast('Barkod tanınmadı. Lütfen manuel giriş yapın.', 'warning');
+            openManualEntry();
+            return;
         }
 
-        function openQuantityModal(product) {
-            selectedProduct = product;
-            elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
-            elements.quantityInput.value = '';
-            elements.quantityModal.style.display = 'flex';
-            elements.quantityInput.focus();
-        }
+        // If product found, open quantity modal for this product
+        selectedProduct = product.name;
+        elements.quantityModalTitle.textContent = `${product.name} - Adet Girin`;
+        elements.quantityInput.value = '1'; // Default to 1
+        elements.quantityModal.style.display = 'flex';
+        elements.quantityInput.focus();
+        
+        showToast(`Ürün bulundu: ${product.name}`, 'success');
+
+    } catch (error) {
+        console.error('Barcode processing error:', error);
+        showToast('Barkod işlenirken hata oluştu', 'error');
+    }
+    
+    elements.barcodeInput.value = '';
+    elements.barcodeInput.focus();
+}
 
         function confirmQuantity() {
             const quantity = parseInt(elements.quantityInput.value);
@@ -1552,6 +1570,21 @@ select:focus, input:focus {
                 showToast('Paket oluşturma hatası', 'error');
             }
         }
+        // After package creation, update stock levels
+for (const [productName, quantity] of Object.entries(currentPackage.items)) {
+    // Decrement stock for each product in the package
+    const { error: stockError } = await supabase
+        .from('stock_items')
+        .update({ 
+            quantity: supabase.sql`quantity - ${quantity}`,
+            updated_at: new Date().toISOString()
+        })
+        .eq('name', productName);
+
+    if (stockError) {
+        console.error(`Error updating stock for ${productName}:`, stockError);
+    }
+}
             
         function selectPackage(pkg) {
             // Remove selected class from all rows
@@ -1877,30 +1910,53 @@ select:focus, input:focus {
         }
 
         // Report operations
-        function generateDailyReport() {
-            document.getElementById('emailModal').style.display = 'flex';
+       async function generateDailyReport() {
+    try {
+        // Get today's packages
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const { data: packages, error } = await supabase
+            .from('packages')
+            .select(`
+                *,
+                customers (name, code)
+            `)
+            .gte('created_at', today.toISOString())
+            .lt('created_at', tomorrow.toISOString())
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!packages || packages.length === 0) {
+            showToast('Bugün için paket bulunamadı', 'info');
+            return;
         }
 
-        function closeEmailModal() {
-            document.getElementById('emailModal').style.display = 'none';
+        // Get customer email if available
+        let customerEmail = '';
+        if (selectedCustomer) {
+            const { data: customer } = await supabase
+                .from('customers')
+                .select('email')
+                .eq('id', selectedCustomer.id)
+                .single();
+                
+            customerEmail = customer?.email || '';
         }
 
-        async function sendDailyReport() {
-            const email = document.getElementById('reportEmail').value;
-            if (!email) {
-                showToast('Lütfen e-posta adresini girin', 'error');
-                return;
-            }
-
-            showToast('Rapor gönderiliyor...', 'warning');
-            
-            // Simulate email sending
-            setTimeout(() => {
-                showToast(`Rapor ${email} adresine gönderildi`, 'success');
-                closeEmailModal();
-            }, 2000);
-        }
-
+        // Pre-fill email if available
+        document.getElementById('reportEmail').value = customerEmail;
+        document.getElementById('emailModal').style.display = 'flex';
+        
+    } catch (error) {
+        console.error('Error generating daily report:', error);
+        showToast('Rapor oluşturulurken hata oluştu', 'error');
+    }
+}
+        
         async function previewReport() {
             await populatePackagesTable();
             
@@ -1980,6 +2036,81 @@ select:focus, input:focus {
             `);
             reportWindow.document.close();
         }
+        async function sendDailyReport() {
+    const email = document.getElementById('reportEmail').value;
+    if (!email) {
+        showToast('Lütfen e-posta adresini girin', 'error');
+        return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showToast('Geçerli bir e-posta adresi girin', 'error');
+        return;
+    }
+
+    showToast('Rapor gönderiliyor...', 'warning');
+    
+    try {
+        // Get today's packages for the report
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const { data: packages, error: packagesError } = await supabase
+            .from('packages')
+            .select(`
+                *,
+                customers (name, code)
+            `)
+            .gte('created_at', today.toISOString())
+            .lt('created_at', tomorrow.toISOString());
+
+        if (packagesError) throw packagesError;
+
+        // Create report content
+        const reportDate = new Date().toLocaleDateString('tr-TR');
+        const totalPackages = packages.length;
+        const totalItems = packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+        
+        let reportContent = `
+            ProClean Günlük Raporu - ${reportDate}
+            ====================================
+            
+            Toplam Paket: ${totalPackages}
+            Toplam Ürün: ${totalItems}
+            
+            Paket Detayları:
+            ----------------------------
+        `;
+        
+        packages.forEach(pkg => {
+            reportContent += `
+            Paket No: ${pkg.package_no}
+            Müşteri: ${pkg.customers?.name || 'N/A'}
+            Adet: ${pkg.total_quantity}
+            Tarih: ${new Date(pkg.created_at).toLocaleString('tr-TR')}
+            ----------------------------
+            `;
+        });
+
+        // In a real implementation, you would send this via email
+        // For now, we'll just log it and show a success message
+        console.log('Report content:', reportContent);
+        
+        // Simulate email sending delay
+        setTimeout(() => {
+            showToast(`Rapor ${email} adresine gönderildi`, 'success');
+            closeEmailModal();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error sending report:', error);
+        showToast('Rapor gönderilirken hata oluştu', 'error');
+    }
+}
 
         // Container operations
         function loadCurrentContainer() {
