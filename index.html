@@ -1829,57 +1829,70 @@ async function sendDailyReport() {
     }, 2000);
 }
 
-// Update the previewReport function to generate a more professional PDF
 async function previewReport() {
     await populatePackagesTable();
-    await populateShippingTable();
-    
-    // Fetch all necessary data
-    const { data: packagesData } = await supabase
-        .from('packages')
-        .select(`
-            *,
-            customers (name, code)
-        `)
-        .gte('created_at', new Date(new Date().setHours(0,0,0,0)).toISOString())
-        .lte('created_at', new Date(new Date().setHours(23,59,59,999)).toISOString());
-    
-    const { data: containersData } = await supabase
-        .from('containers')
-        .select(`
-            *,
-            packages (
-                customers (name, code)
-            )
-        `)
-        .gte('created_at', new Date(new Date().setHours(0,0,0,0)).toISOString())
-        .lte('created_at', new Date(new Date().setHours(23,59,59,999)).toISOString());
-    
-    const { data: stockData } = await supabase
-        .from('stock_items')
-        .select('*')
-        .or('quantity.lte.10,quantity.is.null')
-        .order('quantity', { ascending: true });
     
     const reportData = {
         date: new Date().toLocaleDateString('tr-TR'),
-        totalPackages: packagesData.length,
-        totalItems: packagesData.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-        containers: containersData.length,
-        customers: [...new Set(packagesData.map(p => p.customers?.name))].length,
-        operator: currentUser?.name || 'Bilinmiyor',
-        packages: packagesData,
-        containers: containersData,
-        lowStock: stockData.filter(item => item.quantity <= 10),
-        criticalStock: stockData.filter(item => item.quantity <= 3)
+        totalPackages: packages.length,
+        totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+        containers: containers.length,
+        customers: [...new Set(packages.map(p => p.customers?.name))].length,
+        operator: currentUser?.name || 'Bilinmiyor'
     };
 
-    // Use jsPDF to create a professional PDF
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    
-    // Add logo and header
-    doc.setFontSize(20
+    const reportWindow = window.open('', '_blank');
+    reportWindow.document.write(`
+        <html>
+        <head>
+            <title>İş Sonu Raporu - ${reportData.date}</title>
+            <style>
+                body { font-family: Arial; margin: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+            </style>
+        </head>
+        <body>
+            <h1>ProClean - İş Sonu Raporu</h1>
+            <p><strong>Tarih:</strong> ${reportData.date} | <strong>Operatör:</strong> ${reportData.operator}</p>
+            
+            <h2>Özet</h2>
+            <ul>
+                <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
+                <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
+                <li>Konteyner Sayısı: ${reportData.containers}</li>
+                <li>Müşteri Sayısı: ${reportData.customers}</li>
+            </ul>
+            
+            <h2>Paket Detayları</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Paket No</th>
+                        <th>Müşteri</th>
+                        <th>Adet</th>
+                        <th>Zaman</th>
+                        <th>Paketleyen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${packages.map(pkg => `
+                        <tr>
+                            <td>${escapeHtml(pkg.package_no)}</td>
+                            <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
+                            <td>${pkg.total_quantity}</td>
+                            <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
+                            <td>${escapeHtml(pkg.packer)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </body>
+        </html>
+    `);
+    reportWindow.document.close();
+}
 
 // Container operations
 function loadCurrentContainer() {
