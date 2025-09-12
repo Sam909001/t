@@ -371,47 +371,6 @@ select:focus, input:focus {
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
-        /* Add offline-specific styling */
-        .offline-mode {
-            opacity: 0.9;
-            filter: grayscale(20%);
-        }
-        
-        .sync-status {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-right: 1rem;
-            font-size: 0.85rem;
-        }
-        
-        .sync-progress {
-            width: 100px;
-            height: 6px;
-            background: #ddd;
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        
-        .sync-progress-bar {
-            height: 100%;
-            background: var(--secondary);
-            width: 0%;
-            transition: width 0.3s;
-        }
-        
-        .pending-count {
-            background: var(--warning);
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            margin-left: 0.5rem;
-        }
     </style>
 </head>
 <body>
@@ -450,20 +409,11 @@ select:focus, input:focus {
     </div>
 
     <div class="app-container" id="appContainer" aria-hidden="true">
+        <!-- Uygulama içeriği aynı kalacak -->
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Yükleniyor...</span>
-                <div class="sync-status" id="syncStatus" style="display: none;">
-                    <span id="syncText">Senkronize ediliyor</span>
-                    <div class="sync-progress">
-                        <div class="sync-progress-bar" id="syncProgress"></div>
-                    </div>
-                    <span id="pendingCount" class="pending-count">0</span>
-                </div>
-                <button type="button" id="syncBtn" class="btn btn-warning" style="display: none;">
-                    <i class="fas fa-sync-alt"></i> Senkronize Et
-                </button>
                 <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
             </div>
         </div>
@@ -653,7 +603,7 @@ select:focus, input:focus {
 
                 <div class="file-upload">
                     <h3>Stok Dosyası Yükle</h3>
-                    <p>Excel (.xlsx, .xls) or CSV (.csv) dosyası seçin</p>
+                    <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
                     <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
                     <div>
                         <span id="selectedFileName"></span>
@@ -665,7 +615,7 @@ select:focus, input:focus {
             </div>
         </div>
 
-              <div class="app-footer">
+        <div class="app-footer">
             <div class="container-info">
                 <span>Aktif Konteyner: <strong id="containerNumber">Yok</strong></span>
                 <span>|</span>
@@ -673,7 +623,7 @@ select:focus, input:focus {
                 <span>|</span>
                 <span>ProClean © 2025</span>
             </div>
-            <div id="onlineStatus">Çevrimiçi</div>
+            <div>Çevrimiçi</div>
         </div>
     </div>
 
@@ -793,8 +743,6 @@ let containers = [];
 let currentContainer = null;
 let selectedProduct = null;
 let supabase = null;
-let isOnline = true;
-let pendingOperations = [];
 
 // DOM elements
 const elements = {
@@ -825,13 +773,7 @@ const elements = {
     toast: document.getElementById('toast'),
     selectAllCheckbox: document.getElementById('selectAllPackages'),
     shippingFilter: document.getElementById('shippingFilter'),
-    apiKeyModal: document.getElementById('apiKeyModal'),
-    syncStatus: document.getElementById('syncStatus'),
-    syncProgress: document.getElementById('syncProgress'),
-    syncText: document.getElementById('syncText'),
-    pendingCount: document.getElementById('pendingCount'),
-    syncBtn: document.getElementById('syncBtn'),
-    offlineIndicator: document.getElementById('offlineIndicator')
+    apiKeyModal: document.getElementById('apiKeyModal')
 };
 
 // Kullanıcının kaydettiği API anahtarını yükle
@@ -1082,9 +1024,6 @@ function clearAppState() {
 async function initApp() {
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
-    // Load pending operations count
-    updatePendingOperationsCount();
-    
     // Populate dropdowns
     await populateCustomers();
     await populatePersonnel();
@@ -1109,20 +1048,6 @@ async function populateCustomers() {
     try {
         elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
         
-        // First try to get from localStorage for offline mode
-        const localCustomers = localStorage.getItem('customers');
-        if (localCustomers && !isOnline) {
-            const customers = JSON.parse(localCustomers);
-            customers.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = `${customer.name} (${customer.code})`;
-                elements.customerSelect.appendChild(option);
-            });
-            return;
-        }
-        
-        // Otherwise fetch from Supabase
         const { data: customers, error } = await supabase
             .from('customers')
             .select('*')
@@ -1130,27 +1055,11 @@ async function populateCustomers() {
 
         if (error) {
             console.error('Error loading customers:', error);
-            
-            // Try to use cached data if available
-            if (localCustomers) {
-                const cachedCustomers = JSON.parse(localCustomers);
-                cachedCustomers.forEach(customer => {
-                    const option = document.createElement('option');
-                    option.value = customer.id;
-                    option.textContent = `${customer.name} (${customer.code})`;
-                    elements.customerSelect.appendChild(option);
-                });
-                showToast('Müşteri verileri çevrimdışı modda yüklendi', 'warning');
-            } else {
-                showToast('Müşteri verileri yüklenemedi', 'error');
-            }
+            showToast('Müşteri verileri yüklenemedi', 'error');
             return;
         }
 
         if (customers && customers.length > 0) {
-            // Cache customers for offline use
-            localStorage.setItem('customers', JSON.stringify(customers));
-            
             customers.forEach(customer => {
                 const option = document.createElement('option');
                 option.value = customer.id;
@@ -1229,40 +1138,6 @@ async function populatePackagesTable() {
     try {
         elements.packagesTableBody.innerHTML = '';
         
-        // First check if we have offline packages
-        const offlinePackages = localStorage.getItem('offlinePackages');
-        if (offlinePackages && !isOnline) {
-            const packages = JSON.parse(offlinePackages);
-            
-            if (packages && packages.length > 0) {
-                packages.forEach(pkg => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><input type="checkbox" value="${pkg.id}" onchange="updatePackageSelection()"></td>
-                        <td>${pkg.package_no}</td>
-                        <td>${pkg.customer_name || 'N/A'}</td>
-                        <td>${pkg.total_quantity}</td>
-                        <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                        <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                    `;
-                    row.onclick = (e) => {
-                        if (e.target.type !== 'checkbox') {
-                            selectPackage(pkg);
-                        }
-                    };
-                    elements.packagesTableBody.appendChild(row);
-                });
-                
-                elements.totalPackages.textContent = packages.length;
-            } else {
-                const row = document.createElement('tr');
-                row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Henüz paket yok</td>';
-                elements.packagesTableBody.appendChild(row);
-            }
-            return;
-        }
-        
-        // Otherwise fetch from Supabase
         const { data: packages, error } = await supabase
             .from('packages')
             .select(`
@@ -1274,33 +1149,7 @@ async function populatePackagesTable() {
 
         if (error) {
             console.error('Error loading packages:', error);
-            
-            // Try to use offline packages if available
-            if (offlinePackages) {
-                const cachedPackages = JSON.parse(offlinePackages);
-                cachedPackages.forEach(pkg => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><input type="checkbox" value="${pkg.id}" onchange="updatePackageSelection()"></td>
-                        <td>${pkg.package_no}</td>
-                        <td>${pkg.customer_name || 'N/A'}</td>
-                        <td>${pkg.total_quantity}</td>
-                        <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                        <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                    `;
-                    row.onclick = (e) => {
-                        if (e.target.type !== 'checkbox') {
-                            selectPackage(pkg);
-                        }
-                    };
-                    elements.packagesTableBody.appendChild(row);
-                });
-                
-                elements.totalPackages.textContent = cachedPackages.length;
-                showToast('Paket verileri çevrimdışı modda yüklendi', 'warning');
-            } else {
-                showToast('Paket verileri yüklenemedi', 'error');
-            }
+            showToast('Paket verileri yüklenemedi', 'error');
             return;
         }
 
@@ -1381,28 +1230,73 @@ async function populateShippingTable() {
         }
 
         if (containers && containers.length > 0) {
+            // Group containers by customer
+            const customerContainers = {};
+            
             containers.forEach(container => {
-                const row = document.createElement('tr');
                 // Get customer name from the first package (assuming all packages in container are for same customer)
                 const customerName = container.packages && container.packages.length > 0 
                     ? container.packages[0].customers?.name 
                     : container.customer || 'N/A';
-                    
-                row.innerHTML = `
-                    <td><input type="checkbox" value="${container.id}"></td>
-                    <td>${container.container_no}</td>
-                    <td>${customerName}</td>
-                    <td>${container.package_count || 0}</td>
-                    <td>${container.total_quantity || 0}</td>
-                    <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                    <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                    <td>
-                        <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
-                        <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
+                
+                if (!customerContainers[customerName]) {
+                    customerContainers[customerName] = [];
+                }
+                
+                customerContainers[customerName].push(container);
+            });
+            
+            // Create customer folders
+            for (const [customerName, customerContainersList] of Object.entries(customerContainers)) {
+                // Add customer folder row
+                const folderRow = document.createElement('tr');
+                folderRow.className = 'customer-folder';
+                folderRow.innerHTML = `
+                    <td colspan="8" style="background-color: #f0f0f0; font-weight: bold; cursor: pointer;">
+                        <i class="fas fa-folder"></i> ${customerName}
+                        <span style="float: right;">${customerContainersList.length} konteyner</span>
                     </td>
                 `;
-                elements.shippingTableBody.appendChild(row);
-            });
+                
+                let isExpanded = false;
+                folderRow.onclick = () => {
+                    isExpanded = !isExpanded;
+                    const icon = folderRow.querySelector('i');
+                    if (isExpanded) {
+                        icon.className = 'fas fa-folder-open';
+                        containerRows.style.display = '';
+                    } else {
+                        icon.className = 'fas fa-folder';
+                        containerRows.style.display = 'none';
+                    }
+                };
+                
+                elements.shippingTableBody.appendChild(folderRow);
+                
+                // Create container rows for this customer (hidden by default)
+                const containerRows = document.createElement('tbody');
+                containerRows.style.display = 'none';
+                
+                customerContainersList.forEach(container => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><input type="checkbox" value="${container.id}"></td>
+                        <td>${container.container_no}</td>
+                        <td>${customerName}</td>
+                        <td>${container.package_count || 0}</td>
+                        <td>${container.total_quantity || 0}</td>
+                        <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                        <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                        <td>
+                            <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
+                            <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
+                        </td>
+                    `;
+                    containerRows.appendChild(row);
+                });
+                
+                elements.shippingTableBody.appendChild(containerRows);
+            }
         } else {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Sevkiyat verisi yok</td>';
@@ -1414,6 +1308,23 @@ async function populateShippingTable() {
         showToast('Sevkiyat tablosu yükleme hatası', 'error');
     }
 }
+
+// Add CSS for the customer folders
+// Add this to your CSS section
+const shippingTableCSS = `
+    .customer-folder:hover {
+        background-color: #e0e0e0 !important;
+    }
+    
+    .customer-folder i {
+        margin-right: 8px;
+        color: #f39c12;
+    }
+`;
+// Inject the CSS
+const style = document.createElement('style');
+style.textContent = shippingTableCSS;
+document.head.appendChild(style);
 
 async function populateStockTable() {
     try {
@@ -1554,33 +1465,9 @@ async function addNewCustomer() {
     }
 
     try {
-        const customerData = { code, name, email: email || null };
-        
-        if (!isOnline) {
-            // Offline mode - save to localStorage
-            const result = await offlineAddCustomer(customerData);
-            if (result.offline) {
-                showToast('Müşteri çevrimdışı modda kaydedildi', 'success');
-                // Update local customers list
-                const localCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
-                localCustomers.push({...customerData, id: `offline-${Date.now()}`});
-                localStorage.setItem('customers', JSON.stringify(localCustomers));
-                
-                // Clear form
-                document.getElementById('newCustomerCode').value = '';
-                document.getElementById('newCustomerName').value = '';
-                document.getElementById('newCustomerEmail').value = '';
-                
-                // Refresh dropdown
-                await populateCustomers();
-            }
-            return;
-        }
-        
-        // Online mode - save to Supabase
         const { error } = await supabase
             .from('customers')
-            .insert([customerData]);
+            .insert([{ code, name, email: email || null }]);
 
         if (error) {
             console.error('Error adding customer:', error);
@@ -1709,7 +1596,6 @@ function addManualProduct() {
     closeManualModal();
 }
 
-// Update the completePackage function to use offline handling
 async function completePackage() {
     if (!selectedCustomer) {
         showToast('Önce müşteri seçin', 'error');
@@ -1726,36 +1612,26 @@ async function completePackage() {
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
-        const packageData = {
-            package_no: packageNo,
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name,
-            items: currentPackage.items,
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString()
-        };
+        const { data, error } = await supabase
+            .from('packages')
+            .insert([{
+                package_no: packageNo,
+                customer_id: selectedCustomer.id,
+                items: currentPackage.items,
+                total_quantity: totalQuantity,
+                status: 'beklemede',
+                packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+                created_at: new Date().toISOString()
+            }])
+            .select();
 
-        const result = await offlineCompletePackage(packageData);
-        
-        if (result.offline) {
-            // Operation was stored for offline sync
-            showToast(`Paket çevrimdışı modda kaydedildi: ${packageNo}`, 'success');
-            
-            // Add to local packages list for display
-            const offlinePackages = JSON.parse(localStorage.getItem('offlinePackages') || '[]');
-            offlinePackages.push({
-                ...packageData,
-                id: `offline-${Date.now()}`
-            
-            localStorage.setItem('offlinePackages', JSON.stringify(offlinePackages));
-            
-            // Update packages table
-            await populatePackagesTable();
-        } else {
-            showToast(`Paket oluşturuldu: ${packageNo}`, 'success');
+        if (error) {
+            console.error('Error creating package:', error);
+            showToast('Paket oluşturulurken hata: ' + error.message, 'error');
+            return;
         }
+
+        showToast(`Paket oluşturuldu: ${packageNo}`, 'success');
         
         // Reset current package and quantities
         currentPackage = {};
@@ -1763,8 +1639,8 @@ async function completePackage() {
             badge.textContent = '0';
         });
         
-        // Update pending operations count
-        updatePendingOperationsCount();
+        // Refresh packages table
+        await populatePackagesTable();
         
     } catch (error) {
         console.error('Error in completePackage:', error);
@@ -1791,7 +1667,7 @@ function selectPackage(pkg) {
     const detailContent = document.getElementById('packageDetailContent');
     detailContent.innerHTML = `
         <h4>Paket: ${pkg.package_no}</h4>
-        <p><strong>Müşteri:</strong> ${pkg.customers?.name || pkg.customer_name || 'N/A'}</p>
+        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
         <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
         <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
         <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
@@ -1892,19 +1768,6 @@ async function deleteSelectedPackages() {
     try {
         const packageIds = Array.from(checkboxes).map(cb => cb.value);
         
-        // Check if any packages are offline
-        const offlinePackages = packageIds.filter(id => id.startsWith('offline-'));
-        if (offlinePackages.length > 0 && !isOnline) {
-            // Delete offline packages from localStorage
-            const currentOfflinePackages = JSON.parse(localStorage.getItem('offlinePackages') || '[]');
-            const updatedPackages = currentOfflinePackages.filter(pkg => !offlinePackages.includes(pkg.id));
-            localStorage.setItem('offlinePackages', JSON.stringify(updatedPackages));
-            
-            showToast(`${offlinePackages.length} çevrimdışı paket silindi`, 'success');
-            await populatePackagesTable();
-            return;
-        }
-        
         const { error } = await supabase
             .from('packages')
             .delete()
@@ -1949,13 +1812,6 @@ async function sendToRamp(containerNo = null) {
         
         if (selectedPackages.length === 0) {
             showToast('Rampaya göndermek için paket seçin', 'error');
-            return;
-        }
-
-        // Check if any packages are offline
-        const offlinePackages = selectedPackages.filter(id => id.startsWith('offline-'));
-        if (offlinePackages.length > 0 && !isOnline) {
-            showToast('Çevrimdışı paketler rampayaya gönderilemez. İnternet bağlantısı gerekiyor.', 'error');
             return;
         }
 
@@ -2324,173 +2180,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// OFFLINE FUNCTIONALITY IMPLEMENTATION
-function checkOnlineStatus() {
-    isOnline = navigator.onLine;
-    const indicator = document.getElementById('offlineIndicator');
-    const syncBtn = document.getElementById('syncBtn');
-    const syncStatus = document.getElementById('syncStatus');
-    
-    if (!isOnline) {
-        indicator.style.display = 'block';
-        syncBtn.style.display = 'inline-block';
-        syncStatus.style.display = 'flex';
-        document.body.classList.add('offline-mode');
-        showToast('Çevrimdışı moda geçildi. İşlemler internet bağlantısı sağlandığında senkronize edilecek.', 'warning', 5000);
-    } else {
-        indicator.style.display = 'none';
-        syncBtn.style.display = 'none';
-        syncStatus.style.display = 'none';
-        document.body.classList.remove('offline-mode');
-        // Try to sync pending operations when coming back online
-        syncPendingOperations();
-    }
-}
-
-// Create a function to handle offline operations
-async function handleOfflineOperation(operation, data) {
-    if (isOnline) {
-        // If online, execute immediately
-        return await operation(data);
-    } else {
-        // If offline, store for later sync
-        const operationId = Date.now();
-        const pendingOps = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
-        
-        pendingOps.push({
-            id: operationId,
-            operation: operation.name || 'unknown',
-            data: data,
-            timestamp: new Date().toISOString()
-        });
-        
-        // Save to local storage
-        localStorage.setItem('pendingOperations', JSON.stringify(pendingOps));
-        
-        // Update pending count
-        updatePendingOperationsCount();
-        
-        return { offline: true, id: operationId };
-    }
-}
-
-// Update pending operations count display
-function updatePendingOperationsCount() {
-    const pendingOps = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
-    elements.pendingCount.textContent = pendingOps.length;
-    
-    if (pendingOps.length > 0) {
-        elements.syncStatus.style.display = 'flex';
-        elements.syncBtn.style.display = 'inline-block';
-    } else {
-        elements.syncStatus.style.display = 'none';
-        elements.syncBtn.style.display = 'none';
-    }
-}
-
-// Create a function to sync pending operations
-async function syncPendingOperations() {
-    const pendingOps = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
-    
-    if (pendingOps.length === 0) {
-        showToast('Senkronize edilecek işlem yok', 'success');
-        return;
-    }
-    
-    elements.syncText.textContent = 'Senkronize ediliyor...';
-    elements.syncProgress.style.width = '0%';
-    
-    let successCount = 0;
-    let errorCount = 0;
-    
-    for (let i = 0; i < pendingOps.length; i++) {
-        const op = pendingOps[i];
-        
-        try {
-            // Update progress
-            elements.syncProgress.style.width = `${((i + 1) / pendingOps.length) * 100}%`;
-            
-            // Execute the operation based on its type
-            switch (op.operation) {
-                case 'offlineCompletePackage':
-                    await supabaseCompletePackage(op.data);
-                    break;
-                case 'offlineAddCustomer':
-                    await supabaseAddCustomer(op.data);
-                    break;
-                default:
-                    console.warn('Unknown operation type:', op.operation);
-            }
-            
-            successCount++;
-            
-        } catch (error) {
-            console.error('Error syncing operation:', error, op);
-            errorCount++;
-            // Continue with next operation even if one fails
-        }
-    }
-    
-    // Clear successfully synced operations
-    if (successCount > 0) {
-        // Remove successfully synced operations
-        const remainingOps = pendingOps.slice(successCount + errorCount);
-        localStorage.setItem('pendingOperations', JSON.stringify(remainingOps));
-        
-        showToast(`${successCount} işlem senkronize edildi. ${errorCount} hata.`, 'success');
-        
-        // Refresh data
-        await populatePackagesTable();
-        await populateCustomers();
-    }
-    
-    // Update UI
-    updatePendingOperationsCount();
-    elements.syncProgress.style.width = '0%';
-    elements.syncText.textContent = 'Senkronize ediliyor';
-}
-
-// Supabase operation functions
-async function supabaseCompletePackage(packageData) {
-    const { data: result, error } = await supabase
-        .from('packages')
-        .insert([packageData])
-        .select();
-
-    if (error) throw error;
-    return result;
-}
-
-async function supabaseAddCustomer(customerData) {
-    const { data: result, error } = await supabase
-        .from('customers')
-        .insert([customerData])
-        .select();
-
-    if (error) throw error;
-    return result;
-}
-
-// Offline operation functions
-async function offlineCompletePackage(packageData) {
-    return await handleOfflineOperation(supabaseCompletePackage, packageData);
-}
-
-async function offlineAddCustomer(customerData) {
-    return await handleOfflineOperation(supabaseAddCustomer, customerData);
-}
-
-// Manual sync trigger
-async function manualSync() {
-    if (!isOnline) {
-        showToast('İnternet bağlantısı yok. Senkronizasyon için bağlantı gerekli.', 'error');
-        return;
-    }
-    
-    showToast('Senkronizasyon başlatıldı...', 'warning');
-    await syncPendingOperations();
-}
-
 // Initialize auth state listener
 function setupAuthListener() {
     supabase.auth.onAuthStateChange((event, session) => {
@@ -2517,10 +2206,6 @@ function setupAuthListener() {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Add these lines to set up online/offline detection
-    window.addEventListener('online', checkOnlineStatus);
-    window.addEventListener('offline', checkOnlineStatus);
-    
     // API anahtarını yükle ve supabase'i başlat
     if (loadApiKey()) {
         supabase = initializeSupabase();
@@ -2531,17 +2216,11 @@ document.addEventListener('DOMContentLoaded', function() {
         showApiKeyModal();
     }
     
-    // Initial online status check
-    checkOnlineStatus();
-    
     // Login button event
     document.getElementById('loginBtn').addEventListener('click', login);
     
     // Logout button event
     document.getElementById('logoutBtn').addEventListener('click', logout);
-    
-    // Sync button event
-    document.getElementById('syncBtn').addEventListener('click', manualSync);
     
     // Enter key for login
     document.getElementById('email').addEventListener('keypress', function(e) {
@@ -2591,7 +2270,7 @@ document.addEventListener('DOMContentLoaded', function() {
     elements.appContainer.style.display = 'none';
 });
 
-console.log('ProClean application initialized with offline support');
+console.log('ProClean application initialized with Supabase authentication');
 </script>
 </body>
 </html>
