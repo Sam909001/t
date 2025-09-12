@@ -734,6 +734,8 @@ select:focus, input:focus {
 let SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
 
+const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
+    
 // Global variables
 let currentUser = null;
 let selectedCustomer = null;
@@ -746,35 +748,27 @@ let supabase = null;
 
 // DOM elements
 const elements = {
-    loginScreen: document.getElementById('loginScreen'),
-    appContainer: document.getElementById('appContainer'),
-    userRole: document.getElementById('userRole'),
-    customerSelect: document.getElementById('customerSelect'),
-    personnelSelect: document.getElementById('personnelSelect'),
-    currentDate: document.getElementById('currentDate'),
-    barcodeInput: document.getElementById('barcodeInput'),
-    packagesTableBody: document.getElementById('packagesTableBody'),
-    stockTableBody: document.getElementById('stockTableBody'),
-    shippingTableBody: document.getElementById('shippingTableBody'),
-    containerNumber: document.getElementById('containerNumber'),
-    totalPackages: document.getElementById('totalPackages'),
-    customerModal: document.getElementById('customerModal'),
-    allCustomersModal: document.getElementById('allCustomersModal'),
-    emailModal: document.getElementById('emailModal'),
-    quantityModal: document.getElementById('quantityModal'),
-    manualModal: document.getElementById('manualModal'),
-    customerList: document.getElementById('customerList'),
-    allCustomersList: document.getElementById('allCustomersList'),
-    stockSearch: document.getElementById('stockSearch'),
-    selectedFileName: document.getElementById('selectedFileName'),
-    reportEmail: document.getElementById('reportEmail'),
-    quantityInput: document.getElementById('quantityInput'),
-    quantityModalTitle: document.getElementById('quantityModalTitle'),
-    toast: document.getElementById('toast'),
-    selectAllCheckbox: document.getElementById('selectAllPackages'),
-    shippingFilter: document.getElementById('shippingFilter'),
-    apiKeyModal: document.getElementById('apiKeyModal')
-};
+        loginScreen: document.getElementById('login-screen'),
+        appContainer: document.getElementById('app-container'),
+        loginButton: document.getElementById('login-btn'),
+        emailInput: document.getElementById('email-input'),
+        passwordInput: document.getElementById('password-input'),
+        onlineStatus: document.getElementById('online-status'),
+        statusText: document.getElementById('status-text'),
+        logoutButton: document.getElementById('logout-btn'),
+        usernameDisplay: document.getElementById('username-display')
+    };
+
+     function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+    
 
 // Kullanıcının kaydettiği API anahtarını yükle
 function loadApiKey() {
@@ -874,161 +868,77 @@ function showApiKeyHelp() {
 }
 
 // Test Supabase connection
-async function testConnection() {
-    try {
-        // Test both authentication and database connection
-        const { data: authData, error: authError } = await supabase.auth.getSession();
-        
-        if (authError) {
-            console.error('Supabase auth connection error:', authError);
-            
-            if (authError.message.includes('Invalid API key') || authError.message.includes('JWT')) {
-                showToast('Geçersiz API anahtarı. Lütfen API anahtarınızı kontrol edin.', 'error');
-                showApiKeyModal();
-                return false;
-            }
-            
-            showToast('Kimlik doğrulama bağlantı hatası', 'error');
-            return false;
+ async function testConnection() {
+        try {
+            const { data, error } = await supabase.from('customers').select('*').limit(1);
+            if (error) throw error;
+            console.log('Supabase connection test successful:', data);
+            elements.onlineStatus.style.backgroundColor = '#2ecc71';
+            elements.statusText.textContent = 'Çevrimiçi';
+        } catch (e) {
+            console.error('Supabase connection test failed:', e.message);
+            elements.onlineStatus.style.backgroundColor = '#e74c3c';
+            elements.statusText.textContent = 'Çevrimdışı';
+            showToast('Veritabanına bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.', 'error');
         }
-        
-        // Test database connection with a simple query
-        const { data, error: dbError } = await supabase
-            .from('customers')
-            .select('id')
-            .limit(1);
-            
-        if (dbError) {
-            console.error('Supabase database connection error:', dbError);
-            
-            if (dbError.code === '42501') {
-                showToast('Veritabanı izin hatası. API anahtarınızı kontrol edin.', 'error');
-                showApiKeyModal();
-            } else if (dbError.code === '42P01') {
-                showToast('Tablo bulunamadı. Veritabanı şemasını kontrol edin.', 'error');
-            } else {
-                showToast('Veritabanı bağlantı hatası', 'error');
-            }
-            
-            return false;
-        }
-        
-        console.log('Supabase connection successful');
-        showToast('Bağlantı başarılı', 'success');
-        return true;
-        
-    } catch (error) {
-        console.error('Connection test failed:', error);
-        
-        if (error.message.includes('Failed to fetch')) {
-            showToast('Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin.', 'error');
-        } else {
-            showToast('Bağlantı testi başarısız: ' + error.message, 'error');
-        }
-        
-        return false;
     }
-}
+
 // Authentication functions
 async function login() {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value.trim();
+        const email = elements.emailInput.value;
+        const password = elements.passwordInput.value;
 
-    if (!email || !password) {
-        showToast("Lütfen e-posta ve şifre girin", "error");
-        return;
-    }
+        if (!email || !password) {
+            showToast('Lütfen e-posta ve şifrenizi girin.', 'error');
+            return;
+        }
 
-    // Test connection first
-    const connectionOk = await testConnection();
-    if (!connectionOk) {
-        return;
-    }
+        elements.loginButton.disabled = true;
+        elements.loginButton.textContent = 'Giriş yapılıyor...';
 
-    try {
-        showToast("Giriş yapılıyor...", "warning");
-        
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
-        });
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
 
-        if (error) {
-            console.error('Supabase login error:', error);
-            
-            // Handle specific error cases
-            if (error.message.includes('Invalid login credentials')) {
-                showToast("Geçersiz e-posta veya şifre", "error");
-            } else if (error.message.includes('Email not confirmed')) {
-                showToast("E-posta adresiniz doğrulanmamış", "error");
-            } else if (error.message.includes('Invalid API key') || error.message.includes('JWT')) {
-                showToast("Geçersiz API anahtarı. Lütfen API anahtarınızı kontrol edin.", "error");
-                showApiKeyModal();
-            } else {
-                showToast("Giriş başarısız: " + error.message, "error");
+            if (error) {
+                showToast(`Giriş başarısız: ${error.message}`, 'error');
+                return;
             }
-            return;
-        }
 
-        if (data.user) {
-            // Store user information
-            currentUser = {
-                id: data.user.id,
-                email: data.user.email,
-                name: data.user.user_metadata?.name || data.user.email.split('@')[0],
-                role: data.user.user_metadata?.role || 'operator'
-            };
-            
-            // Update UI
-            elements.userRole.textContent = `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
-            lements.loginScreen.style.display = "none";
-                    elements.appContainer.style.display = "flex";
-                    elements.appContainer.setAttribute('aria-hidden', 'false');
-            
-            showToast("Giriş başarılı!", "success");
-            console.log('Login successful:', data.user.email);
-            
-            // Initialize application
-            await initApp();
-        }
-        
-    } catch (e) {
-        console.error('Login catch error:', e);
-        
-        if (e.message.includes('Failed to fetch')) {
-            showToast("Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin.", "error");
-        } else {
-            showToast("Giriş başarısız: " + e.message, "error");
+            // Check if user object and user.email exist
+            if (data.user && data.user.email) {
+                showToast('Giriş başarılı!', 'success');
+                elements.usernameDisplay.textContent = `Hoşgeldiniz, ${data.user.email}`;
+                elements.loginScreen.style.display = 'none';
+                elements.appContainer.style.display = 'flex';
+                testConnection(); // Test connection after successful login
+            } else {
+                showToast('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
+            }
+
+        } catch (e) {
+            console.error('Login error:', e);
+            showToast('Giriş sırasında bir hata oluştu.', 'error');
+        } finally {
+            elements.loginButton.disabled = false;
+            elements.loginButton.textContent = 'Giriş Yap';
         }
     }
-}
 
-async function logout() {
-    try {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-            console.error('Logout error:', error);
-            showToast('Çıkış yapılırken hata oluştu', 'error');
-            return;
-        }
-        
-        // Local cleanup
-        currentUser = null;
-        elements.appContainer.style.display = 'none';
-        elements.appContainer.setAttribute('aria-hidden','true');
-        elements.loginScreen.style.display = 'flex';
-        document.getElementById('email').value = '';
-        document.getElementById('password').value = '';
-        closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-        
-        console.log('Logout successful');
-        showToast('Başarıyla çıkış yapıldı', 'success');
-        
-    } catch (error) {
-        console.error('Logout catch error:', error);
-        showToast('Çıkış yapılırken hata oluştu', 'error');
+    function logout() {
+        supabase.auth.signOut().then(() => {
+            showToast('Başarıyla çıkış yapıldı.', 'success');
+            elements.loginScreen.style.display = 'flex';
+            elements.appContainer.style.display = 'none';
+            elements.emailInput.value = '';
+            elements.passwordInput.value = '';
+        }).catch(e => {
+            console.error('Logout error:', e);
+            showToast('Çıkış yapılırken bir hata oluştu.', 'error');
+        });
     }
-}
     
 // State management functions
 function saveAppState() {
@@ -2253,36 +2163,28 @@ function escapeHtml(text) {
 
 // Initialize auth state listener
 function setupAuthListener() {
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
         console.log('Auth state change:', event, session?.user?.email || 'No user');
         
-        if (event === 'SIGNED_IN' && session) {
+        if (session) {
             currentUser = {
-                id: session.user.id,
                 email: session.user.email,
-                name: session.user.user_metadata?.name || session.user.email.split('@')[0],
-                role: session.user.user_metadata?.role || 'operator'
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
             };
             
-            elements.userRole.textContent = `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+            elements.userRole.textContent = `Operatör: ${currentUser.name}`;
             elements.loginScreen.style.display = "none";
             elements.appContainer.style.display = "flex";
-            elements.appContainer.setAttribute('aria-hidden', 'false');
             
-            await initApp();
-        } else if (event === 'SIGNED_OUT') {
-            currentUser = null;
+            initApp();
+        } else {
             elements.loginScreen.style.display = "flex";
             elements.appContainer.style.display = "none";
-            elements.appContainer.setAttribute('aria-hidden', 'true');
-            clearAppState();
-        } else if (event === 'TOKEN_REFRESHED') {
-            console.log('Token refreshed successfully');
-        } else if (event === 'USER_UPDATED') {
-            console.log('User updated:', session.user);
         }
     });
 }
+
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
     // API anahtarını yükle ve supabase'i başlat
@@ -2344,12 +2246,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Event listeners
+    window.addEventListener('load', () => {
+        testConnection();
+    });
+
+    elements.loginButton.addEventListener('click', login);
+    elements.logoutButton.addEventListener('click', logout);
+    elements.passwordInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') login();
+    });
+
     // Initial state
     elements.loginScreen.style.display = 'flex';
     elements.appContainer.style.display = 'none';
-});
 
-console.log('ProClean application initialized with Supabase authentication');
+    console.log('ProClean application initialized with Supabase authentication');
+</script>
 </script>
 </body>
 </html>
