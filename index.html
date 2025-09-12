@@ -1432,12 +1432,48 @@ select:focus, input:focus {
         }
 
         // Package operations
-        function processBarcode() {
-            const barcode = elements.barcodeInput.value.trim();
-            if (!barcode) {
-                showToast('Barkod girin', 'error');
-                return;
-            }
+       async function processBarcode() {
+    const barcode = elements.barcodeInput.value.trim();
+    if (!barcode) {
+        showToast('Barkod girin', 'error');
+        return;
+    }
+
+    if (!selectedCustomer) {
+        showToast('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    try {
+        // Barkodu veritabanına kaydet
+        const { data, error } = await supabase
+            .from('barcodes')
+            .insert([{
+                barcode: barcode,
+                customer_id: selectedCustomer.id,
+                scanned_at: new Date().toISOString(),
+                processed: false
+            }])
+            .select();
+
+        if (error) {
+            console.error('Barkod kaydedilemedi:', error);
+            showToast('Barkod işlenirken hata oluştu', 'error');
+            return;
+        }
+
+        showToast(`Barkod kaydedildi: ${barcode}`, 'success');
+        elements.barcodeInput.value = '';
+        elements.barcodeInput.focus();
+        
+        // Barkodları göster
+        displayScannedBarcodes();
+        
+    } catch (error) {
+        console.error('Barkod işleme hatası:', error);
+        showToast('Barkod işlenirken bir hata oluştu', 'error');
+    }
+}
 
             // Process barcode logic here
             showToast(`Barkod işlendi: ${barcode}`, 'success');
