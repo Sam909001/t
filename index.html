@@ -549,7 +549,7 @@ select:focus, input:focus {
                     <div class="customer-info">
                         <div class="info-group">
                             <label for="shippingFilter">Durum Filtresi</label>
-                            <select id="shippingFilter" onchange="filterShipping()">
+                            <select id="shippingFilter" onchange="populateShippingTable()">
                                 <option value="all">Tümü</option>
                                 <option value="beklemede">Beklemede</option>
                                 <option value="sevk-edildi">Sevk Edildi</option>
@@ -558,8 +558,7 @@ select:focus, input:focus {
                     </div>
                     <div class="action-buttons">
                         <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
-                        <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()">Mevcut Konteyner</button>
-                        <button type="button" class="btn btn-danger" onclick="deleteContainer()">Konteyner Sil</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteSelectedContainers()">Seçili Konteynerleri Sil</button>
                     </div>
                 </div>
 
@@ -620,20 +619,12 @@ select:focus, input:focus {
             <div class="tab-pane admin-only" id="reportsTab">
                 <div class="packaging-header">
                     <h3>Raporlar</h3>
-                    <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" onclick="generateCustomReport()">Özel Rapor</button>
-                        <button type="button" class="btn btn-warning" onclick="exportReports()">Raporları Dışa Aktar</button>
-                    </div>
                 </div>
-
-                <div class="report-filters">
+                <div class="report-filters" style="display: flex; gap: 1rem; align-items: flex-end; margin-bottom: 1rem;">
                     <div class="info-group">
-                        <label for="reportType">Rapor Türü</label>
-                        <select id="reportType">
-                            <option value="daily">Günlük Rapor</option>
-                            <option value="weekly">Haftalık Rapor</option>
-                            <option value="monthly">Aylık Rapor</option>
-                            <option value="custom">Özel Rapor</option>
+                        <label for="reportCustomer">Müşteri</label>
+                        <select id="reportCustomer">
+                            <option value="all">Tüm Müşteriler</option>
                         </select>
                     </div>
                     <div class="info-group">
@@ -644,23 +635,11 @@ select:focus, input:focus {
                         <label for="endDate">Bitiş Tarihi</label>
                         <input type="date" id="endDate">
                     </div>
-                    <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
+                    <button type="button" class="btn btn-primary" onclick="loadReports()">Raporu Oluştur</button>
                 </div>
 
-                <table class="stock-table">
-                    <thead>
-                        <tr>
-                            <th>Rapor Tarihi</th>
-                            <th>Rapor Türü</th>
-                            <th>Paket Sayısı</th>
-                            <th>Toplam Adet</th>
-                            <th>Oluşturan</th>
-                            <th>İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reportsTableBody">
-                        </tbody>
-                </table>
+                <div id="reportResult">
+                    </div>
             </div>
         </div>
 
@@ -680,13 +659,9 @@ select:focus, input:focus {
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Müşteri Seç</h3>
-                <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeModal('customerModal')">&times;</button>
             </div>
-            <div class="customer-list" id="customerList">
-                </div>
-            <div class="modal-buttons">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">İptal</button>
-            </div>
+            <div class="customer-list" id="customerList"></div>
         </div>
     </div>
 
@@ -694,7 +669,7 @@ select:focus, input:focus {
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Müşteri Yönetimi</h3>
-                <button type="button" class="modal-close" onclick="closeAllCustomersModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeModal('allCustomersModal')">&times;</button>
             </div>
             <div class="form-group">
                 <label for="newCustomerCode">Müşteri Kodu</label>
@@ -709,11 +684,9 @@ select:focus, input:focus {
                 <input type="email" id="newCustomerEmail" placeholder="E-posta adresini girin">
             </div>
             <button type="button" class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
-            
             <hr style="margin: 1.5rem 0;">
             <h4>Mevcut Müşteriler</h4>
-            <div class="customer-list" id="allCustomersList">
-                </div>
+            <div class="customer-list" id="allCustomersList"></div>
         </div>
     </div>
 
@@ -721,16 +694,16 @@ select:focus, input:focus {
         <div class="modal-content">
             <div class="modal-header">
                 <h3>İş Sonu Raporu Gönder</h3>
-                <button type="button" class="modal-close" onclick="closeEmailModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeModal('emailModal')">&times;</button>
             </div>
             <div class="form-group">
                 <label for="reportEmail">E-posta Adresi</label>
                 <input type="email" id="reportEmail" placeholder="Rapor gönderilecek e-posta">
             </div>
-            <div class="modal-buttons">
+            <div class="quantity-buttons">
                 <button type="button" class="btn btn-primary" onclick="sendDailyReport()">Rapor Gönder</button>
                 <button type="button" class="btn btn-warning" onclick="previewReport()">Önizleme</button>
-                <button type="button" class="btn btn-secondary" onclick="closeEmailModal()">İptal</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('emailModal')">İptal</button>
             </div>
         </div>
     </div>
@@ -741,7 +714,7 @@ select:focus, input:focus {
             <input type="number" id="quantityInput" class="quantity-input" min="1" placeholder="Adet">
             <div class="quantity-buttons">
                 <button type="button" class="btn btn-primary" onclick="confirmQuantity()">Onayla</button>
-                <button type="button" class="btn btn-secondary" onclick="closeQuantityModal()">İptal</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('quantityModal')">İptal</button>
             </div>
         </div>
     </div>
@@ -750,7 +723,7 @@ select:focus, input:focus {
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Manuel Ürün Girişi</h3>
-                <button type="button" class="modal-close" onclick="closeManualModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeModal('manualModal')">&times;</button>
             </div>
             <div class="form-group">
                 <label for="manualProduct">Ürün Adı</label>
@@ -760,18 +733,18 @@ select:focus, input:focus {
                 <label for="manualQuantity">Adet</label>
                 <input type="number" id="manualQuantity" min="1" placeholder="Adet girin">
             </div>
-            <div class="modal-buttons">
+            <div class="quantity-buttons">
                 <button type="button" class="btn btn-primary" onclick="addManualProduct()">Ekle</button>
-                <button type="button" class="btn btn-secondary" onclick="closeManualModal()">İptal</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('manualModal')">İptal</button>
             </div>
         </div>
     </div>
 
-        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
     <script>
-        // Supabase initialization - Varsayılan değerler
+        // Supabase initialization
         const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
         let SUPABASE_ANON_KEY = null;
         let supabase = null;
@@ -786,7 +759,7 @@ select:focus, input:focus {
         let offlineQueue = [];
         let isOnline = true;
 
-        // Elementleri bir defa tanımla
+        // Element cache
         const elements = {
             loginScreen: document.getElementById('loginScreen'),
             appContainer: document.getElementById('appContainer'),
@@ -815,7 +788,8 @@ select:focus, input:focus {
             quantityModal: document.getElementById('quantityModal'),
             quantityModalTitle: document.getElementById('quantityModalTitle'),
             scannedBarcodesDisplay: document.getElementById('scannedBarcodesDisplay'),
-            connectionStatus: document.getElementById('connectionStatus')
+            connectionStatus: document.getElementById('connectionStatus'),
+            reportCustomerSelect: document.getElementById('reportCustomer')
         };
         
         // =================================================================================
@@ -823,13 +797,10 @@ select:focus, input:focus {
         // =================================================================================
 
         function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
+            const toast = elements.toast;
             toast.textContent = message;
             toast.className = `toast ${type} show`;
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
+            setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
         function handleSupabaseError(error, context) {
@@ -854,17 +825,15 @@ select:focus, input:focus {
 
         async function initApp() {
             elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-            
-            await populateCustomers();
-            await populatePersonnel();
+            await Promise.all([
+                populateCustomers(),
+                populatePersonnel(),
+                populateStockTable(),
+            ]);
             loadAppState();
-            
             await populatePackagesTable();
-            await populateStockTable();
             await populateShippingTable();
-            
             await testConnection();
-            
             setInterval(saveAppState, 5000); 
             setupOfflineSupport();
             loadOfflineQueue();
@@ -875,46 +844,28 @@ select:focus, input:focus {
         // =================================================================================
 
         function saveApiKey() {
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const apiKey = elements.apiKeyInput.value.trim();
             if (!apiKey) {
                 showToast('Lütfen bir API anahtarı girin', 'error');
                 return;
             }
-            
             localStorage.setItem('procleanApiKey', apiKey);
             SUPABASE_ANON_KEY = apiKey;
             supabase = initializeSupabase();
-            
             if (supabase) {
-                document.getElementById('apiKeyModal').style.display = 'none';
+                closeModal('apiKeyModal');
                 showToast('API anahtarı kaydedildi', 'success');
-                setupAuthListener(); // Re-setup listener after getting key
+                setupAuthListener();
             }
         }
         
         function showApiKeyModal() {
-            document.getElementById('apiKeyInput').value = SUPABASE_ANON_KEY || '';
-            document.getElementById('apiKeyModal').style.display = 'flex';
+            elements.apiKeyInput.value = SUPABASE_ANON_KEY || '';
+            elements.apiKeyModal.style.display = 'flex';
         }
 
         function showApiKeyHelp() {
-            const helpContent = `
-                <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
-                <div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px;">
-                    <h3>1. Supabase hesabınıza giriş yapın</h3>
-                    <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
-                </div>
-                <div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px;">
-                    <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
-                </div>
-                <div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px;">
-                    <h3>3. Sol menüden Settings (Ayarlar) > API yolunu izleyin</h3>
-                </div>
-                <div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px;">
-                    <h3>4. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
-                    <p>Bu, 'SUPABASE_ANON_KEY' olarak da bilinir. Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
-                </div>
-            `;
+            const helpContent = `<h1>Supabase API Anahtarı Nasıl Alınır?</h1><div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px;"><h3>1. Supabase hesabınıza giriş yapın</h3><p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p></div><div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px;"><h3>2. Projenizi seçin</h3></div><div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px;"><h3>3. Sol menüden Settings (Ayarlar) > API yolunu izleyin</h3></div><div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px;"><h3>4. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3></div>`;
             const helpWindow = window.open('', '_blank');
             helpWindow.document.write(`<html><head><title>API Anahtarı Yardımı</title><style>body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }</style></head><body>${helpContent}</body></html>`);
         }
@@ -924,7 +875,6 @@ select:focus, input:focus {
             try {
                 const { error } = await supabase.from('customers').select('id').limit(1);
                 if (error) throw error;
-                console.log('Supabase connection test successful.');
             } catch (e) {
                 handleSupabaseError(e, 'Veritabanı bağlantı testi başarısız');
             }
@@ -936,21 +886,17 @@ select:focus, input:focus {
                 showApiKeyModal();
                 return;
             }
-
             const email = elements.emailInput.value;
             const password = elements.passwordInput.value;
             if (!email || !password) {
-                showToast('Lütfen e-posta ve şifrenizi girin.', 'error');
+                showToast('E-posta ve şifre girin.', 'error');
                 return;
             }
-
             elements.loginButton.disabled = true;
             elements.loginButton.textContent = 'Giriş yapılıyor...';
-
             try {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
-                // Auth state change will handle the rest
             } catch (error) {
                 handleSupabaseError(error, 'Giriş başarısız');
             } finally {
@@ -960,20 +906,16 @@ select:focus, input:focus {
         }
 
         function applyRoleBasedPermissions(role) {
-            const adminOnlyElements = document.querySelectorAll('.admin-only');
-            const displayStyle = (role === 'admin') ? 'block' : 'none';
-            adminOnlyElements.forEach(el => el.style.display = displayStyle);
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = (role === 'admin') ? 'block' : 'none');
         }
 
         async function logout() {
             if (!supabase) return;
             const { error } = await supabase.auth.signOut();
-            if (error) {
-                handleSupabaseError(error, 'Çıkış yapılamadı');
-            } else {
+            if (error) handleSupabaseError(error, 'Çıkış yapılamadı');
+            else {
                 showToast('Başarıyla çıkış yapıldı.', 'success');
                 clearAppState();
-                // Auth state change will handle UI switch
             }
         }
 
@@ -981,32 +923,23 @@ select:focus, input:focus {
             if (!supabase) return;
             supabase.auth.onAuthStateChange(async (event, session) => {
                 if (session && session.user) {
-                    const { data: userData, error } = await supabase
-                        .from('personnel')
-                        .select('role, name, id')
-                        .eq('email', session.user.email)
-                        .single();
-
-                    if (error && error.code !== 'PGRST116') { // Ignore "No rows found"
-                        handleSupabaseError(error, 'Kullanıcı rolü alınamadı');
+                    try {
+                        const { data } = await supabase.from('personnel').select('role, name, id').eq('email', session.user.email).single();
+                        currentUser = {
+                            email: session.user.email,
+                            uid: session.user.id,
+                            name: data?.name || session.user.email.split('@')[0],
+                            role: data?.role || 'operator',
+                            personnel_id: data?.id
+                        };
+                        document.getElementById('userRole').textContent = `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+                        applyRoleBasedPermissions(currentUser.role);
+                        elements.loginScreen.style.display = 'none';
+                        elements.appContainer.style.display = 'flex';
+                        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') initApp();
+                    } catch (error) {
+                        handleSupabaseError(error, 'Kullanıcı bilgileri alınamadı');
                     }
-                    
-                    currentUser = {
-                        email: session.user.email,
-                        uid: session.user.id,
-                        name: userData?.name || session.user.email.split('@')[0],
-                        role: userData?.role || 'operator',
-                        personnel_id: userData?.id
-                    };
-
-                    document.getElementById('userRole').textContent = `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
-                    applyRoleBasedPermissions(currentUser.role);
-                    
-                    elements.loginScreen.style.display = 'none';
-                    elements.appContainer.style.display = 'flex';
-                    
-                    if(event !== 'INITIAL_SESSION') initApp();
-
                 } else {
                     currentUser = null;
                     elements.loginScreen.style.display = 'flex';
@@ -1029,9 +962,9 @@ select:focus, input:focus {
         }
 
         function loadAppState() {
-            const savedState = localStorage.getItem('procleanState');
-            if (savedState) {
-                const state = JSON.parse(savedState);
+            const stateJSON = localStorage.getItem('procleanState');
+            if (stateJSON) {
+                const state = JSON.parse(stateJSON);
                 if (state.selectedCustomerId) elements.customerSelect.value = state.selectedCustomerId;
                 if (state.selectedPersonnelId) elements.personnelSelect.value = state.selectedPersonnelId;
                 if (state.currentContainer) {
@@ -1056,7 +989,7 @@ select:focus, input:focus {
             scannedBarcodes = [];
             document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
             displayScannedBarcodes();
-            document.getElementById('packageDetailContent').innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+            elements.packageDetailContent.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
         }
 
         // =================================================================================
@@ -1069,7 +1002,7 @@ select:focus, input:focus {
                 document.getElementById('offlineIndicator').style.display = isOnline ? 'none' : 'block';
                 elements.connectionStatus.textContent = isOnline ? 'Çevrimiçi' : 'Çevrimdışı';
                 if (isOnline) {
-                    showToast('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
+                    showToast('Çevrimiçi moda geçildi. Senkronize ediliyor...', 'success');
                     syncOfflineData();
                 } else {
                     showToast('Çevrimdışı moda geçildi. Değişiklikler kaydedilecek.', 'warning');
@@ -1077,7 +1010,7 @@ select:focus, input:focus {
             };
             window.addEventListener('online', updateOnlineStatus);
             window.addEventListener('offline', updateOnlineStatus);
-            updateOnlineStatus(); // Initial check
+            updateOnlineStatus();
         }
 
         function loadOfflineQueue() {
@@ -1106,60 +1039,43 @@ select:focus, input:focus {
                 try {
                     if (item.type === 'package') {
                         const { package: packageData, items: packageItems } = item.data;
-                        
-                        // 1. Insert package
-                        const { data: newPackage, error: packageError } = await supabase
-                            .from('packages').insert([packageData]).select().single();
-                        if (packageError) throw packageError;
-
-                        // 2. Prepare and insert package items with the new ID
-                        if (packageItems && packageItems.length > 0) {
-                            const itemsForDb = packageItems.map(pi => ({
-                                package_id: newPackage.id,
-                                product_name: pi.product_name,
-                                quantity: pi.quantity,
-                                barcode: pi.barcode,
-                                scanned_by: packageData.personnel_id
-                            }));
+                        const { data: newPackage, error: pkgError } = await supabase.from('packages').insert([packageData]).select().single();
+                        if (pkgError) throw pkgError;
+                        if (packageItems?.length > 0) {
+                            const itemsForDb = packageItems.map(pi => ({ ...pi, package_id: newPackage.id }));
                             const { error: itemsError } = await supabase.from('package_items').insert(itemsForDb);
                             if (itemsError) throw itemsError;
                         }
                         successfullySynced++;
                     }
                 } catch (error) {
-                    console.error('Error syncing item, it will be kept in queue:', item, error);
+                    console.error('Error syncing item, keeping in queue:', item, error);
                     remainingItems.push(item);
                 }
             }
-
             offlineQueue = remainingItems;
             saveOfflineQueue();
-
             if (successfullySynced > 0) {
-                showToast(`${successfullySynced} çevrimdışı öğe senkronize edildi.`, 'success');
+                showToast(`${successfullySynced} öğe senkronize edildi.`, 'success');
                 await populatePackagesTable();
                 await populateShippingTable();
             }
             if (remainingItems.length > 0) {
-                showToast(`${remainingItems.length} öğe senkronize edilemedi, daha sonra denenecek.`, 'error');
+                showToast(`${remainingItems.length} öğe senkronize edilemedi.`, 'error');
             }
         }
 
         // =================================================================================
-        // DATA POPULATION FUNCTIONS
+        // DATA POPULATION & UI RENDERING
         // =================================================================================
 
         async function populateCustomers() {
             try {
                 const { data, error } = await supabase.from('customers').select('*').order('name');
                 if (error) throw error;
-                elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
-                data.forEach(c => {
-                    const option = document.createElement('option');
-                    option.value = c.id;
-                    option.textContent = `${c.name} (${c.code})`;
-                    elements.customerSelect.appendChild(option);
-                });
+                const options = data.map(c => `<option value="${c.id}">${c.name} (${c.code})</option>`).join('');
+                elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>' + options;
+                elements.reportCustomerSelect.innerHTML = '<option value="all">Tüm Müşteriler</option>' + options;
             } catch (error) {
                 handleSupabaseError(error, 'Müşteriler yüklenemedi');
             }
@@ -1169,13 +1085,7 @@ select:focus, input:focus {
             try {
                 const { data, error } = await supabase.from('personnel').select('*').order('name');
                 if (error) throw error;
-                elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
-                data.forEach(p => {
-                    const option = document.createElement('option');
-                    option.value = p.id;
-                    option.textContent = p.name;
-                    elements.personnelSelect.appendChild(option);
-                });
+                elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>' + data.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
             } catch (error) {
                 handleSupabaseError(error, 'Personel yüklenemedi');
             }
@@ -1183,31 +1093,18 @@ select:focus, input:focus {
 
         async function populatePackagesTable() {
             try {
-                const { data, error } = await supabase.from('packages')
-                    .select(`*, customers (name, code), personnel (name)`)
-                    .is('container_id', null).order('created_at', { ascending: false });
+                const { data, error } = await supabase.from('packages').select(`*, customers (name), personnel (name)`).is('container_id', null).order('created_at', { ascending: false });
                 if (error) throw error;
-
-                elements.packagesTableBody.innerHTML = '';
-                if (data.length > 0) {
-                    data.forEach(pkg => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td><input type="checkbox" value="${pkg.id}" onchange="updatePackageSelection()"></td>
-                            <td>${pkg.package_no}</td>
-                            <td>${pkg.customers?.name || 'N/A'}</td>
-                            <td>${pkg.total_items}</td>
-                            <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                            <td><span class="status-${pkg.status}">${pkg.status}</span></td>
-                        `;
-                        row.onclick = (e) => { if (e.target.type !== 'checkbox') selectPackage(pkg.id); };
-                        elements.packagesTableBody.appendChild(row);
-                    });
-                    elements.totalPackages.textContent = data.length;
-                } else {
-                    elements.packagesTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Bekleyen paket yok</td></tr>';
-                    elements.totalPackages.textContent = 0;
-                }
+                elements.packagesTableBody.innerHTML = data.length > 0 ? data.map(pkg => `
+                    <tr onclick="selectPackage('${pkg.id}', event)">
+                        <td><input type="checkbox" value="${pkg.id}"></td>
+                        <td>${pkg.package_no}</td>
+                        <td>${pkg.customers?.name || 'N/A'}</td>
+                        <td>${pkg.total_items}</td>
+                        <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
+                        <td><span class="status-${pkg.status}">${pkg.status}</span></td>
+                    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;">Bekleyen paket yok</td></tr>';
+                elements.totalPackages.textContent = data.length;
             } catch (error) {
                 handleSupabaseError(error, 'Paketler yüklenemedi');
             }
@@ -1215,34 +1112,23 @@ select:focus, input:focus {
         
         async function populateShippingTable() {
             try {
-                const filter = elements.shippingFilter?.value || 'all';
-                let query = supabase.from('containers').select(`*, packages (customers (name))`);
+                const filter = elements.shippingFilter.value;
+                let query = supabase.from('containers').select(`*, packages (customers (name))`).order('created_at', { ascending: false });
                 if (filter !== 'all') query = query.eq('status', filter);
                 
-                const { data, error } = await query.order('created_at', { ascending: false });
+                const { data, error } = await query;
                 if (error) throw error;
-
-                elements.shippingTableBody.innerHTML = '';
-                if (data.length > 0) {
-                    data.forEach(c => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td><input type="checkbox" value="${c.id}"></td>
-                            <td>${c.container_no}</td>
-                            <td>${c.packages[0]?.customers?.name || c.customer || 'N/A'}</td>
-                            <td>${c.package_count || 0}</td>
-                            <td>${c.total_items || 0}</td>
-                            <td>${new Date(c.created_at).toLocaleDateString('tr-TR')}</td>
-                            <td><span class="status-${c.status}">${c.status}</span></td>
-                            <td>
-                                <button onclick="shipContainer('${c.id}')" class="btn btn-success">Sevk Et</button>
-                            </td>
-                        `;
-                        elements.shippingTableBody.appendChild(row);
-                    });
-                } else {
-                    elements.shippingTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Sevkiyat verisi yok</td></tr>';
-                }
+                elements.shippingTableBody.innerHTML = data.length > 0 ? data.map(c => `
+                    <tr>
+                        <td><input type="checkbox" value="${c.id}"></td>
+                        <td>${c.container_no}</td>
+                        <td>${c.packages[0]?.customers?.name || c.customer || 'N/A'}</td>
+                        <td>${c.package_count || 0}</td>
+                        <td>${c.total_items || 0}</td>
+                        <td>${new Date(c.created_at).toLocaleDateString('tr-TR')}</td>
+                        <td><span class="status-${c.status}">${c.status}</span></td>
+                        <td><button onclick="shipContainer('${c.id}')" class="btn btn-success">Sevk Et</button></td>
+                    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;">Sevkiyat verisi yok</td></tr>';
             } catch (error) {
                 handleSupabaseError(error, 'Sevkiyat verileri yüklenemedi');
             }
@@ -1252,28 +1138,12 @@ select:focus, input:focus {
             try {
                 const { data, error } = await supabase.from('stock_items').select('*').order('name');
                 if (error) throw error;
-
-                elements.stockTableBody.innerHTML = '';
-                if (data.length > 0) {
-                    data.forEach(item => {
-                        let statusClass = 'status-stokta', statusText = 'Stokta';
-                        if (item.quantity <= 0) { statusClass = 'status-kritik'; statusText = 'Kritik'; } 
-                        else if (item.quantity < 10) { statusClass = 'status-az-stok'; statusText = 'Az Stok'; }
-                        
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${item.code}</td>
-                            <td>${item.name}</td>
-                            <td>${item.quantity}</td>
-                            <td>${item.unit || 'Adet'}</td>
-                            <td><span class="${statusClass}">${statusText}</span></td>
-                            <td>${new Date(item.updated_at).toLocaleDateString('tr-TR')}</td>
-                        `;
-                        elements.stockTableBody.appendChild(row);
-                    });
-                } else {
-                    elements.stockTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Stok verisi yok</td></tr>';
-                }
+                elements.stockTableBody.innerHTML = data.length > 0 ? data.map(item => {
+                    let statusClass = 'status-stokta', statusText = 'Stokta';
+                    if (item.quantity <= 0) { statusClass = 'status-kritik'; statusText = 'Kritik'; } 
+                    else if (item.quantity < 10) { statusClass = 'status-az-stok'; statusText = 'Az Stok'; }
+                    return `<tr><td>${item.code}</td><td>${item.name}</td><td>${item.quantity}</td><td>${item.unit || 'Adet'}</td><td><span class="${statusClass}">${statusText}</span></td><td>${new Date(item.updated_at).toLocaleDateString('tr-TR')}</td></tr>`;
+                }).join('') : '<tr><td colspan="6" style="text-align:center;">Stok verisi yok</td></tr>';
             } catch (error) {
                 handleSupabaseError(error, 'Stok verileri yüklenemedi');
             }
@@ -1286,100 +1156,56 @@ select:focus, input:focus {
         function processBarcode() {
             const barcode = elements.barcodeInput.value.trim();
             if (!barcode) return;
-            if (!selectedCustomer) {
-                showToast('Önce müşteri seçin', 'error');
-                return;
-            }
-
+            if (!selectedCustomer) return showToast('Önce müşteri seçin', 'error');
             scannedBarcodes.push({ barcode, created_at: new Date().toISOString() });
             showToast(`Barkod eklendi: ${barcode}`, 'success');
-            
             elements.barcodeInput.value = '';
             elements.barcodeInput.focus();
             displayScannedBarcodes();
         }
 
         function displayScannedBarcodes() {
-            const container = elements.scannedBarcodesDisplay;
-            container.innerHTML = '';
-            if (scannedBarcodes.length === 0) {
-                container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Barkod bekleniyor</p>';
-                return;
-            }
-            const list = document.createElement('ul');
-            list.style = 'list-style: none; padding: 0; margin: 0; font-size: 0.8rem;';
-            scannedBarcodes.forEach(item => {
-                const li = document.createElement('li');
-                li.style = 'padding: 5px; border-bottom: 1px solid #eee;';
-                li.textContent = item.barcode;
-                list.appendChild(li);
-            });
-            container.appendChild(list);
+            elements.scannedBarcodesDisplay.innerHTML = scannedBarcodes.length > 0
+                ? `<ul style="list-style:none;padding:0;margin:0;font-size:0.8rem;">${scannedBarcodes.map(item => `<li style="padding:5px;border-bottom:1px solid #eee;">${item.barcode}</li>`).join('')}</ul>`
+                : '<p style="color:#666;text-align:center;font-size:0.8rem;">Barkod bekleniyor</p>';
         }
 
         async function completePackage() {
-            if (!selectedCustomer) {
-                showToast('Önce müşteri seçin', 'error');
-                return;
-            }
-
+            if (!selectedCustomer) return showToast('Önce müşteri seçin', 'error');
             const manualItemCount = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
             const totalQuantity = manualItemCount + scannedBarcodes.length;
+            if (totalQuantity === 0) return showToast('Pakete ürün ekleyin', 'error');
 
-            if (totalQuantity === 0) {
-                showToast('Pakete ürün ekleyin', 'error');
-                return;
-            }
-
-            const packageNo = `PKG-${Date.now()}`;
             const personnelId = elements.personnelSelect.value || currentUser?.personnel_id || null;
-            
             const packageData = {
-                package_no: packageNo,
+                package_no: `PKG-${Date.now()}`,
                 customer_id: selectedCustomer.id,
                 personnel_id: personnelId,
                 total_items: totalQuantity,
                 status: 'beklemede',
                 packer: currentUser?.name || 'Bilinmeyen',
-                created_at: new Date().toISOString()
             };
-
-            const itemsToSave = [];
-            // Manual items
-            for (const [productName, quantity] of Object.entries(currentPackage.items)) {
-                itemsToSave.push({ product_name: productName, quantity: quantity, barcode: null });
-            }
-            // Scanned items
-            scannedBarcodes.forEach(item => {
-                itemsToSave.push({ product_name: 'Okutulan Ürün', quantity: 1, barcode: item.barcode });
-            });
+            const itemsToSave = [
+                ...Object.entries(currentPackage.items).map(([name, qty]) => ({ product_name: name, quantity: qty, barcode: null })),
+                ...scannedBarcodes.map(item => ({ product_name: 'Okutulan Ürün', quantity: 1, barcode: item.barcode }))
+            ];
 
             if (!isOnline) {
                 addToOfflineQueue('package', { package: packageData, items: itemsToSave });
-                showToast(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
+                showToast(`Paket çevrimdışı oluşturuldu: ${packageData.package_no}`, 'warning');
                 resetPackageCreationState();
                 return;
             }
-
             try {
-                // Online: Insert package then items
-                const { data: newPackage, error: pkgError } = await supabase.from('packages').insert([packageData]).select().single();
+                const { data: newPackage, error: pkgError } = await supabase.from('packages').insert(packageData).select().single();
                 if (pkgError) throw pkgError;
-
-                const packageItemsForDb = itemsToSave.map(item => ({
-                    ...item,
-                    package_id: newPackage.id,
-                    scanned_by: personnelId
-                }));
-
+                const packageItemsForDb = itemsToSave.map(item => ({ ...item, package_id: newPackage.id, scanned_by: personnelId }));
                 const { error: itemsError } = await supabase.from('package_items').insert(packageItemsForDb);
                 if (itemsError) {
-                    // Attempt to delete the package if items fail to insert
-                    await supabase.from('packages').delete().eq('id', newPackage.id);
+                    await supabase.from('packages').delete().eq('id', newPackage.id); // Rollback
                     throw itemsError;
                 }
-
-                showToast(`Paket oluşturuldu: ${packageNo}`, 'success');
+                showToast(`Paket oluşturuldu: ${packageData.package_no}`, 'success');
                 resetPackageCreationState();
                 await populatePackagesTable();
             } catch (error) {
@@ -1387,40 +1213,22 @@ select:focus, input:focus {
             }
         }
         
-        async function selectPackage(packageId) {
+        async function selectPackage(packageId, event) {
+            if (event.target.type === 'checkbox') return;
             document.querySelectorAll('#packagesTableBody tr').forEach(row => row.classList.remove('selected'));
             const selectedRow = Array.from(document.querySelectorAll('#packagesTableBody tr')).find(row => row.querySelector(`input[value="${packageId}"]`));
             if (selectedRow) selectedRow.classList.add('selected');
             
             try {
-                const { data: pkg, error: pkgError } = await supabase.from('packages')
-                    .select('*, customers(name), personnel(name)').eq('id', packageId).single();
+                const { data: pkg, error: pkgError } = await supabase.from('packages').select('*, customers(name), personnel(name)').eq('id', packageId).single();
                 if (pkgError) throw pkgError;
-                
-                const { data: items, error: itemsError } = await supabase.from('package_items')
-                    .select('*').eq('package_id', packageId);
+                const { data: items, error: itemsError } = await supabase.from('package_items').select('*').eq('package_id', packageId);
                 if (itemsError) throw itemsError;
 
-                let itemsHtml = '<p>Bu pakette ürün detayı yok.</p>';
-                if (items && items.length > 0) {
-                    itemsHtml = `
-                        <h5>Ürünler (${items.reduce((sum, i) => sum + i.quantity, 0)} adet):</h5>
-                        <ul style="max-height: 200px; overflow-y: auto; list-style-position: inside; padding-left: 5px;">
-                            ${items.map(item => `<li>${item.barcode || item.product_name}: ${item.quantity} adet</li>`).join('')}
-                        </ul>
-                    `;
-                }
-
-                elements.packageDetailContent.innerHTML = `
-                    <h4>Paket: ${pkg.package_no}</h4>
-                    <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                    <p><strong>Toplam Adet:</strong> ${pkg.total_items}</p>
-                    <p><strong>Paketleyen:</strong> ${pkg.personnel?.name || pkg.packer || 'Bilinmiyor'}</p>
-                    <hr>${itemsHtml}
-                `;
+                const itemsHtml = items?.length > 0 ? `<h5>Ürünler (${items.reduce((s, i) => s + i.quantity, 0)} ad.):</h5><ul style="max-height:150px;overflow-y:auto;list-style-position:inside;padding-left:5px;">${items.map(i => `<li>${i.barcode || i.product_name}: ${i.quantity} ad.</li>`).join('')}</ul>` : '<p>Ürün detayı yok.</p>';
+                elements.packageDetailContent.innerHTML = `<h4>Paket: ${pkg.package_no}</h4><p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p><p><strong>Adet:</strong> ${pkg.total_items}</p><p><strong>Paketleyen:</strong> ${pkg.personnel?.name || pkg.packer || 'N/A'}</p><hr>${itemsHtml}`;
             } catch (error) {
                 handleSupabaseError(error, 'Paket detayları alınamadı');
-                elements.packageDetailContent.innerHTML = '<p>Detaylar yüklenemedi.</p>';
             }
         }
         
@@ -1428,15 +1236,9 @@ select:focus, input:focus {
             const packageIds = Array.from(document.querySelectorAll('#packagesTableBody input:checked')).map(cb => cb.value);
             if (packageIds.length === 0) return;
             if (!confirm(`${packageIds.length} paketi silmek istediğinize emin misiniz?`)) return;
-
             try {
-                // Must delete items before packages due to foreign key constraints
-                const { error: itemsError } = await supabase.from('package_items').delete().in('package_id', packageIds);
-                if (itemsError) throw itemsError;
-
-                const { error: pkgError } = await supabase.from('packages').delete().in('id', packageIds);
-                if (pkgError) throw pkgError;
-
+                await supabase.from('package_items').delete().in('package_id', packageIds);
+                await supabase.from('packages').delete().in('id', packageIds);
                 showToast(`${packageIds.length} paket silindi`, 'success');
                 await populatePackagesTable();
                 resetPackageCreationState();
@@ -1451,27 +1253,12 @@ select:focus, input:focus {
         
         async function sendToRamp() {
             const packageIds = Array.from(document.querySelectorAll('#packagesTableBody input:checked')).map(cb => cb.value);
-            if (packageIds.length === 0) {
-                showToast('Konteynere eklemek için paket seçin', 'error');
-                return;
-            }
-
+            if (packageIds.length === 0) return showToast('Konteynere eklemek için paket seçin', 'error');
             try {
-                if (!currentContainer) {
-                    await createNewContainer(false); // Create a new container silently
-                }
-                
-                const { data: container, error: containerError } = await supabase.from('containers')
-                    .select('id').eq('container_no', currentContainer).single();
-                if (containerError) throw containerError;
-                
-                const { error: updateError } = await supabase.from('packages')
-                    .update({ container_id: container.id, status: 'sevk-edildi' }).in('id', packageIds);
-                if (updateError) throw updateError;
-                
-                // Recalculate container totals
+                if (!currentContainer) await createNewContainer(false);
+                const { data: container } = await supabase.from('containers').select('id').eq('container_no', currentContainer).single();
+                await supabase.from('packages').update({ container_id: container.id, status: 'sevk-edildi' }).in('id', packageIds);
                 await updateContainerTotals(container.id);
-
                 showToast(`${packageIds.length} paket konteynere eklendi`, 'success');
                 await populatePackagesTable();
                 await populateShippingTable();
@@ -1481,36 +1268,23 @@ select:focus, input:focus {
         }
         
         async function updateContainerTotals(containerId) {
-            const { data: packages, error } = await supabase.from('packages')
-                .select('total_items, customers(name)').eq('container_id', containerId);
-            
-            if (error) {
+            try {
+                const { data: packages, error } = await supabase.from('packages').select('total_items, customers(name)').eq('container_id', containerId);
+                if (error) throw error;
+                const totalItems = packages.reduce((sum, p) => sum + p.total_items, 0);
+                await supabase.from('containers').update({ total_items: totalItems, package_count: packages.length, customer: packages[0]?.customers.name || '' }).eq('id', containerId);
+            } catch (error) {
                 console.error("Could not update container totals", error);
-                return;
             }
-
-            const totalItems = packages.reduce((sum, p) => sum + p.total_items, 0);
-            const packageCount = packages.length;
-            const customerName = packages.length > 0 ? packages[0].customers.name : '';
-
-            await supabase.from('containers').update({
-                total_items: totalItems,
-                package_count: packageCount,
-                customer: customerName
-            }).eq('id', containerId);
         }
 
         async function createNewContainer(showSuccessToast = true) {
             try {
                 const containerNo = `CONT-${Date.now().toString().slice(-6)}`;
-                const { data, error } = await supabase.from('containers')
-                    .insert({ container_no: containerNo, status: 'beklemede' }).select().single();
-                if (error) throw error;
-                
+                const { data } = await supabase.from('containers').insert({ container_no: containerNo, status: 'beklemede' }).select().single();
                 elements.containerNumber.textContent = data.container_no;
                 currentContainer = data.container_no;
                 saveAppState();
-                
                 if(showSuccessToast) showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
                 await populateShippingTable();
             } catch (error) {
@@ -1519,14 +1293,28 @@ select:focus, input:focus {
         }
 
         async function shipContainer(containerId) {
-            if (!confirm("Bu konteyneri sevk etmek istediğinize emin misiniz?")) return;
+            if (!confirm("Konteyneri sevk etmek istediğinize emin misiniz?")) return;
             try {
-                const { error } = await supabase.from('containers').update({ status: 'sevk-edildi' }).eq('id', containerId);
-                if (error) throw error;
+                await supabase.from('containers').update({ status: 'sevk-edildi' }).eq('id', containerId);
                 showToast('Konteyner sevk edildi', 'success');
                 await populateShippingTable();
             } catch (error) {
                 handleSupabaseError(error, 'Konteyner sevk edilemedi');
+            }
+        }
+        
+        async function deleteSelectedContainers() {
+            const containerIds = Array.from(document.querySelectorAll('#shippingTableBody input:checked')).map(cb => cb.value);
+            if (containerIds.length === 0) return;
+            if (!confirm(`${containerIds.length} konteyner silinecek. İçindeki paketler bekleme listesine geri dönecek. Onaylıyor musunuz?`)) return;
+            try {
+                await supabase.from('packages').update({ container_id: null, status: 'beklemede' }).in('container_id', containerIds);
+                await supabase.from('containers').delete().in('id', containerIds);
+                showToast(`${containerIds.length} konteyner silindi`, 'success');
+                await populateShippingTable();
+                await populatePackagesTable();
+            } catch(error) {
+                handleSupabaseError(error, 'Konteynerler silinemedi');
             }
         }
 
@@ -1544,15 +1332,12 @@ select:focus, input:focus {
 
         function confirmQuantity() {
             const quantity = parseInt(elements.quantityInput.value);
-            if (!quantity || quantity <= 0) {
-                showToast('Geçerli bir adet girin', 'error');
-                return;
-            }
+            if (!quantity || quantity <= 0) return showToast('Geçerli bir adet girin', 'error');
             const badge = document.getElementById(`${selectedProduct}-quantity`);
             if (badge) badge.textContent = (parseInt(badge.textContent) || 0) + quantity;
             currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
             showToast(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-            closeQuantityModal();
+            closeModal('quantityModal');
         }
         
         async function generateDailyReport() {
@@ -1560,93 +1345,63 @@ select:focus, input:focus {
                 const today = new Date();
                 const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
                 const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-
-                const { data: packages, error } = await supabase.from('packages')
-                    .select(`*, customers (name)`).gte('created_at', startOfDay).lte('created_at', endOfDay);
+                const { data, error } = await supabase.from('packages').select(`*, customers (name)`).gte('created_at', startOfDay).lte('created_at', endOfDay);
                 if (error) throw error;
-
-                const reportData = {
+                window.currentReportData = {
                     date: new Date().toLocaleDateString('tr-TR'),
-                    totalPackages: packages.length,
-                    totalItems: packages.reduce((sum, pkg) => sum + pkg.total_items, 0),
-                    packages: packages,
-                    operator: currentUser?.name || 'Bilinmiyor'
+                    totalPackages: data.length,
+                    totalItems: data.reduce((sum, pkg) => sum + pkg.total_items, 0),
+                    packages: data,
+                    operator: currentUser?.name || 'N/A'
                 };
-                
-                // This is a placeholder for a backend function. In a real app,
-                // this logic would be on a server that can securely send emails.
-                console.log("Generated Report Data:", reportData);
-                showToast("Rapor oluşturuldu ve e-posta gönderim ekranı açıldı.", "success");
-
-                document.getElementById('reportEmail').value = selectedCustomer?.email || '';
+                showToast("Rapor oluşturuldu.", "success");
+                elements.reportEmail.value = selectedCustomer?.email || '';
                 document.getElementById('emailModal').style.display = 'flex';
-                
-                // We'll pass the generated data via a global variable for preview/send simulation
-                window.currentReportData = reportData;
-
             } catch (error) {
                 handleSupabaseError(error, 'Günlük rapor oluşturulamadı');
             }
         }
 
         function sendDailyReport() {
-             const email = document.getElementById('reportEmail').value;
-            if (!email) {
-                showToast('Lütfen e-posta adresini girin', 'error');
-                return;
-            }
-            // Simulate sending email
+            const email = elements.reportEmail.value;
+            if (!email) return showToast('E-posta adresi girin', 'error');
             showToast(`Rapor ${email} adresine gönderiliyor... (Simülasyon)`, 'warning');
-            setTimeout(() => {
-                showToast(`Rapor başarıyla gönderildi.`, 'success');
-                closeEmailModal();
-            }, 2000);
+            setTimeout(() => { showToast(`Rapor gönderildi.`, 'success'); closeModal('emailModal'); }, 2000);
         }
 
         function previewReport() {
-            if (!window.currentReportData) {
-                showToast("Önce rapor oluşturun.", "error");
-                return;
-            }
-            const reportData = window.currentReportData;
-            const reportWindow = window.open('', '_blank');
-            reportWindow.document.write(`
-                <html><head><title>İş Sonu Raporu - ${reportData.date}</title>
-                <style>body{font-family:Arial} table{width:100%; border-collapse:collapse; margin-top:20px} th,td{border:1px solid #ddd; padding:8px}</style></head>
-                <body><h1>ProClean - İş Sonu Raporu</h1><p><strong>Tarih:</strong> ${reportData.date} | <strong>Operatör:</strong> ${reportData.operator}</p>
-                <h2>Özet</h2><ul><li>Toplam Paket Sayısı: ${reportData.totalPackages}</li><li>Toplam Ürün Adedi: ${reportData.totalItems}</li></ul>
-                <h2>Paket Detayları</h2><table><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th></tr></thead><tbody>
-                ${reportData.packages.map(p => `<tr><td>${p.package_no}</td><td>${p.customers.name}</td><td>${p.total_items}</td></tr>`).join('')}
-                </tbody></table></body></html>
-            `);
+            if (!window.currentReportData) return showToast("Önce rapor oluşturun.", "error");
+            const d = window.currentReportData;
+            const win = window.open('', '_blank');
+            win.document.write(`<html><head><title>İş Sonu Raporu</title><style>body{font-family:Arial} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:8px}</style></head><body><h1>Rapor - ${d.date}</h1><p><strong>Operatör:</strong> ${d.operator}</p><ul><li>Toplam Paket: ${d.totalPackages}</li><li>Toplam Ürün: ${d.totalItems}</li></ul><h2>Detaylar</h2><table><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th></tr></thead><tbody>${d.packages.map(p => `<tr><td>${p.package_no}</td><td>${p.customers.name}</td><td>${p.total_items}</td></tr>`).join('')}</tbody></table></body></html>`);
         }
         
         function switchTab(tabName) {
-            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-pane, .tab').forEach(el => el.classList.remove('active'));
             document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
             document.getElementById(`${tabName}Tab`).classList.add('active');
         }
 
-        // Modal closing functions
-        function closeEmailModal() { document.getElementById('emailModal').style.display = 'none'; }
-        function closeModal() { document.getElementById('customerModal').style.display = 'none'; }
-        function closeAllCustomersModal() { document.getElementById('allCustomersModal').style.display = 'none'; }
-        function closeQuantityModal() { document.getElementById('quantityModal').style.display = 'none'; }
-        function closeManualModal() { document.getElementById('manualModal').style.display = 'none'; }
+        function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
         
+        function toggleSelectAll() {
+            document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => cb.checked = elements.selectAllPackages.checked);
+        }
+        
+        function toggleSelectAllShipping() {
+            document.querySelectorAll('#shippingTableBody input[type="checkbox"]').forEach(cb => cb.checked = document.getElementById('selectAllShipping').checked);
+        }
+
         // =================================================================================
         // EVENT LISTENERS & INITIALIZATION
         // =================================================================================
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
             const savedApiKey = localStorage.getItem('procleanApiKey');
             if (savedApiKey) {
                 SUPABASE_ANON_KEY = savedApiKey;
                 supabase = initializeSupabase();
-                if (supabase) {
-                    setupAuthListener();
-                }
+                if (supabase) setupAuthListener();
             } else {
                 showApiKeyModal();
             }
@@ -1660,25 +1415,17 @@ select:focus, input:focus {
             elements.quantityInput.addEventListener('keypress', e => handleEnter(e, confirmQuantity));
             elements.barcodeInput.addEventListener('keypress', e => handleEnter(e, processBarcode));
             
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-            });
+            document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
             
             elements.customerSelect.addEventListener('change', function() {
                 if (this.value) {
                     const opt = this.options[this.selectedIndex];
-                    selectedCustomer = {
-                        id: this.value,
-                        name: opt.textContent.split(' (')[0],
-                        code: opt.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                    };
-                    showToast(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+                    selectedCustomer = { id: this.value, name: opt.textContent.split(' (')[0], code: opt.textContent.match(/\(([^)]+)\)/)?.[1] || '' };
                 } else {
                     selectedCustomer = null;
                 }
             });
         });
-
     </script>
 </body>
 </html>
