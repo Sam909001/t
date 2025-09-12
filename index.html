@@ -203,6 +203,174 @@
             border-radius: 5px;
             font-size: 1rem;
         }
+        /* Add these styles to your existing CSS */
+
+/* Desktop app styling */
+.app-container {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    margin: 20px;
+    height: calc(100vh - 40px);
+}
+
+.app-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tabs {
+    background: linear-gradient(to bottom, #3a5169 0%, #2c3e50 100%);
+}
+
+.tab {
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s;
+}
+
+.tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tab.active {
+    background: var(--light);
+    color: var(--primary);
+    border-bottom: 3px solid var(--secondary);
+    font-weight: bold;
+}
+
+/* Form elements styling */
+select, input {
+    border: 1px solid #d1d1d1;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+select:focus, input:focus {
+    outline: none;
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Button styling */
+.btn {
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-weight: 600;
+    transition: all 0.3s;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: linear-gradient(to bottom, var(--secondary) 0%, #2980b9 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(to bottom, #2980b9 0%, #2573a7 100%);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.btn-success {
+    background: linear-gradient(to bottom, var(--success) 0%, #27ae60 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-success:hover {
+    background: linear-gradient(to bottom, #27ae60 0%, #229954 100%);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.btn-warning {
+    background: linear-gradient(to bottom, var(--warning) 0%, #e67e22 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-warning:hover {
+    background: linear-gradient(to bottom, #e67e22 0%, #d35400 100%);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: linear-gradient(to bottom, var(--accent) 0%, #c0392b 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(to bottom, #c0392b 0%, #a93226 100%);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+/* Card styling */
+.barcode-section, .pending-packages, .package-details {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    background: white;
+}
+
+/* Table styling */
+.package-table, .stock-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.package-table th, .stock-table th {
+    background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+    padding: 12px 15px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.package-table td, .stock-table td {
+    padding: 10px 15px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.package-table tr:last-child td, .stock-table tr:last-child td {
+    border-bottom: none;
+}
+
+.package-table tr:hover, .stock-table tr:hover {
+    background: #f8f9fa;
+}
+
+/* Modal styling */
+.modal-content {
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
     </style>
 </head>
 <body>
@@ -1830,6 +1998,70 @@ async function sendDailyReport() {
 }
 
 async function previewReport() {
+    await populatePackagesTable();
+    
+    const reportData = {
+        date: new Date().toLocaleDateString('tr-TR'),
+        totalPackages: packages.length,
+        totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+        containers: containers.length,
+        customers: [...new Set(packages.map(p => p.customers?.name))].length,
+        operator: currentUser?.name || 'Bilinmiyor'
+    };
+
+    const reportWindow = window.open('', '_blank');
+    reportWindow.document.write(`
+        <html>
+        <head>
+            <title>İş Sonu Raporu - ${reportData.date}</title>
+            <style>
+                body { font-family: Arial; margin: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+            </style>
+        </head>
+        <body>
+            <h1>ProClean - İş Sonu Raporu</h1>
+            <p><strong>Tarih:</strong> ${reportData.date} | <strong>Operatör:</strong> ${reportData.operator}</p>
+            
+            <h2>Özet</h2>
+            <ul>
+                <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
+                <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
+                <li>Konteyner Sayısı: ${reportData.containers}</li>
+                <li>Müşteri Sayısı: ${reportData.customers}</li>
+            </ul>
+            
+            <h2>Paket Detayları</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Paket No</th>
+                        <th>Müşteri</th>
+                        <th>Adet</th>
+                        <th>Zaman</th>
+                        <th>Paketleyen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${packages.map(pkg => `
+                        <tr>
+                            <td>${escapeHtml(pkg.package_no)}</td>
+                            <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
+                            <td>${pkg.total_quantity}</td>
+                            <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
+                            <td>${escapeHtml(pkg.packer)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </body>
+        </html>
+    `);
+    reportWindow.document.close();
+}
+
 // Container operations
 function loadCurrentContainer() {
     showToast('Mevcut konteyner yüklendi', 'success');
