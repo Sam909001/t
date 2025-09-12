@@ -1647,7 +1647,7 @@ async function completePackage() {
         showToast('Paket oluşturma hatası', 'error');
     }
 }
-
+    
 function selectPackage(pkg) {
     // Remove selected class from all rows
     document.querySelectorAll('#packagesTableBody tr').forEach(row => {
@@ -1694,7 +1694,6 @@ function generateBarcode(text) {
     return svg.outerHTML;
 }
 
-// Helper function to get selected package
 function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
     if (!selectedRow) return null;
