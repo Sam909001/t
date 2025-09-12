@@ -7,7 +7,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -729,23 +729,15 @@ select:focus, input:focus {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
-<script>
 // Supabase initialization - Varsayılan değerler
-let SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
-    
-// Global variables
-let currentUser = null;
-let selectedCustomer = null;
-let currentPackage = {};
-let packages = [];
-let containers = [];
-let currentContainer = null;
-let selectedProduct = null;
-let supabase = null;
+<script>
+    // Supabase URL ve değişkeni
+    const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
+    let SUPABASE_ANON_KEY = null;
+    let supabase = null;
 
-// DOM elements
-const elements = {
+    // Elementleri bir defa tanımla
+    const elements = {
         loginScreen: document.getElementById('login-screen'),
         appContainer: document.getElementById('app-container'),
         loginButton: document.getElementById('login-btn'),
@@ -754,10 +746,19 @@ const elements = {
         onlineStatus: document.getElementById('online-status'),
         statusText: document.getElementById('status-text'),
         logoutButton: document.getElementById('logout-btn'),
-        usernameDisplay: document.getElementById('username-display')
+        usernameDisplay: document.getElementById('username-display'),
+        customerSelect: document.getElementById('customer-select'),
+        quantityInput: document.getElementById('quantity-input'),
+        barcodeInput: document.getElementById('barcode-input'),
+        apiKeyModal: document.getElementById('apiKeyModal'),
+        apiKeyInput: document.getElementById('apiKeyInput'),
+        saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
+        apiKeyHelpBtn: document.getElementById('apiKeyHelpBtn'),
+        closeApiKeyModalBtn: document.getElementById('closeApiKeyModalBtn')
     };
-
-     function showToast(message, type = 'info') {
+    
+    // Yardımcı fonksiyonlar
+    function showToast(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
@@ -767,106 +768,97 @@ const elements = {
         }, 3000);
     }
     
-
-// Kullanıcının kaydettiği API anahtarını yükle
-function loadApiKey() {
-    const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
-        SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
-        return true;
-    }
-    return false;
-}
-
-// Supabase'i başlat
-function initializeSupabase() {
-    if (!SUPABASE_ANON_KEY) {
-        showApiKeyModal();
-        return null;
+    // Supabase istemcisini başlat
+    function initializeSupabase() {
+        if (!SUPABASE_ANON_KEY) {
+            showApiKeyModal();
+            return null;
+        }
+        
+        try {
+            return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (error) {
+            console.error('Supabase initialization error:', error);
+            showToast('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+            showApiKeyModal();
+            return null;
+        }
     }
     
-    try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized successfully');
-        return supabase;
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        showToast('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
-        showApiKeyModal();
-        return null;
-    }
-}
-
-// API anahtarını kaydet
-function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    if (!apiKey) {
-        showToast('Lütfen bir API anahtarı girin', 'error');
-        return;
+    // API anahtarını kaydet ve istemciyi başlat
+    function saveApiKey() {
+        const apiKey = elements.apiKeyInput.value.trim();
+        if (!apiKey) {
+            showToast('Lütfen bir API anahtarı girin', 'error');
+            return;
+        }
+        
+        localStorage.setItem('procleanApiKey', apiKey);
+        SUPABASE_ANON_KEY = apiKey;
+        supabase = initializeSupabase();
+        
+        if (supabase) {
+            elements.apiKeyModal.style.display = 'none';
+            showToast('API anahtarı kaydedildi', 'success');
+            testConnection();
+        }
     }
     
-    localStorage.setItem('procleanApiKey', apiKey);
-    SUPABASE_ANON_KEY = apiKey;
-    supabase = initializeSupabase();
-    
-    if (supabase) {
-        document.getElementById('apiKeyModal').style.display = 'none';
-        showToast('API anahtarı kaydedildi', 'success');
-        // Bağlantıyı test et
-        testConnection();
+    // API anahtarı modalını göster
+    function showApiKeyModal() {
+        if (elements.apiKeyInput) {
+            elements.apiKeyInput.value = SUPABASE_ANON_KEY || '';
+            elements.apiKeyModal.style.display = 'flex';
+        }
     }
-}
 
-// API anahtarı modalını göster
-function showApiKeyModal() {
-    document.getElementById('apiKeyInput').value = SUPABASE_ANON_KEY || '';
-    document.getElementById('apiKeyModal').style.display = 'flex';
-}
+    // API anahtarı yardımı göster
+    function showApiKeyHelp() {
+        const helpWindow = window.open('', '_blank');
+        helpWindow.document.write(`
+            <html>
+            <head>
+                <title>Supabase API Anahtarı Alma Rehberi</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+                    h1 { color: #2c3e50; }
+                    .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
+                </style>
+            </head>
+            <body>
+                <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
+                <div class="step">
+                    <h3>1. Supabase hesabınıza giriş yapın</h3>
+                    <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
+                </div>
+                <div class="step">
+                    <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
+                </div>
+                <div class="step">
+                    <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
+                </div>
+                <div class="step">
+                    <h3>4. API sekmesine gidin</h3>
+                </div>
+                <div class="step">
+                    <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
+                    <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
+                </div>
+                <div class="step">
+                    <h3>Önemli Not:</h3>
+                    <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
+                </div>
+            </body>
+            </html>
+        `);
+    }
 
-// API anahtarı yardımı göster
-function showApiKeyHelp() {
-    const helpWindow = window.open('', '_blank');
-    helpWindow.document.write(`
-        <html>
-        <head>
-            <title>Supabase API Anahtarı Alma Rehberi</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
-                h1 { color: #2c3e50; }
-                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
-            </style>
-        </head>
-        <body>
-            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
-            <div class="step">
-                <h3>1. Supabase hesabınıza giriş yapın</h3>
-                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
-            </div>
-            <div class="step">
-                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
-            </div>
-            <div class="step">
-                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
-            </div>
-            <div class="step">
-                <h3>4. API sekmesine gidin</h3>
-            </div>
-            <div class="step">
-                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
-                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
-            </div>
-            <div class="step">
-                <h3>Önemli Not:</h3>
-                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
-            </div>
-        </body>
-        </html>
-    `);
-}
-
-// Test Supabase connection
- async function testConnection() {
+    // Supabase bağlantısını test et
+    async function testConnection() {
+        if (!supabase) {
+            showToast('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+            return;
+        }
         try {
             const { data, error } = await supabase.from('customers').select('*').limit(1);
             if (error) throw error;
@@ -881,8 +873,14 @@ function showApiKeyHelp() {
         }
     }
 
-// Authentication functions
-async function login() {
+    // Kullanıcı girişi
+    async function login() {
+        if (!supabase) {
+            showToast('Lütfen önce API anahtarını girin.', 'error');
+            showApiKeyModal();
+            return;
+        }
+
         const email = elements.emailInput.value;
         const password = elements.passwordInput.value;
 
@@ -905,13 +903,12 @@ async function login() {
                 return;
             }
 
-            // Check if user object and user.email exist
             if (data.user && data.user.email) {
                 showToast('Giriş başarılı!', 'success');
                 elements.usernameDisplay.textContent = `Hoşgeldiniz, ${data.user.email}`;
                 elements.loginScreen.style.display = 'none';
                 elements.appContainer.style.display = 'flex';
-                testConnection(); // Test connection after successful login
+                testConnection();
             } else {
                 showToast('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
             }
@@ -925,6 +922,7 @@ async function login() {
         }
     }
 
+    // Kullanıcı çıkışı
     function logout() {
         supabase.auth.signOut().then(() => {
             showToast('Başarıyla çıkış yapıldı.', 'success');
@@ -933,9 +931,49 @@ async function login() {
             elements.emailInput.value = '';
             elements.passwordInput.value = '';
         }).catch(e => {
-            console.error('Logout error:', e);
+            console.error('Çıkış yapılırken bir hata oluştu:', e);
             showToast('Çıkış yapılırken bir hata oluştu.', 'error');
         });
+    }
+
+    // Olay dinleyicilerini güvenli bir şekilde ekle
+    function safeAddEventListener(element, event, handler) {
+        if (element) {
+            element.addEventListener(event, handler);
+        }
+    }
+
+    safeAddEventListener(elements.loginButton, 'click', login);
+    safeAddEventListener(elements.logoutButton, 'click', logout);
+    safeAddEventListener(elements.passwordInput, 'keypress', function(e) {
+        if (e.key === 'Enter') login();
+    });
+    safeAddEventListener(elements.saveApiKeyBtn, 'click', saveApiKey);
+    safeAddEventListener(elements.apiKeyHelpBtn, 'click', showApiKeyHelp);
+    safeAddEventListener(elements.closeApiKeyModalBtn, 'click', () => {
+        elements.apiKeyModal.style.display = 'none';
+    });
+
+    // Sayfa yüklendiğinde
+    window.addEventListener('load', () => {
+        // API anahtarını local storage'dan yükle
+        const savedApiKey = localStorage.getItem('procleanApiKey');
+        if (savedApiKey) {
+            SUPABASE_ANON_KEY = savedApiKey;
+            supabase = initializeSupabase();
+            if (supabase) {
+                testConnection();
+            }
+        } else {
+            // Anahtar yoksa modalı göster
+            showApiKeyModal();
+        }
+    });
+
+    // İlk durumu ayarla
+    if (elements.loginScreen && elements.appContainer) {
+        elements.loginScreen.style.display = 'flex';
+        elements.appContainer.style.display = 'none';
     }
     
 // State management functions
