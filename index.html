@@ -981,6 +981,9 @@ async function login() {
             
             // Update UI
             elements.userRole.textContent = `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+            lements.loginScreen.style.display = "none";
+                    elements.appContainer.style.display = "flex";
+                    elements.appContainer.setAttribute('aria-hidden', 'false');
             
             showToast("Giriş başarılı!", "success");
             console.log('Login successful:', data.user.email);
@@ -1000,17 +1003,6 @@ async function login() {
     }
 }
 
-        if (data.user) {
-            showToast("Giriş başarılı!", "success");
-            console.log('Login successful:', data.user.email);
-        }
-        
-    } catch (e) {
-        console.error('Login catch error:', e);
-        showToast("Giriş başarısız: " + e.message, "error");
-    }
-}
-
 async function logout() {
     try {
         const { error } = await supabase.auth.signOut();
@@ -1020,8 +1012,17 @@ async function logout() {
             return;
         }
         
-        // Local cleanup will be handled by the auth state listener
+        // Local cleanup
+        currentUser = null;
+        elements.appContainer.style.display = 'none';
+        elements.appContainer.setAttribute('aria-hidden','true');
+        elements.loginScreen.style.display = 'flex';
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
+        
         console.log('Logout successful');
+        showToast('Başarıyla çıkış yapıldı', 'success');
         
     } catch (error) {
         console.error('Logout catch error:', error);
@@ -1029,16 +1030,6 @@ async function logout() {
     }
 }
     
-    currentUser = null;
-    elements.appContainer.style.display = 'none';
-    elements.appContainer.setAttribute('aria-hidden','true');
-    elements.loginScreen.style.display = 'flex';
-    document.getElementById('email').value = '';
-    document.getElementById('password').value = '';
-    closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-    showToast('Başarıyla çıkış yapıldı', 'success');
-}
-
 // State management functions
 function saveAppState() {
     const state = {
