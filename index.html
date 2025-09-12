@@ -412,11 +412,14 @@ select:focus, input:focus {
         <!-- Uygulama içeriği aynı kalacak -->
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
-            <div class="user-info">
-                <span id="userRole">Operatör: Yükleniyor...</span>
-                <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
-            </div>
-        </div>
+            <<div class="user-info">
+    <span id="userRole">Operatör: Yükleniyor...</span>
+    <button type="button" id="syncBtn" class="btn btn-warning" style="display: none;">
+        <i class="fas fa-sync-alt"></i> Senkronize Et
+    </button>
+    <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
+      </div>
+   </div>
 
         <div class="tabs" role="tablist" aria-label="Ana Sekmeler">
             <div class="tab active" data-tab="packaging" role="tab">Paketleme</div>
@@ -743,6 +746,8 @@ let containers = [];
 let currentContainer = null;
 let selectedProduct = null;
 let supabase = null;
+let isOnline = true;
+let pendingOperations = [];
 
 // DOM elements
 const elements = {
@@ -1596,6 +1601,7 @@ function addManualProduct() {
     closeManualModal();
 }
 
+// Update the completePackage function to use offline handling
 async function completePackage() {
     if (!selectedCustomer) {
         showToast('Önce müşteri seçin', 'error');
@@ -1612,26 +1618,41 @@ async function completePackage() {
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
-        const { data, error } = await supabase
-            .from('packages')
-            .insert([{
-                package_no: packageNo,
-                customer_id: selectedCustomer.id,
-                items: currentPackage.items,
-                total_quantity: totalQuantity,
-                status: 'beklemede',
-                packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-                created_at: new Date().toISOString()
-            }])
-            .select();
+        const packageData = {
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            items: currentPackage.items,
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString()
+        };
 
-        if (error) {
-            console.error('Error creating package:', error);
-            showToast('Paket oluşturulurken hata: ' + error.message, 'error');
-            return;
+        const result = await offlineCompletePackage(packageData);
+        
+        if (result.offline) {
+            // Operation was stored for offline sync
+            showToast(`Paket çevrimdışı modda kaydedildi: ${packageNo}`, 'success');
+        } else {
+            showToast(`Paket oluşturuldu: ${packageNo}`, 'success');
         }
-
-        showToast(`Paket oluşturuldu: ${packageNo}`, 'success');
+        
+        // Reset current package and quantities
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => {
+            badge.textContent = '0';
+        });
+        
+        // Refresh packages table if online
+        if (isOnline) {
+            await populatePackagesTable();
+        }
+        
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showToast('Paket oluşturma hatası', 'error');
+    }
+}
         
         // Reset current package and quantities
         currentPackage = {};
@@ -2179,6 +2200,132 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+    
+    // ADD THE checkOnlineStatus() FUNCTION RIGHT HERE
+// Update the online status check to show/hide sync button
+function checkOnlineStatus() {
+    isOnline = navigator.onLine;
+    const indicator = document.getElementById('offlineIndicator');
+    const syncBtn = document.getElementById('syncBtn');
+    
+    if (!isOnline) {
+        indicator.style.display = 'block';
+        syncBtn.style.display = 'inline-block';
+        showToast('Çevrimdışı moda geçildi. İşlemler internet bağlantısı sağlandığında senkronize edilecek.', 'warning', 5000);
+    } else {
+        indicator.style.display = 'none';
+        syncBtn.style.display = 'none';
+        // Try to sync pending operations when coming back online
+        syncPendingOperations();
+    }
+}
+
+    
+// ADD OFFLINE OPERATION FUNCTIONS RIGHT HERE
+// Create a function to handle offline operations
+async function handleOfflineOperation(operation, data) {
+    if (isOnline) {
+        // If online, execute immediately
+        return await operation(data);
+    } else {
+        // If offline, store for later sync
+        const operationId = Date.now();
+        pendingOperations.push({
+            id: operationId,
+            operation: operation,
+            data: data,
+            timestamp: new Date()
+        });
+        
+        // Save to local storage
+        localStorage.setItem('pendingOperations', JSON.stringify(pendingOperations));
+        
+        showToast('İşlem çevrimdışı modda kaydedildi. İnternet bağlantısı sağlandığında senkronize edilecek.', 'warning');
+        return { offline: true, id: operationId };
+    }
+}
+
+// Create a function to sync pending operations
+async function syncPendingOperations() {
+    const operations = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
+    
+    for (const op of operations) {
+        try {
+            await op.operation(op.data);
+            
+            // Remove successfully synced operation
+            pendingOperations = pendingOperations.filter(p => p.id !== op.id);
+            localStorage.setItem('pendingOperations', JSON.stringify(pendingOperations));
+            
+        } catch (error) {
+            console.error('Error syncing operation:', error);
+        }
+    }
+}
+
+// Modify key functions to use offline handling
+async function offlineCompletePackage(packageData) {
+    return await handleOfflineOperation(async (data) => {
+        const { data: result, error } = await supabase
+            .from('packages')
+            .insert([data])
+            .select();
+
+        if (error) throw error;
+        return result;
+    }, packageData);
+}
+
+    // Add this after the offlineCompletePackage function
+async function offlineAddCustomer(customerData) {
+    return await handleOfflineOperation(async (data) => {
+        const { data: result, error } = await supabase
+            .from('customers')
+            .insert([data])
+            .select();
+
+        if (error) throw error;
+        return result;
+    }, customerData);
+}
+
+// Then update your addNewCustomer function
+async function addNewCustomer() {
+    const code = document.getElementById('newCustomerCode').value.trim();
+    const name = document.getElementById('newCustomerName').value.trim();
+    const email = document.getElementById('newCustomerEmail').value.trim();
+
+    if (!code || !name) {
+        showToast('Müşteri kodu ve adı gerekli', 'error');
+        return;
+    }
+
+    try {
+        const customerData = { code, name, email: email || null };
+        const result = await offlineAddCustomer(customerData);
+        
+        if (result.offline) {
+            showToast('Müşteri çevrimdışı modda kaydedildi. İnternet bağlantısı sağlandığında senkronize edilecek.', 'success');
+        } else {
+            showToast('Müşteri başarıyla eklendi', 'success');
+        }
+        
+        // Clear form
+        document.getElementById('newCustomerCode').value = '';
+        document.getElementById('newCustomerName').value = '';
+        document.getElementById('newCustomerEmail').value = '';
+        
+        // Refresh lists if online
+        if (isOnline) {
+            await populateCustomers();
+            await showAllCustomers();
+        }
+        
+    } catch (error) {
+        console.error('Error in addNewCustomer:', error);
+        showToast('Müşteri ekleme hatası', 'error');
+    }
+}
 
 // Initialize auth state listener
 function setupAuthListener() {
@@ -2206,6 +2353,10 @@ function setupAuthListener() {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
+     // Add these lines to set up online/offline detection
+    window.addEventListener('online', checkOnlineStatus);
+    window.addEventListener('offline', checkOnlineStatus);
+    checkOnlineStatus(); // Initial check
     // API anahtarını yükle ve supabase'i başlat
     if (loadApiKey()) {
         supabase = initializeSupabase();
@@ -2271,6 +2422,18 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 console.log('ProClean application initialized with Supabase authentication');
+    
+    // Add sync button event listener
+    document.getElementById('syncBtn').addEventListener('click', async () => {
+        if (!isOnline) {
+            showToast('İnternet bağlantısı yok. Senkronizasyon için bağlantı gerekli.', 'error');
+            return;
+        }
+        
+        showToast('Senkronizasyon başlatıldı...', 'warning');
+        await syncPendingOperations();
+        showToast('Senkronizasyon tamamlandı', 'success');
+    });
 </script>
 </body>
 </html>
