@@ -1405,7 +1405,7 @@ async function completePackage() {
     }
 }
 
-async function selectPackage(pkg) {
+function selectPackage(pkg) {
     // Remove selected class from all rows
     document.querySelectorAll('#packagesTableBody tr').forEach(row => {
         row.classList.remove('selected');
@@ -1441,6 +1441,64 @@ async function selectPackage(pkg) {
     }
 }
 
+// Add this new function to print a specific package by ID
+async function printSpecificLabel(packageId) {
+    try {
+        // Fetch the specific package data
+        const { data: pkg, error } = await supabase
+            .from('packages')
+            .select(`
+                *,
+                customers (name, code)
+            `)
+            .eq('id', packageId)
+            .single();
+
+        if (error) throw error;
+        
+        if (!pkg) {
+            showToast('Paket bulunamadı', 'error');
+            return;
+        }
+
+        // Generate barcode
+        const barcodeSvg = generateBarcode(pkg.package_no);
+        
+        // Create printable content
+        const printContent = `
+            <div style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
+                <h2>ProClean</h2>
+                <p><strong>Paket No:</strong> ${pkg.package_no}</p>
+                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+                <p><strong>Adet:</strong> ${pkg.total_quantity}</p>
+                <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
+                <div>${barcodeSvg}</div>
+            </div>
+        `;
+        
+        // Open print window
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Paket Etiketi - ${pkg.package_no}</title>
+                    <style>
+                        body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+                    </style>
+                </head>
+                <body onload="window.print(); window.close();">
+                    ${printContent}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        
+    } catch (error) {
+        console.error('Error printing specific label:', error);
+        showToast('Etiket yazdırılırken hata oluştu', 'error');
+    }
+}
+
 function generateBarcode(text) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     JsBarcode(svg, text, {
@@ -1470,15 +1528,11 @@ function getSelectedPackage() {
 }
 
 async function printLabel() {
-    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
-    if (!selectedRow) {
+    const selectedPackage = getSelectedPackage();
+    if (!selectedPackage) {
         showToast('Etiket yazdırmak için bir paket seçin', 'error');
         return;
     }
-    
-    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-    await printSpecificLabel(packageId);
-}
 
     try {
         // Generate barcode
