@@ -876,19 +876,59 @@ function showApiKeyHelp() {
 // Test Supabase connection
 async function testConnection() {
     try {
-        const { data, error } = await supabase.from('customers').select('count').limit(1);
-        if (error) {
-            console.error('Supabase connection error:', error);
-            showToast('Veritabanı bağlantı hatası', 'error');
-        } else {
-            console.log('Supabase connection successful');
+        // Test both authentication and database connection
+        const { data: authData, error: authError } = await supabase.auth.getSession();
+        
+        if (authError) {
+            console.error('Supabase auth connection error:', authError);
+            
+            if (authError.message.includes('Invalid API key') || authError.message.includes('JWT')) {
+                showToast('Geçersiz API anahtarı. Lütfen API anahtarınızı kontrol edin.', 'error');
+                showApiKeyModal();
+                return false;
+            }
+            
+            showToast('Kimlik doğrulama bağlantı hatası', 'error');
+            return false;
         }
+        
+        // Test database connection with a simple query
+        const { data, error: dbError } = await supabase
+            .from('customers')
+            .select('id')
+            .limit(1);
+            
+        if (dbError) {
+            console.error('Supabase database connection error:', dbError);
+            
+            if (dbError.code === '42501') {
+                showToast('Veritabanı izin hatası. API anahtarınızı kontrol edin.', 'error');
+                showApiKeyModal();
+            } else if (dbError.code === '42P01') {
+                showToast('Tablo bulunamadı. Veritabanı şemasını kontrol edin.', 'error');
+            } else {
+                showToast('Veritabanı bağlantı hatası', 'error');
+            }
+            
+            return false;
+        }
+        
+        console.log('Supabase connection successful');
+        showToast('Bağlantı başarılı', 'success');
+        return true;
+        
     } catch (error) {
         console.error('Connection test failed:', error);
-        showToast('Bağlantı testi başarısız', 'error');
+        
+        if (error.message.includes('Failed to fetch')) {
+            showToast('Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin.', 'error');
+        } else {
+            showToast('Bağlantı testi başarısız: ' + error.message, 'error');
+        }
+        
+        return false;
     }
 }
-
 // Authentication functions
 async function login() {
     const email = document.getElementById('email').value.trim();
@@ -899,10 +939,9 @@ async function login() {
         return;
     }
 
-    // Supabase bağlantısını kontrol et
-    if (!supabase) {
-        showToast("Önce geçerli bir API anahtarı girmelisiniz", "error");
-        showApiKeyModal();
+    // Test connection first
+    const connectionOk = await testConnection();
+    if (!connectionOk) {
         return;
     }
 
@@ -917,8 +956,12 @@ async function login() {
         if (error) {
             console.error('Supabase login error:', error);
             
-            // API anahtarı hatasını özel olarak kontrol et
-            if (error.message.includes('Invalid API key') || error.message.includes('JWT')) {
+            // Handle specific error cases
+            if (error.message.includes('Invalid login credentials')) {
+                showToast("Geçersiz e-posta veya şifre", "error");
+            } else if (error.message.includes('Email not confirmed')) {
+                showToast("E-posta adresiniz doğrulanmamış", "error");
+            } else if (error.message.includes('Invalid API key') || error.message.includes('JWT')) {
                 showToast("Geçersiz API anahtarı. Lütfen API anahtarınızı kontrol edin.", "error");
                 showApiKeyModal();
             } else {
@@ -926,6 +969,36 @@ async function login() {
             }
             return;
         }
+
+        if (data.user) {
+            // Store user information
+            currentUser = {
+                id: data.user.id,
+                email: data.user.email,
+                name: data.user.user_metadata?.name || data.user.email.split('@')[0],
+                role: data.user.user_metadata?.role || 'operator'
+            };
+            
+            // Update UI
+            elements.userRole.textContent = `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+            
+            showToast("Giriş başarılı!", "success");
+            console.log('Login successful:', data.user.email);
+            
+            // Initialize application
+            await initApp();
+        }
+        
+    } catch (e) {
+        console.error('Login catch error:', e);
+        
+        if (e.message.includes('Failed to fetch')) {
+            showToast("Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin.", "error");
+        } else {
+            showToast("Giriş başarısız: " + e.message, "error");
+        }
+    }
+}
 
         if (data.user) {
             showToast("Giriş başarılı!", "success");
@@ -939,14 +1012,22 @@ async function login() {
 }
 
 async function logout() {
-    if (supabase) {
-        try {
-            await supabase.auth.signOut();
-            console.log('Supabase logout successful');
-        } catch (error) {
+    try {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
             console.error('Logout error:', error);
+            showToast('Çıkış yapılırken hata oluştu', 'error');
+            return;
         }
+        
+        // Local cleanup will be handled by the auth state listener
+        console.log('Logout successful');
+        
+    } catch (error) {
+        console.error('Logout catch error:', error);
+        showToast('Çıkış yapılırken hata oluştu', 'error');
     }
+}
     
     currentUser = null;
     elements.appContainer.style.display = 'none';
@@ -2181,28 +2262,36 @@ function escapeHtml(text) {
 
 // Initialize auth state listener
 function setupAuthListener() {
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email || 'No user');
         
-        if (session) {
+        if (event === 'SIGNED_IN' && session) {
             currentUser = {
+                id: session.user.id,
                 email: session.user.email,
-                uid: session.user.id,
-                name: session.user.email.split('@')[0]
+                name: session.user.user_metadata?.name || session.user.email.split('@')[0],
+                role: session.user.user_metadata?.role || 'operator'
             };
             
-            elements.userRole.textContent = `Operatör: ${currentUser.name}`;
+            elements.userRole.textContent = `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
             elements.loginScreen.style.display = "none";
             elements.appContainer.style.display = "flex";
+            elements.appContainer.setAttribute('aria-hidden', 'false');
             
-            initApp();
-        } else {
+            await initApp();
+        } else if (event === 'SIGNED_OUT') {
+            currentUser = null;
             elements.loginScreen.style.display = "flex";
             elements.appContainer.style.display = "none";
+            elements.appContainer.setAttribute('aria-hidden', 'true');
+            clearAppState();
+        } else if (event === 'TOKEN_REFRESHED') {
+            console.log('Token refreshed successfully');
+        } else if (event === 'USER_UPDATED') {
+            console.log('User updated:', session.user);
         }
     });
 }
-
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
     // API anahtarını yükle ve supabase'i başlat
