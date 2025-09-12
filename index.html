@@ -1748,7 +1748,7 @@ async function completePackage() {
             offlinePackages.push({
                 ...packageData,
                 id: `offline-${Date.now()}`
-            });
+            
             localStorage.setItem('offlinePackages', JSON.stringify(offlinePackages));
             
             // Update packages table
