@@ -1246,7 +1246,7 @@ input.invalid, select.invalid {
             loginBtn.textContent = 'Giriş yapılıyor...';
 
             try {
-                const { user, error } = await supabase.auth.signInWithPassword({
+                const { user, error } = await supabase.auth.signIn({
                     email: email,
                     password: password,
                 });
