@@ -1324,7 +1324,8 @@ input.invalid, select.invalid {
                 }
 
             } catch (e) {
-                console.error('Login error:', e);
+                console.error('Login error:', error?.message || error);
+
                 showAlert('Giriş sırasında bir hata oluştu.', 'error');
             } finally {
                 loginBtn.disabled = false;
