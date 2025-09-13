@@ -496,6 +496,59 @@ select:focus, input:focus {
 .alert.hide {
     animation: slideOut 0.3s forwards;
 }
+
+/* Validation error styling */
+.validation-error {
+    color: #e74c3c;
+    font-size: 0.8rem;
+    margin-top: 0.3rem;
+    display: none;
+}
+
+input.invalid, select.invalid {
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
+}
+
+/* Print styles for barcode labels */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .print-label, .print-label * {
+        visibility: visible;
+    }
+    .print-label {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+}
+
+/* Barcode scanner indicator */
+.scanner-active {
+    animation: pulse 1.5s infinite;
+    border: 2px solid #3498db !important;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
+}
+
+/* Container status */
+.container-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status-beklemede { background-color: #f39c12; color: white; }
+.status-sevk-edildi { background-color: #2ecc71; color: white; }
+.status-hazirlaniyor { background-color: #3498db; color: white; }
     </style>
 </head>
 <body>
@@ -520,11 +573,13 @@ select:focus, input:focus {
             <h1>ProClean - Oturum Aç</h1>
             <div class="form-group">
                 <label for="email">E-posta</label>
-                <input type="email" id="email" placeholder="E-posta adresinizi girin">
+                <input type="email" id="email" placeholder="E-posta adresinizi girin" required>
+                <div class="validation-error" id="emailError">Geçerli bir e-posta adresi girin</div>
             </div>
             <div class="form-group">
                 <label for="password">Şifre</label>
-                <input type="password" id="password" placeholder="Şifrenizi girin">
+                <input type="password" id="password" placeholder="Şifrenizi girin" required>
+                <div class="validation-error" id="passwordError">Şifre gereklidir</div>
             </div>
             <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
             <div style="margin-top: 1rem; text-align: center;">
@@ -555,15 +610,17 @@ select:focus, input:focus {
                     <div class="customer-info">
                         <div class="info-group">
                             <label for="customerSelect">Müşteri Seçimi</label>
-                            <select id="customerSelect">
+                            <select id="customerSelect" required>
                                 <option value="">Müşteri seçin...</option>
                             </select>
+                            <div class="validation-error" id="customerError">Müşteri seçimi zorunludur</div>
                         </div>
                         <div class="info-group">
                             <label for="personnelSelect">Personel</label>
-                            <select id="personnelSelect">
+                            <select id="personnelSelect" required>
                                 <option value="">Personel seçin...</option>
                             </select>
+                            <div class="validation-error" id="personnelError">Personel seçimi zorunludur</div>
                         </div>
                         <div class="info-group">
                             <label>Tarih</label>
@@ -628,6 +685,9 @@ select:focus, input:focus {
                         </div>
                         
                         <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="width:100%; margin-top:1rem;">Manuel Giriş</button>
+                        <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:0.5rem;" id="scannerToggle">
+                            <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
+                        </button>
                     </div>
 
                     <div class="pending-packages">
@@ -677,6 +737,10 @@ select:focus, input:focus {
                                 <option value="sevk-edildi">Sevk Edildi</option>
                             </select>
                         </div>
+                        <div class="info-group">
+                            <label for="containerSearch">Konteyner Ara</label>
+                            <input type="text" id="containerSearch" placeholder="Konteyner no..." oninput="searchContainers()">
+                        </div>
                     </div>
                     <div class="action-buttons">
                         <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
@@ -694,6 +758,7 @@ select:focus, input:focus {
                 <div class="stock-search">
                     <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
                     <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
+                    <button type="button" class="btn btn-success" onclick="exportStock()">Stokları Dışa Aktar</button>
                 </div>
 
                 <table class="stock-table">
@@ -719,9 +784,13 @@ select:focus, input:focus {
                     <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
                     <div>
                         <span id="selectedFileName"></span>
+                        <div class="validation-error" id="fileError"></div>
                     </div>
                     <button type="button" class="upload-button" onclick="uploadStockFile()">
                         <i class="fas fa-upload"></i> Dosya Yükle
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
+                        <i class="fas fa-download"></i> Şablon İndir
                     </button>
                 </div>
             </div>
@@ -735,7 +804,7 @@ select:focus, input:focus {
                     </div>
                 </div>
 
-                <div class="report-filters">
+                <div class="report-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                     <div class="info-group">
                         <label for="reportType">Rapor Türü</label>
                         <select id="reportType">
@@ -753,7 +822,9 @@ select:focus, input:focus {
                         <label for="endDate">Bitiş Tarihi</label>
                         <input type="date" id="endDate">
                     </div>
-                    <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
+                    <div class="info-group" style="align-self: flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
+                    </div>
                 </div>
 
                 <table class="stock-table">
@@ -814,15 +885,18 @@ select:focus, input:focus {
             </div>
             <div class="form-group">
                 <label for="newCustomerCode">Müşteri Kodu</label>
-                <input type="text" id="newCustomerCode" placeholder="Örn: P0005">
+                <input type="text" id="newCustomerCode" placeholder="Örn: P0005" required>
+                <div class="validation-error" id="customerCodeError">Müşteri kodu gereklidir</div>
             </div>
             <div class="form-group">
                 <label for="newCustomerName">Müşteri Adı</label>
-                <input type="text" id="newCustomerName" placeholder="Müşteri adını girin">
+                <input type="text" id="newCustomerName" placeholder="Müşteri adını girin" required>
+                <div class="validation-error" id="customerNameError">Müşteri adı gereklidir</div>
             </div>
             <div class="form-group">
                 <label for="newCustomerEmail">E-posta (İsteğe bağlı)</label>
                 <input type="email" id="newCustomerEmail" placeholder="E-posta adresini girin">
+                <div class="validation-error" id="customerEmailError">Geçerli bir e-posta adresi girin</div>
             </div>
             <button type="button" class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
             
@@ -843,7 +917,8 @@ select:focus, input:focus {
             </div>
             <div class="form-group">
                 <label for="reportEmail">E-posta Adresi</label>
-                <input type="email" id="reportEmail" placeholder="Rapor gönderilecek e-posta">
+                <input type="email" id="reportEmail" placeholder="Rapor gönderilecek e-posta" required>
+                <div class="validation-error" id="reportEmailError">Geçerli bir e-posta adresi girin</div>
             </div>
             <div class="modal-buttons">
                 <button type="button" class="btn btn-primary" onclick="sendDailyReport()">Rapor Gönder</button>
@@ -857,7 +932,8 @@ select:focus, input:focus {
     <div class="quantity-modal" id="quantityModal">
         <div class="quantity-content">
             <h3 id="quantityModalTitle">Adet Girin</h3>
-            <input type="number" id="quantityInput" class="quantity-input" min="1" placeholder="Adet">
+            <input type="number" id="quantityInput" class="quantity-input" min="1" placeholder="Adet" required>
+            <div class="validation-error" id="quantityError">Geçerli bir adet girin</div>
             <div class="quantity-buttons">
                 <button type="button" class="btn btn-primary" onclick="confirmQuantity()">Onayla</button>
                 <button type="button" class="btn btn-secondary" onclick="closeQuantityModal()">İptal</button>
@@ -874,11 +950,13 @@ select:focus, input:focus {
             </div>
             <div class="form-group">
                 <label for="manualProduct">Ürün Adı</label>
-                <input type="text" id="manualProduct" placeholder="Ürün adını girin">
+                <input type="text" id="manualProduct" placeholder="Ürün adını girin" required>
+                <div class="validation-error" id="manualProductError">Ürün adı gereklidir</div>
             </div>
             <div class="form-group">
                 <label for="manualQuantity">Adet</label>
-                <input type="number" id="manualQuantity" min="1" placeholder="Adet girin">
+                <input type="number" id="manualQuantity" min="1" placeholder="Adet girin" required>
+                <div class="validation-error" id="manualQuantityError">Geçerli bir adet girin</div>
             </div>
             <div class="modal-buttons">
                 <button type="button" class="btn btn-primary" onclick="addManualProduct()">Ekle</button>
@@ -886,6 +964,26 @@ select:focus, input:focus {
             </div>
         </div>
     </div>
+
+    <!-- Container Detail Modal -->
+    <div class="modal" id="containerDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="containerDetailTitle">Konteyner Detayları</h3>
+                <button type="button" class="modal-close" onclick="closeContainerDetailModal()">&times;</button>
+            </div>
+            <div id="containerDetailContent">
+                <!-- Container details will be populated here -->
+            </div>
+            <div class="modal-buttons" style="margin-top: 20px;">
+                <button type="button" class="btn btn-success" onclick="shipContainerFromModal()">Sevk Et</button>
+                <button type="button" class="btn btn-secondary" onclick="closeContainerDetailModal()">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Label Container (hidden) -->
+    <div id="printContainer" style="display:none;"></div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
@@ -896,6 +994,12 @@ select:focus, input:focus {
         let SUPABASE_ANON_KEY = null;
         let supabase = null;
         
+        // EmailJS initialization
+        (function() {
+            // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
+            emailjs.init("YOUR_EMAILJS_USER_ID");
+        })();
+        
         // Global state variables
         let selectedCustomer = null;
         let currentPackage = {};
@@ -904,6 +1008,8 @@ select:focus, input:focus {
         let currentUser = null;
         let scannedBarcodes = [];
         let editingStockItem = null;
+        let scannerMode = false;
+        let currentContainerDetails = null;
 
         // Elementleri bir defa tanımla
         const elements = {
@@ -935,7 +1041,9 @@ select:focus, input:focus {
             quantityModalTitle: document.getElementById('quantityModalTitle'),
             scannedBarcodes: document.getElementById('scannedBarcodes'),
             connectionStatus: document.getElementById('connectionStatus'),
-            alertContainer: document.getElementById('alertContainer')
+            alertContainer: document.getElementById('alertContainer'),
+            scannerToggle: document.getElementById('scannerToggle'),
+            containerSearch: document.getElementById('containerSearch')
         };
         
         // Profesyonel alert sistemi
@@ -977,6 +1085,42 @@ select:focus, input:focus {
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
+        }
+        
+        // Form doğrulama fonksiyonu
+        function validateForm(inputs) {
+            let isValid = true;
+            
+            inputs.forEach(input => {
+                const element = document.getElementById(input.id);
+                const errorElement = document.getElementById(input.errorId);
+                
+                if (input.required && !element.value.trim()) {
+                    element.classList.add('invalid');
+                    errorElement.style.display = 'block';
+                    isValid = false;
+                } else if (input.type === 'email' && element.value.trim() && !isValidEmail(element.value)) {
+                    element.classList.add('invalid');
+                    errorElement.style.display = 'block';
+                    errorElement.textContent = 'Geçerli bir e-posta adresi girin';
+                    isValid = false;
+                } else if (input.type === 'number' && element.value && (!Number.isInteger(Number(element.value)) || Number(element.value) < 1)) {
+                    element.classList.add('invalid');
+                    errorElement.style.display = 'block';
+                    errorElement.textContent = 'Geçerli bir sayı girin';
+                    isValid = false;
+                } else {
+                    element.classList.remove('invalid');
+                    errorElement.style.display = 'none';
+                }
+            });
+            
+            return isValid;
+        }
+        
+        function isValidEmail(email) {
+            const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+            return re.test(String(email).toLowerCase());
         }
         
         // Supabase istemcisini başlat
@@ -1092,8 +1236,11 @@ select:focus, input:focus {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
 
-            if (!email || !password) {
-                showAlert('Lütfen e-posta ve şifrenizi girin.', 'error');
+            // Form doğrulama
+            if (!validateForm([
+                { id: 'email', errorId: 'emailError', type: 'email', required: true },
+                { id: 'password', errorId: 'passwordError', type: 'text', required: true }
+            ])) {
                 return;
             }
 
@@ -1270,6 +1417,9 @@ select:focus, input:focus {
             
             // Set up offline support
             setupOfflineSupport();
+            
+            // Set up barcode scanner listener
+            setupBarcodeScanner();
         }
 
         // Çevrimdışı destek
@@ -1357,6 +1507,49 @@ select:focus, input:focus {
             
             offlineData[type].push(data);
             localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
+        }
+
+        // Barkod tarayıcı modunu aç/kapa
+        function toggleScannerMode() {
+            scannerMode = !scannerMode;
+            
+            if (scannerMode) {
+                elements.barcodeInput.classList.add('scanner-active');
+                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
+                elements.barcodeInput.focus();
+                showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
+            } else {
+                elements.barcodeInput.classList.remove('scanner-active');
+                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
+                showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
+            }
+        }
+
+        // Barkod tarayıcı dinleyicisi
+        function setupBarcodeScanner() {
+            let barcodeBuffer = '';
+            let lastKeyTime = Date.now();
+            
+            elements.barcodeInput.addEventListener('keypress', function(e) {
+                // Barkod tarayıcı modu açıksa ve hızlı giriş yapılıyorsa
+                const currentTime = Date.now();
+                
+                if (scannerMode || currentTime - lastKeyTime < 50) {
+                    if (e.key === 'Enter') {
+                        if (barcodeBuffer.length > 5) { // Geçerli bir barkod uzunluğu
+                            elements.barcodeInput.value = barcodeBuffer;
+                            processBarcode();
+                        }
+                        barcodeBuffer = '';
+                    } else {
+                        barcodeBuffer += e.key;
+                    }
+                } else {
+                    barcodeBuffer = '';
+                }
+                
+                lastKeyTime = currentTime;
+            });
         }
 
         // Data loading functions
@@ -1587,6 +1780,7 @@ select:focus, input:focus {
                                         <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                                         <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
                                         <td>
+                                            <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm">Detay</button>
                                             <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
                                             <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
                                         </td>
@@ -1615,6 +1809,116 @@ select:focus, input:focus {
                 console.error('Error in populateShippingTable:', error);
                 showAlert('Sevkiyat tablosu yükleme hatası', 'error');
             }
+        }
+
+        // Konteyner detaylarını görüntüle
+        async function viewContainerDetails(containerId) {
+            try {
+                const { data: container, error } = await supabase
+                    .from('containers')
+                    .select(`
+                        *,
+                        packages (
+                            *,
+                            customers (name, code)
+                        )
+                    `)
+                    .eq('id', containerId)
+                    .single();
+
+                if (error) throw error;
+                
+                currentContainerDetails = container;
+                
+                const modalTitle = document.getElementById('containerDetailTitle');
+                const modalContent = document.getElementById('containerDetailContent');
+                
+                modalTitle.textContent = `Konteyner: ${container.container_no}`;
+                
+                let contentHTML = `
+                    <p><strong>Durum:</strong> <span class="container-status status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></p>
+                    <p><strong>Oluşturulma Tarihi:</strong> ${new Date(container.created_at).toLocaleDateString('tr-TR')}</p>
+                    <p><strong>Paket Sayısı:</strong> ${container.package_count || 0}</p>
+                    <p><strong>Toplam Adet:</strong> ${container.total_quantity || 0}</p>
+                `;
+                
+                if (container.packages && container.packages.length > 0) {
+                    contentHTML += `
+                        <h4>Paketler</h4>
+                        <table class="package-table">
+                            <thead>
+                                <tr>
+                                    <th>Paket No</th>
+                                    <th>Müşteri</th>
+                                    <th>Adet</th>
+                                    <th>Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${container.packages.map(pkg => `
+                                    <tr>
+                                        <td>${pkg.package_no}</td>
+                                        <td>${pkg.customers?.name || 'N/A'}</td>
+                                        <td>${pkg.total_quantity}</td>
+                                        <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+                
+                modalContent.innerHTML = contentHTML;
+                document.getElementById('containerDetailModal').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error loading container details:', error);
+                showAlert('Konteyner detayları yüklenirken hata oluştu', 'error');
+            }
+        }
+
+        // Konteyner detay modalını kapat
+        function closeContainerDetailModal() {
+            document.getElementById('containerDetailModal').style.display = 'none';
+            currentContainerDetails = null;
+        }
+
+        // Konteyner detay modalından sevk et
+        async function shipContainerFromModal() {
+            if (currentContainerDetails) {
+                await shipContainer(currentContainerDetails.container_no);
+                closeContainerDetailModal();
+            }
+        }
+
+        // Konteyner ara
+        function searchContainers() {
+            const searchTerm = elements.containerSearch.value.toLowerCase();
+            const folders = document.querySelectorAll('.customer-folder');
+            
+            folders.forEach(folder => {
+                const containerRows = folder.querySelectorAll('tbody tr');
+                let hasVisibleRows = false;
+                
+                containerRows.forEach(row => {
+                    const containerNo = row.cells[1].textContent.toLowerCase();
+                    if (containerNo.includes(searchTerm)) {
+                        row.style.display = '';
+                        hasVisibleRows = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                // Eğer bu klasörde görünebilir satır yoksa, klasörü gizle
+                const folderHeader = folder.querySelector('.folder-header');
+                if (hasVisibleRows) {
+                    folder.style.display = 'block';
+                    folderHeader.style.display = 'flex';
+                } else {
+                    folder.style.display = 'none';
+                }
+            });
         }
 
         // Müşteri klasöründeki tüm konteynerleri seç
@@ -1950,8 +2254,12 @@ select:focus, input:focus {
             const name = document.getElementById('newCustomerName').value.trim();
             const email = document.getElementById('newCustomerEmail').value.trim();
 
-            if (!code || !name) {
-                showAlert('Müşteri kodu ve adı gerekli', 'error');
+            // Form doğrulama
+            if (!validateForm([
+                { id: 'newCustomerCode', errorId: 'customerCodeError', type: 'text', required: true },
+                { id: 'newCustomerName', errorId: 'customerNameError', type: 'text', required: true },
+                { id: 'newCustomerEmail', errorId: 'customerEmailError', type: 'email', required: false }
+            ])) {
                 return;
             }
 
@@ -2022,14 +2330,17 @@ select:focus, input:focus {
             selectedProduct = product;
             elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
             elements.quantityInput.value = '';
+            document.getElementById('quantityError').style.display = 'none';
             elements.quantityModal.style.display = 'flex';
             elements.quantityInput.focus();
         }
 
         function confirmQuantity() {
             const quantity = parseInt(elements.quantityInput.value);
+            
+            // Doğrulama
             if (!quantity || quantity <= 0) {
-                showAlert('Geçerli bir adet girin', 'error');
+                document.getElementById('quantityError').style.display = 'block';
                 return;
             }
 
@@ -2057,8 +2368,11 @@ select:focus, input:focus {
             const product = document.getElementById('manualProduct').value.trim();
             const quantity = parseInt(document.getElementById('manualQuantity').value);
 
-            if (!product || !quantity || quantity <= 0) {
-                showAlert('Ürün adı ve geçerli adet girin', 'error');
+            // Form doğrulama
+            if (!validateForm([
+                { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
+                { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
+            ])) {
                 return;
             }
 
@@ -2159,7 +2473,7 @@ select:focus, input:focus {
             for (let i = 0; i < rows.length; i++) {
                 const checkbox = rows[i].querySelector('input[type="checkbox"]');
                 if (checkbox && checkbox.value === pkg.id) {
-                    rows[i].classList.add('selected');
+                    rows[i].class.classList.add('selected');
                     break;
                 }
             }
@@ -2222,17 +2536,21 @@ select:focus, input:focus {
                 
                 // Create printable content
                 const printContent = `
-                    <div style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
+                    <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
                         <h2>ProClean</h2>
                         <p><strong>Paket No:</strong> ${selectedPackage.package_no}</p>
                         <p><strong>Müşteri:</strong> ${selectedPackage.customers?.name || 'N/A'}</p>
                         <p><strong>Adet:</strong> ${selectedPackage.total_quantity}</p>
-                        <p><strong>Tarih:</strong> ${new Date(selectedPackage.created_at).toLocaleDateString('tr-TR')}</p>
+                        <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
                         <div>${barcodeSvg}</div>
                     </div>
                 `;
                 
-                // Open print window
+                // Add to print container
+                const printContainer = document.getElementById('printContainer');
+                printContainer.innerHTML = printContent;
+                
+                // Open print dialog
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(`
                     <html>
@@ -2240,10 +2558,21 @@ select:focus, input:focus {
                             <title>Paket Etiketi - ${selectedPackage.package_no}</title>
                             <style>
                                 body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+                                @media print {
+                                    body { height: auto; }
+                                }
                             </style>
                         </head>
-                        <body onload="window.print(); window.close();">
+                        <body>
                             ${printContent}
+                            <script>
+                                window.onload = function() {
+                                    window.print();
+                                    setTimeout(function() {
+                                        window.close();
+                                    }, 100);
+                                };
+                            <\/script>
                         </body>
                     </html>
                 `);
@@ -2416,6 +2745,70 @@ select:focus, input:focus {
             });
         }
 
+        // Stok şablonu indirme
+        function downloadTemplate() {
+            // Create sample data for template
+            const templateData = [
+                { 'Stok Kodu': 'ÖRN001', 'Ürün Adı': 'Örnek Ürün', 'Mevcut Adet': 10, 'Birim': 'Adet' }
+            ];
+            
+            // Create worksheet
+            const ws = XLSX.utils.json_to_sheet(templateData);
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Stok Şablonu');
+            
+            // Download
+            XLSX.writeFile(wb, 'stok_sablonu.xlsx');
+            showAlert('Stok şablonu indirildi', 'success');
+        }
+
+        // Stokları dışa aktarma
+        function exportStock() {
+            try {
+                const stockData = [];
+                const rows = elements.stockTableBody.querySelectorAll('tr');
+                
+                rows.forEach(row => {
+                    if (row.style.display !== 'none') {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length >= 6) {
+                            stockData.push({
+                                'Stok Kodu': cells[0].textContent,
+                                'Ürün Adı': cells[1].textContent,
+                                'Mevcut Adet': cells[2].textContent,
+                                'Birim': cells[3].textContent,
+                                'Durum': cells[4].textContent,
+                                'Son Güncelleme': cells[5].textContent
+                            });
+                        }
+                    }
+                });
+                
+                if (stockData.length === 0) {
+                    showAlert('Dışa aktarılacak stok verisi yok', 'warning');
+                    return;
+                }
+                
+                // Create worksheet
+                const ws = XLSX.utils.json_to_sheet(stockData);
+                
+                // Create workbook
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Stok Listesi');
+                
+                // Download
+                const date = new Date().toISOString().slice(0, 10);
+                XLSX.writeFile(wb, `stok_listesi_${date}.xlsx`);
+                showAlert('Stok listesi dışa aktarıldı', 'success');
+                
+            } catch (error) {
+                console.error('Error exporting stock:', error);
+                showAlert('Stok listesi dışa aktarılırken hata oluştu', 'error');
+            }
+        }
+
         async function uploadStockFile() {
             const fileInput = document.getElementById('stockFileUpload');
             const file = fileInput.files[0];
@@ -2424,15 +2817,23 @@ select:focus, input:focus {
                 return;
             }
 
+            // Dosya tipi doğrulama
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
+                document.getElementById('fileError').textContent = 'Sadece Excel v CSV dosyaları yükleyebilirsiniz';
+                document.getElementById('fileError').style.display = 'block';
+                return;
+            }
+
             showAlert('Dosya yükleniyor...', 'warning');
 
             try {
                 let stockData = [];
                 
-                if (file.name.endsWith('.csv')) {
+                if (fileExtension === 'csv') {
                     const text = await file.text();
                     stockData = Papa.parse(text, { header: true }).data;
-                } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                } else {
                     const arrayBuffer = await file.arrayBuffer();
                     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                     const sheetName = workbook.SheetNames[0];
@@ -2440,26 +2841,42 @@ select:focus, input:focus {
                     stockData = XLSX.utils.sheet_to_json(worksheet);
                 }
 
+                let successCount = 0;
+                let errorCount = 0;
+                
                 for (const item of stockData) {
                     const code = item['Stok Kodu'] || item['code'] || item['StokKodu'] || '';
                     const name = item['Ürün Adı'] || item['name'] || item['ÜrünAdı'] || item['product'] || '';
                     const quantity = parseInt(item['Mevcut Adet'] || item['quantity'] || item['MevcutAdet'] || 0);
                     const unit = item['Birim'] || item['unit'] || 'Adet';
                     
-                    if (!code || !name) continue;
+                    if (!code || !name) {
+                        errorCount++;
+                        continue;
+                    }
 
-                    await supabase
-                        .from('stock_items')
-                        .upsert({
-                            code: code,
-                            name: name,
-                            quantity: quantity,
-                            unit: unit,
-                            updated_at: new Date().toISOString()
-                        }, { onConflict: 'code' });
+                    try {
+                        const { error } = await supabase
+                            .from('stock_items')
+                            .upsert({
+                                code: code,
+                                name: name,
+                                quantity: quantity,
+                                unit: unit,
+                                updated_at: new Date().toISOString()
+                            }, { onConflict: 'code' });
+
+                        if (error) {
+                            errorCount++;
+                        } else {
+                            successCount++;
+                        }
+                    } catch (e) {
+                        errorCount++;
+                    }
                 }
 
-                showAlert('Stok dosyası başarıyla yüklendi', 'success');
+                showAlert(`${successCount} stok öğesi güncellendi, ${errorCount} hata`, successCount > 0 ? 'success' : 'error');
                 document.getElementById('selectedFileName').textContent = '';
                 fileInput.value = '';
                 
@@ -2546,8 +2963,11 @@ select:focus, input:focus {
 
         async function sendDailyReport() {
             const email = document.getElementById('reportEmail').value;
-            if (!email) {
-                showAlert('Lütfen e-posta adresini girin', 'error');
+            
+            // Form doğrulama
+            if (!validateForm([
+                { id: 'reportEmail', errorId: 'reportEmailError', type: 'email', required: true }
+            ])) {
                 return;
             }
 
@@ -2569,9 +2989,6 @@ select:focus, input:focus {
                 const report = reports[0];
                 
                 // EmailJS ile e-posta gönderme
-                // Not: EmailJS servisini kullanmak için kendi hesap bilgilerinizi girmeniz gerekiyor
-                emailjs.init("YOUR_EMAILJS_USER_ID"); // EmailJS kullanıcı ID'nizi buraya girin
-                
                 const templateParams = {
                     to_email: email,
                     report_date: new Date(report.report_date).toLocaleDateString('tr-TR'),
@@ -2581,6 +2998,7 @@ select:focus, input:focus {
                     critical_stock: report.data.criticalStock ? report.data.criticalStock.length : 0
                 };
 
+                // EmailJS servis ID ve template ID'lerinizi buraya ekleyin
                 emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
                     .then(function(response) {
                         showAlert(`Rapor ${email} adresine gönderildi`, 'success');
@@ -2596,7 +3014,7 @@ select:focus, input:focus {
                             }]);
                     }, function(error) {
                         console.error('E-posta gönderme hatası:', error);
-                        showAlert('E-posta gönderilirken hata oluştu', 'error');
+                        showAlert('E-posta gönderilirken hata oluştu: ' + error.text, 'error');
                     });
                 
                 closeEmailModal();
@@ -2832,6 +3250,7 @@ select:focus, input:focus {
             document.getElementById('emailModal').style.display = 'none';
             document.getElementById('quantityModal').style.display = 'none';
             document.getElementById('manualModal').style.display = 'none';
+            document.getElementById('containerDetailModal').style.display = 'none';
         }
 
         function closeModal() {
@@ -2858,6 +3277,8 @@ select:focus, input:focus {
 
         // Initialize auth state listener
         function setupAuthListener() {
+            if (!supabase) return;
+            
             supabase.auth.onAuthStateChange((event, session) => {
                 console.log('Auth state change:', event, session?.user?.email || 'No user');
                 
