@@ -994,10 +994,9 @@ input.invalid, select.invalid {
         let SUPABASE_ANON_KEY = null;
         let supabase = null;
         
-        // EmailJS initialization
+        // EmailJS initialization - KENDİ SERVİS VE ŞABLON ID'LERİNİZİ EKLEYİN
         (function() {
-            // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
-            emailjs.init("jH-KlJ2ffs_lGwfsp");
+            emailjs.init("KENDİ_EMAILJS_USER_ID_NİZİ_BURAYA_EKLEYİN");
         })();
         
         // Global state variables
@@ -1845,7 +1844,7 @@ input.invalid, select.invalid {
                 if (container.packages && container.packages.length > 0) {
                     contentHTML += `
                         <h4>Paketler</h4>
-                        <table class="package-table">
+                        <table class 'package-table'>
                             <thead>
                                 <tr>
                                     <th>Paket No</th>
@@ -2380,7 +2379,7 @@ input.invalid, select.invalid {
             if (!currentPackage.items) currentPackage.items = {};
             currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
 
-            showAlert(`${product}: ${quantity} adet eklendi`, 'success');
+            showAlert(`${product}: ${quantity} adet eklendi', 'success');
             
             // Clear form
             document.getElementById('manualProduct').value = '';
@@ -2473,7 +2472,7 @@ input.invalid, select.invalid {
             for (let i = 0; i < rows.length; i++) {
                 const checkbox = rows[i].querySelector('input[type="checkbox"]');
                 if (checkbox && checkbox.value === pkg.id) {
-                    rows[i].class.classList.add('selected');
+                    rows[i].classList.add('selected');
                     break;
                 }
             }
@@ -2820,7 +2819,7 @@ input.invalid, select.invalid {
             // Dosya tipi doğrulama
             const fileExtension = file.name.split('.').pop().toLowerCase();
             if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
-                document.getElementById('fileError').textContent = 'Sadece Excel v CSV dosyaları yükleyebilirsiniz';
+                document.getElementById('fileError').textContent = 'Sadece Excel veya CSV dosyaları yükleyebilirsiniz';
                 document.getElementById('fileError').style.display = 'block';
                 return;
             }
@@ -2839,6 +2838,16 @@ input.invalid, select.invalid {
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     stockData = XLSX.utils.sheet_to_json(worksheet);
+                }
+
+                // Validate required columns
+                const requiredColumns = ['Stok Kodu', 'Ürün Adı'];
+                const firstRow = stockData[0] || {};
+                const missingColumns = requiredColumns.filter(col => !Object.keys(firstRow).some(key => key.toLowerCase().includes(col.toLowerCase())));
+                
+                if (missingColumns.length > 0) {
+                    showAlert(`Dosyada gerekli sütunlar eksik: ${missingColumns.join(', ')}`, 'error');
+                    return;
                 }
 
                 let successCount = 0;
@@ -2998,7 +3007,7 @@ input.invalid, select.invalid {
                     critical_stock: report.data.criticalStock ? report.data.criticalStock.length : 0
                 };
 
-                // EmailJS servis ID ve template ID'lerinizi buraya ekleyin
+                // KENDİ SERVİS VE ŞABLON ID'LERİNİZİ EKLEYİN
                 emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
                     .then(function(response) {
                         showAlert(`Rapor ${email} adresine gönderildi`, 'success');
