@@ -2245,6 +2245,7 @@ input.invalid, select.invalid {
             }
         }
 
+        
         async function showAllCustomers() {
             try {
                 elements.allCustomersList.innerHTML = '';
@@ -2281,7 +2282,7 @@ input.invalid, select.invalid {
                 showAlert('Müşteri yönetimi yükleme hatası', 'error');
             }
         }
-
+         
         async function addNewCustomer() {
             const code = document.getElementById('newCustomerCode').value.trim();
             const name = document.getElementById('newCustomerName').value.trim();
@@ -2674,7 +2675,7 @@ input.invalid, select.invalid {
                 if (selectedPackages.length === 0) {
                     showAlert('Rampaya göndermek için paket seçin', 'error');
                     return;
-            }
+                }
 
                 // Use existing container or create a new one
                 let containerId;
