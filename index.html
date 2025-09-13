@@ -3356,7 +3356,7 @@ input.invalid, select.invalid {
 
         // Global error handler
         window.addEventListener('error', function(e) {
-            console.error('Global error:', e.error);
+            console.error('Global error:', e.message || e);
             showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
         });
 
