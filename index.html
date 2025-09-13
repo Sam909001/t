@@ -11,7 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1"></script>
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     
     <style>
@@ -1124,22 +1124,20 @@ input.invalid, select.invalid {
             return re.test(String(email).toLowerCase());
         }
         
-        // Supabase istemcisini başlat
-        function initializeSupabase() {
-            if (!SUPABASE_ANON_KEY) {
-                showApiKeyModal();
-                return null;
-            }
-            
-            try {
-                return window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } catch (error) {
-                console.error('window.Supabase initialization error:', error);
-                showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
-                showApiKeyModal();
-                return null;
-            }
-        }
+      function initializeSupabase() {
+    if (!SUPABASE_ANON_KEY) {
+        showApiKeyModal();
+        return null;
+    }
+    try {
+        return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
+        showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+        showApiKeyModal();
+        return null;
+    }
+}
         
         // API anahtarını kaydet ve istemciyi başlat
         function saveApiKey() {
