@@ -1159,7 +1159,6 @@ input.invalid, select.invalid {
             }
             
             try {
-                import { createClient } from '@supabase/supabase-js';
                 return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } catch (error) {
                 console.error('Supabase initialization error:', error);
