@@ -533,9 +533,9 @@ input.invalid, select.invalid {
 }
 
 @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
-    70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
+   0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+   70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
+   100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
 }
 
 /* Container status */
@@ -549,6 +549,33 @@ input.invalid, select.invalid {
 .status-beklemede { background-color: #f39c12; color: white; }
 .status-sevk-edildi { background-color: #2ecc71; color: white; }
 .status-hazirlaniyor { background-color: #3498db; color: white; }
+
+/* Barcode label styling */
+.barcode-label {
+    width: 300px;
+    padding: 10px;
+    border: 1px solid #000;
+    text-align: center;
+    margin: 5px;
+    display: inline-block;
+    font-family: Arial, sans-serif;
+}
+
+.barcode-label h3 {
+    margin: 5px 0;
+    font-size: 16px;
+}
+
+.barcode-label p {
+    margin: 3px 0;
+    font-size: 12px;
+}
+
+.barcode-container {
+    margin: 10px 0;
+    display: flex;
+    justify-content: center;
+}
     </style>
 </head>
 <body>
@@ -2640,7 +2667,7 @@ input.invalid, select.invalid {
                 if (selectedPackages.length === 0) {
                     showAlert('Rampaya göndermek için paket seçin', 'error');
                     return;
-                }
+            }
 
                 // Use existing container or create a new one
                 let containerId;
@@ -3222,7 +3249,7 @@ input.invalid, select.invalid {
                     saveAppState();
                 }
                 
-                showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
+                showAlert(`${selectedContainers.length} konteyner silindi', 'success');
                 await populateShippingTable();
                 
             } catch (error) {
