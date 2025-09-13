@@ -432,7 +432,37 @@ select:focus, input:focus {
 #shippingTab .package-table td:nth-child(8) {
     width: 12%;
 }
-        
+        /* Klasör satırı için stil */
+.customer-folder td {
+    background-color: #f0f0f0 !important;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 12px 15px;
+}
+
+/* Konteyner satırları için stil */
+.container-row td {
+    padding: 10px 15px;
+    vertical-align: middle;
+}
+
+/* Klasör içindeki tablo hücrelerini hizala */
+.customer-folder + tbody tr td {
+    padding: 10px 15px;
+}
+        /* Tablo hücre içeriklerini düzgün hizala */
+#shippingTab .package-table td {
+    vertical-align: middle;
+    word-wrap: break-word;
+}
+
+/* İşlemler düğmeleri için stil */
+#shippingTab .package-table .btn-sm {
+    padding: 5px 8px;
+    font-size: 12px;
+    margin: 2px;
+    white-space: nowrap;
+}
     </style>
 </head>
 <body>
