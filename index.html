@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     
     <style>
         :root {
@@ -376,6 +377,125 @@ select:focus, input:focus {
 .admin-only {
     display: none;
 }
+
+/* Shipping customer folders */
+.customer-folder {
+    background-color: #f5f7fa;
+    border-left: 4px solid var(--secondary);
+    margin-bottom: 8px;
+    border-radius: 4px;
+}
+
+.folder-header {
+    padding: 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+}
+
+.folder-content {
+    display: none;
+    padding: 0 12px 12px 12px;
+    background-color: white;
+    border-radius: 0 0 4px 4px;
+}
+
+.folder-content table {
+    width: 100%;
+    font-size: 0.9em;
+}
+
+.folder-content th {
+    background-color: #e9ecef;
+}
+
+.folder-toggle {
+    transition: transform 0.3s;
+}
+
+.folder-open .folder-toggle {
+    transform: rotate(90deg);
+}
+
+/* Editable table cells */
+.editable-cell {
+    position: relative;
+}
+
+.editable-cell input {
+    width: 100%;
+    padding: 4px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.edit-buttons {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+/* Alert system */
+.alert-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1100;
+    max-width: 350px;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    animation: slideIn 0.3s forwards;
+}
+
+.alert-success {
+    background-color: var(--success);
+}
+
+.alert-error {
+    background-color: var(--accent);
+}
+
+.alert-warning {
+    background-color: var(--warning);
+}
+
+.alert-info {
+    background-color: var(--secondary);
+}
+
+.alert-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+.alert.hide {
+    animation: slideOut 0.3s forwards;
+}
     </style>
 </head>
 <body>
@@ -414,7 +534,6 @@ select:focus, input:focus {
     </div>
 
     <div class="app-container" id="appContainer" aria-hidden="true">
-        <!-- Uygulama içeriği aynı kalacak -->
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
@@ -566,25 +685,9 @@ select:focus, input:focus {
                     </div>
                 </div>
 
-                <table class="package-table">
-                    <thead>
-                        <tr>
-                            <th>
-                                <input type="checkbox" id="selectAllShipping" onchange="toggleSelectAllShipping()">
-                            </th>
-                            <th>Konteyner No</th>
-                            <th>Müşteri</th>
-                            <th>Paket Sayısı</th>
-                            <th>Toplam Adet</th>
-                            <th>Tarih</th>
-                            <th>Durum</th>
-                            <th>İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody id="shippingTableBody">
-                        <!-- Shipping data will be populated here -->
-                    </tbody>
-                </table>
+                <div id="shippingFolders">
+                    <!-- Customer folders will be populated here -->
+                </div>
             </div>
 
             <div class="tab-pane" id="stockTab">
@@ -602,6 +705,7 @@ select:focus, input:focus {
                             <th>Birim</th>
                             <th>Durum</th>
                             <th>Son Güncelleme</th>
+                            <th>İşlemler</th>
                         </tr>
                     </thead>
                     <tbody id="stockTableBody">
@@ -682,7 +786,9 @@ select:focus, input:focus {
         </div>
     </div>
 
-    <!-- Diğer modal ve HTML içerikleri aynı kalacak -->
+    <!-- Alert container -->
+    <div class="alert-container" id="alertContainer"></div>
+
     <!-- Customer Modal -->
     <div class="modal" id="customerModal">
         <div class="modal-content">
@@ -781,7 +887,7 @@ select:focus, input:focus {
         </div>
     </div>
 
-        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
     <script>
@@ -797,6 +903,7 @@ select:focus, input:focus {
         let selectedProduct = null;
         let currentUser = null;
         let scannedBarcodes = [];
+        let editingStockItem = null;
 
         // Elementleri bir defa tanımla
         const elements = {
@@ -811,7 +918,7 @@ select:focus, input:focus {
             barcodeInput: document.getElementById('barcodeInput'),
             packagesTableBody: document.getElementById('packagesTableBody'),
             packageDetailContent: document.getElementById('packageDetailContent'),
-            shippingTableBody: document.getElementById('shippingTableBody'),
+            shippingFolders: document.getElementById('shippingFolders'),
             stockTableBody: document.getElementById('stockTableBody'),
             customerList: document.getElementById('customerList'),
             allCustomersList: document.getElementById('allCustomersList'),
@@ -827,8 +934,39 @@ select:focus, input:focus {
             quantityModal: document.getElementById('quantityModal'),
             quantityModalTitle: document.getElementById('quantityModalTitle'),
             scannedBarcodes: document.getElementById('scannedBarcodes'),
-            connectionStatus: document.getElementById('connectionStatus')
+            connectionStatus: document.getElementById('connectionStatus'),
+            alertContainer: document.getElementById('alertContainer')
         };
+        
+        // Profesyonel alert sistemi
+        function showAlert(message, type = 'info', duration = 5000) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <span>${message}</span>
+                <button class="alert-close">&times;</button>
+            `;
+            
+            elements.alertContainer.appendChild(alert);
+            
+            // Kapatma butonu
+            alert.querySelector('.alert-close').addEventListener('click', () => {
+                alert.classList.add('hide');
+                setTimeout(() => alert.remove(), 300);
+            });
+            
+            // Otomatik kapanma
+            if (duration > 0) {
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.classList.add('hide');
+                        setTimeout(() => alert.remove(), 300);
+                    }
+                }, duration);
+            }
+            
+            return alert;
+        }
         
         // Yardımcı fonksiyonlar
         function showToast(message, type = 'info') {
@@ -852,7 +990,7 @@ select:focus, input:focus {
                 return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } catch (error) {
                 console.error('Supabase initialization error:', error);
-                showToast('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+                showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
                 showApiKeyModal();
                 return null;
             }
@@ -862,7 +1000,7 @@ select:focus, input:focus {
         function saveApiKey() {
             const apiKey = document.getElementById('apiKeyInput').value.trim();
             if (!apiKey) {
-                showToast('Lütfen bir API anahtarı girin', 'error');
+                showAlert('Lütfen bir API anahtarı girin', 'error');
                 return;
             }
             
@@ -872,7 +1010,7 @@ select:focus, input:focus {
             
             if (supabase) {
                 document.getElementById('apiKeyModal').style.display = 'none';
-                showToast('API anahtarı kaydedildi', 'success');
+                showAlert('API anahtarı kaydedildi', 'success');
                 testConnection();
             }
         }
@@ -930,7 +1068,7 @@ select:focus, input:focus {
         // Supabase bağlantısını test et
         async function testConnection() {
             if (!supabase) {
-                showToast('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+                showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
                 return;
             }
             try {
@@ -939,14 +1077,14 @@ select:focus, input:focus {
                 console.log('Supabase connection test successful:', data);
             } catch (e) {
                 console.error('Supabase connection test failed:', e.message);
-                showToast('Veritabanına bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.', 'error');
+                showAlert('Veritabanına bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.', 'error');
             }
         }
 
         // Kullanıcı girişi
         async function login() {
             if (!supabase) {
-                showToast('Lütfen önce API anahtarını girin.', 'error');
+                showAlert('Lütfen önce API anahtarını girin.', 'error');
                 showApiKeyModal();
                 return;
             }
@@ -955,7 +1093,7 @@ select:focus, input:focus {
             const password = document.getElementById('password').value;
 
             if (!email || !password) {
-                showToast('Lütfen e-posta ve şifrenizi girin.', 'error');
+                showAlert('Lütfen e-posta ve şifrenizi girin.', 'error');
                 return;
             }
 
@@ -970,7 +1108,7 @@ select:focus, input:focus {
                 });
 
                 if (error) {
-                    showToast(`Giriş başarısız: ${error.message}`, 'error');
+                    showAlert(`Giriş başarısız: ${error.message}`, 'error');
                     return;
                 }
 
@@ -1004,17 +1142,17 @@ select:focus, input:focus {
                     // Rol bazlı yetkilendirme
                     applyRoleBasedPermissions(currentUser.role);
                     
-                    showToast('Giriş başarılı!', 'success');
+                    showAlert('Giriş başarılı!', 'success');
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'flex';
                     testConnection();
                 } else {
-                    showToast('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
+                    showAlert('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
                 }
 
             } catch (e) {
                 console.error('Login error:', e);
-                showToast('Giriş sırasında bir hata oluştu.', 'error');
+                showAlert('Giriş sırasında bir hata oluştu.', 'error');
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Giriş Yap';
@@ -1036,14 +1174,14 @@ select:focus, input:focus {
             if (!supabase) return;
             
             supabase.auth.signOut().then(() => {
-                showToast('Başarıyla çıkış yapıldı.', 'success');
+                showAlert('Başarıyla çıkış yapıldı.', 'success');
                 document.getElementById('loginScreen').style.display = 'flex';
                 document.getElementById('appContainer').style.display = 'none';
                 document.getElementById('email').value = '';
                 document.getElementById('password').value = '';
             }).catch(e => {
                 console.error('Çıkış yapılırken bir hata oluştu:', e);
-                showToast('Çıkış yapılırken bir hata oluştu.', 'error');
+                showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
             });
         }
 
@@ -1139,14 +1277,14 @@ select:focus, input:focus {
             window.addEventListener('online', () => {
                 document.getElementById('offlineIndicator').style.display = 'none';
                 elements.connectionStatus.textContent = 'Çevrimiçi';
-                showToast('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
+                showAlert('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
                 syncOfflineData();
             });
 
             window.addEventListener('offline', () => {
                 document.getElementById('offlineIndicator').style.display = 'block';
                 elements.connectionStatus.textContent = 'Çevrimdışı';
-                showToast('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
+                showAlert('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
             });
 
             // Başlangıçta çevrimiçi durumu kontrol et
@@ -1162,7 +1300,7 @@ select:focus, input:focus {
             
             if (Object.keys(offlineData).length === 0) return;
             
-            showToast('Çevrimdışı veriler senkronize ediliyor...', 'warning');
+            showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
             
             try {
                 // Paketleri senkronize et
@@ -1187,13 +1325,25 @@ select:focus, input:focus {
                     }
                 }
                 
+                // Stok güncellemelerini senkronize et
+                if (offlineData.stockUpdates && offlineData.stockUpdates.length > 0) {
+                    for (const update of offlineData.stockUpdates) {
+                        const { error } = await supabase
+                            .from('stock_items')
+                            .update({ quantity: update.quantity })
+                            .eq('code', update.code);
+                        
+                        if (error) console.error('Stok senkronizasyon hatası:', error);
+                    }
+                }
+                
                 // Başarılı senkronizasyondan sonra çevrimdışı verileri temizle
                 localStorage.removeItem('procleanOfflineData');
-                showToast('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
+                showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
                 
             } catch (error) {
                 console.error('Senkronizasyon hatası:', error);
-                showToast('Veri senkronizasyonu sırasında hata oluştu', 'error');
+                showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
             }
         }
 
@@ -1212,6 +1362,7 @@ select:focus, input:focus {
         // Data loading functions
         async function populateCustomers() {
             try {
+                // Dropdown'u temizle
                 elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
                 
                 const { data: customers, error } = await supabase
@@ -1221,7 +1372,7 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error loading customers:', error);
-                    showToast('Müşteri verileri yüklenemedi', 'error');
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
                     return;
                 }
 
@@ -1236,12 +1387,13 @@ select:focus, input:focus {
                 
             } catch (error) {
                 console.error('Error in populateCustomers:', error);
-                showToast('Müşteri yükleme hatası', 'error');
+                showAlert('Müşteri yükleme hatası', 'error');
             }
         }
 
         async function populatePersonnel() {
             try {
+                // Dropdown'u temizle
                 elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
                 
                 const { data: personnel, error } = await supabase
@@ -1295,7 +1447,7 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error loading packages:', error);
-                    showToast('Paket verileri yüklenemedi', 'error');
+                    showAlert('Paket verileri yüklenemedi', 'error');
                     return;
                 }
 
@@ -1320,14 +1472,17 @@ select:focus, input:focus {
                     
                     elements.totalPackages.textContent = packages.length;
                 } else {
-                    const row = document.createElement('tr');
-                    row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Henüz paket yok</td>';
-                    elements.packagesTableBody.appendChild(row);
+                    // Yalnızca bir kere "Henüz paket yok" mesajı ekle
+                    if (elements.packagesTableBody.children.length === 0) {
+                        const row = document.createElement('tr');
+                        row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Henüz paket yok</td>';
+                        elements.packagesTableBody.appendChild(row);
+                    }
                 }
                 
             } catch (error) {
                 console.error('Error in populatePackagesTable:', error);
-                showToast('Paket tablosu yükleme hatası', 'error');
+                showAlert('Paket tablosu yükleme hatası', 'error');
             }
         }
 
@@ -1348,10 +1503,10 @@ select:focus, input:focus {
             }
         }
 
-        // Update the populateShippingTable function
+        // Update the populateShippingTable function to use customer folders
         async function populateShippingTable() {
             try {
-                elements.shippingTableBody.innerHTML = '';
+                elements.shippingFolders.innerHTML = '';
                 
                 const filter = elements.shippingFilter?.value || 'all';
                 let query = supabase
@@ -1359,6 +1514,9 @@ select:focus, input:focus {
                     .select(`
                         *,
                         packages (
+                            id,
+                            package_no,
+                            total_quantity,
                             customers (name, code)
                         )
                     `);
@@ -1371,38 +1529,99 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error loading containers:', error);
-                    showToast('Sevkiyat verileri yüklenemedi', 'error');
+                    showAlert('Sevkiyat verileri yüklenemedi', 'error');
                     return;
                 }
 
                 if (containers && containers.length > 0) {
+                    // Müşterilere göre grupla
+                    const customersMap = {};
+                    
                     containers.forEach(container => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td><input type="checkbox" value="${container.id}"></td>
-                            <td>${container.container_no}</td>
-                            <td>${container.packages && container.packages.length > 0 ? container.packages[0].customers?.name : container.customer || 'N/A'}</td>
-                            <td>${container.package_count || 0}</td>
-                            <td>${container.total_quantity || 0}</td>
-                            <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                            <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                            <td>
-                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
-                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
-                            </td>
-                        `;
-                        elements.shippingTableBody.appendChild(row);
+                        const customerName = container.packages && container.packages.length > 0 ? 
+                            container.packages[0].customers?.name : container.customer || 'Diğer';
+                        
+                        if (!customersMap[customerName]) {
+                            customersMap[customerName] = [];
+                        }
+                        
+                        customersMap[customerName].push(container);
                     });
+                    
+                    // Müşteri klasörlerini oluştur
+                    for (const [customerName, customerContainers] of Object.entries(customersMap)) {
+                        const folderDiv = document.createElement('div');
+                        folderDiv.className = 'customer-folder';
+                        
+                        const folderHeader = document.createElement('div');
+                        folderHeader.className = 'folder-header';
+                        folderHeader.innerHTML = `
+                            <span>${customerName}</span>
+                            <span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>
+                        `;
+                        
+                        const folderContent = document.createElement('div');
+                        folderContent.className = 'folder-content';
+                        
+                        const table = document.createElement('table');
+                        table.className = 'package-table';
+                        table.innerHTML = `
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)"></th>
+                                    <th>Konteyner No</th>
+                                    <th>Paket Sayısı</th>
+                                    <th>Toplam Adet</th>
+                                    <th>Tarih</th>
+                                    <th>Durum</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${customerContainers.map(container => `
+                                    <tr>
+                                        <td><input type="checkbox" value="${container.id}" class="container-checkbox"></td>
+                                        <td>${container.container_no}</td>
+                                        <td>${container.package_count || 0}</td>
+                                        <td>${container.total_quantity || 0}</td>
+                                        <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                                        <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                                        <td>
+                                            <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
+                                            <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        `;
+                        
+                        folderContent.appendChild(table);
+                        folderDiv.appendChild(folderHeader);
+                        folderDiv.appendChild(folderContent);
+                        
+                        // Klasör açma/kapama işlevi
+                        folderHeader.addEventListener('click', () => {
+                            folderDiv.classList.toggle('folder-open');
+                            folderContent.style.display = folderDiv.classList.contains('folder-open') ? 'block' : 'none';
+                        });
+                        
+                        elements.shippingFolders.appendChild(folderDiv);
+                    }
                 } else {
-                    const row = document.createElement('tr');
-                    row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Sevkiyat verisi yok</td>';
-                    elements.shippingTableBody.appendChild(row);
+                    elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
                 }
                 
             } catch (error) {
                 console.error('Error in populateShippingTable:', error);
-                showToast('Sevkiyat tablosu yükleme hatası', 'error');
+                showAlert('Sevkiyat tablosu yükleme hatası', 'error');
             }
+        }
+
+        // Müşteri klasöründeki tüm konteynerleri seç
+        function toggleSelectAllCustomer(checkbox) {
+            const folder = checkbox.closest('.customer-folder');
+            const checkboxes = folder.querySelectorAll('.container-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
         }
 
         async function populateStockTable() {
@@ -1416,7 +1635,7 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error loading stock items:', error);
-                    showToast('Stok verileri yüklenemedi', 'error');
+                    showAlert('Stok verileri yüklenemedi', 'error');
                     return;
                 }
 
@@ -1439,35 +1658,144 @@ select:focus, input:focus {
                         row.innerHTML = `
                             <td>${item.code}</td>
                             <td>${item.name}</td>
-                            <td>${item.quantity}</td>
+                            <td class="editable-cell">
+                                <span class="stock-quantity">${item.quantity}</span>
+                                <input type="number" class="stock-quantity-input" value="${item.quantity}" style="display:none;">
+                            </td>
                             <td>${item.unit || 'Adet'}</td>
                             <td><span class="${statusClass}">${statusText}</span></td>
                             <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                            <td>
+                                <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
+                                <div class="edit-buttons" style="display:none;">
+                                    <button onclick="saveStockItem('${item.code}')" class="btn btn-success btn-sm">Kaydet</button>
+                                    <button onclick="cancelEditStockItem('${item.code}', ${item.quantity})" class="btn btn-secondary btn-sm">İptal</button>
+                                </div>
+                            </td>
                         `;
                         elements.stockTableBody.appendChild(row);
                     });
                 } else {
                     const row = document.createElement('tr');
-                    row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Stok verisi yok</td>';
+                    row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
                     elements.stockTableBody.appendChild(row);
                 }
                 
             } catch (error) {
                 console.error('Error in populateStockTable:', error);
-                showToast('Stok tablosu yükleme hatası', 'error');
+                showAlert('Stok tablosu yükleme hatası', 'error');
             }
+        }
+
+        // Stok düzenleme fonksiyonları
+        function editStockItem(button, code) {
+            const row = button.closest('tr');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            
+            // Düzenleme moduna geç
+            quantitySpan.style.display = 'none';
+            quantityInput.style.display = 'block';
+            editButton.style.display = 'none';
+            editButtons.style.display = 'flex';
+            
+            editingStockItem = code;
+        }
+
+        async function saveStockItem(code) {
+            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            const newQuantity = parseInt(quantityInput.value);
+            
+            if (isNaN(newQuantity) || newQuantity < 0) {
+                showAlert('Geçerli bir miktar girin', 'error');
+                return;
+            }
+            
+            try {
+                if (!navigator.onLine) {
+                    // Çevrimdışı mod
+                    saveOfflineData('stockUpdates', {
+                        code: code,
+                        quantity: newQuantity,
+                        updated_at: new Date().toISOString()
+                    });
+                    showAlert(`Stok çevrimdışı güncellendi: ${code}`, 'warning');
+                } else {
+                    // Çevrimiçi mod
+                    const { error } = await supabase
+                        .from('stock_items')
+                        .update({ 
+                            quantity: newQuantity,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('code', code);
+                    
+                    if (error) throw error;
+                    
+                    showAlert(`Stok güncellendi: ${code}`, 'success');
+                }
+                
+                // Görünümü güncelle
+                quantitySpan.textContent = newQuantity;
+                quantitySpan.style.display = 'block';
+                quantityInput.style.display = 'none';
+                editButton.style.display = 'block';
+                editButtons.style.display = 'none';
+                
+                // Durumu yeniden hesapla
+                const statusCell = row.querySelector('td:nth-child(5) span');
+                if (newQuantity <= 0) {
+                    statusCell.className = 'status-kritik';
+                    statusCell.textContent = 'Kritik';
+                } else if (newQuantity < 10) {
+                    statusCell.className = 'status-az-stok';
+                    statusCell.textContent = 'Az Stok';
+                } else {
+                    statusCell.className = 'status-stokta';
+                    statusCell.textContent = 'Stokta';
+                }
+                
+                editingStockItem = null;
+                
+            } catch (error) {
+                console.error('Error updating stock:', error);
+                showAlert('Stok güncellenirken hata oluştu', 'error');
+            }
+        }
+
+        function cancelEditStockItem(code, originalQuantity) {
+            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            
+            // Değişiklikleri iptal et
+            quantityInput.value = originalQuantity;
+            quantitySpan.style.display = 'block';
+            quantityInput.style.display = 'none';
+            editButton.style.display = 'block';
+            editButtons.style.display = 'none';
+            
+            editingStockItem = null;
         }
 
         // Barkod işleme fonksiyonu
         async function processBarcode() {
             const barcode = elements.barcodeInput.value.trim();
             if (!barcode) {
-                showToast('Barkod girin', 'error');
+                showAlert('Barkod girin', 'error');
                 return;
             }
 
             if (!selectedCustomer) {
-                showToast('Önce müşteri seçin', 'error');
+                showAlert('Önce müşteri seçin', 'error');
                 return;
             }
 
@@ -1484,7 +1812,7 @@ select:focus, input:focus {
                     // Çevrimdışı mod
                     saveOfflineData('barcodes', barcodeData);
                     scannedBarcodes.push({...barcodeData, id: 'offline-' + Date.now()});
-                    showToast(`Barkod çevrimdışı kaydedildi: ${barcode}`, 'warning');
+                    showAlert(`Barkod çevrimdışı kaydedildi: ${barcode}`, 'warning');
                 } else {
                     // Çevrimiçi mod
                     const { data, error } = await supabase
@@ -1494,12 +1822,12 @@ select:focus, input:focus {
 
                     if (error) {
                         console.error('Barkod kaydedilemedi:', error);
-                        showToast('Barkod işlenirken hata oluştu', 'error');
+                        showAlert('Barkod işlenirken hata oluştu', 'error');
                         return;
                     }
 
                     scannedBarcodes.push(data[0]);
-                    showToast(`Barkod kaydedildi: ${barcode}`, 'success');
+                    showAlert(`Barkod kaydedildi: ${barcode}`, 'success');
                 }
 
                 elements.barcodeInput.value = '';
@@ -1510,7 +1838,7 @@ select:focus, input:focus {
                 
             } catch (error) {
                 console.error('Barkod işleme hatası:', error);
-                showToast('Barkod işlenirken bir hata oluştu', 'error');
+                showAlert('Barkod işlenirken bir hata oluştu', 'error');
             }
         }
 
@@ -1554,7 +1882,7 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error loading customers:', error);
-                    showToast('Müşteri verileri yüklenemedi', 'error');
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
                     return;
                 }
 
@@ -1576,7 +1904,7 @@ select:focus, input:focus {
                 document.getElementById('customerModal').style.display = 'flex';
             } catch (error) {
                 console.error('Error in showCustomers:', error);
-                showToast('Müşteri listesi yükleme hatası', 'error');
+                showAlert('Müşteri listesi yükleme hatası', 'error');
             }
         }
 
@@ -1591,7 +1919,7 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error loading customers:', error);
-                    showToast('Müşteri verileri yüklenemedi', 'error');
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
                     return;
                 }
 
@@ -1613,7 +1941,7 @@ select:focus, input:focus {
                 document.getElementById('allCustomersModal').style.display = 'flex';
             } catch (error) {
                 console.error('Error in showAllCustomers:', error);
-                showToast('Müşteri yönetimi yükleme hatası', 'error');
+                showAlert('Müşteri yönetimi yükleme hatası', 'error');
             }
         }
 
@@ -1623,7 +1951,7 @@ select:focus, input:focus {
             const email = document.getElementById('newCustomerEmail').value.trim();
 
             if (!code || !name) {
-                showToast('Müşteri kodu ve adı gerekli', 'error');
+                showAlert('Müşteri kodu ve adı gerekli', 'error');
                 return;
             }
 
@@ -1634,11 +1962,11 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error adding customer:', error);
-                    showToast('Müşteri eklenirken hata: ' + error.message, 'error');
+                    showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
                     return;
                 }
 
-                showToast('Müşteri başarıyla eklendi', 'success');
+                showAlert('Müşteri başarıyla eklendi', 'success');
                 
                 // Clear form
                 document.getElementById('newCustomerCode').value = '';
@@ -1651,7 +1979,7 @@ select:focus, input:focus {
                 
             } catch (error) {
                 console.error('Error in addNewCustomer:', error);
-                showToast('Müşteri ekleme hatası', 'error');
+                showAlert('Müşteri ekleme hatası', 'error');
             }
         }
 
@@ -1666,11 +1994,11 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error deleting customer:', error);
-                    showToast('Müşteri silinirken hata: ' + error.message, 'error');
+                    showAlert('Müşteri silinirken hata: ' + error.message, 'error');
                     return;
                 }
 
-                showToast('Müşteri başarıyla silindi', 'success');
+                showAlert('Müşteri başarıyla silindi', 'success');
                 
                 // Refresh lists
                 await populateCustomers();
@@ -1678,7 +2006,7 @@ select:focus, input:focus {
                 
             } catch (error) {
                 console.error('Error in deleteCustomer:', error);
-                showToast('Müşteri silme hatası', 'error');
+                showAlert('Müşteri silme hatası', 'error');
             }
         }
 
@@ -1686,7 +2014,7 @@ select:focus, input:focus {
             selectedCustomer = customer;
             elements.customerSelect.value = customer.id;
             closeModal();
-            showToast(`Müşteri seçildi: ${customer.name}`, 'success');
+            showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
         }
 
         // Package operations
@@ -1701,7 +2029,7 @@ select:focus, input:focus {
         function confirmQuantity() {
             const quantity = parseInt(elements.quantityInput.value);
             if (!quantity || quantity <= 0) {
-                showToast('Geçerli bir adet girin', 'error');
+                showAlert('Geçerli bir adet girin', 'error');
                 return;
             }
 
@@ -1716,7 +2044,7 @@ select:focus, input:focus {
             if (!currentPackage.items) currentPackage.items = {};
             currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
 
-            showToast(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
+            showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
             closeQuantityModal();
         }
 
@@ -1730,7 +2058,7 @@ select:focus, input:focus {
             const quantity = parseInt(document.getElementById('manualQuantity').value);
 
             if (!product || !quantity || quantity <= 0) {
-                showToast('Ürün adı ve geçerli adet girin', 'error');
+                showAlert('Ürün adı ve geçerli adet girin', 'error');
                 return;
             }
 
@@ -1738,7 +2066,7 @@ select:focus, input:focus {
             if (!currentPackage.items) currentPackage.items = {};
             currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
 
-            showToast(`${product}: ${quantity} adet eklendi`, 'success');
+            showAlert(`${product}: ${quantity} adet eklendi`, 'success');
             
             // Clear form
             document.getElementById('manualProduct').value = '';
@@ -1748,12 +2076,12 @@ select:focus, input:focus {
 
         async function completePackage() {
             if (!selectedCustomer) {
-                showToast('Önce müşteri seçin', 'error');
+                showAlert('Önce müşteri seçin', 'error');
                 return;
             }
 
             if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-                showToast('Pakete ürün ekleyin', 'error');
+                showAlert('Pakete ürün ekleyin', 'error');
                 return;
             }
 
@@ -1775,7 +2103,7 @@ select:focus, input:focus {
                 if (!navigator.onLine) {
                     // Çevrimdışı mod
                     saveOfflineData('packages', packageData);
-                    showToast(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
+                    showAlert(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
                 } else {
                     // Çevrimiçi mod
                     const { data, error } = await supabase
@@ -1785,11 +2113,11 @@ select:focus, input:focus {
 
                     if (error) {
                         console.error('Error creating package:', error);
-                        showToast('Paket oluşturulurken hata: ' + error.message, 'error');
+                        showAlert('Paket oluşturulurken hata: ' + error.message, 'error');
                         return;
                     }
 
-                    showToast(`Paket oluşturuldu: ${packageNo}`, 'success');
+                    showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
                 }
 
                 // Reset current package and quantities
@@ -1816,7 +2144,7 @@ select:focus, input:focus {
                 
             } catch (error) {
                 console.error('Error in completePackage:', error);
-                showToast('Paket oluşturma hatası', 'error');
+                showAlert('Paket oluşturma hatası', 'error');
             }
         }
             
@@ -1884,7 +2212,7 @@ select:focus, input:focus {
         async function printLabel() {
             const selectedPackage = getSelectedPackage();
             if (!selectedPackage) {
-                showToast('Etiket yazdırmak için bir paket seçin', 'error');
+                showAlert('Etiket yazdırmak için bir paket seçin', 'error');
                 return;
             }
 
@@ -1923,14 +2251,14 @@ select:focus, input:focus {
                 
             } catch (error) {
                 console.error('Error printing label:', error);
-                showToast('Etiket yazdırılırken hata oluştu', 'error');
+                showAlert('Etiket yazdırılırken hata oluştu', 'error');
             }
         }
 
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
             if (checkboxes.length === 0) {
-                showToast('Silinecek paket seçin', 'error');
+                showAlert('Silinecek paket seçin', 'error');
                 return;
             }
 
@@ -1946,16 +2274,16 @@ select:focus, input:focus {
 
                 if (error) {
                     console.error('Error deleting packages:', error);
-                    showToast('Paketler silinirken hata: ' + error.message, 'error');
+                    showAlert('Paketler silinirken hata: ' + error.message, 'error');
                     return;
                 }
 
-                showToast(`${packageIds.length} paket silindi`, 'success');
+                showAlert(`${packageIds.length} paket silindi`, 'success');
                 await populatePackagesTable();
                 
             } catch (error) {
                 console.error('Error in deleteSelectedPackages:', error);
-                showToast('Paket silme hatası', 'error');
+                showAlert('Paket silme hatası', 'error');
             }
         }
 
@@ -1982,7 +2310,7 @@ select:focus, input:focus {
                     .map(cb => cb.value);
                 
                 if (selectedPackages.length === 0) {
-                    showToast('Rampaya göndermek için paket seçin', 'error');
+                    showAlert('Rampaya göndermek için paket seçin', 'error');
                     return;
                 }
 
@@ -2025,7 +2353,7 @@ select:focus, input:focus {
 
                 if (updateError) throw updateError;
 
-                showToast(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
+                showAlert(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
                 
                 // Refresh tables
                 await populatePackagesTable();
@@ -2033,7 +2361,7 @@ select:focus, input:focus {
                 
             } catch (error) {
                 console.error('Error sending to ramp:', error);
-                showToast('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
+                showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
             }
         }
 
@@ -2056,12 +2384,12 @@ select:focus, input:focus {
 
                 if (updateError) throw updateError;
 
-                showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
+                showAlert(`Konteyner ${containerNo} sevk edildi`, 'success');
                 await populateShippingTable();
                 
             } catch (error) {
                 console.error('Error shipping container:', error);
-                showToast('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
+                showAlert('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
             }
         }
 
@@ -2092,11 +2420,11 @@ select:focus, input:focus {
             const fileInput = document.getElementById('stockFileUpload');
             const file = fileInput.files[0];
             if (!file) {
-                showToast('Lütfen bir dosya seçin', 'error');
+                showAlert('Lütfen bir dosya seçin', 'error');
                 return;
             }
 
-            showToast('Dosya yükleniyor...', 'warning');
+            showAlert('Dosya yükleniyor...', 'warning');
 
             try {
                 let stockData = [];
@@ -2131,7 +2459,7 @@ select:focus, input:focus {
                         }, { onConflict: 'code' });
                 }
 
-                showToast('Stok dosyası başarıyla yüklendi', 'success');
+                showAlert('Stok dosyası başarıyla yüklendi', 'success');
                 document.getElementById('selectedFileName').textContent = '';
                 fileInput.value = '';
                 
@@ -2139,31 +2467,44 @@ select:focus, input:focus {
                 
             } catch (error) {
                 console.error('Error uploading stock file:', error);
-                showToast('Dosya yüklenirken hata oluştu', 'error');
+                showAlert('Dosya yüklenirken hata oluştu', 'error');
             }
         }
 
         // Report operations
         async function generateDailyReport() {
             try {
+                const today = new Date();
+                const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+                const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
                 const { data: packages, error: packagesError } = await supabase
                     .from('packages')
                     .select(`
                         *,
                         customers (name, code)
                     `)
-                    .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
-                    .lte('created_at', new Date(new Date().setHours(23, 59, 59, 999)).toISOString());
+                    .gte('created_at', startOfDay)
+                    .lte('created_at', endOfDay);
 
                 if (packagesError) throw packagesError;
 
                 const { data: containers, error: containersError } = await supabase
                     .from('containers')
                     .select('*')
-                    .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
-                    .lte('created_at', new Date(new Date().setHours(23, 59, 59, 999)).toISOString());
+                    .gte('created_at', startOfDay)
+                    .lte('created_at', endOfDay);
 
                 if (containersError) throw containersError;
+
+                // Kritik stokları al
+                const { data: criticalStock, error: stockError } = await supabase
+                    .from('stock_items')
+                    .select('*')
+                    .lte('quantity', 5)
+                    .order('quantity', { ascending: true });
+
+                if (stockError) throw stockError;
 
                 const reportData = {
                     date: new Date().toLocaleDateString('tr-TR'),
@@ -2173,6 +2514,7 @@ select:focus, input:focus {
                     customers: [...new Set(packages.map(p => p.customers?.name))].length,
                     packages: packages,
                     containers: containers,
+                    criticalStock: criticalStock,
                     operator: currentUser?.name || 'Bilinmiyor'
                 };
 
@@ -2194,7 +2536,7 @@ select:focus, input:focus {
 
             } catch (error) {
                 console.error('Rapor oluşturma hatası:', error);
-                showToast('Rapor oluşturulurken hata oluştu', 'error');
+                showAlert('Rapor oluşturulurken hata oluştu', 'error');
             }
         }
 
@@ -2205,7 +2547,7 @@ select:focus, input:focus {
         async function sendDailyReport() {
             const email = document.getElementById('reportEmail').value;
             if (!email) {
-                showToast('Lütfen e-posta adresini girin', 'error');
+                showAlert('Lütfen e-posta adresini girin', 'error');
                 return;
             }
 
@@ -2220,36 +2562,48 @@ select:focus, input:focus {
                 if (reportsError) throw reportsError;
 
                 if (!reports || reports.length === 0) {
-                    showToast('Rapor bulunamadı', 'error');
+                    showAlert('Rapor bulunamadı', 'error');
                     return;
                 }
 
                 const report = reports[0];
                 
-                // E-posta gönderme işlemi (gerçek uygulamada e-posta servisi entegrasyonu gerekli)
-                showToast(`Rapor ${email} adresine gönderiliyor...`, 'warning');
+                // EmailJS ile e-posta gönderme
+                // Not: EmailJS servisini kullanmak için kendi hesap bilgilerinizi girmeniz gerekiyor
+                emailjs.init("YOUR_EMAILJS_USER_ID"); // EmailJS kullanıcı ID'nizi buraya girin
                 
-                // Simüle edilmiş e-posta gönderme
-                setTimeout(async () => {
-                    // E-posta gönderim kaydı
-                    const { error: emailError } = await supabase
-                        .from('report_emails')
-                        .insert([{
-                            report_id: report.id,
-                            sent_to: email,
-                            sent_at: new Date().toISOString(),
-                            status: 'sent'
-                        }]);
+                const templateParams = {
+                    to_email: email,
+                    report_date: new Date(report.report_date).toLocaleDateString('tr-TR'),
+                    total_packages: report.data.totalPackages,
+                    total_items: report.data.totalItems,
+                    operator: report.data.operator,
+                    critical_stock: report.data.criticalStock ? report.data.criticalStock.length : 0
+                };
 
-                    if (emailError) throw emailError;
-
-                    showToast(`Rapor ${email} adresine gönderildi`, 'success');
-                    closeEmailModal();
-                }, 2000);
+                emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
+                    .then(function(response) {
+                        showAlert(`Rapor ${email} adresine gönderildi`, 'success');
+                        
+                        // E-posta gönderim kaydı
+                        supabase
+                            .from('report_emails')
+                            .insert([{
+                                report_id: report.id,
+                                sent_to: email,
+                                sent_at: new Date().toISOString(),
+                                status: 'sent'
+                            }]);
+                    }, function(error) {
+                        console.error('E-posta gönderme hatası:', error);
+                        showAlert('E-posta gönderilirken hata oluştu', 'error');
+                    });
+                
+                closeEmailModal();
                 
             } catch (error) {
                 console.error('Rapor gönderme hatası:', error);
-                showToast('Rapor gönderilirken hata oluştu', 'error');
+                showAlert('Rapor gönderilirken hata oluştu', 'error');
             }
         }
 
@@ -2271,12 +2625,20 @@ select:focus, input:focus {
                 .select('*')
                 .order('created_at', { ascending: false });
 
+            // Get critical stock
+            const { data: criticalStock } = await supabase
+                .from('stock_items')
+                .select('*')
+                .lte('quantity', 5)
+                .order('quantity', { ascending: true });
+
             const reportData = {
                 date: new Date().toLocaleDateString('tr-TR'),
                 totalPackages: packages.length,
                 totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
                 containers: containers.length,
                 customers: [...new Set(packages.map(p => p.customers?.name))].length,
+                criticalStock: criticalStock,
                 operator: currentUser?.name || 'Bilinmiyor'
             };
 
@@ -2290,6 +2652,7 @@ select:focus, input:focus {
                         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
                         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                         th { background-color: #f2f2f2; }
+                        .critical { color: #c0392b; font-weight: bold; }
                     </style>
                 </head>
                 <body>
@@ -2302,7 +2665,30 @@ select:focus, input:focus {
                         <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
                         <li>Konteyner Sayısı: ${reportData.containers}</li>
                         <li>Müşteri Sayısı: ${reportData.customers}</li>
+                        <li class="${reportData.criticalStock.length > 0 ? 'critical' : ''}">Kritik Stok Sayısı: ${reportData.criticalStock.length}</li>
                     </ul>
+                    
+                    <h2>Kritik Stoklar</h2>
+                    ${reportData.criticalStock.length > 0 ? `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Stok Kodu</th>
+                                    <th>Ürün Adı</th>
+                                    <th>Mevcut Adet</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${reportData.criticalStock.map(item => `
+                                    <tr>
+                                        <td>${item.code}</td>
+                                        <td>${item.name}</td>
+                                        <td class="critical">${item.quantity}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<p>Kritik stok bulunmamaktadır.</p>'}
                     
                     <h2>Paket Detayları</h2>
                     <table>
@@ -2335,7 +2721,7 @@ select:focus, input:focus {
 
         // Container operations
         function loadCurrentContainer() {
-            showToast('Mevcut konteyner yüklendi', 'success');
+            showAlert('Mevcut konteyner yüklendi', 'success');
         }
 
         async function createNewContainer() {
@@ -2359,34 +2745,62 @@ select:focus, input:focus {
 
                 elements.containerNumber.textContent = containerNo;
                 currentContainer = containerNo;
+                saveAppState();
                 
-                showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+                showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
                 await populateShippingTable();
                 
             } catch (error) {
                 console.error('Error creating container:', error);
-                showToast('Konteyner oluşturulurken hata oluştu', 'error');
+                showAlert('Konteyner oluşturulurken hata oluştu', 'error');
             }
         }
 
         async function deleteContainer() {
-            if (!confirm('Konteyneri silmek istediğinize emin misiniz?')) return;
+            // Seçili konteynerleri al
+            const selectedContainers = Array.from(document.querySelectorAll('.container-checkbox:checked'))
+                .map(cb => cb.value);
+                
+            if (selectedContainers.length === 0) {
+                showAlert('Silinecek konteyner seçin', 'error');
+                return;
+            }
+
+            if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
 
             try {
-                await supabase
+                // Önce bu konteynerlere bağlı paketleri güncelle
+                const { error: updateError } = await supabase
+                    .from('packages')
+                    .update({ 
+                        container_id: null,
+                        status: 'beklemede'
+                    })
+                    .in('container_id', selectedContainers);
+
+                if (updateError) throw updateError;
+
+                // Sonra konteynerleri sil
+                const { error: deleteError } = await supabase
                     .from('containers')
                     .delete()
-                    .eq('container_no', currentContainer);
+                    .in('id', selectedContainers);
 
-                elements.containerNumber.textContent = 'Yok';
-                currentContainer = null;
+                if (deleteError) throw deleteError;
+
+                // Eğer silinen konteyner aktif konteyner ise sıfırla
+                if (currentContainer && selectedContainers.includes(currentContainer)) {
+                    currentContainer = null;
+                    elements.containerNumber.textContent = 'Yok';
+                    saveAppState();
+                }
                 
-                showToast('Konteyner silindi', 'success');
+                showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
                 await populateShippingTable();
                 
             } catch (error) {
                 console.error('Error deleting container:', error);
-                showToast('Konteyner silinirken hata oluştu', 'error');
+                showAlert('Konteyner silinirken hata oluştu', 'error');
             }
         }
 
@@ -2479,7 +2893,7 @@ select:focus, input:focus {
         // Global error handler
         window.addEventListener('error', function(e) {
             console.error('Global error:', e.error);
-            showToast('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+            showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
         });
 
         // API hata yönetimi
@@ -2487,13 +2901,13 @@ select:focus, input:focus {
             console.error(`Supabase error in ${context}:`, error);
             
             if (error.code === '42501') {
-                showToast('Bu işlem için yetkiniz bulunmamaktadır.', 'error');
+                showAlert('Bu işlem için yetkiniz bulunmamaktadır.', 'error');
             } else if (error.code === '42P01') {
-                showToast('Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.', 'error');
+                showAlert('Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.', 'error');
             } else if (error.code === '08006') {
-                showToast('Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.', 'error');
+                showAlert('Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.', 'error');
             } else {
-                showToast(`${context} sırasında bir hata oluştu: ${error.message}`, 'error');
+                showAlert(`${context} sırasında bir hata oluştu: ${error.message}`, 'error');
             }
             
             // Çevrimdışı moda geç
@@ -2562,7 +2976,7 @@ select:focus, input:focus {
                             name: selectedOption.textContent.split(' (')[0],
                             code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
                         };
-                        showToast(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+                        showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
                     } else {
                         selectedCustomer = null;
                     }
