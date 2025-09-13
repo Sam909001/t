@@ -372,96 +372,9 @@ select:focus, input:focus {
     background: #a8a8a8;
 }
 
-/* Customer folder styling for shipping table */
-.customer-folder:hover {
-    background-color: #e0e0e0 !important;
-}
-
-.customer-folder i {
-    margin-right: 8px;
-    color: #f39c12;
-}
-
-/* Button sizing for small buttons */
-.btn-sm {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-}
-        /* Shipping tablosu için özel stiller */
-#shippingTab .package-table {
-    table-layout: fixed;
-    width: 100%;
-}
-
-#shippingTab .package-table th:nth-child(1),
-#shippingTab .package-table td:nth-child(1) {
-    width: 5%;
-}
-
-#shippingTab .package-table th:nth-child(2),
-#shippingTab .package-table td:nth-child(2) {
-    width: 15%;
-}
-
-#shippingTab .package-table th:nth-child(3),
-#shippingTab .package-table td:nth-child(3) {
-    width: 20%;
-}
-
-#shippingTab .package-table th:nth-child(4),
-#shippingTab .package-table td:nth-child(4) {
-    width: 12%;
-}
-
-#shippingTab .package-table th:nth-child(5),
-#shippingTab .package-table td:nth-child(5) {
-    width: 12%;
-}
-
-#shippingTab .package-table th:nth-child(6),
-#shippingTab .package-table td:nth-child(6) {
-    width: 12%;
-}
-
-#shippingTab .package-table th:nth-child(7),
-#shippingTab .package-table td:nth-child(7) {
-    width: 12%;
-}
-
-#shippingTab .package-table th:nth-child(8),
-#shippingTab .package-table td:nth-child(8) {
-    width: 12%;
-}
-        /* Klasör satırı için stil */
-.customer-folder td {
-    background-color: #f0f0f0 !important;
-    font-weight: bold;
-    cursor: pointer;
-    padding: 12px 15px;
-}
-
-/* Konteyner satırları için stil */
-.container-row td {
-    padding: 10px 15px;
-    vertical-align: middle;
-}
-
-/* Klasör içindeki tablo hücrelerini hizala */
-.customer-folder + tbody tr td {
-    padding: 10px 15px;
-}
-        /* Tablo hücre içeriklerini düzgün hizala */
-#shippingTab .package-table td {
-    vertical-align: middle;
-    word-wrap: break-word;
-}
-
-/* İşlemler düğmeleri için stil */
-#shippingTab .package-table .btn-sm {
-    padding: 5px 8px;
-    font-size: 12px;
-    margin: 2px;
-    white-space: nowrap;
+/* Admin only elements */
+.admin-only {
+    display: none;
 }
     </style>
 </head>
@@ -514,6 +427,7 @@ select:focus, input:focus {
             <div class="tab active" data-tab="packaging" role="tab">Paketleme</div>
             <div class="tab" data-tab="shipping" role="tab">Sevkiyat</div>
             <div class="tab" data-tab="stock" role="tab">Stok Sorgu</div>
+            <div class="tab admin-only" data-tab="reports" role="tab">Raporlar</div>
         </div>
 
         <div class="tab-content">
@@ -551,7 +465,9 @@ select:focus, input:focus {
                             <input type="text" id="barcodeInput" placeholder="Barkod okutun veya girin" autofocus>
                             <button type="button" onclick="processBarcode()"><i class="fas fa-search"></i></button>
                         </div>
-                        <div id="barcodeResult"></div>
+                        <div id="barcodeResult">
+                            <div id="scannedBarcodes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+                        </div>
                         
                         <div class="quick-buttons">
                             <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
@@ -705,6 +621,53 @@ select:focus, input:focus {
                     </button>
                 </div>
             </div>
+
+            <div class="tab-pane admin-only" id="reportsTab">
+                <div class="packaging-header">
+                    <h3>Raporlar</h3>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-primary" onclick="generateCustomReport()">Özel Rapor</button>
+                        <button type="button" class="btn btn-warning" onclick="exportReports()">Raporları Dışa Aktar</button>
+                    </div>
+                </div>
+
+                <div class="report-filters">
+                    <div class="info-group">
+                        <label for="reportType">Rapor Türü</label>
+                        <select id="reportType">
+                            <option value="daily">Günlük Rapor</option>
+                            <option value="weekly">Haftalık Rapor</option>
+                            <option value="monthly">Aylık Rapor</option>
+                            <option value="custom">Özel Rapor</option>
+                        </select>
+                    </div>
+                    <div class="info-group">
+                        <label for="startDate">Başlangıç Tarihi</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="info-group">
+                        <label for="endDate">Bitiş Tarihi</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
+                </div>
+
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th>Rapor Tarihi</th>
+                            <th>Rapor Türü</th>
+                            <th>Paket Sayısı</th>
+                            <th>Toplam Adet</th>
+                            <th>Oluşturan</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportsTableBody">
+                        <!-- Reports will be populated here -->
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="app-footer">
@@ -715,7 +678,7 @@ select:focus, input:focus {
                 <span>|</span>
                 <span>ProClean © 2025</span>
             </div>
-            <div>Çevrimiçi</div>
+            <div id="connectionStatus">Çevrimiçi</div>
         </div>
     </div>
 
@@ -818,1536 +781,1800 @@ select:focus, input:focus {
         </div>
     </div>
 
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
-<script>
-// Supabase initialization - Varsayılan değerler
-let SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
-
-// Global variables
-let currentUser = null;
-let selectedCustomer = null;
-let currentPackage = {};
-let packages = [];
-let containers = [];
-let currentContainer = null;
-let selectedProduct = null;
-let supabase = null;
-
-// DOM elements
-const elements = {
-    loginScreen: document.getElementById('loginScreen'),
-    appContainer: document.getElementById('appContainer'),
-    userRole: document.getElementById('userRole'),
-    customerSelect: document.getElementById('customerSelect'),
-    personnelSelect: document.getElementById('personnelSelect'),
-    currentDate: document.getElementById('currentDate'),
-    barcodeInput: document.getElementById('barcodeInput'),
-    packagesTableBody: document.getElementById('packagesTableBody'),
-    stockTableBody: document.getElementById('stockTableBody'),
-    shippingTableBody: document.getElementById('shippingTableBody'),
-    containerNumber: document.getElementById('containerNumber'),
-    totalPackages: document.getElementById('totalPackages'),
-    customerModal: document.getElementById('customerModal'),
-    allCustomersModal: document.getElementById('allCustomersModal'),
-    emailModal: document.getElementById('emailModal'),
-    quantityModal: document.getElementById('quantityModal'),
-    manualModal: document.getElementById('manualModal'),
-    customerList: document.getElementById('customerList'),
-    allCustomersList: document.getElementById('allCustomersList'),
-    stockSearch: document.getElementById('stockSearch'),
-    selectedFileName: document.getElementById('selectedFileName'),
-    reportEmail: document.getElementById('reportEmail'),
-    quantityInput: document.getElementById('quantityInput'),
-    quantityModalTitle: document.getElementById('quantityModalTitle'),
-    toast: document.getElementById('toast'),
-    selectAllCheckbox: document.getElementById('selectAllPackages'),
-    shippingFilter: document.getElementById('shippingFilter'),
-    apiKeyModal: document.getElementById('apiKeyModal')
-};
-
-// Kullanıcının kaydettiği API anahtarını yükle
-function loadApiKey() {
-    const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
-        SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
-        return true;
-    }
-    return false;
-}
-
-// Supabase'i başlat
-function initializeSupabase() {
-    if (!SUPABASE_ANON_KEY) {
-        showApiKeyModal();
-        return null;
-    }
-    
-    try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized successfully');
-        return supabase;
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        showToast('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
-        showApiKeyModal();
-        return null;
-    }
-}
-
-// API anahtarını kaydet
-function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    if (!apiKey) {
-        showToast('Lütfen bir API anahtarı girin', 'error');
-        return;
-    }
-    
-    localStorage.setItem('procleanApiKey', apiKey);
-    SUPABASE_ANON_KEY = apiKey;
-    supabase = initializeSupabase();
-    
-    if (supabase) {
-        document.getElementById('apiKeyModal').style.display = 'none';
-        showToast('API anahtarı kaydedildi', 'success');
-        // Bağlantıyı test et
-        testConnection();
-    }
-}
-
-// API anahtarı modalını göster
-function showApiKeyModal() {
-    document.getElementById('apiKeyInput').value = SUPABASE_ANON_KEY || '';
-    document.getElementById('apiKeyModal').style.display = 'flex';
-}
-
-// API anahtarı yardımı göster
-function showApiKeyHelp() {
-    const helpWindow = window.open('', '_blank');
-    helpWindow.document.write(`
-        <html>
-        <head>
-            <title>Supabase API Anahtarı Alma Rehberi</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
-                h1 { color: #2c3e50; }
-                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
-            </style>
-        </head>
-        <body>
-            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
-            <div class="step">
-                <h3>1. Supabase hesabınıza giriş yapın</h3>
-                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
-            </div>
-            <div class="step">
-                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
-            </div>
-            <div class="step">
-                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
-            </div>
-            <div class="step">
-                <h3>4. API sekmesine gidin</h3>
-            </div>
-            <div class="step">
-                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
-                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
-            </div>
-            <div class="step">
-                <h3>Önemli Not:</h3>
-                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
-            </div>
-        </body>
-        </html>
-    `);
-}
-
-// Test Supabase connection
-async function testConnection() {
-    try {
-        const { data, error } = await supabase.from('customers').select('count').limit(1);
-        if (error) {
-            console.error('Supabase connection error:', error);
-            showToast('Veritabanı bağlantı hatası', 'error');
-        } else {
-            console.log('Supabase connection successful');
-        }
-    } catch (error) {
-        console.error('Connection test failed:', error);
-        showToast('Bağlantı testi başarısız', 'error');
-    }
-}
-
-// Authentication functions
-async function login() {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value.trim();
-
-    if (!email || !password) {
-        showToast("Lütfen e-posta ve şifre girin", "error");
-        return;
-    }
-
-    // Supabase bağlantısını kontrol et
-    if (!supabase) {
-        showToast("Önce geçerli bir API anahtarı girmelisiniz", "error");
-        showApiKeyModal();
-        return;
-    }
-
-    try {
-        showToast("Giriş yapılıyor...", "warning");
+    <script>
+        // Supabase initialization - Varsayılan değerler
+        const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
+        let SUPABASE_ANON_KEY = null;
+        let supabase = null;
         
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
-        });
+        // Global state variables
+        let selectedCustomer = null;
+        let currentPackage = {};
+        let currentContainer = null;
+        let selectedProduct = null;
+        let currentUser = null;
+        let scannedBarcodes = [];
 
-        if (error) {
-            console.error('Supabase login error:', error);
+        // Elementleri bir defa tanımla
+        const elements = {
+            loginScreen: document.getElementById('loginScreen'),
+            appContainer: document.getElementById('appContainer'),
+            loginButton: document.getElementById('loginBtn'),
+            emailInput: document.getElementById('email'),
+            passwordInput: document.getElementById('password'),
+            customerSelect: document.getElementById('customerSelect'),
+            personnelSelect: document.getElementById('personnelSelect'),
+            currentDate: document.getElementById('currentDate'),
+            barcodeInput: document.getElementById('barcodeInput'),
+            packagesTableBody: document.getElementById('packagesTableBody'),
+            packageDetailContent: document.getElementById('packageDetailContent'),
+            shippingTableBody: document.getElementById('shippingTableBody'),
+            stockTableBody: document.getElementById('stockTableBody'),
+            customerList: document.getElementById('customerList'),
+            allCustomersList: document.getElementById('allCustomersList'),
+            toast: document.getElementById('toast'),
+            containerNumber: document.getElementById('containerNumber'),
+            totalPackages: document.getElementById('totalPackages'),
+            shippingFilter: document.getElementById('shippingFilter'),
+            stockSearch: document.getElementById('stockSearch'),
+            selectAllPackages: document.getElementById('selectAllPackages'),
+            apiKeyModal: document.getElementById('apiKeyModal'),
+            apiKeyInput: document.getElementById('apiKeyInput'),
+            quantityInput: document.getElementById('quantityInput'),
+            quantityModal: document.getElementById('quantityModal'),
+            quantityModalTitle: document.getElementById('quantityModalTitle'),
+            scannedBarcodes: document.getElementById('scannedBarcodes'),
+            connectionStatus: document.getElementById('connectionStatus')
+        };
+        
+        // Yardımcı fonksiyonlar
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
             
-            // API anahtarı hatasını özel olarak kontrol et
-            if (error.message.includes('Invalid API key') || error.message.includes('JWT')) {
-                showToast("Geçersiz API anahtarı. Lütfen API anahtarınızı kontrol edin.", "error");
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Supabase istemcisini başlat
+        function initializeSupabase() {
+            if (!SUPABASE_ANON_KEY) {
                 showApiKeyModal();
-            } else {
-                showToast("Giriş başarısız: " + error.message, "error");
+                return null;
             }
-            return;
-        }
-
-        if (data.user) {
-            showToast("Giriş başarılı!", "success");
-            console.log('Login successful:', data.user.email);
-        }
-        
-    } catch (e) {
-        console.error('Login catch error:', e);
-        showToast("Giriş başarısız: " + e.message, "error");
-    }
-}
-
-async function logout() {
-    if (supabase) {
-        try {
-            await supabase.auth.signOut();
-            console.log('Supabase logout successful');
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
-    }
-    
-    currentUser = null;
-    elements.appContainer.style.display = 'none';
-    elements.appContainer.setAttribute('aria-hidden','true');
-    elements.loginScreen.style.display = 'flex';
-    document.getElementById('email').value = '';
-    document.getElementById('password').value = '';
-    closeModal(); closeAllCustomersModal(); closeEmailModal(); closeQuantityModal(); closeManualModal();
-    showToast('Başarıyla çıkış yapıldı', 'success');
-}
-
-// State management functions
-function saveAppState() {
-    const state = {
-        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
-        selectedPersonnelId: elements.personnelSelect.value,
-        currentContainer: currentContainer,
-        // Add other state variables as needed
-    };
-    localStorage.setItem('procleanState', JSON.stringify(state));
-}
-
-function loadAppState() {
-    const savedState = localStorage.getItem('procleanState');
-    if (savedState) {
-        const state = JSON.parse(savedState);
-        
-        // Restore customer selection
-        if (state.selectedCustomerId) {
-            elements.customerSelect.value = state.selectedCustomerId;
-            // Find and set the selectedCustomer object
-            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
-            if (option) {
-                selectedCustomer = {
-                    id: state.selectedCustomerId,
-                    name: option.textContent.split(' (')[0],
-                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                };
+            
+            try {
+                return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } catch (error) {
+                console.error('Supabase initialization error:', error);
+                showToast('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+                showApiKeyModal();
+                return null;
             }
         }
         
-        // Restore personnel selection
-        if (state.selectedPersonnelId) {
-            elements.personnelSelect.value = state.selectedPersonnelId;
-        }
-        
-        // Restore current container
-        if (state.currentContainer) {
-            currentContainer = state.currentContainer;
-            elements.containerNumber.textContent = currentContainer;
-        }
-    }
-}
-
-function clearAppState() {
-    localStorage.removeItem('procleanState');
-    selectedCustomer = null;
-    elements.customerSelect.value = '';
-    elements.personnelSelect.value = '';
-    currentContainer = null;
-    elements.containerNumber.textContent = 'Yok';
-    currentPackage = {};
-    
-    // Reset quantity badges
-    document.querySelectorAll('.quantity-badge').forEach(badge => {
-        badge.textContent = '0';
-    });
-    
-    // Clear package details
-    document.getElementById('packageDetailContent').innerHTML = 
-        '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
-}
-
-// Initialize application
-async function initApp() {
-    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-    
-    // Populate dropdowns
-    await populateCustomers();
-    await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
-    
-    // Load data
-    await populatePackagesTable();
-    await populateStockTable();
-    await populateShippingTable();
-    
-    // Test connection
-    await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000); // Save every 5 seconds
-}
-
-// Data loading functions
-async function populateCustomers() {
-    try {
-        elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
-        
-        const { data: customers, error } = await supabase
-            .from('customers')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading customers:', error);
-            showToast('Müşteri verileri yüklenemedi', 'error');
-            return;
-        }
-
-        if (customers && customers.length > 0) {
-            customers.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = `${customer.name} (${customer.code})`;
-                elements.customerSelect.appendChild(option);
-            });
-        }
-        
-    } catch (error) {
-        console.error('Error in populateCustomers:', error);
-        showToast('Müşteri yükleme hatası', 'error');
-    }
-}
-
-async function populatePersonnel() {
-    try {
-        elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
-        
-        const { data: personnel, error } = await supabase
-            .from('personnel')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading personnel:', error);
-            // Add default current user
-            const option = document.createElement('option');
-            option.value = currentUser?.uid || 'default';
-            option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
-            option.selected = true;
-            elements.personnelSelect.appendChild(option);
-            return;
-        }
-
-        if (personnel && personnel.length > 0) {
-            personnel.forEach(person => {
-                const option = document.createElement('option');
-                option.value = person.id;
-                option.textContent = person.name;
-                elements.personnelSelect.appendChild(option);
-            });
-        }
-        
-    } catch (error) {
-        console.error('Error in populatePersonnel:', error);
-        // Add default current user
-        const option = document.createElement('option');
-        option.value = currentUser?.uid || 'default';
-        option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
-        option.selected = true;
-        elements.personnelSelect.appendChild(option);
-    }
-}
-
-async function populateProducts() {
-    try {
-        const { data: products, error } = await supabase
-            .from('products')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading products:', error);
-            return;
-        }
-
-        // Update quick buttons with actual products if needed
-        // This would require modifying the quick buttons section
-        
-    } catch (error) {
-        console.error('Error in populateProducts:', error);
-    }
-}
-
-async function populatePackagesTable() {
-    try {
-        elements.packagesTableBody.innerHTML = '';
-        
-        const { data: packages, error } = await supabase
-            .from('packages')
-            .select(`
-                *,
-                customers (name, code)
-            `)
-            .is('container_id', null)  // Only show packages not in a container
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error loading packages:', error);
-            showToast('Paket verileri yüklenemedi', 'error');
-            return;
-        }
-
-        if (packages && packages.length > 0) {
-            packages.forEach(pkg => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><input type="checkbox" value="${pkg.id}" onchange="updatePackageSelection()"></td>
-                    <td>${pkg.package_no}</td>
-                    <td>${pkg.customers?.name || 'N/A'}</td>
-                    <td>${pkg.total_quantity}</td>
-                    <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                    <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                `;
-                row.onclick = (e) => {
-                    if (e.target.type !== 'checkbox') {
-                        selectPackage(pkg);
-                    }
-                };
-                elements.packagesTableBody.appendChild(row);
-            });
-            
-            elements.totalPackages.textContent = packages.length;
-        } else {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Henüz paket yok</td>';
-            elements.packagesTableBody.appendChild(row);
-        }
-        
-    } catch (error) {
-        console.error('Error in populatePackagesTable:', error);
-        showToast('Paket tablosu yükleme hatası', 'error');
-    }
-}
-
-// Helper function to calculate total quantity of selected packages
-async function calculateTotalQuantity(packageIds) {
-    try {
-        const { data: packages, error } = await supabase
-            .from('packages')
-            .select('total_quantity')
-            .in('id', packageIds);
-            
-        if (error) throw error;
-        
-        return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
-    } catch (error) {
-        console.error('Error calculating total quantity:', error);
-        return packageIds.length; // Fallback to package count
-    }
-}
-
-// Update the populateShippingTable function
-async function populateShippingTable() {
-    try {
-        elements.shippingTableBody.innerHTML = '';
-        
-        const filter = elements.shippingFilter?.value || 'all';
-        let query = supabase
-            .from('containers')
-            .select(`
-                *,
-                packages (
-                    customers (name, code)
-                )
-            `);
-        
-        if (filter !== 'all') {
-            query = query.eq('status', filter);
-        }
-        
-        const { data: containers, error } = await query.order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error loading containers:', error);
-            showToast('Sevkiyat verileri yüklenemedi', 'error');
-            return;
-        }
-
-        if (containers && containers.length > 0) {
-            // Group containers by customer
-            const customerContainers = {};
-            
-            containers.forEach(container => {
-                // Get customer name from the first package (assuming all packages in container are for same customer)
-                const customerName = container.packages && container.packages.length > 0 
-                    ? container.packages[0].customers?.name 
-                    : container.customer || 'N/A';
-                
-                if (!customerContainers[customerName]) {
-                    customerContainers[customerName] = [];
-                }
-                
-                customerContainers[customerName].push(container);
-            });
-            
-            // Create customer folders
-            for (const [customerName, customerContainersList] of Object.entries(customerContainers)) {
-                // Add customer folder row
-                const folderRow = document.createElement('tr');
-                folderRow.className = 'customer-folder';
-                folderRow.innerHTML = `
-                    <td colspan="8" style="background-color: #f0f0f0; font-weight: bold; cursor: pointer;">
-                        <i class="fas fa-folder"></i> ${customerName}
-                        <span style="float: right;">${customerContainersList.length} konteyner</span>
-                    </td>
-                `;
-                
-                let isExpanded = false;
-                folderRow.onclick = () => {
-                    isExpanded = !isExpanded;
-                    const icon = folderRow.querySelector('i');
-                    if (isExpanded) {
-                        icon.className = 'fas fa-folder-open';
-                        containerRows.style.display = '';
-                    } else {
-                        icon.className = 'fas fa-folder';
-                        containerRows.style.display = 'none';
-                    }
-                };
-                
-                elements.shippingTableBody.appendChild(folderRow);
-                
-                // Create container rows for this customer (hidden by default)
-                const containerRows = document.createElement('tbody');
-                containerRows.style.display = 'none';
-                
-                // Konteyner satırlarını oluştururken hücreleri doğru sırayla ekleyin
-customerContainersList.forEach(container => {
-    const row = document.createElement('tr');
-    row.className = 'container-row';
-    row.innerHTML = `
-        <td><input type="checkbox" value="${container.id}"></td>
-        <td>${container.container_no}</td>
-        <td>${customerName}</td>
-        <td>${container.package_count || 0}</td>
-        <td>${container.total_quantity || 0}</td>
-        <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-        <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-        <td>
-            <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
-            <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
-        </td>
-    `;
-    containerRows.appendChild(row);
-});
-                
-                elements.shippingTableBody.appendChild(containerRows);
+        // API anahtarını kaydet ve istemciyi başlat
+        function saveApiKey() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                showToast('Lütfen bir API anahtarı girin', 'error');
+                return;
             }
-        } else {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Sevkiyat verisi yok</td>';
-            elements.shippingTableBody.appendChild(row);
+            
+            localStorage.setItem('procleanApiKey', apiKey);
+            SUPABASE_ANON_KEY = apiKey;
+            supabase = initializeSupabase();
+            
+            if (supabase) {
+                document.getElementById('apiKeyModal').style.display = 'none';
+                showToast('API anahtarı kaydedildi', 'success');
+                testConnection();
+            }
         }
         
-    } catch (error) {
-        console.error('Error in populateShippingTable:', error);
-        showToast('Sevkiyat tablosu yükleme hatası', 'error');
-    }
-}
-
-async function populateStockTable() {
-    try {
-        elements.stockTableBody.innerHTML = '';
-        
-        const { data: stockItems, error } = await supabase
-            .from('stock_items')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading stock items:', error);
-            showToast('Stok verileri yüklenemedi', 'error');
-            return;
+        // API anahtarı modalını göster
+        function showApiKeyModal() {
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            if (apiKeyInput) {
+                apiKeyInput.value = SUPABASE_ANON_KEY || '';
+                document.getElementById('apiKeyModal').style.display = 'flex';
+            }
         }
 
-        if (stockItems && stockItems.length > 0) {
-            stockItems.forEach(item => {
-                const row = document.createElement('tr');
-                
-                // Determine stock status
-                let statusClass = 'status-stokta';
-                let statusText = 'Stokta';
-                
-                if (item.quantity <= 0) {
-                    statusClass = 'status-kritik';
-                    statusText = 'Kritik';
-                } else if (item.quantity < 10) {
-                    statusClass = 'status-az-stok';
-                    statusText = 'Az Stok';
-                }
-                
-                row.innerHTML = `
-                    <td>${item.code}</td>
-                    <td>${item.name}</td>
-                    <td>${item.quantity}</td>
-                    <td>${item.unit || 'Adet'}</td>
-                    <td><span class="${statusClass}">${statusText}</span></td>
-                    <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                `;
-                elements.stockTableBody.appendChild(row);
-            });
-        } else {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Stok verisi yok</td>';
-            elements.stockTableBody.appendChild(row);
-        }
-        
-    } catch (error) {
-        console.error('Error in populateStockTable:', error);
-        showToast('Stok tablosu yükleme hatası', 'error');
-    }
-}
-
-// Customer operations
-async function showCustomers() {
-    try {
-        elements.customerList.innerHTML = '';
-        
-        const { data: customers, error } = await supabase
-            .from('customers')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading customers:', error);
-            showToast('Müşteri verileri yüklenemedi', 'error');
-            return;
-        }
-
-        if (customers && customers.length > 0) {
-            customers.forEach(customer => {
-                const div = document.createElement('div');
-                div.className = 'customer-item';
-                div.innerHTML = `
-                    <div>
-                        <strong>${customer.name}</strong><br>
-                        <small>${customer.code}</small>
-                    </div>
-                `;
-                div.onclick = () => selectCustomerFromModal(customer);
-                elements.customerList.appendChild(div);
-            });
-        }
-        
-        elements.customerModal.style.display = 'flex';
-    } catch (error) {
-        console.error('Error in showCustomers:', error);
-        showToast('Müşteri listesi yükleme hatası', 'error');
-    }
-}
-
-async function showAllCustomers() {
-    try {
-        elements.allCustomersList.innerHTML = '';
-        
-        const { data: customers, error } = await supabase
-            .from('customers')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading customers:', error);
-            showToast('Müşteri verileri yüklenemedi', 'error');
-            return;
-        }
-
-        if (customers && customers.length > 0) {
-            customers.forEach(customer => {
-                const div = document.createElement('div');
-                div.className = 'customer-item';
-                div.innerHTML = `
-                    <div>
-                        <strong>${customer.name}</strong> (${customer.code})<br>
-                        <small>${customer.email || 'E-posta yok'}</small>
-                    </div>
-                    <button onclick="deleteCustomer('${customer.id}')" class="btn btn-danger btn-sm">Sil</button>
-                `;
-                elements.allCustomersList.appendChild(div);
-            });
-        }
-        
-        elements.allCustomersModal.style.display = 'flex';
-    } catch (error) {
-        console.error('Error in showAllCustomers:', error);
-        showToast('Müşteri yönetimi yükleme hatası', 'error');
-    }
-}
-
-async function addNewCustomer() {
-    const code = document.getElementById('newCustomerCode').value.trim();
-    const name = document.getElementById('newCustomerName').value.trim();
-    const email = document.getElementById('newCustomerEmail').value.trim();
-
-    if (!code || !name) {
-        showToast('Müşteri kodu ve adı gerekli', 'error');
-        return;
-    }
-
-    try {
-        const { error } = await supabase
-            .from('customers')
-            .insert([{ code, name, email: email || null }]);
-
-        if (error) {
-            console.error('Error adding customer:', error);
-            showToast('Müşteri eklenirken hata: ' + error.message, 'error');
-            return;
-        }
-
-        showToast('Müşteri başarıyla eklendi', 'success');
-        
-        // Clear form
-        document.getElementById('newCustomerCode').value = '';
-        document.getElementById('newCustomerName').value = '';
-        document.getElementById('newCustomerEmail').value = '';
-        
-        // Refresh lists
-        await populateCustomers();
-        await showAllCustomers();
-        
-    } catch (error) {
-        console.error('Error in addNewCustomer:', error);
-        showToast('Müşteri ekleme hatası', 'error');
-    }
-}
-
-async function deleteCustomer(customerId) {
-    if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
-
-    try {
-        const { error } = await supabase
-            .from('customers')
-            .delete()
-            .eq('id', customerId);
-
-        if (error) {
-            console.error('Error deleting customer:', error);
-            showToast('Müşteri silinirken hata: ' + error.message, 'error');
-            return;
-        }
-
-        showToast('Müşteri başarıyla silindi', 'success');
-        
-        // Refresh lists
-        await populateCustomers();
-        await showAllCustomers();
-        
-    } catch (error) {
-        console.error('Error in deleteCustomer:', error);
-        showToast('Müşteri silme hatası', 'error');
-    }
-}
-
-function selectCustomerFromModal(customer) {
-    selectedCustomer = customer;
-    elements.customerSelect.value = customer.id;
-    closeModal();
-    showToast(`Müşteri seçildi: ${customer.name}`, 'success');
-}
-
-// Package operations
-function processBarcode() {
-    const barcode = elements.barcodeInput.value.trim();
-    if (!barcode) {
-        showToast('Barkod girin', 'error');
-        return;
-    }
-
-    // Process barcode logic here
-    showToast(`Barkod işlendi: ${barcode}`, 'success');
-    elements.barcodeInput.value = '';
-    elements.barcodeInput.focus();
-}
-
-function openQuantityModal(product) {
-    selectedProduct = product;
-    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
-    elements.quantityInput.value = '';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
-}
-
-function confirmQuantity() {
-    const quantity = parseInt(elements.quantityInput.value);
-    if (!quantity || quantity <= 0) {
-        showToast('Geçerli bir adet girin', 'error');
-        return;
-    }
-
-    // Update quantity badge
-    const badge = document.getElementById(`${selectedProduct}-quantity`);
-    if (badge) {
-        const currentQuantity = parseInt(badge.textContent) || 0;
-        badge.textContent = currentQuantity + quantity;
-    }
-
-    // Add to current package
-    if (!currentPackage.items) currentPackage.items = {};
-    currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
-
-    showToast(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-    closeQuantityModal();
-}
-
-function openManualEntry() {
-    elements.manualModal.style.display = 'flex';
-    document.getElementById('manualProduct').focus();
-}
-
-function addManualProduct() {
-    const product = document.getElementById('manualProduct').value.trim();
-    const quantity = parseInt(document.getElementById('manualQuantity').value);
-
-    if (!product || !quantity || quantity <= 0) {
-        showToast('Ürün adı ve geçerli adet girin', 'error');
-        return;
-    }
-
-    // Add to current package
-    if (!currentPackage.items) currentPackage.items = {};
-    currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
-
-    showToast(`${product}: ${quantity} adet eklendi`, 'success');
-    
-    // Clear form
-    document.getElementById('manualProduct').value = '';
-    document.getElementById('manualQuantity').value = '';
-    closeManualModal();
-}
-
-async function completePackage() {
-    if (!selectedCustomer) {
-        showToast('Önce müşteri seçin', 'error');
-        return;
-    }
-
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showToast('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
-    try {
-        const packageNo = `PKG-${Date.now()}`;
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect.value;
-
-        const { data, error } = await supabase
-            .from('packages')
-            .insert([{
-                package_no: packageNo,
-                customer_id: selectedCustomer.id,
-                items: currentPackage.items,
-                total_quantity: totalQuantity,
-                status: 'beklemede',
-                packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-                created_at: new Date().toISOString()
-            }])
-            .select();
-
-        if (error) {
-            console.error('Error creating package:', error);
-            showToast('Paket oluşturulurken hata: ' + error.message, 'error');
-            return;
-        }
-
-        showToast(`Paket oluşturuldu: ${packageNo}`, 'success');
-        
-        // Reset current package and quantities
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => {
-            badge.textContent = '0';
-        });
-        
-        // Refresh packages table
-        await populatePackagesTable();
-        
-    } catch (error) {
-        console.error('Error in completePackage:', error);
-        showToast('Paket oluşturma hatası', 'error');
-    }
-}
-
-function selectPackage(pkg) {
-    // Remove selected class from all rows
-    document.querySelectorAll('#packagesTableBody tr').forEach(row => {
-        row.classList.remove('selected');
-    });
-    
-    // Add selected class to the clicked row
-    const rows = document.querySelectorAll('#packagesTableBody tr');
-    for (let i = 0; i < rows.length; i++) {
-        const checkbox = rows[i].querySelector('input[type="checkbox"]');
-        if (checkbox && checkbox.value === pkg.id) {
-            rows[i].classList.add('selected');
-            break;
-        }
-    }
-    
-    const detailContent = document.getElementById('packageDetailContent');
-    detailContent.innerHTML = `
-        <h4>Paket: ${pkg.package_no}</h4>
-        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
-        <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
-        <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
-        ${pkg.items ? `
-            <h5>Ürünler:</h5>
-            <ul>
-                ${Object.entries(pkg.items).map(([product, quantity]) => 
-                    `<li>${product}: ${quantity} adet</li>`
-                ).join('')}
-            </ul>
-        ` : ''}
-    `;
-}
-
-function generateBarcode(text) {
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    JsBarcode(svg, text, {
-        format: "CODE128",
-        lineColor: "#000",
-        width: 2,
-        height: 40,
-        displayValue: true
-    });
-    return svg.outerHTML;
-}
-
-// Helper function to get selected package
-function getSelectedPackage() {
-    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
-    if (!selectedRow) return null;
-    
-    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-    // In a real implementation, you would fetch the complete package data
-    // For now, we'll use the data from the row
-    return {
-        package_no: selectedRow.cells[1].textContent,
-        customers: { name: selectedRow.cells[2].textContent },
-        total_quantity: parseInt(selectedRow.cells[3].textContent),
-        created_at: selectedRow.cells[4].textContent
-    };
-}
-
-async function printLabel() {
-    const selectedPackage = getSelectedPackage();
-    if (!selectedPackage) {
-        showToast('Etiket yazdırmak için bir paket seçin', 'error');
-        return;
-    }
-
-    try {
-        // Generate barcode
-        const barcodeSvg = generateBarcode(selectedPackage.package_no);
-        
-        // Create printable content
-        const printContent = `
-            <div style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
-                <h2>ProClean</h2>
-                <p><strong>Paket No:</strong> ${selectedPackage.package_no}</p>
-                <p><strong>Müşteri:</strong> ${selectedPackage.customers?.name || 'N/A'}</p>
-                <p><strong>Adet:</strong> ${selectedPackage.total_quantity}</p>
-                <p><strong>Tarih:</strong> ${new Date(selectedPackage.created_at).toLocaleDateString('tr-TR')}</p>
-                <div>${barcodeSvg}</div>
-            </div>
-        `;
-        
-        // Open print window
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html>
+        // API anahtarı yardımı göster
+        function showApiKeyHelp() {
+            const helpWindow = window.open('', '_blank');
+            helpWindow.document.write(`
+                <html>
                 <head>
-                    <title>Paket Etiketi - ${selectedPackage.package_no}</title>
+                    <title>Supabase API Anahtarı Alma Rehberi</title>
                     <style>
-                        body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+                        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+                        h1 { color: #2c3e50; }
+                        .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
                     </style>
                 </head>
-                <body onload="window.print(); window.close();">
-                    ${printContent}
+                <body>
+                    <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
+                    <div class="step">
+                        <h3>1. Supabase hesabınıza giriş yapın</h3>
+                        <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
+                    </div>
+                    <div class="step">
+                        <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
+                    </div>
+                    <div class="step">
+                        <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
+                    </div>
+                    <div class="step">
+                        <h3>4. API sekmesine gidin</h3>
+                    </div>
+                    <div class="step">
+                        <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
+                        <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
+                    </div>
+                    <div class="step">
+                        <h3>Önemli Not:</h3>
+                        <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
+                    </div>
                 </body>
-            </html>
-        `);
-        printWindow.document.close();
-        
-    } catch (error) {
-        console.error('Error printing label:', error);
-        showToast('Etiket yazdırılırken hata oluştu', 'error');
-    }
-}
-
-async function deleteSelectedPackages() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) {
-        showToast('Silinecek paket seçin', 'error');
-        return;
-    }
-
-    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
-
-    try {
-        const packageIds = Array.from(checkboxes).map(cb => cb.value);
-        
-        const { error } = await supabase
-            .from('packages')
-            .delete()
-            .in('id', packageIds);
-
-        if (error) {
-            console.error('Error deleting packages:', error);
-            showToast('Paketler silinirken hata: ' + error.message, 'error');
-            return;
+                </html>
+            `);
         }
 
-        showToast(`${packageIds.length} paket silindi`, 'success');
-        await populatePackagesTable();
-        
-    } catch (error) {
-        console.error('Error in deleteSelectedPackages:', error);
-        showToast('Paket silme hatası', 'error');
-    }
-}
-
-function toggleSelectAll() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const selectAll = elements.selectAllCheckbox.checked;
-    
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = selectAll;
-    });
-}
-
-function updatePackageSelection() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    
-    elements.selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-}
-
-// Shipping operations
-async function sendToRamp(containerNo = null) {
-    try {
-        const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
-            .map(cb => cb.value);
-        
-        if (selectedPackages.length === 0) {
-            showToast('Rampaya göndermek için paket seçin', 'error');
-            return;
+        // Supabase bağlantısını test et
+        async function testConnection() {
+            if (!supabase) {
+                showToast('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+                return;
+            }
+            try {
+                const { data, error } = await supabase.from('customers').select('*').limit(1);
+                if (error) throw error;
+                console.log('Supabase connection test successful:', data);
+            } catch (e) {
+                console.error('Supabase connection test failed:', e.message);
+                showToast('Veritabanına bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.', 'error');
+            }
         }
 
-        // Use existing container or create a new one
-        let containerId;
-        if (containerNo && currentContainer) {
-            containerId = currentContainer;
-        } else {
-            const timestamp = new Date().getTime();
-            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-            
-            const { data: newContainer, error } = await supabase
-                .from('containers')
-                .insert([{
-                    container_no: containerNo,
-                    customer: selectedCustomer?.name || '',
-                    package_count: selectedPackages.length,
-                    total_quantity: await calculateTotalQuantity(selectedPackages),
-                    status: 'beklemede',
-                    created_at: new Date().toISOString()
-                }])
-                .select();
+        // Kullanıcı girişi
+        async function login() {
+            if (!supabase) {
+                showToast('Lütfen önce API anahtarını girin.', 'error');
+                showApiKeyModal();
+                return;
+            }
 
-            if (error) throw error;
-            
-            containerId = newContainer[0].id;
-            currentContainer = containerNo;
-            elements.containerNumber.textContent = containerNo;
-            saveAppState();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showToast('Lütfen e-posta ve şifrenizi girin.', 'error');
+                return;
+            }
+
+            const loginBtn = document.getElementById('loginBtn');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Giriş yapılıyor...';
+
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+
+                if (error) {
+                    showToast(`Giriş başarısız: ${error.message}`, 'error');
+                    return;
+                }
+
+                if (data.user && data.user.email) {
+                    // Kullanıcı rolünü al
+                    const { data: userData, error: userError } = await supabase
+                        .from('personnel')
+                        .select('role, name')
+                        .eq('email', data.user.email)
+                        .single();
+
+                    if (!userError && userData) {
+                        currentUser = {
+                            email: data.user.email,
+                            uid: data.user.id,
+                            name: userData.name || data.user.email.split('@')[0],
+                            role: userData.role
+                        };
+                    } else {
+                        currentUser = {
+                            email: data.user.email,
+                            uid: data.user.id,
+                            name: data.user.email.split('@')[0],
+                            role: 'operator' // Varsayılan rol
+                        };
+                    }
+
+                    document.getElementById('userRole').textContent = 
+                        `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+                    
+                    // Rol bazlı yetkilendirme
+                    applyRoleBasedPermissions(currentUser.role);
+                    
+                    showToast('Giriş başarılı!', 'success');
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContainer').style.display = 'flex';
+                    testConnection();
+                } else {
+                    showToast('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
+                }
+
+            } catch (e) {
+                console.error('Login error:', e);
+                showToast('Giriş sırasında bir hata oluştu.', 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Giriş Yap';
+            }
         }
 
-        // Update packages with container reference
-        const { error: updateError } = await supabase
-            .from('packages')
-            .update({ 
-                container_id: containerId,
-                status: 'sevk-edildi'
-            })
-            .in('id', selectedPackages);
-
-        if (updateError) throw updateError;
-
-        showToast(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
-        
-        // Refresh tables
-        await populatePackagesTable();
-        await populateShippingTable();
-        
-    } catch (error) {
-        console.error('Error sending to ramp:', error);
-        showToast('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-async function shipContainer(containerNo) {
-    try {
-        // First get the container ID
-        const { data: container, error: fetchError } = await supabase
-            .from('containers')
-            .select('id')
-            .eq('container_no', containerNo)
-            .single();
-
-        if (fetchError) throw fetchError;
-
-        // Update container status
-        const { error: updateError } = await supabase
-            .from('containers')
-            .update({ status: 'sevk-edildi' })
-            .eq('id', container.id);
-
-        if (updateError) throw updateError;
-
-        showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
-        await populateShippingTable();
-        
-    } catch (error) {
-        console.error('Error shipping container:', error);
-        showToast('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-function filterShipping() {
-    populateShippingTable();
-}
-
-// Stock operations
-function searchStock() {
-    const searchTerm = elements.stockSearch.value.toLowerCase();
-    const rows = elements.stockTableBody.querySelectorAll('tr');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-    });
-}
-
-function clearStockSearch() {
-    elements.stockSearch.value = '';
-    const rows = elements.stockTableBody.querySelectorAll('tr');
-    rows.forEach(row => {
-        row.style.display = '';
-    });
-}
-
-async function uploadStockFile() {
-    const fileInput = document.getElementById('stockFileUpload');
-    const file = fileInput.files[0];
-    if (!file) {
-        showToast('Lütfen bir dosya seçin', 'error');
-        return;
-    }
-
-    showToast('Dosya yükleniyor...', 'warning');
-
-    try {
-        let stockData = [];
-        
-        if (file.name.endsWith('.csv')) {
-            const text = await file.text();
-            stockData = Papa.parse(text, { header: true }).data;
-        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-            const arrayBuffer = await file.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            stockData = XLSX.utils.sheet_to_json(worksheet);
+        function applyRoleBasedPermissions(role) {
+            const adminOnlyElements = document.querySelectorAll('.admin-only');
+            
+            if (role === 'admin') {
+                adminOnlyElements.forEach(el => el.style.display = 'block');
+            } else {
+                adminOnlyElements.forEach(el => el.style.display = 'none');
+            }
         }
 
-        for (const item of stockData) {
-            const code = item['Stok Kodu'] || item['code'] || item['StokKodu'] || '';
-            const name = item['Ürün Adı'] || item['name'] || item['ÜrünAdı'] || item['product'] || '';
-            const quantity = parseInt(item['Mevcut Adet'] || item['quantity'] || item['MevcutAdet'] || 0);
-            const unit = item['Birim'] || item['unit'] || 'Adet';
+        // Kullanıcı çıkışı
+        function logout() {
+            if (!supabase) return;
             
-            if (!code || !name) continue;
-
-            await supabase
-                .from('stock_items')
-                .upsert({
-                    code: code,
-                    name: name,
-                    quantity: quantity,
-                    unit: unit,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'code' });
+            supabase.auth.signOut().then(() => {
+                showToast('Başarıyla çıkış yapıldı.', 'success');
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('appContainer').style.display = 'none';
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+            }).catch(e => {
+                console.error('Çıkış yapılırken bir hata oluştu:', e);
+                showToast('Çıkış yapılırken bir hata oluştu.', 'error');
+            });
         }
 
-        showToast('Stok dosyası başarıyla yüklendi', 'success');
-        elements.selectedFileName.textContent = '';
-        fileInput.value = '';
-        
-        await populateStockTable();
-        
-    } catch (error) {
-        console.error('Error uploading stock file:', error);
-        showToast('Dosya yüklenirken hata oluştu', 'error');
-    }
-}
-
-// Report operations
-function generateDailyReport() {
-    elements.emailModal.style.display = 'flex';
-}
-
-function closeEmailModal() {
-    elements.emailModal.style.display = 'none';
-}
-
-async function sendDailyReport() {
-    const email = elements.reportEmail.value;
-    if (!email) {
-        showToast('Lütfen e-posta adresini girin', 'error');
-        return;
-    }
-
-    showToast('Rapor gönderiliyor...', 'warning');
-    
-    // Simulate email sending
-    setTimeout(() => {
-        showToast(`Rapor ${email} adresine gönderildi`, 'success');
-        closeEmailModal();
-    }, 2000);
-}
-
-async function previewReport() {
-    await populatePackagesTable();
-    
-    const reportData = {
-        date: new Date().toLocaleDateString('tr-TR'),
-        totalPackages: packages.length,
-        totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-        containers: containers.length,
-        customers: [...new Set(packages.map(p => p.customers?.name))].length,
-        operator: currentUser?.name || 'Bilinmiyor'
-    };
-
-    const reportWindow = window.open('', '_blank');
-    reportWindow.document.write(`
-        <html>
-        <head>
-            <title>İş Sonu Raporu - ${reportData.date}</title>
-            <style>
-                body { font-family: Arial; margin: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; }
-            </style>
-        </head>
-        <body>
-            <h1>ProClean - İş Sonu Raporu</h1>
-            <p><strong>Tarih:</strong> ${reportData.date} | <strong>Operatör:</strong> ${reportData.operator}</p>
-            
-            <h2>Özet</h2>
-            <ul>
-                <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
-                <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
-                <li>Konteyner Sayısı: ${reportData.containers}</li>
-                <li>Müşteri Sayısı: ${reportData.customers}</li>
-            </ul>
-            
-            <h2>Paket Detayları</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Paket No</th>
-                        <th>Müşteri</th>
-                        <th>Adet</th>
-                        <th>Zaman</th>
-                        <th>Paketleyen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${packages.map(pkg => `
-                        <tr>
-                            <td>${escapeHtml(pkg.package_no)}</td>
-                            <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
-                            <td>${pkg.total_quantity}</td>
-                            <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
-                            <td>${escapeHtml(pkg.packer)}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </body>
-        </html>
-    `);
-    reportWindow.document.close();
-}
-
-// Container operations
-function loadCurrentContainer() {
-    showToast('Mevcut konteyner yüklendi', 'success');
-}
-
-async function createNewContainer() {
-    try {
-        const timestamp = new Date().getTime();
-        const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-        
-        const { data: newContainer, error } = await supabase
-            .from('containers')
-            .insert([{
-                container_no: containerNo,
-                customer: '',
-                package_count: 0,
-                total_quantity: 0,
-                status: 'beklemede',
-                package_ids: []
-            }])
-            .select();
-
-        if (error) throw error;
-
-        elements.containerNumber.textContent = containerNo;
-        currentContainer = containerNo;
-        
-        showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
-        await populateShippingTable();
-        
-    } catch (error) {
-        console.error('Error creating container:', error);
-        showToast('Konteyner oluşturulurken hata oluştu', 'error');
-    }
-}
-
-async function deleteContainer() {
-    if (!confirm('Konteyneri silmek istediğinize emin misiniz?')) return;
-
-    try {
-        await supabase
-            .from('containers')
-            .delete()
-            .eq('container_no', currentContainer);
-
-        elements.containerNumber.textContent = 'Yok';
-        currentContainer = null;
-        
-        showToast('Konteyner silindi', 'success');
-        await populateShippingTable();
-        
-    } catch (error) {
-        console.error('Error deleting container:', error);
-        showToast('Konteyner silinirken hata oluştu', 'error');
-    }
-}
-
-// Utility functions
-function switchTab(tabName) {
-    // Hide all tab panes
-    document.querySelectorAll('.tab-pane').forEach(pane => {
-        pane.classList.remove('active');
-    });
-    
-    // Deactivate all tabs
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Activate selected tab
-    const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
-    const selectedPane = document.getElementById(`${tabName}Tab`);
-    
-    if (selectedTab && selectedPane) {
-        selectedTab.classList.add('active');
-        selectedPane.classList.add('active');
-    }
-}
-
-function closeAllModals() {
-    elements.customerModal.style.display = 'none';
-    elements.allCustomersModal.style.display = 'none';
-    elements.emailModal.style.display = 'none';
-    elements.quantityModal.style.display = 'none';
-    elements.manualModal.style.display = 'none';
-}
-
-function closeModal() {
-    elements.customerModal.style.display = 'none';
-}
-
-function closeAllCustomersModal() {
-    elements.allCustomersModal.style.display = 'none';
-}
-
-function closeQuantityModal() {
-    elements.quantityModal.style.display = 'none';
-}
-
-function closeManualModal() {
-    elements.manualModal.style.display = 'none';
-}
-
-function showToast(message, type = 'success', duration = 3000) {
-    elements.toast.textContent = message;
-    elements.toast.className = `toast ${type} show`;
-    
-    setTimeout(() => {
-        elements.toast.classList.remove('show');
-    }, duration);
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Initialize auth state listener
-function setupAuthListener() {
-    supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state change:', event, session?.user?.email || 'No user');
-        
-        if (session) {
-            currentUser = {
-                email: session.user.email,
-                uid: session.user.id,
-                name: session.user.email.split('@')[0]
+        // State management functions
+        function saveAppState() {
+            const state = {
+                selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
+                selectedPersonnelId: elements.personnelSelect.value,
+                currentContainer: currentContainer,
             };
-            
-            elements.userRole.textContent = `Operatör: ${currentUser.name}`;
-            elements.loginScreen.style.display = "none";
-            elements.appContainer.style.display = "flex";
-            
-            initApp();
-        } else {
-            elements.loginScreen.style.display = "flex";
-            elements.appContainer.style.display = "none";
+            localStorage.setItem('procleanState', JSON.stringify(state));
         }
-    });
-}
 
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    // API anahtarını yükle ve supabase'i başlat
-    if (loadApiKey()) {
-        supabase = initializeSupabase();
-        if (supabase) {
-            setupAuthListener();
+        function loadAppState() {
+            const savedState = localStorage.getItem('procleanState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                
+                // Restore customer selection
+                if (state.selectedCustomerId) {
+                    elements.customerSelect.value = state.selectedCustomerId;
+                    // Find and set the selectedCustomer object
+                    const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+                    if (option) {
+                        selectedCustomer = {
+                            id: state.selectedCustomerId,
+                            name: option.textContent.split(' (')[0],
+                            code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                        };
+                    }
+                }
+                
+                // Restore personnel selection
+                if (state.selectedPersonnelId) {
+                    elements.personnelSelect.value = state.selectedPersonnelId;
+                }
+                
+                // Restore current container
+                if (state.currentContainer) {
+                    currentContainer = state.currentContainer;
+                    elements.containerNumber.textContent = currentContainer;
+                }
+            }
         }
-    } else {
-        showApiKeyModal();
-    }
-    
-    // Login button event
-    document.getElementById('loginBtn').addEventListener('click', login);
-    
-    // Logout button event
-    document.getElementById('logoutBtn').addEventListener('click', logout);
-    
-    // Enter key for login
-    document.getElementById('email').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') login();
-    });
-    document.getElementById('password').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') login();
-    });
-    
-    // Quantity modal enter key
-    elements.quantityInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') confirmQuantity();
-    });
-    
-    // Barcode input enter key
-    elements.barcodeInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') processBarcode();
-    });
-    
-    // Tab click events
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            switchTab(tabName);
-        });
-    });
-    
-    // Customer select change
-    elements.customerSelect.addEventListener('change', function() {
-        const customerId = this.value;
-        if (customerId) {
-            // Find customer from populated options
-            const selectedOption = this.options[this.selectedIndex];
-            selectedCustomer = {
-                id: customerId,
-                name: selectedOption.textContent.split(' (')[0],
-                code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-            };
-            showToast(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
-        } else {
+
+        function clearAppState() {
+            localStorage.removeItem('procleanState');
             selectedCustomer = null;
+            elements.customerSelect.value = '';
+            elements.personnelSelect.value = '';
+            currentContainer = null;
+            elements.containerNumber.textContent = 'Yok';
+            currentPackage = {};
+            
+            // Reset quantity badges
+            document.querySelectorAll('.quantity-badge').forEach(badge => {
+                badge.textContent = '0';
+            });
+            
+            // Clear package details
+            document.getElementById('packageDetailContent').innerHTML = 
+                '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
         }
-    });
-    
-    // Initial state
-    elements.loginScreen.style.display = 'flex';
-    elements.appContainer.style.display = 'none';
-});
 
-console.log('ProClean application initialized with Supabase authentication');
-</script>
+        // Initialize application
+        async function initApp() {
+            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+            
+            // Populate dropdowns
+            await populateCustomers();
+            await populatePersonnel();
+            
+            // Load saved state
+            loadAppState();
+            
+            // Load data
+            await populatePackagesTable();
+            await populateStockTable();
+            await populateShippingTable();
+            
+            // Test connection
+            await testConnection();
+            
+            // Set up auto-save
+            setInterval(saveAppState, 5000); // Save every 5 seconds
+            
+            // Set up offline support
+            setupOfflineSupport();
+        }
+
+        // Çevrimdışı destek
+        function setupOfflineSupport() {
+            window.addEventListener('online', () => {
+                document.getElementById('offlineIndicator').style.display = 'none';
+                elements.connectionStatus.textContent = 'Çevrimiçi';
+                showToast('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
+                syncOfflineData();
+            });
+
+            window.addEventListener('offline', () => {
+                document.getElementById('offlineIndicator').style.display = 'block';
+                elements.connectionStatus.textContent = 'Çevrimdışı';
+                showToast('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
+            });
+
+            // Başlangıçta çevrimiçi durumu kontrol et
+            if (!navigator.onLine) {
+                document.getElementById('offlineIndicator').style.display = 'block';
+                elements.connectionStatus.textContent = 'Çevrimdışı';
+            }
+        }
+
+        // Çevrimdışı verileri senkronize et
+        async function syncOfflineData() {
+            const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+            
+            if (Object.keys(offlineData).length === 0) return;
+            
+            showToast('Çevrimdışı veriler senkronize ediliyor...', 'warning');
+            
+            try {
+                // Paketleri senkronize et
+                if (offlineData.packages && offlineData.packages.length > 0) {
+                    for (const pkg of offlineData.packages) {
+                        const { error } = await supabase
+                            .from('packages')
+                            .insert([pkg]);
+                        
+                        if (error) console.error('Paket senkronizasyon hatası:', error);
+                    }
+                }
+                
+                // Barkodları senkronize et
+                if (offlineData.barcodes && offlineData.barcodes.length > 0) {
+                    for (const barcode of offlineData.barcodes) {
+                        const { error } = await supabase
+                            .from('barcodes')
+                            .insert([barcode]);
+                        
+                        if (error) console.error('Barkod senkronizasyon hatası:', error);
+                    }
+                }
+                
+                // Başarılı senkronizasyondan sonra çevrimdışı verileri temizle
+                localStorage.removeItem('procleanOfflineData');
+                showToast('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
+                
+            } catch (error) {
+                console.error('Senkronizasyon hatası:', error);
+                showToast('Veri senkronizasyonu sırasında hata oluştu', 'error');
+            }
+        }
+
+        // Çevrimdışı veri kaydetme
+        function saveOfflineData(type, data) {
+            const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+            
+            if (!offlineData[type]) {
+                offlineData[type] = [];
+            }
+            
+            offlineData[type].push(data);
+            localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
+        }
+
+        // Data loading functions
+        async function populateCustomers() {
+            try {
+                elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
+                
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showToast('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.id;
+                        option.textContent = `${customer.name} (${customer.code})`;
+                        elements.customerSelect.appendChild(option);
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error in populateCustomers:', error);
+                showToast('Müşteri yükleme hatası', 'error');
+            }
+        }
+
+        async function populatePersonnel() {
+            try {
+                elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+                
+                const { data: personnel, error } = await supabase
+                    .from('personnel')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading personnel:', error);
+                    // Add default current user
+                    const option = document.createElement('option');
+                    option.value = currentUser?.uid || 'default';
+                    option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+                    option.selected = true;
+                    elements.personnelSelect.appendChild(option);
+                    return;
+                }
+
+                if (personnel && personnel.length > 0) {
+                    personnel.forEach(person => {
+                        const option = document.createElement('option');
+                        option.value = person.id;
+                        option.textContent = person.name;
+                        elements.personnelSelect.appendChild(option);
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error in populatePersonnel:', error);
+                // Add default current user
+                const option = document.createElement('option');
+                option.value = currentUser?.uid || 'default';
+                option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+                option.selected = true;
+                elements.personnelSelect.appendChild(option);
+            }
+        }
+
+        async function populatePackagesTable() {
+            try {
+                elements.packagesTableBody.innerHTML = '';
+                
+                const { data: packages, error } = await supabase
+                    .from('packages')
+                    .select(`
+                        *,
+                        customers (name, code)
+                    `)
+                    .is('container_id', null)  // Only show packages not in a container
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Error loading packages:', error);
+                    showToast('Paket verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (packages && packages.length > 0) {
+                    packages.forEach(pkg => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" value="${pkg.id}" onchange="updatePackageSelection()"></td>
+                            <td>${pkg.package_no}</td>
+                            <td>${pkg.customers?.name || 'N/A'}</td>
+                            <td>${pkg.total_quantity}</td>
+                            <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
+                            <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                        `;
+                        row.onclick = (e) => {
+                            if (e.target.type !== 'checkbox') {
+                                selectPackage(pkg);
+                            }
+                        };
+                        elements.packagesTableBody.appendChild(row);
+                    });
+                    
+                    elements.totalPackages.textContent = packages.length;
+                } else {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Henüz paket yok</td>';
+                    elements.packagesTableBody.appendChild(row);
+                }
+                
+            } catch (error) {
+                console.error('Error in populatePackagesTable:', error);
+                showToast('Paket tablosu yükleme hatası', 'error');
+            }
+        }
+
+        // Helper function to calculate total quantity of selected packages
+        async function calculateTotalQuantity(packageIds) {
+            try {
+                const { data: packages, error } = await supabase
+                    .from('packages')
+                    .select('total_quantity')
+                    .in('id', packageIds);
+                    
+                if (error) throw error;
+                
+                return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+            } catch (error) {
+                console.error('Error calculating total quantity:', error);
+                return packageIds.length; // Fallback to package count
+            }
+        }
+
+        // Update the populateShippingTable function
+        async function populateShippingTable() {
+            try {
+                elements.shippingTableBody.innerHTML = '';
+                
+                const filter = elements.shippingFilter?.value || 'all';
+                let query = supabase
+                    .from('containers')
+                    .select(`
+                        *,
+                        packages (
+                            customers (name, code)
+                        )
+                    `);
+                
+                if (filter !== 'all') {
+                    query = query.eq('status', filter);
+                }
+                
+                const { data: containers, error } = await query.order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Error loading containers:', error);
+                    showToast('Sevkiyat verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (containers && containers.length > 0) {
+                    containers.forEach(container => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" value="${container.id}"></td>
+                            <td>${container.container_no}</td>
+                            <td>${container.packages && container.packages.length > 0 ? container.packages[0].customers?.name : container.customer || 'N/A'}</td>
+                            <td>${container.package_count || 0}</td>
+                            <td>${container.total_quantity || 0}</td>
+                            <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                            <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                            <td>
+                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
+                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
+                            </td>
+                        `;
+                        elements.shippingTableBody.appendChild(row);
+                    });
+                } else {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Sevkiyat verisi yok</td>';
+                    elements.shippingTableBody.appendChild(row);
+                }
+                
+            } catch (error) {
+                console.error('Error in populateShippingTable:', error);
+                showToast('Sevkiyat tablosu yükleme hatası', 'error');
+            }
+        }
+
+        async function populateStockTable() {
+            try {
+                elements.stockTableBody.innerHTML = '';
+                
+                const { data: stockItems, error } = await supabase
+                    .from('stock_items')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading stock items:', error);
+                    showToast('Stok verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (stockItems && stockItems.length > 0) {
+                    stockItems.forEach(item => {
+                        const row = document.createElement('tr');
+                        
+                        // Determine stock status
+                        let statusClass = 'status-stokta';
+                        let statusText = 'Stokta';
+                        
+                        if (item.quantity <= 0) {
+                            statusClass = 'status-kritik';
+                            statusText = 'Kritik';
+                        } else if (item.quantity < 10) {
+                            statusClass = 'status-az-stok';
+                            statusText = 'Az Stok';
+                        }
+                        
+                        row.innerHTML = `
+                            <td>${item.code}</td>
+                            <td>${item.name}</td>
+                            <td>${item.quantity}</td>
+                            <td>${item.unit || 'Adet'}</td>
+                            <td><span class="${statusClass}">${statusText}</span></td>
+                            <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                        `;
+                        elements.stockTableBody.appendChild(row);
+                    });
+                } else {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Stok verisi yok</td>';
+                    elements.stockTableBody.appendChild(row);
+                }
+                
+            } catch (error) {
+                console.error('Error in populateStockTable:', error);
+                showToast('Stok tablosu yükleme hatası', 'error');
+            }
+        }
+
+        // Barkod işleme fonksiyonu
+        async function processBarcode() {
+            const barcode = elements.barcodeInput.value.trim();
+            if (!barcode) {
+                showToast('Barkod girin', 'error');
+                return;
+            }
+
+            if (!selectedCustomer) {
+                showToast('Önce müşteri seçin', 'error');
+                return;
+            }
+
+            try {
+                // Barkodu veritabanına kaydet
+                const barcodeData = {
+                    barcode: barcode,
+                    customer_id: selectedCustomer.id,
+                    scanned_at: new Date().toISOString(),
+                    processed: false
+                };
+
+                if (!navigator.onLine) {
+                    // Çevrimdışı mod
+                    saveOfflineData('barcodes', barcodeData);
+                    scannedBarcodes.push({...barcodeData, id: 'offline-' + Date.now()});
+                    showToast(`Barkod çevrimdışı kaydedildi: ${barcode}`, 'warning');
+                } else {
+                    // Çevrimiçi mod
+                    const { data, error } = await supabase
+                        .from('barcodes')
+                        .insert([barcodeData])
+                        .select();
+
+                    if (error) {
+                        console.error('Barkod kaydedilemedi:', error);
+                        showToast('Barkod işlenirken hata oluştu', 'error');
+                        return;
+                    }
+
+                    scannedBarcodes.push(data[0]);
+                    showToast(`Barkod kaydedildi: ${barcode}`, 'success');
+                }
+
+                elements.barcodeInput.value = '';
+                elements.barcodeInput.focus();
+                
+                // Barkodları göster
+                displayScannedBarcodes();
+                
+            } catch (error) {
+                console.error('Barkod işleme hatası:', error);
+                showToast('Barkod işlenirken bir hata oluştu', 'error');
+            }
+        }
+
+        // Taranan barkodları göster
+        function displayScannedBarcodes() {
+            const container = document.getElementById('scannedBarcodes');
+            container.innerHTML = '';
+            
+            if (scannedBarcodes.length === 0) {
+                container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Henüz barkod taranmadı</p>';
+                return;
+            }
+            
+            const list = document.createElement('ul');
+            list.style = 'list-style: none; padding: 0; margin: 0; font-size: 0.8rem;';
+            
+            scannedBarcodes.forEach(barcode => {
+                const item = document.createElement('li');
+                item.style = 'padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;';
+                item.innerHTML = `
+                    <span>${barcode.barcode}</span>
+                    <span style="color: ${barcode.processed ? 'green' : 'orange'}">
+                        ${barcode.processed ? 'İşlendi' : 'Beklemede'}
+                    </span>
+                `;
+                list.appendChild(item);
+            });
+            
+            container.appendChild(list);
+        }
+
+        // Customer operations
+        async function showCustomers() {
+            try {
+                elements.customerList.innerHTML = '';
+                
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showToast('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
+                        const div = document.createElement('div');
+                        div.className = 'customer-item';
+                        div.innerHTML = `
+                            <div>
+                                <strong>${customer.name}</strong><br>
+                                <small>${customer.code}</small>
+                            </div>
+                        `;
+                        div.onclick = () => selectCustomerFromModal(customer);
+                        elements.customerList.appendChild(div);
+                    });
+                }
+                
+                document.getElementById('customerModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error in showCustomers:', error);
+                showToast('Müşteri listesi yükleme hatası', 'error');
+            }
+        }
+
+        async function showAllCustomers() {
+            try {
+                elements.allCustomersList.innerHTML = '';
+                
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showToast('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
+                        const div = document.createElement('div');
+                        div.className = 'customer-item';
+                        div.innerHTML = `
+                            <div>
+                                <strong>${customer.name}</strong> (${customer.code})<br>
+                                <small>${customer.email || 'E-posta yok'}</small>
+                            </div>
+                            <button onclick="deleteCustomer('${customer.id}')" class="btn btn-danger btn-sm">Sil</button>
+                        `;
+                        elements.allCustomersList.appendChild(div);
+                    });
+                }
+                
+                document.getElementById('allCustomersModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error in showAllCustomers:', error);
+                showToast('Müşteri yönetimi yükleme hatası', 'error');
+            }
+        }
+
+        async function addNewCustomer() {
+            const code = document.getElementById('newCustomerCode').value.trim();
+            const name = document.getElementById('newCustomerName').value.trim();
+            const email = document.getElementById('newCustomerEmail').value.trim();
+
+            if (!code || !name) {
+                showToast('Müşteri kodu ve adı gerekli', 'error');
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('customers')
+                    .insert([{ code, name, email: email || null }]);
+
+                if (error) {
+                    console.error('Error adding customer:', error);
+                    showToast('Müşteri eklenirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showToast('Müşteri başarıyla eklendi', 'success');
+                
+                // Clear form
+                document.getElementById('newCustomerCode').value = '';
+                document.getElementById('newCustomerName').value = '';
+                document.getElementById('newCustomerEmail').value = '';
+                
+                // Refresh lists
+                await populateCustomers();
+                await showAllCustomers();
+                
+            } catch (error) {
+                console.error('Error in addNewCustomer:', error);
+                showToast('Müşteri ekleme hatası', 'error');
+            }
+        }
+
+        async function deleteCustomer(customerId) {
+            if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('customers')
+                    .delete()
+                    .eq('id', customerId);
+
+                if (error) {
+                    console.error('Error deleting customer:', error);
+                    showToast('Müşteri silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showToast('Müşteri başarıyla silindi', 'success');
+                
+                // Refresh lists
+                await populateCustomers();
+                await showAllCustomers();
+                
+            } catch (error) {
+                console.error('Error in deleteCustomer:', error);
+                showToast('Müşteri silme hatası', 'error');
+            }
+        }
+
+        function selectCustomerFromModal(customer) {
+            selectedCustomer = customer;
+            elements.customerSelect.value = customer.id;
+            closeModal();
+            showToast(`Müşteri seçildi: ${customer.name}`, 'success');
+        }
+
+        // Package operations
+        function openQuantityModal(product) {
+            selectedProduct = product;
+            elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
+            elements.quantityInput.value = '';
+            elements.quantityModal.style.display = 'flex';
+            elements.quantityInput.focus();
+        }
+
+        function confirmQuantity() {
+            const quantity = parseInt(elements.quantityInput.value);
+            if (!quantity || quantity <= 0) {
+                showToast('Geçerli bir adet girin', 'error');
+                return;
+            }
+
+            // Update quantity badge
+            const badge = document.getElementById(`${selectedProduct}-quantity`);
+            if (badge) {
+                const currentQuantity = parseInt(badge.textContent) || 0;
+                badge.textContent = currentQuantity + quantity;
+            }
+
+            // Add to current package
+            if (!currentPackage.items) currentPackage.items = {};
+            currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
+
+            showToast(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
+            closeQuantityModal();
+        }
+
+        function openManualEntry() {
+            document.getElementById('manualModal').style.display = 'flex';
+            document.getElementById('manualProduct').focus();
+        }
+
+        function addManualProduct() {
+            const product = document.getElementById('manualProduct').value.trim();
+            const quantity = parseInt(document.getElementById('manualQuantity').value);
+
+            if (!product || !quantity || quantity <= 0) {
+                showToast('Ürün adı ve geçerli adet girin', 'error');
+                return;
+            }
+
+            // Add to current package
+            if (!currentPackage.items) currentPackage.items = {};
+            currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
+
+            showToast(`${product}: ${quantity} adet eklendi`, 'success');
+            
+            // Clear form
+            document.getElementById('manualProduct').value = '';
+            document.getElementById('manualQuantity').value = '';
+            closeManualModal();
+        }
+
+        async function completePackage() {
+            if (!selectedCustomer) {
+                showToast('Önce müşteri seçin', 'error');
+                return;
+            }
+
+            if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+                showToast('Pakete ürün ekleyin', 'error');
+                return;
+            }
+
+            try {
+                const packageNo = `PKG-${Date.now()}`;
+                const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+                const selectedPersonnel = elements.personnelSelect.value;
+
+                const packageData = {
+                    package_no: packageNo,
+                    customer_id: selectedCustomer.id,
+                    items: currentPackage.items,
+                    total_quantity: totalQuantity,
+                    status: 'beklemede',
+                    packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+                    created_at: new Date().toISOString()
+                };
+
+                if (!navigator.onLine) {
+                    // Çevrimdışı mod
+                    saveOfflineData('packages', packageData);
+                    showToast(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
+                } else {
+                    // Çevrimiçi mod
+                    const { data, error } = await supabase
+                        .from('packages')
+                        .insert([packageData])
+                        .select();
+
+                    if (error) {
+                        console.error('Error creating package:', error);
+                        showToast('Paket oluşturulurken hata: ' + error.message, 'error');
+                        return;
+                    }
+
+                    showToast(`Paket oluşturuldu: ${packageNo}`, 'success');
+                }
+
+                // Reset current package and quantities
+                currentPackage = {};
+                document.querySelectorAll('.quantity-badge').forEach(badge => {
+                    badge.textContent = '0';
+                });
+                
+                // Taranan barkodları işlendi olarak işaretle
+                if (scannedBarcodes.length > 0 && navigator.onLine) {
+                    const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
+                    if (barcodeIds.length > 0) {
+                        await supabase
+                            .from('barcodes')
+                            .update({ processed: true })
+                            .in('id', barcodeIds);
+                    }
+                    scannedBarcodes = [];
+                    displayScannedBarcodes();
+                }
+                
+                // Refresh packages table
+                await populatePackagesTable();
+                
+            } catch (error) {
+                console.error('Error in completePackage:', error);
+                showToast('Paket oluşturma hatası', 'error');
+            }
+        }
+            
+        function selectPackage(pkg) {
+            // Remove selected class from all rows
+            document.querySelectorAll('#packagesTableBody tr').forEach(row => {
+                row.classList.remove('selected');
+            });
+            
+            // Add selected class to the clicked row
+            const rows = document.querySelectorAll('#packagesTableBody tr');
+            for (let i = 0; i < rows.length; i++) {
+                const checkbox = rows[i].querySelector('input[type="checkbox"]');
+                if (checkbox && checkbox.value === pkg.id) {
+                    rows[i].classList.add('selected');
+                    break;
+                }
+            }
+            
+            const detailContent = document.getElementById('packageDetailContent');
+            detailContent.innerHTML = `
+                <h4>Paket: ${pkg.package_no}</h4>
+                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+                <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
+                <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
+                <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
+                ${pkg.items ? `
+                    <h5>Ürünler:</h5>
+                    <ul>
+                        ${Object.entries(pkg.items).map(([product, quantity]) => 
+                            `<li>${product}: ${quantity} adet</li>`
+                        ).join('')}
+                    </ul>
+                ` : ''}
+            `;
+        }
+
+        function generateBarcode(text) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            JsBarcode(svg, text, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 2,
+                height: 40,
+                displayValue: true
+            });
+            return svg.outerHTML;
+        }
+
+        function getSelectedPackage() {
+            const selectedRow = document.querySelector('#packagesTableBody tr.selected');
+            if (!selectedRow) return null;
+            
+            const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
+            // In a real implementation, you would fetch the complete package data
+            // For now, we'll use the data from the row
+            return {
+                package_no: selectedRow.cells[1].textContent,
+                customers: { name: selectedRow.cells[2].textContent },
+                total_quantity: parseInt(selectedRow.cells[3].textContent),
+                created_at: selectedRow.cells[4].textContent
+            };
+        }
+
+        async function printLabel() {
+            const selectedPackage = getSelectedPackage();
+            if (!selectedPackage) {
+                showToast('Etiket yazdırmak için bir paket seçin', 'error');
+                return;
+            }
+
+            try {
+                // Generate barcode
+                const barcodeSvg = generateBarcode(selectedPackage.package_no);
+                
+                // Create printable content
+                const printContent = `
+                    <div style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
+                        <h2>ProClean</h2>
+                        <p><strong>Paket No:</strong> ${selectedPackage.package_no}</p>
+                        <p><strong>Müşteri:</strong> ${selectedPackage.customers?.name || 'N/A'}</p>
+                        <p><strong>Adet:</strong> ${selectedPackage.total_quantity}</p>
+                        <p><strong>Tarih:</strong> ${new Date(selectedPackage.created_at).toLocaleDateString('tr-TR')}</p>
+                        <div>${barcodeSvg}</div>
+                    </div>
+                `;
+                
+                // Open print window
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Paket Etiketi - ${selectedPackage.package_no}</title>
+                            <style>
+                                body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+                            </style>
+                        </head>
+                        <body onload="window.print(); window.close();">
+                            ${printContent}
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                
+            } catch (error) {
+                console.error('Error printing label:', error);
+                showToast('Etiket yazdırılırken hata oluştu', 'error');
+            }
+        }
+
+        async function deleteSelectedPackages() {
+            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+            if (checkboxes.length === 0) {
+                showToast('Silinecek paket seçin', 'error');
+                return;
+            }
+
+            if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+            try {
+                const packageIds = Array.from(checkboxes).map(cb => cb.value);
+                
+                const { error } = await supabase
+                    .from('packages')
+                    .delete()
+                    .in('id', packageIds);
+
+                if (error) {
+                    console.error('Error deleting packages:', error);
+                    showToast('Paketler silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showToast(`${packageIds.length} paket silindi`, 'success');
+                await populatePackagesTable();
+                
+            } catch (error) {
+                console.error('Error in deleteSelectedPackages:', error);
+                showToast('Paket silme hatası', 'error');
+            }
+        }
+
+        function toggleSelectAll() {
+            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+            const selectAll = document.getElementById('selectAllPackages').checked;
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll;
+            });
+        }
+
+        function updatePackageSelection() {
+            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+            const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+            
+            document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+        }
+
+        // Shipping operations
+        async function sendToRamp(containerNo = null) {
+            try {
+                const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
+                    .map(cb => cb.value);
+                
+                if (selectedPackages.length === 0) {
+                    showToast('Rampaya göndermek için paket seçin', 'error');
+                    return;
+                }
+
+                // Use existing container or create a new one
+                let containerId;
+                if (containerNo && currentContainer) {
+                    containerId = currentContainer;
+                } else {
+                    const timestamp = new Date().getTime();
+                    containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+                    
+                    const { data: newContainer, error } = await supabase
+                        .from('containers')
+                        .insert([{
+                            container_no: containerNo,
+                            customer: selectedCustomer?.name || '',
+                            package_count: selectedPackages.length,
+                            total_quantity: await calculateTotalQuantity(selectedPackages),
+                            status: 'beklemede',
+                            created_at: new Date().toISOString()
+                        }])
+                        .select();
+
+                    if (error) throw error;
+                    
+                    containerId = newContainer[0].id;
+                    currentContainer = containerNo;
+                    elements.containerNumber.textContent = containerNo;
+                    saveAppState();
+                }
+
+                // Update packages with container reference
+                const { error: updateError } = await supabase
+                    .from('packages')
+                    .update({ 
+                        container_id: containerId,
+                        status: 'sevk-edildi'
+                    })
+                    .in('id', selectedPackages);
+
+                if (updateError) throw updateError;
+
+                showToast(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
+                
+                // Refresh tables
+                await populatePackagesTable();
+                await populateShippingTable();
+                
+            } catch (error) {
+                console.error('Error sending to ramp:', error);
+                showToast('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
+            }
+        }
+
+        async function shipContainer(containerNo) {
+            try {
+                // First get the container ID
+                const { data: container, error: fetchError } = await supabase
+                    .from('containers')
+                    .select('id')
+                    .eq('container_no', containerNo)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                // Update container status
+                const { error: updateError } = await supabase
+                    .from('containers')
+                    .update({ status: 'sevk-edildi' })
+                    .eq('id', container.id);
+
+                if (updateError) throw updateError;
+
+                showToast(`Konteyner ${containerNo} sevk edildi`, 'success');
+                await populateShippingTable();
+                
+            } catch (error) {
+                console.error('Error shipping container:', error);
+                showToast('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
+            }
+        }
+
+        function filterShipping() {
+            populateShippingTable();
+        }
+
+        // Stock operations
+        function searchStock() {
+            const searchTerm = elements.stockSearch.value.toLowerCase();
+            const rows = elements.stockTableBody.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        }
+
+        function clearStockSearch() {
+            elements.stockSearch.value = '';
+            const rows = elements.stockTableBody.querySelectorAll('tr');
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+        }
+
+        async function uploadStockFile() {
+            const fileInput = document.getElementById('stockFileUpload');
+            const file = fileInput.files[0];
+            if (!file) {
+                showToast('Lütfen bir dosya seçin', 'error');
+                return;
+            }
+
+            showToast('Dosya yükleniyor...', 'warning');
+
+            try {
+                let stockData = [];
+                
+                if (file.name.endsWith('.csv')) {
+                    const text = await file.text();
+                    stockData = Papa.parse(text, { header: true }).data;
+                } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    stockData = XLSX.utils.sheet_to_json(worksheet);
+                }
+
+                for (const item of stockData) {
+                    const code = item['Stok Kodu'] || item['code'] || item['StokKodu'] || '';
+                    const name = item['Ürün Adı'] || item['name'] || item['ÜrünAdı'] || item['product'] || '';
+                    const quantity = parseInt(item['Mevcut Adet'] || item['quantity'] || item['MevcutAdet'] || 0);
+                    const unit = item['Birim'] || item['unit'] || 'Adet';
+                    
+                    if (!code || !name) continue;
+
+                    await supabase
+                        .from('stock_items')
+                        .upsert({
+                            code: code,
+                            name: name,
+                            quantity: quantity,
+                            unit: unit,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'code' });
+                }
+
+                showToast('Stok dosyası başarıyla yüklendi', 'success');
+                document.getElementById('selectedFileName').textContent = '';
+                fileInput.value = '';
+                
+                await populateStockTable();
+                
+            } catch (error) {
+                console.error('Error uploading stock file:', error);
+                showToast('Dosya yüklenirken hata oluştu', 'error');
+            }
+        }
+
+        // Report operations
+        async function generateDailyReport() {
+            try {
+                const { data: packages, error: packagesError } = await supabase
+                    .from('packages')
+                    .select(`
+                        *,
+                        customers (name, code)
+                    `)
+                    .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
+                    .lte('created_at', new Date(new Date().setHours(23, 59, 59, 999)).toISOString());
+
+                if (packagesError) throw packagesError;
+
+                const { data: containers, error: containersError } = await supabase
+                    .from('containers')
+                    .select('*')
+                    .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
+                    .lte('created_at', new Date(new Date().setHours(23, 59, 59, 999)).toISOString());
+
+                if (containersError) throw containersError;
+
+                const reportData = {
+                    date: new Date().toLocaleDateString('tr-TR'),
+                    totalPackages: packages.length,
+                    totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+                    containers: containers.length,
+                    customers: [...new Set(packages.map(p => p.customers?.name))].length,
+                    packages: packages,
+                    containers: containers,
+                    operator: currentUser?.name || 'Bilinmiyor'
+                };
+
+                // Raporu veritabanına kaydet
+                const { error: reportError } = await supabase
+                    .from('reports')
+                    .insert([{
+                        report_date: new Date(),
+                        report_type: 'daily',
+                        data: reportData,
+                        generated_by: currentUser?.uid
+                    }]);
+
+                if (reportError) throw reportError;
+
+                // E-posta modalını göster
+                document.getElementById('reportEmail').value = selectedCustomer?.email || '';
+                document.getElementById('emailModal').style.display = 'flex';
+
+            } catch (error) {
+                console.error('Rapor oluşturma hatası:', error);
+                showToast('Rapor oluşturulurken hata oluştu', 'error');
+            }
+        }
+
+        function closeEmailModal() {
+            document.getElementById('emailModal').style.display = 'none';
+        }
+
+        async function sendDailyReport() {
+            const email = document.getElementById('reportEmail').value;
+            if (!email) {
+                showToast('Lütfen e-posta adresini girin', 'error');
+                return;
+            }
+
+            try {
+                // Rapor verilerini al
+                const { data: reports, error: reportsError } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (reportsError) throw reportsError;
+
+                if (!reports || reports.length === 0) {
+                    showToast('Rapor bulunamadı', 'error');
+                    return;
+                }
+
+                const report = reports[0];
+                
+                // E-posta gönderme işlemi (gerçek uygulamada e-posta servisi entegrasyonu gerekli)
+                showToast(`Rapor ${email} adresine gönderiliyor...`, 'warning');
+                
+                // Simüle edilmiş e-posta gönderme
+                setTimeout(async () => {
+                    // E-posta gönderim kaydı
+                    const { error: emailError } = await supabase
+                        .from('report_emails')
+                        .insert([{
+                            report_id: report.id,
+                            sent_to: email,
+                            sent_at: new Date().toISOString(),
+                            status: 'sent'
+                        }]);
+
+                    if (emailError) throw emailError;
+
+                    showToast(`Rapor ${email} adresine gönderildi`, 'success');
+                    closeEmailModal();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Rapor gönderme hatası:', error);
+                showToast('Rapor gönderilirken hata oluştu', 'error');
+            }
+        }
+
+        async function previewReport() {
+            await populatePackagesTable();
+            
+            // Get packages data
+            const { data: packages } = await supabase
+                .from('packages')
+                .select(`
+                    *,
+                    customers (name, code)
+                `)
+                .order('created_at', { ascending: false });
+                
+            // Get containers data
+            const { data: containers } = await supabase
+                .from('containers')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            const reportData = {
+                date: new Date().toLocaleDateString('tr-TR'),
+                totalPackages: packages.length,
+                totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+                containers: containers.length,
+                customers: [...new Set(packages.map(p => p.customers?.name))].length,
+                operator: currentUser?.name || 'Bilinmiyor'
+            };
+
+            const reportWindow = window.open('', '_blank');
+            reportWindow.document.write(`
+                <html>
+                <head>
+                    <title>İş Sonu Raporu - ${reportData.date}</title>
+                    <style>
+                        body { font-family: Arial; margin: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                    </style>
+                </head>
+                <body>
+                    <h1>ProClean - İş Sonu Raporu</h1>
+                    <p><strong>Tarih:</strong> ${reportData.date} | <strong>Operatör:</strong> ${reportData.operator}</p>
+                    
+                    <h2>Özet</h2>
+                    <ul>
+                        <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
+                        <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
+                        <li>Konteyner Sayısı: ${reportData.containers}</li>
+                        <li>Müşteri Sayısı: ${reportData.customers}</li>
+                    </ul>
+                    
+                    <h2>Paket Detayları</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Paket No</th>
+                                <th>Müşteri</th>
+                                <th>Adet</th>
+                                <th>Zaman</th>
+                                <th>Paketleyen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${packages.map(pkg => `
+                                <tr>
+                                    <td>${escapeHtml(pkg.package_no)}</td>
+                                    <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
+                                    <td>${pkg.total_quantity}</td>
+                                    <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
+                                    <td>${escapeHtml(pkg.packer)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `);
+            reportWindow.document.close();
+        }
+
+        // Container operations
+        function loadCurrentContainer() {
+            showToast('Mevcut konteyner yüklendi', 'success');
+        }
+
+        async function createNewContainer() {
+            try {
+                const timestamp = new Date().getTime();
+                const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+                
+                const { data: newContainer, error } = await supabase
+                    .from('containers')
+                    .insert([{
+                        container_no: containerNo,
+                        customer: '',
+                        package_count: 0,
+                        total_quantity: 0,
+                        status: 'beklemede',
+                        package_ids: []
+                    }])
+                    .select();
+
+                if (error) throw error;
+
+                elements.containerNumber.textContent = containerNo;
+                currentContainer = containerNo;
+                
+                showToast(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+                await populateShippingTable();
+                
+            } catch (error) {
+                console.error('Error creating container:', error);
+                showToast('Konteyner oluşturulurken hata oluştu', 'error');
+            }
+        }
+
+        async function deleteContainer() {
+            if (!confirm('Konteyneri silmek istediğinize emin misiniz?')) return;
+
+            try {
+                await supabase
+                    .from('containers')
+                    .delete()
+                    .eq('container_no', currentContainer);
+
+                elements.containerNumber.textContent = 'Yok';
+                currentContainer = null;
+                
+                showToast('Konteyner silindi', 'success');
+                await populateShippingTable();
+                
+            } catch (error) {
+                console.error('Error deleting container:', error);
+                showToast('Konteyner silinirken hata oluştu', 'error');
+            }
+        }
+
+        // Utility functions
+        function switchTab(tabName) {
+            // Hide all tab panes
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            
+            // Deactivate all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Activate selected tab
+            const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+            const selectedPane = document.getElementById(`${tabName}Tab`);
+            
+            if (selectedTab && selectedPane) {
+                selectedTab.classList.add('active');
+                selectedPane.classList.add('active');
+            }
+        }
+
+        function closeAllModals() {
+            document.getElementById('customerModal').style.display = 'none';
+            document.getElementById('allCustomersModal').style.display = 'none';
+            document.getElementById('emailModal').style.display = 'none';
+            document.getElementById('quantityModal').style.display = 'none';
+            document.getElementById('manualModal').style.display = 'none';
+        }
+
+        function closeModal() {
+            document.getElementById('customerModal').style.display = 'none';
+        }
+
+        function closeAllCustomersModal() {
+            document.getElementById('allCustomersModal').style.display = 'none';
+        }
+
+        function closeQuantityModal() {
+            document.getElementById('quantityModal').style.display = 'none';
+        }
+
+        function closeManualModal() {
+            document.getElementById('manualModal').style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize auth state listener
+        function setupAuthListener() {
+            supabase.auth.onAuthStateChange((event, session) => {
+                console.log('Auth state change:', event, session?.user?.email || 'No user');
+                
+                if (session) {
+                    currentUser = {
+                        email: session.user.email,
+                        uid: session.user.id,
+                        name: session.user.email.split('@')[0]
+                    };
+                    
+                    document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+                    document.getElementById('loginScreen').style.display = "none";
+                    document.getElementById('appContainer').style.display = "flex";
+                    
+                    initApp();
+                } else {
+                    document.getElementById('loginScreen').style.display = "flex";
+                    document.getElementById('appContainer').style.display = "none";
+                }
+            });
+        }
+
+        // Load API key from localStorage
+        function loadApiKey() {
+            const savedApiKey = localStorage.getItem('procleanApiKey');
+            if (savedApiKey) {
+                SUPABASE_ANON_KEY = savedApiKey;
+                return true;
+            }
+            return false;
+        }
+
+        // Global error handler
+        window.addEventListener('error', function(e) {
+            console.error('Global error:', e.error);
+            showToast('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+        });
+
+        // API hata yönetimi
+        function handleSupabaseError(error, context) {
+            console.error(`Supabase error in ${context}:`, error);
+            
+            if (error.code === '42501') {
+                showToast('Bu işlem için yetkiniz bulunmamaktadır.', 'error');
+            } else if (error.code === '42P01') {
+                showToast('Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.', 'error');
+            } else if (error.code === '08006') {
+                showToast('Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.', 'error');
+            } else {
+                showToast(`${context} sırasında bir hata oluştu: ${error.message}`, 'error');
+            }
+            
+            // Çevrimdışı moda geç
+            if (!navigator.onLine) {
+                document.getElementById('offlineIndicator').style.display = 'block';
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // API anahtarını yükle ve supabase'i başlat
+            if (loadApiKey()) {
+                supabase = initializeSupabase();
+                if (supabase) {
+                    setupAuthListener();
+                }
+            } else {
+                showApiKeyModal();
+            }
+            
+            // Login button event
+            document.getElementById('loginBtn').addEventListener('click', login);
+            
+            // Logout button event
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            
+            // Enter key for login
+            document.getElementById('email').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+            
+            // Quantity modal enter key
+            if (elements.quantityInput) {
+                elements.quantityInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') confirmQuantity();
+                });
+            }
+            
+            // Barcode input enter key
+            if (elements.barcodeInput) {
+                elements.barcodeInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') processBarcode();
+                });
+            }
+            
+            // Tab click events
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabName = this.getAttribute('data-tab');
+                    switchTab(tabName);
+                });
+            });
+            
+            // Customer select change
+            if (elements.customerSelect) {
+                elements.customerSelect.addEventListener('change', function() {
+                    const customerId = this.value;
+                    if (customerId) {
+                        // Find customer from populated options
+                        const selectedOption = this.options[this.selectedIndex];
+                        selectedCustomer = {
+                            id: customerId,
+                            name: selectedOption.textContent.split(' (')[0],
+                            code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                        };
+                        showToast(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+                    } else {
+                        selectedCustomer = null;
+                    }
+                });
+            }
+            
+            // Initial state
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'none';
+
+            console.log('ProClean application initialized with Supabase authentication');
+        });
+    </script>
 </body>
 </html>
