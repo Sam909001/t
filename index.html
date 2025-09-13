@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -371,6 +370,22 @@ select:focus, input:focus {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+
+/* Customer folder styling for shipping table */
+.customer-folder:hover {
+    background-color: #e0e0e0 !important;
+}
+
+.customer-folder i {
+    margin-right: 8px;
+    color: #f39c12;
+}
+
+/* Button sizing for small buttons */
+.btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
 }
     </style>
 </head>
@@ -1309,23 +1324,6 @@ async function populateShippingTable() {
         showToast('Sevkiyat tablosu yükleme hatası', 'error');
     }
 }
-
-// Add CSS for the customer folders
-// Add this to your CSS section
-const shippingTableCSS = `
-    .customer-folder:hover {
-        background-color: #e0e0e0 !important;
-    }
-    
-    .customer-folder i {
-        margin-right: 8px;
-        color: #f39c12;
-    }
-`;
-// Inject the CSS
-const style = document.createElement('style');
-style.textContent = shippingTableCSS;
-document.head.appendChild(style);
 
 async function populateStockTable() {
     try {
