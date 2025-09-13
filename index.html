@@ -1157,7 +1157,8 @@ input.invalid, select.invalid {
             }
             
             try {
-                return supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                import { createClient } from '@supabase/supabase-js';
+                return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } catch (error) {
                 console.error('Supabase initialization error:', error);
                 showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
