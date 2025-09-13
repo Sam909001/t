@@ -1260,27 +1260,37 @@ input.invalid, select.invalid {
 
                 if (data.user && data.user.email) {
                     // Kullanıcı rolünü al
-                    const { data: userData, error: userError } = await supabase
-                        .from('personnel')
-                        .select('role, name')
-                        .eq('email', data.user.email)
-                        .single();
+                   const { data: userData, error: userError } = await supabase
+    .from('personnel')
+    .select('role, name')
+    .eq('email', data.user.email)
+    .maybeSingle();
 
-                    if (!userError && userData) {
-                        currentUser = {
-                            email: data.user.email,
-                            uid: data.user.id,
-                            name: userData.name || data.user.email.split('@')[0],
-                            role: userData.role
-                        };
-                    } else {
-                        currentUser = {
-                            email: data.user.email,
-                            uid: data.user.id,
-                            name: data.user.email.split('@')[0],
-                            role: 'operator' // Varsayılan rol
-                        };
-                    }
+if (userError) {
+    console.error('Error fetching personnel data:', userError);
+    // This is an actual error (not just no rows), so we fall back to default
+    currentUser = {
+        email: data.user.email,
+        uid: data.user.id,
+        name: data.user.email.split('@')[0],
+        role: 'operator'
+    };
+} else if (userData) {
+    currentUser = {
+        email: data.user.email,
+        uid: data.user.id,
+        name: userData.name || data.user.email.split('@')[0],
+        role: userData.role
+    };
+} else {
+    // userData is null -> no row found
+    currentUser = {
+        email: data.user.email,
+        uid: data.user.id,
+        name: data.user.email.split('@')[0],
+        role: 'operator'
+    };
+}
 
                     document.getElementById('userRole').textContent = 
                         `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
