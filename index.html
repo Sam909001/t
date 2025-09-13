@@ -1248,10 +1248,10 @@ input.invalid, select.invalid {
             loginBtn.textContent = 'Giriş yapılıyor...';
 
             try {
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password,
-                });
+             const { user, error } = await supabase.auth.signIn({
+    email: email,
+    password: password,
+});
 
                 if (error) {
                     showAlert(`Giriş başarısız: ${error.message}`, 'error');
