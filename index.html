@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -996,7 +997,7 @@ input.invalid, select.invalid {
         
         // EmailJS initialization - KENDİ SERVİS VE ŞABLON ID'LERİNİZİ EKLEYİN
         (function() {
-            emailjs.init("jH-KlJ2ffs_lGwfsp");
+            emailjs.init("KENDİ_EMAILJS_USER_ID_NİZİ_BURAYA_EKLEYİN");
         })();
         
         // Global state variables
@@ -1130,7 +1131,7 @@ input.invalid, select.invalid {
             }
             
             try {
-                return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                return supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } catch (error) {
                 console.error('Supabase initialization error:', error);
                 showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
@@ -1260,37 +1261,27 @@ input.invalid, select.invalid {
 
                 if (data.user && data.user.email) {
                     // Kullanıcı rolünü al
-                   const { data: userData, error: userError } = await supabase
-    .from('personnel')
-    .select('role, name')
-    .eq('email', data.user.email)
-    .maybeSingle();
+                    const { data: userData, error: userError } = await supabase
+                        .from('personnel')
+                        .select('role, name')
+                        .eq('email', data.user.email)
+                        .single();
 
-if (userError) {
-    console.error('Error fetching personnel data:', userError);
-    // This is an actual error (not just no rows), so we fall back to default
-    currentUser = {
-        email: data.user.email,
-        uid: data.user.id,
-        name: data.user.email.split('@')[0],
-        role: 'operator'
-    };
-} else if (userData) {
-    currentUser = {
-        email: data.user.email,
-        uid: data.user.id,
-        name: userData.name || data.user.email.split('@')[0],
-        role: userData.role
-    };
-} else {
-    // userData is null -> no row found
-    currentUser = {
-        email: data.user.email,
-        uid: data.user.id,
-        name: data.user.email.split('@')[0],
-        role: 'operator'
-    };
-}
+                    if (!userError && userData) {
+                        currentUser = {
+                            email: data.user.email,
+                            uid: data.user.id,
+                            name: userData.name || data.user.email.split('@')[0],
+                            role: userData.role
+                        };
+                    } else {
+                        currentUser = {
+                            email: data.user.email,
+                            uid: data.user.id,
+                            name: data.user.email.split('@')[0],
+                            role: 'operator' // Varsayılan rol
+                        };
+                    }
 
                     document.getElementById('userRole').textContent = 
                         `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
