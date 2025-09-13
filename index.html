@@ -3148,7 +3148,7 @@ input.invalid, select.invalid {
                         ${packages.map(pkg => `
                             <tr>
                                 <td>${escapeHtml(pkg.package_no)}</td>
-                                <td>${escapeHtml(pkg.customers?.name || 'N/A'}</td>
+                                <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
                                 <td>${pkg.total_quantity}</td>
                                 <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
                                 <td>${escapeHtml(pkg.packer)}</td>
