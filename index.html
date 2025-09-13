@@ -1132,9 +1132,9 @@ input.invalid, select.invalid {
             }
             
             try {
-                return supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                return window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } catch (error) {
-                console.error('Supabase initialization error:', error);
+                console.error('window.Supabase initialization error:', error);
                 showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
                 showApiKeyModal();
                 return null;
@@ -1151,7 +1151,7 @@ input.invalid, select.invalid {
             
             localStorage.setItem('procleanApiKey', apiKey);
             SUPABASE_ANON_KEY = apiKey;
-            supabase = initializeSupabase();
+            window.supabase = initializeSupabase();
             
             if (supabase) {
                 document.getElementById('apiKeyModal').style.display = 'none';
