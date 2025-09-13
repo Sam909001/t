@@ -15,6 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     
     <style>
+        /* All your existing CSS styles remain the same */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -1256,30 +1257,44 @@ input.invalid, select.invalid {
 
                 if (error) {
                     showAlert(`Giriş başarısız: ${error.message}`, 'error');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Giriş Yap';
                     return;
                 }
 
                 if (data.user && data.user.email) {
-                    // Kullanıcı rolünü al
-                    const { data: userData, error: userError } = await supabase
-                        .from('personnel')
-                        .select('role, name')
-                        .eq('email', data.user.email)
-                        .single();
+                    try {
+                        // Kullanıcı rolünü al
+                        const { data: userData, error: userError } = await supabase
+                            .from('personnel')
+                            .select('role, name')
+                            .eq('email', data.user.email)
+                            .maybeSingle(); // Use maybeSingle to handle cases where no row is found
 
-                    if (!userError && userData) {
-                        currentUser = {
-                            email: data.user.email,
-                            uid: data.user.id,
-                            name: userData.name || data.user.email.split('@')[0],
-                            role: userData.role
-                        };
-                    } else {
+                        if (!userError && userData) {
+                            currentUser = {
+                                email: data.user.email,
+                                uid: data.user.id,
+                                name: userData.name || data.user.email.split('@')[0],
+                                role: userData.role
+                            };
+                        } else {
+                            // If personnel table doesn't exist or user not found, set default
+                            currentUser = {
+                                email: data.user.email,
+                                uid: data.user.id,
+                                name: data.user.email.split('@')[0],
+                                role: 'operator' // Default role
+                            };
+                        }
+                    } catch (userError) {
+                        console.error('Error fetching user data:', userError);
+                        // If there's an error with the personnel table, set default user
                         currentUser = {
                             email: data.user.email,
                             uid: data.user.id,
                             name: data.user.email.split('@')[0],
-                            role: 'operator' // Varsayılan rol
+                            role: 'operator' // Default role
                         };
                     }
 
@@ -1292,14 +1307,16 @@ input.invalid, select.invalid {
                     showAlert('Giriş başarılı!', 'success');
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'flex';
-                    testConnection();
+                    
+                    // Initialize the application
+                    await initApp();
                 } else {
                     showAlert('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
                 }
 
             } catch (e) {
                 console.error('Login error:', e);
-                showAlert('Giriş sırasında bir hata oluştu.', 'error');
+                showAlert('Giriş sırasında bir hata oluştu: ' + e.message, 'error');
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Giriş Yap';
@@ -1767,7 +1784,7 @@ input.invalid, select.invalid {
                                     <th>Toplam Adet</th>
                                     <th>Tarih</th>
                                     <th>Durum</th>
-                                    <th>İşlemler</th>
+                                    <th>İşlem</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1781,8 +1798,6 @@ input.invalid, select.invalid {
                                         <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
                                         <td>
                                             <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm">Detay</button>
-                                            <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
-                                            <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -2796,269 +2811,142 @@ input.invalid, select.invalid {
                 
                 // Create workbook
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Stok Listesi');
-                
-                // Download
-                const date = new Date().toISOString().slice(0, 10);
-                XLSX.writeFile(wb, `stok_listesi_${date}.xlsx`);
-                showAlert('Stok listesi dışa aktarıldı', 'success');
-                
-            } catch (error) {
-                console.error('Error exporting stock:', error);
-                showAlert('Stok listesi dışa aktarılırken hata oluştu', 'error');
-            }
-        }
-
-        async function uploadStockFile() {
-            const fileInput = document.getElementById('stockFileUpload');
-            const file = fileInput.files[0];
-            if (!file) {
-                showAlert('Lütfen bir dosya seçin', 'error');
-                return;
-            }
-
-            // Dosya tipi doğrulama
-            const fileExtension = file.name.split('.').pop().toLowerCase();
-            if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
-                document.getElementById('fileError').textContent = 'Sadece Excel veya CSV dosyaları yükleyebilirsiniz';
-                document.getElementById('fileError').style.display = 'block';
-                return;
-            }
-
-            showAlert('Dosya yükleniyor...', 'warning');
-
-            try {
-                let stockData = [];
-                
-                if (fileExtension === 'csv') {
-                    const text = await file.text();
-                    stockData = Papa.parse(text, { header: true }).data;
-                } else {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    stockData = XLSX.utils.sheet_to_json(worksheet);
-                }
-
-                // Validate required columns
-                const requiredColumns = ['Stok Kodu', 'Ürün Adı'];
-                const firstRow = stockData[0] || {};
-                const missingColumns = requiredColumns.filter(col => !Object.keys(firstRow).some(key => key.toLowerCase().includes(col.toLowerCase())));
-                
-                if (missingColumns.length > 0) {
-                    showAlert(`Dosyada gerekli sütunlar eksik: ${missingColumns.join(', ')}`, 'error');
-                    return;
-                }
-
-                let successCount = 0;
-                let errorCount = 0;
-                
-                for (const item of stockData) {
-                    const code = item['Stok Kodu'] || item['code'] || item['StokKodu'] || '';
-                    const name = item['Ürün Adı'] || item['name'] || item['ÜrünAdı'] || item['product'] || '';
-                    const quantity = parseInt(item['Mevcut Adet'] || item['quantity'] || item['MevcutAdet'] || 0);
-                    const unit = item['Birim'] || item['unit'] || 'Adet';
-                    
-                    if (!code || !name) {
-                        errorCount++;
-                        continue;
-                    }
-
-                    try {
-                        const { error } = await supabase
-                            .from('stock_items')
-                            .upsert({
-                                code: code,
-                                name: name,
-                                quantity: quantity,
-                                unit: unit,
-                                updated_at: new Date().toISOString()
-                            }, { onConflict: 'code' });
-
-                        if (error) {
-                            errorCount++;
-                        } else {
-                            successCount++;
-                        }
-                    } catch (e) {
-                        errorCount++;
-                    }
-                }
-
-                showAlert(`${successCount} stok öğesi güncellendi, ${errorCount} hata`, successCount > 0 ? 'success' : 'error');
-                document.getElementById('selectedFileName').textContent = '';
-                fileInput.value = '';
-                
-                await populateStockTable();
-                
-            } catch (error) {
-                console.error('Error uploading stock file:', error);
-                showAlert('Dosya yüklenirken hata oluştu', 'error');
-            }
-        }
-
-        // Report operations
-        async function generateDailyReport() {
-            try {
-                const today = new Date();
-                const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-                const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-
-                const { data: packages, error: packagesError } = await supabase
-                    .from('packages')
-                    .select(`
-                        *,
-                        customers (name, code)
-                    `)
-                    .gte('created_at', startOfDay)
-                    .lte('created_at', endOfDay);
-
-                if (packagesError) throw packagesError;
-
-                const { data: containers, error: containersError } = await supabase
-                    .from('containers')
-                    .select('*')
-                    .gte('created_at', startOfDay)
-                    .lte('created_at', endOfDay);
-
-                if (containersError) throw containersError;
-
-                // Kritik stokları al
-                const { data: criticalStock, error: stockError } = await supabase
-                    .from('stock_items')
-                    .select('*')
-                    .lte('quantity', 5)
-                    .order('quantity', { ascending: true });
-
-                if (stockError) throw stockError;
-
-                const reportData = {
-                    date: new Date().toLocaleDateString('tr-TR'),
-                    totalPackages: packages.length,
-                    totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-                    containers: containers.length,
-                    customers: [...new Set(packages.map(p => p.customers?.name))].length,
-                    packages: packages,
-                    containers: containers,
-                    criticalStock: criticalStock,
-                    operator: currentUser?.name || 'Bilinmiyor'
-                };
-
-                // Raporu veritabanına kaydet
-                const { error: reportError } = await supabase
-                    .from('reports')
-                    .insert([{
-                        report_date: new Date(),
-                        report_type: 'daily',
-                        data: reportData,
-                        generated_by: currentUser?.uid
-                    }]);
-
-                if (reportError) throw reportError;
-
-                // E-posta modalını göster
-                document.getElementById('reportEmail').value = selectedCustomer?.email || '';
-                document.getElementById('emailModal').style.display = 'flex';
-
-            } catch (error) {
-                console.error('Rapor oluşturma hatası:', error);
-                showAlert('Rapor oluşturulurken hata oluştu', 'error');
-            }
-        }
-
-        function closeEmailModal() {
-            document.getElementById('emailModal').style.display = 'none';
-        }
-
-        async function sendDailyReport() {
-            const email = document.getElementById('reportEmail').value;
+            XLSX.utils.book_append_sheet(wb, ws, 'Stok Listesi');
             
-            // Form doğrulama
-            if (!validateForm([
-                { id: 'reportEmail', errorId: 'reportEmailError', type: 'email', required: true }
-            ])) {
+            // Download
+            const date = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `stok_listesi_${date}.xlsx`);
+            showAlert('Stok listesi dışa aktarıldı', 'success');
+            
+        } catch (error) {
+            console.error('Error exporting stock:', error);
+            showAlert('Stok listesi dışa aktarılırken hata oluştu', 'error');
+        }
+    }
+
+    async function uploadStockFile() {
+        const fileInput = document.getElementById('stockFileUpload');
+        const file = fileInput.files[0];
+        if (!file) {
+            showAlert('Lütfen bir dosya seçin', 'error');
+            return;
+        }
+
+        // Dosya tipi doğrulama
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
+            document.getElementById('fileError').textContent = 'Sadece Excel veya CSV dosyaları yükleyebilirsiniz';
+            document.getElementById('fileError').style.display = 'block';
+            return;
+        }
+
+        showAlert('Dosya yükleniyor...', 'warning');
+
+        try {
+            let stockData = [];
+            
+            if (fileExtension === 'csv') {
+                const text = await file.text();
+                stockData = Papa.parse(text, { header: true }).data;
+            } else {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                stockData = XLSX.utils.sheet_to_json(worksheet);
+            }
+
+            // Validate required columns
+            const requiredColumns = ['Stok Kodu', 'Ürün Adı'];
+            const firstRow = stockData[0] || {};
+            const missingColumns = requiredColumns.filter(col => !Object.keys(firstRow).some(key => key.toLowerCase().includes(col.toLowerCase())));
+            
+            if (missingColumns.length > 0) {
+                showAlert(`Dosyada gerekli sütunlar eksik: ${missingColumns.join(', ')}`, 'error');
                 return;
             }
 
-            try {
-                // Rapor verilerini al
-                const { data: reports, error: reportsError } = await supabase
-                    .from('reports')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (reportsError) throw reportsError;
-
-                if (!reports || reports.length === 0) {
-                    showAlert('Rapor bulunamadı', 'error');
-                    return;
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const item of stockData) {
+                const code = item['Stok Kodu'] || item['code'] || item['StokKodu'] || '';
+                const name = item['Ürün Adı'] || item['name'] || item['ÜrünAdı'] || item['product'] || '';
+                const quantity = parseInt(item['Mevcut Adet'] || item['quantity'] || item['MevcutAdet'] || 0);
+                const unit = item['Birim'] || item['unit'] || 'Adet';
+                
+                if (!code || !name) {
+                    errorCount++;
+                    continue;
                 }
 
-                const report = reports[0];
-                
-                // EmailJS ile e-posta gönderme
-                const templateParams = {
-                    to_email: email,
-                    report_date: new Date(report.report_date).toLocaleDateString('tr-TR'),
-                    total_packages: report.data.totalPackages,
-                    total_items: report.data.totalItems,
-                    operator: report.data.operator,
-                    critical_stock: report.data.criticalStock ? report.data.criticalStock.length : 0
-                };
+                try {
+                    const { error } = await supabase
+                        .from('stock_items')
+                        .upsert({
+                            code: code,
+                            name: name,
+                            quantity: quantity,
+                            unit: unit,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'code' });
 
-                // KENDİ SERVİS VE ŞABLON ID'LERİNİZİ EKLEYİN
-                emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
-                    .then(function(response) {
-                        showAlert(`Rapor ${email} adresine gönderildi`, 'success');
-                        
-                        // E-posta gönderim kaydı
-                        supabase
-                            .from('report_emails')
-                            .insert([{
-                                report_id: report.id,
-                                sent_to: email,
-                                sent_at: new Date().toISOString(),
-                                status: 'sent'
-                            }]);
-                    }, function(error) {
-                        console.error('E-posta gönderme hatası:', error);
-                        showAlert('E-posta gönderilirken hata oluştu: ' + error.text, 'error');
-                    });
-                
-                closeEmailModal();
-                
-            } catch (error) {
-                console.error('Rapor gönderme hatası:', error);
-                showAlert('Rapor gönderilirken hata oluştu', 'error');
+                    if (error) {
+                        errorCount++;
+                    } else {
+                        successCount++;
+                    }
+                } catch (e) {
+                    errorCount++;
+                }
             }
-        }
 
-        async function previewReport() {
-            await populatePackagesTable();
+            showAlert(`${successCount} stok öğesi güncellendi, ${errorCount} hata`, successCount > 0 ? 'success' : 'error');
+            document.getElementById('selectedFileName').textContent = '';
+            fileInput.value = '';
             
-            // Get packages data
-            const { data: packages } = await supabase
+            await populateStockTable();
+            
+        } catch (error) {
+            console.error('Error uploading stock file:', error);
+            showAlert('Dosya yüklenirken hata oluştu', 'error');
+        }
+    }
+
+    // Report operations
+    async function generateDailyReport() {
+        try {
+            const today = new Date();
+            const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+            const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+            const { data: packages, error: packagesError } = await supabase
                 .from('packages')
                 .select(`
                     *,
                     customers (name, code)
                 `)
-                .order('created_at', { ascending: false });
-                
-            // Get containers data
-            const { data: containers } = await supabase
+                .gte('created_at', startOfDay)
+                .lte('created_at', endOfDay);
+
+            if (packagesError) throw packagesError;
+
+            const { data: containers, error: containersError } = await supabase
                 .from('containers')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .gte('created_at', startOfDay)
+                .lte('created_at', endOfDay);
 
-            // Get critical stock
-            const { data: criticalStock } = await supabase
+            if (containersError) throw containersError;
+
+            // Kritik stokları al
+            const { data: criticalStock, error: stockError } = await supabase
                 .from('stock_items')
                 .select('*')
                 .lte('quantity', 5)
                 .order('quantity', { ascending: true });
+
+            if (stockError) throw stockError;
 
             const reportData = {
                 date: new Date().toLocaleDateString('tr-TR'),
@@ -3066,239 +2954,366 @@ input.invalid, select.invalid {
                 totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
                 containers: containers.length,
                 customers: [...new Set(packages.map(p => p.customers?.name))].length,
+                packages: packages,
+                containers: containers,
                 criticalStock: criticalStock,
                 operator: currentUser?.name || 'Bilinmiyor'
             };
 
-            const reportWindow = window.open('', '_blank');
-            reportWindow.document.write(`
-                <html>
-                <head>
-                    <title>İş Sonu Raporu - ${reportData.date}</title>
-                    <style>
-                        body { font-family: Arial; margin: 20px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                        th { background-color: #f2f2f2; }
-                        .critical { color: #c0392b; font-weight: bold; }
-                    </style>
-                </head>
-                <body>
-                    <h1>ProClean - İş Sonu Raporu</h1>
-                    <p><strong>Tarih:</strong> ${reportData.date} | <strong>Operatör:</strong> ${reportData.operator}</p>
-                    
-                    <h2>Özet</h2>
-                    <ul>
-                        <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
-                        <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
-                        <li>Konteyner Sayısı: ${reportData.containers}</li>
-                        <li>Müşteri Sayısı: ${reportData.customers}</li>
-                        <li class="${reportData.criticalStock.length > 0 ? 'critical' : ''}">Kritik Stok Sayısı: ${reportData.criticalStock.length}</li>
-                    </ul>
-                    
-                    <h2>Kritik Stoklar</h2>
-                    ${reportData.criticalStock.length > 0 ? `
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Stok Kodu</th>
-                                    <th>Ürün Adı</th>
-                                    <th>Mevcut Adet</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${reportData.criticalStock.map(item => `
-                                    <tr>
-                                        <td>${item.code}</td>
-                                        <td>${item.name}</td>
-                                        <td class="critical">${item.quantity}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    ` : '<p>Kritik stok bulunmamaktadır.</p>'}
-                    
-                    <h2>Paket Detayları</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Paket No</th>
-                                <th>Müşteri</th>
-                                <th>Adet</th>
-                                <th>Zaman</th>
-                                <th>Paketleyen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${packages.map(pkg => `
-                                <tr>
-                                    <td>${escapeHtml(pkg.package_no)}</td>
-                                    <td>${escapeHtml(pkg.customers?.name || 'N/A'}</td>
-                                    <td>${pkg.total_quantity}</td>
-                                    <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
-                                    <td>${escapeHtml(pkg.packer)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </body>
-                </html>
-            `);
-            reportWindow.document.close();
+            // Raporu veritabanına kaydet
+            const { error: reportError } = await supabase
+                .from('reports')
+                .insert([{
+                    report_date: new Date(),
+                    report_type: 'daily',
+                    data: reportData,
+                    generated_by: currentUser?.uid
+                }]);
+
+            if (reportError) throw reportError;
+
+            // E-posta modalını göster
+            document.getElementById('reportEmail').value = selectedCustomer?.email || '';
+            document.getElementById('emailModal').style.display = 'flex';
+
+        } catch (error) {
+            console.error('Rapor oluşturma hatası:', error);
+            showAlert('Rapor oluşturulurken hata oluştu', 'error');
+        }
+    }
+
+    function closeEmailModal() {
+        document.getElementById('emailModal').style.display = 'none';
+    }
+
+    async function sendDailyReport() {
+        const email = document.getElementById('reportEmail').value;
+        
+        // Form doğrulama
+        if (!validateForm([
+            { id: 'reportEmail', errorId: 'reportEmailError', type: 'email', required: true }
+        ])) {
+            return;
         }
 
-        // Container operations
-        function loadCurrentContainer() {
-            showAlert('Mevcut konteyner yüklendi', 'success');
-        }
+        try {
+            // Rapor verilerini al
+            const { data: reports, error: reportsError } = await supabase
+                .from('reports')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(1);
 
-        async function createNewContainer() {
-            try {
-                const timestamp = new Date().getTime();
-                const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-                
-                const { data: newContainer, error } = await supabase
-                    .from('containers')
-                    .insert([{
-                        container_no: containerNo,
-                        customer: '',
-                        package_count: 0,
-                        total_quantity: 0,
-                        status: 'beklemede',
-                        package_ids: []
-                    }])
-                    .select();
+            if (reportsError) throw reportsError;
 
-                if (error) throw error;
-
-                elements.containerNumber.textContent = containerNo;
-                currentContainer = containerNo;
-                saveAppState();
-                
-                showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
-                await populateShippingTable();
-                
-            } catch (error) {
-                console.error('Error creating container:', error);
-                showAlert('Konteyner oluşturulurken hata oluştu', 'error');
-            }
-        }
-
-        async function deleteContainer() {
-            // Seçili konteynerleri al
-            const selectedContainers = Array.from(document.querySelectorAll('.container-checkbox:checked'))
-                .map(cb => cb.value);
-                
-            if (selectedContainers.length === 0) {
-                showAlert('Silinecek konteyner seçin', 'error');
+            if (!reports || reports.length === 0) {
+                showAlert('Rapor bulunamadı', 'error');
                 return;
             }
 
-            if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
-
-            try {
-                // Önce bu konteynerlere bağlı paketleri güncelle
-                const { error: updateError } = await supabase
-                    .from('packages')
-                    .update({ 
-                        container_id: null,
-                        status: 'beklemede'
-                    })
-                    .in('container_id', selectedContainers);
-
-                if (updateError) throw updateError;
-
-                // Sonra konteynerleri sil
-                const { error: deleteError } = await supabase
-                    .from('containers')
-                    .delete()
-                    .in('id', selectedContainers);
-
-                if (deleteError) throw deleteError;
-
-                // Eğer silinen konteyner aktif konteyner ise sıfırla
-                if (currentContainer && selectedContainers.includes(currentContainer)) {
-                    currentContainer = null;
-                    elements.containerNumber.textContent = 'Yok';
-                    saveAppState();
-                }
-                
-                showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
-                await populateShippingTable();
-                
-            } catch (error) {
-                console.error('Error deleting container:', error);
-                showAlert('Konteyner silinirken hata oluştu', 'error');
-            }
-        }
-
-        // Utility functions
-        function switchTab(tabName) {
-            // Hide all tab panes
-            document.querySelectorAll('.tab-pane').forEach(pane => {
-                pane.classList.remove('active');
-            });
+            const report = reports[0];
             
-            // Deactivate all tabs
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Activate selected tab
-            const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
-            const selectedPane = document.getElementById(`${tabName}Tab`);
-            
-            if (selectedTab && selectedPane) {
-                selectedTab.classList.add('active');
-                selectedPane.classList.add('active');
-            }
-        }
+            // EmailJS ile e-posta gönderme
+            const templateParams = {
+                to_email: email,
+                report_date: new Date(report.report_date).toLocaleDateString('tr-TR'),
+                total_packages: report.data.totalPackages,
+                total_items: report.data.totalItems,
+                operator: report.data.operator,
+                critical_stock: report.data.criticalStock ? report.data.criticalStock.length : 0
+            };
 
-        function closeAllModals() {
-            document.getElementById('customerModal').style.display = 'none';
-            document.getElementById('allCustomersModal').style.display = 'none';
-            document.getElementById('emailModal').style.display = 'none';
-            document.getElementById('quantityModal').style.display = 'none';
-            document.getElementById('manualModal').style.display = 'none';
-            document.getElementById('containerDetailModal').style.display = 'none';
-        }
-
-        function closeModal() {
-            document.getElementById('customerModal').style.display = 'none';
-        }
-
-        function closeAllCustomersModal() {
-            document.getElementById('allCustomersModal').style.display = 'none';
-        }
-
-        function closeQuantityModal() {
-            document.getElementById('quantityModal').style.display = 'none';
-        }
-
-        function closeManualModal() {
-            document.getElementById('manualModal').style.display = 'none';
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Initialize auth state listener
-        function setupAuthListener() {
-            if (!supabase) return;
-            
-            supabase.auth.onAuthStateChange((event, session) => {
-                console.log('Auth state change:', event, session?.user?.email || 'No user');
-                
-                if (session) {
-                    currentUser = {
-                        email: session.user.email,
-                        uid: session.user.id,
-                        name: session.user.email.split('@')[0]
-                    };
+            // KENDİ SERVİS VE ŞABLON ID'LERİNİZİ EKLEYİN
+            emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
+                .then(function(response) {
+                    showAlert(`Rapor ${email} adresine gönderildi`, 'success');
                     
+                    // E-posta gönderim kaydı
+                    supabase
+                        .from('report_emails')
+                        .insert([{
+                            report_id: report.id,
+                            sent_to: email,
+                            sent_at: new Date().toISOString(),
+                            status: 'sent'
+                        }]);
+                }, function(error) {
+                    console.error('E-posta gönderme hatası:', error);
+                    showAlert('E-posta gönderilirken hata oluştu: ' + error.text, 'error');
+                });
+            
+            closeEmailModal();
+            
+        } catch (error) {
+            console.error('Rapor gönderme hatası:', error);
+            showAlert('Rapor gönderilirken hata oluştu', 'error');
+        }
+    }
+
+    async function previewReport() {
+        await populatePackagesTable();
+        
+        // Get packages data
+        const { data: packages } = await supabase
+            .from('packages')
+            .select(`
+                *,
+                customers (name, code)
+            `)
+            .order('created_at', { ascending: false });
+            
+        // Get containers data
+        const { data: containers } = await supabase
+            .from('containers')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        // Get critical stock
+        const { data: criticalStock } = await supabase
+            .from('stock_items')
+            .select('*')
+            .lte('quantity', 5)
+            .order('quantity', { ascending: true });
+
+        const reportData = {
+            date: new Date().toLocaleDateString('tr-TR'),
+            totalPackages: packages.length,
+            totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+            containers: containers.length,
+            customers: [...new Set(packages.map(p => p.customers?.name))].length,
+            criticalStock: criticalStock,
+            operator: currentUser?.name || 'Bilinmiyor'
+        };
+
+        const reportWindow = window.open('', '_blank');
+        reportWindow.document.write(`
+            <html>
+            <head>
+                <title>İş Sonu Raporu - ${reportData.date}</title>
+                <style>
+                    body { font-family: Arial; margin: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .critical { color: #c0392b; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h1>ProClean - İş Sonu Raporu</h1>
+                <p><strong>Tarih:</strong> ${reportData.date} | <strong>Operatör:</strong> ${reportData.operator}</p>
+                
+                <h2>Özet</h2>
+                <ul>
+                    <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
+                    <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
+                    <li>Konteyner Sayısı: ${reportData.containers}</li>
+                    <li>Müşteri Sayısı: ${reportData.customers}</li>
+                    <li class="${reportData.criticalStock.length > 0 ? 'critical' : ''}">Kritik Stok Sayısı: ${reportData.criticalStock.length}</li>
+                </ul>
+                
+                <h2>Kritik Stoklar</h2>
+                ${reportData.criticalStock.length > 0 ? `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Stok Kodu</th>
+                                <th>Ürün Adı</th>
+                                <th>Mevcut Adet</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${reportData.criticalStock.map(item => `
+                                <tr>
+                                    <td>${item.code}</td>
+                                    <td>${item.name}</td>
+                                    <td class="critical">${item.quantity}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        </table>
+                    ` : '<p>Kritik stok bulunmamaktadır.</p>'}
+                
+                <h2>Paket Detayları</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Paket No</th>
+                            <th>Müşteri</th>
+                            <th>Adet</th>
+                            <th>Zaman</th>
+                            <th>Paketleyen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${packages.map(pkg => `
+                            <tr>
+                                <td>${escapeHtml(pkg.package_no)}</td>
+                                <td>${escapeHtml(pkg.customers?.name || 'N/A'}</td>
+                                <td>${pkg.total_quantity}</td>
+                                <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
+                                <td>${escapeHtml(pkg.packer)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `);
+        reportWindow.document.close();
+    }
+
+    // Container operations
+    function loadCurrentContainer() {
+        showAlert('Mevcut konteyner yüklendi', 'success');
+    }
+
+    async function createNewContainer() {
+        try {
+            const timestamp = new Date().getTime();
+            const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+            
+            const { data: newContainer, error } = await supabase
+                .from('containers')
+                .insert([{
+                    container_no: containerNo,
+                    customer: '',
+                    package_count: 0,
+                    total_quantity: 0,
+                    status: 'beklemede',
+                    package_ids: []
+                }])
+                .select();
+
+            if (error) throw error;
+
+            elements.containerNumber.textContent = containerNo;
+            currentContainer = containerNo;
+            saveAppState();
+            
+            showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+            await populateShippingTable();
+            
+        } catch (error) {
+            console.error('Error creating container:', error);
+            showAlert('Konteyner oluşturulurken hata oluştu', 'error');
+        }
+    }
+
+    async function deleteContainer() {
+        // Seçili konteynerleri al
+        const selectedContainers = Array.from(document.querySelectorAll('.container-checkbox:checked'))
+            .map(cb => cb.value);
+            
+        if (selectedContainers.length === 0) {
+            showAlert('Silinecek konteyner seçin', 'error');
+            return;
+        }
+
+        if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
+
+        try {
+            // Önce bu konteynerlere bağlı paketleri güncelle
+            const { error: updateError } = await supabase
+                .from('packages')
+                .update({ 
+                    container_id: null,
+                    status: 'beklemede'
+                })
+                .in('container_id', selectedContainers);
+
+            if (updateError) throw updateError;
+
+            // Sonra konteynerleri sil
+            const { error: deleteError } = await supabase
+                .from('containers')
+                .delete()
+                .in('id', selectedContainers);
+
+            if (deleteError) throw deleteError;
+
+            // Eğer silinen konteyner aktif konteyner ise sıfırla
+            if (currentContainer && selectedContainers.includes(currentContainer)) {
+                currentContainer = null;
+                elements.containerNumber.textContent = 'Yok';
+                saveAppState();
+            }
+            
+            showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
+            await populateShippingTable();
+            
+        } catch (error) {
+            console.error('Error deleting container:', error);
+            showAlert('Konteyner silinirken hata oluştu', 'error');
+        }
+    }
+
+    // Utility functions
+    function switchTab(tabName) {
+        // Hide all tab panes
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active');
+        });
+        
+        // Deactivate all tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Activate selected tab
+        const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+        const selectedPane = document.getElementById(`${tabName}Tab`);
+        
+        if (selectedTab && selectedPane) {
+            selectedTab.classList.add('active');
+            selectedPane.classList.add('active');
+        }
+    }
+
+    function closeAllModals() {
+        document.getElementById('customerModal').style.display = 'none';
+        document.getElementById('allCustomersModal').style.display = 'none';
+        document.getElementById('emailModal').style.display = 'none';
+        document.getElementById('quantityModal').style.display = 'none';
+        document.getElementById('manualModal').style.display = 'none';
+        document.getElementById('containerDetailModal').style.display = 'none';
+    }
+
+    function closeModal() {
+        document.getElementById('customerModal').style.display = 'none';
+    }
+
+    function closeAllCustomersModal() {
+        document.getElementById('allCustomersModal').style.display = 'none';
+    }
+
+    function closeQuantityModal() {
+        document.getElementById('quantityModal').style.display = 'none';
+    }
+
+    function closeManualModal() {
+        document.getElementById('manualModal').style.display = 'none';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Initialize auth state listener
+    function setupAuthListener() {
+        if (!supabase) return;
+        
+        supabase.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state change:', event, session?.user?.email || 'No user');
+            
+            if (session) {
+                currentUser = {
+                    email: session.user.email,
+                    uid: session.user.id,
+                    name: session.user.email.split('@')[0]
+                };
+            
                     document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
                     document.getElementById('loginScreen').style.display = "none";
                     document.getElementById('appContainer').style.display = "flex";
