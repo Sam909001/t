@@ -2955,7 +2955,7 @@ async function generateDailyReport() {
                 report_date: new Date(),
                 report_type: 'daily',
                 data: reportData,
-                generated_by: currentUser.uid // Correctly uses the authenticated user's UID
+                user_id: currentUser.uid // Correctly uses the authenticated user's UID
             }]);
 
         if (reportError) throw reportError;
