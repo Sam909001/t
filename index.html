@@ -3366,6 +3366,7 @@ async function sendReportEmail(email, templateParams, pdfBlob = null) {
 // Güncellenmiş sendDailyReport fonksiyonu
 async function sendDailyReport() {
     const email = document.getElementById('reportEmail').value;
+    console.log('Alınan e-posta adresi:', email); // Bu satırı ekleyin
     
     // Form validation
     if (!validateForm([
