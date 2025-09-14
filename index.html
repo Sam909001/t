@@ -2881,78 +2881,83 @@ window.addEventListener('load', () => {
         }
 
         // Report operations
-       // Report operations
-        async function generateDailyReport() {
-            try {
-                const today = new Date();
-                const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-                const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+      async function generateDailyReport() {
+    try {
+        // Correctly get the authenticated user's session and ID
+        const { data: { user } } = await supabase.auth.getSession();
 
-                const { data: packages, error: packagesError } = await supabase
-                    .from('packages')
-                    .select(`
-                        *,
-                        customers (name, code)
-                    `)
-                    .gte('created_at', startOfDay)
-                    .lte('created_at', endOfDay);
-
-                if (packagesError) throw packagesError;
-
-                const { data: containers, error: containersError } = await supabase
-                    .from('containers')
-                    .select('*')
-                    .gte('created_at', startOfDay)
-                    .lte('created_at', endOfDay);
-
-                if (containersError) throw containersError;
-
-                // Kritik stokları al
-                const { data: criticalStock, error: stockError } = await supabase
-                    .from('stock_items')
-                    .select('*')
-                    .lte('quantity', 5)
-                    .order('quantity', { ascending: true });
-
-                if (stockError) throw stockError;
-
-                const reportData = {
-                    date: new Date().toLocaleDateString('tr-TR'),
-                    totalPackages: packages.length,
-                    totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-                    containers: containers.length,
-                    customers: [...new Set(packages.map(p => p.customers?.name))].length,
-                    packages: packages,
-                    containers: containers,
-                    criticalStock: criticalStock,
-                    operator: currentUser?.name || 'Bilinmiyor'
-                };
-
-                // Raporu veritabanına kaydet
-                const { error: reportError } = await supabase
-                    .from('reports')
-                    .insert([{
-                        report_date: new Date(),
-                        report_type: 'daily',
-                        data: reportData,
-                        generated_by: currentUser?.uid
-                    }]);
-
-                if (reportError) throw reportError;
-
-                // E-posta modalını göster
-                document.getElementById('reportEmail').value = selectedCustomer?.email || '';
-                document.getElementById('emailModal').style.display = 'flex';
-
-            } catch (error) {
-                console.error('Rapor oluşturma hatası:', error);
-                showAlert('Rapor oluşturulurken hata oluştu', 'error');
-            }
+        // Check if the user is authenticated before proceeding
+        if (!user || !user.id) {
+            console.error('Kullanıcı oturum açmamış veya kimlik doğrulama başarısız.');
+            showAlert('Lütfen rapor oluşturmadan önce giriş yapın.', 'error');
+            return;
         }
 
-        function closeEmailModal() {
-            document.getElementById('emailModal').style.display = 'none';
-        }
+        const today = new Date();
+        const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+        const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+        const { data: packages, error: packagesError } = await supabase
+            .from('packages')
+            .select(`
+                *,
+                customers (name, code)
+            `)
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay);
+
+        if (packagesError) throw packagesError;
+
+        const { data: containers, error: containersError } = await supabase
+            .from('containers')
+            .select('*')
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay);
+
+        if (containersError) throw containersError;
+
+        // Kritik stokları al
+        const { data: criticalStock, error: stockError } = await supabase
+            .from('stock_items')
+            .select('*')
+            .lte('quantity', 5)
+            .order('quantity', { ascending: true });
+
+        if (stockError) throw stockError;
+
+        const reportData = {
+            date: new Date().toLocaleDateString('tr-TR'),
+            totalPackages: packages.length,
+            totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+            containers: containers.length,
+            customers: [...new Set(packages.map(p => p.customers?.name))].length,
+            packages: packages,
+            containers: containers,
+            criticalStock: criticalStock,
+            operator: currentUser?.name || 'Bilinmiyor'
+        };
+
+        // Raporu veritabanına kaydet
+        const { error: reportError } = await supabase
+            .from('reports')
+            .insert([{
+                report_date: new Date(),
+                report_type: 'daily',
+                data: reportData,
+                generated_by: user.id // Pass the user ID directly from the session
+            }]);
+
+        if (reportError) throw reportError;
+
+        // E-posta modalını göster
+        document.getElementById('reportEmail').value = selectedCustomer?.email || '';
+        document.getElementById('emailModal').style.display = 'flex';
+
+    } catch (error) {
+        console.error('Rapor oluşturma hatası:', error);
+        showAlert('Rapor oluşturulurken hata oluştu', 'error');
+    }
+}
              
 
 async function sendDailyReport(email) {
