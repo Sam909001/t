@@ -2924,7 +2924,7 @@ window.addEventListener('load', () => {
 
     const { error } = await supabase.from('reports').insert([{
       created_at: new Date(),
-      report_type: 'daily',
+      report_name: 'daily',
       data: reportData,
       generated_by: currentUser?.uid || null
     }]);
