@@ -3081,7 +3081,7 @@ async function sendDailyReport(email) {
         showAlert(`Rapor ${email} adresine başarıyla gönderildi`, 'success');
 
         // 8️⃣ Log email sent in Supabase
-        await supabaseClient.from('report_emails').insert([{
+        await supabase.from('report_emails').insert([{
             report_id: report.id,
             sent_to: email,
             sent_at: new Date().toISOString(),
