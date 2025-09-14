@@ -2923,7 +2923,7 @@ window.addEventListener('load', () => {
     };
 
     const { error } = await supabase.from('reports').insert([{
-      report_date: new Date(),
+      created_at: new Date(),
       report_type: 'daily',
       data: reportData,
       generated_by: currentUser?.uid || null
@@ -3055,7 +3055,7 @@ async function sendDailyReport(email) {
     // 5️⃣ Send email with better error handling
     const templateParams = {
       to_email: email,
-      report_date: today.toLocaleDateString(),
+      created_at: today.toLocaleDateString(),
       total_packages: packages.length,
       total_items: packages.reduce((sum, p) => sum + p.total_quantity, 0),
       operator: currentUser?.name || 'Bilinmiyor',
