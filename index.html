@@ -2952,18 +2952,32 @@ try {
             console.warn('Current user not defined, using default UID.');
         }
 
-        // 6️⃣ Insert report into database
-        const { error: reportError } = await supabase
-            .from('reports')
-            .insert([{
-                report_date: new Date(),
-                report_type: 'daily',
-                data: reportData,
-                generated_by: operatorUid
-            }]);
+       // 6️⃣ Insert report into database - check your actual column names
+const { error: reportError } = await supabase
+    .from('reports')
+    .insert([{
+        report_date: new Date().toISOString(),
+        report_type: 'daily',
+        report_data: reportData, // Check if the column is named 'data' or 'report_data'
+        // generated_by: operatorUid, // Remove if column doesn't exist
+        created_by: operatorUid, // Try alternative column names
+        user_id: operatorUid,
+        operator: currentUser?.name || 'Bilinmiyor'
+    }]);
 
-        if (reportError) throw reportError;
-
+if (reportError) {
+    console.error('Report insertion error:', reportError);
+    // Try without the generated_by field
+    const { error: retryError } = await supabase
+        .from('reports')
+        .insert([{
+            report_date: new Date().toISOString(),
+            report_type: 'daily',
+            report_data: reportData
+        }]);
+    
+    if (retryError) throw retryError;
+}
         // 7️⃣ Show email modal
         document.getElementById('reportEmail').value = selectedCustomer?.email || '';
         document.getElementById('emailModal').style.display = 'flex';
