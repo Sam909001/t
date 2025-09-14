@@ -2895,8 +2895,15 @@ input.invalid, select.invalid {
         }
 
         // Report operations
-       async function generateDailyReport() {
+async function generateDailyReport() {
     try {
+        // Step 1: Ensure a user is authenticated
+        if (!currentUser || !currentUser.uid) {
+            showAlert('Lütfen rapor oluşturmadan önce giriş yapın.', 'error');
+            console.error('Rapor oluşturma hatası: Kullanıcı kimliği bulunamadı.');
+            return;
+        }
+        
         const today = new Date();
         const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
         const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
@@ -2941,41 +2948,19 @@ input.invalid, select.invalid {
             operator: currentUser?.name || 'Bilinmiyor'
         };
 
-        // 5️⃣ Ensure operator UID exists in personnel table
-        let operatorUid = currentUser?.uid;
-
-        if (operatorUid) {
-            const { data: personnelCheck, error: personnelError } = await supabase
-                .from('personnel')
-                .select('uid')
-                .eq('uid', operatorUid)
-                .limit(1);
-
-            if (personnelError) {
-                console.error('Personnel check error:', personnelError);
-                operatorUid = null;
-            } else if (!personnelCheck || personnelCheck.length === 0) {
-                operatorUid = 'default_valid_personnel_uid'; // Replace with a real UID
-                console.warn('Current user not found in personnel table, using default UID.');
-            }
-        } else {
-            operatorUid = 'default_valid_personnel_uid'; // Replace with a real UID
-            console.warn('Current user not defined, using default UID.');
-        }
-
-        // 6️⃣ Insert report into database
+        // 5️⃣ Insert report into database
         const { error: reportError } = await supabase
             .from('reports')
             .insert([{
                 report_date: new Date(),
                 report_type: 'daily',
                 data: reportData,
-                generated_by: operatorUid
+                generated_by: currentUser.uid // Correctly uses the authenticated user's UID
             }]);
 
         if (reportError) throw reportError;
 
-        // 7️⃣ Show email modal
+        // 6️⃣ Show email modal
         document.getElementById('reportEmail').value = selectedCustomer?.email || '';
         document.getElementById('emailModal').style.display = 'flex';
 
@@ -2983,11 +2968,7 @@ input.invalid, select.invalid {
         console.error('Rapor oluşturma hatası:', error);
         showAlert('Rapor oluşturulurken hata oluştu', 'error');
     }
-}
-
-function closeEmailModal() {
-    document.getElementById('emailModal').style.display = 'none';
-}        
+}      
 
 async function sendDailyReport(email) {
   try {
