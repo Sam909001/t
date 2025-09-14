@@ -2989,12 +2989,13 @@ function closeEmailModal() {
 }
 
 async function sendDailyReport(email) {
-    email = email || document.getElementById('reportEmail').value;
+    try {
+        email = email || document.getElementById('reportEmail').value;
 
-    if (!email || !email.includes('@')) {
-        showAlert('Lütfen geçerli bir e-posta girin', 'error');
-        return;
-    }
+        if (!email || !email.includes('@')) {
+            showAlert('Lütfen geçerli bir e-posta girin', 'error');
+            return;
+        }
 
         // 1️⃣ Get the latest report from Supabase
         const { data: reports, error: reportsError } = await supabase
@@ -3045,7 +3046,7 @@ async function sendDailyReport(email) {
 
         // 3️⃣ Generate PDF from hidden div
         const pdfBase64 = await html2pdf().from(reportDiv).output('datauristring');
-        const pdfData = pdfBase64.split(',')[1]; // remove "data:application/pdf;base64," prefix
+        const pdfData = pdfBase64.split(',')[1]; // remove prefix
 
         // 4️⃣ Send PDF via EmailJS
         const templateParams = {
@@ -3058,11 +3059,11 @@ async function sendDailyReport(email) {
             attachment: pdfData
         };
 
-        await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams);
+        await emailjs.send('service_4rt2w5g', 'template_xx6gjef', templateParams);
 
         showAlert(`Rapor ${email} adresine başarıyla gönderildi`, 'success');
 
-        // 5️⃣ Optionally, log email sent in database
+        // 5️⃣ Log email sent in database
         await supabase.from('report_emails').insert([{
             report_id: report.id,
             sent_to: email,
@@ -3072,10 +3073,9 @@ async function sendDailyReport(email) {
 
     } catch (error) {
         console.error('Rapor gönderme hatası:', error);
-        showAlert('Rapor gönderilirken hata oluştu: ' + (error.text || error.message), 'error');
+        showAlert('Rapor gönderilirken hata oluştu: ' + (error.message || error.text), 'error');
     }
 }
-
 
         async function previewReport() {
             await populatePackagesTable();
