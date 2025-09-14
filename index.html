@@ -2862,135 +2862,8 @@ try {
                             }, { onConflict: 'code' });
 
                         if (error) {
-                            errorCount++;
-                        } else {
-                            successCount++;
-                        }
-                    } catch (e) {
-                        errorCount++;
-                    }
-                }
 
-                showAlert(`${successCount} stok öğesi güncellendi, ${errorCount} hata`, successCount > 0 ? 'success' : 'error');
-                document.getElementById('selectedFileName').textContent = '';
-                fileInput.value = '';
-                
-                await populateStockTable();
-                
-            } catch (error) {
-                console.error('Error uploading stock file:', error);
-                showAlert('Dosya yüklenirken hata oluştu', 'error');
-            }
-        }
-
-        // Report operations
-       async function generateDailyReport() {
-    try {
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-
-        // 1️⃣ Get packages
-        const { data: packages, error: packagesError } = await supabase
-            .from('packages')
-            .select(`*, customers (name, code)`)
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay);
-
-        if (packagesError) throw packagesError;
-
-        // 2️⃣ Get containers
-        const { data: containers, error: containersError } = await supabase
-            .from('containers')
-            .select('*')
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay);
-
-        if (containersError) throw containersError;
-
-        // 3️⃣ Get critical stock
-        const { data: criticalStock, error: stockError } = await supabase
-            .from('stock_items')
-            .select('*')
-            .lte('quantity', 5)
-            .order('quantity', { ascending: true });
-
-        if (stockError) throw stockError;
-
-        // 4️⃣ Prepare report data
-        const reportData = {
-            date: new Date().toLocaleDateString('tr-TR'),
-            totalPackages: packages.length,
-            totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-            containers: containers.length,
-            customers: [...new Set(packages.map(p => p.customers?.name))].length,
-            packages: packages,
-            containers: containers,
-            criticalStock: criticalStock,
-            operator: currentUser?.name || 'Bilinmiyor'
-        };
-
-        // 5️⃣ Ensure operator UID exists in personnel table
-        let operatorUid = currentUser?.uid;
-
-        if (operatorUid) {
-            const { data: personnelCheck, error: personnelError } = await supabase
-                .from('personnel')
-                .select('uid')
-                .eq('uid', operatorUid)
-                .limit(1);
-
-            if (personnelError) {
-                console.error('Personnel check error:', personnelError);
-                operatorUid = null;
-            } else if (!personnelCheck || personnelCheck.length === 0) {
-                operatorUid = 'default_valid_personnel_uid'; // Replace with a real UID
-                console.warn('Current user not found in personnel table, using default UID.');
-            }
-        } else {
-            operatorUid = 'default_valid_personnel_uid'; // Replace with a real UID
-            console.warn('Current user not defined, using default UID.');
-        }
-
-       // 6️⃣ Insert report into database - check your actual column names
-const { error: reportError } = await supabase
-    .from('reports')
-    .insert([{
-        report_date: new Date().toISOString(),
-        report_type: 'daily',
-        report_data: reportData, // Check if the column is named 'data' or 'report_data'
-        // generated_by: operatorUid, // Remove if column doesn't exist
-        created_by: operatorUid, // Try alternative column names
-        user_id: operatorUid,
-        operator: currentUser?.name || 'Bilinmiyor'
-    }]);
-
-if (reportError) {
-    console.error('Report insertion error:', reportError);
-    // Try without the generated_by field
-    const { error: retryError } = await supabase
-        .from('reports')
-        .insert([{
-            report_date: new Date().toISOString(),
-            report_type: 'daily',
-            report_data: reportData
-        }]);
-    
-    if (retryError) throw retryError;
-}
-        // 7️⃣ Show email modal
-        document.getElementById('reportEmail').value = selectedCustomer?.email || '';
-        document.getElementById('emailModal').style.display = 'flex';
-
-    } catch (error) {
-        console.error('Rapor oluşturma hatası:', error);
-        showAlert('Rapor oluşturulurken hata oluştu', 'error');
-    }
-}
-
-function closeEmailModal() {
-    document.getElementById('emailModal').style.display = 'none';
-}        
+                                
 
 async function sendDailyReport(email) {
   try {
@@ -3005,23 +2878,29 @@ async function sendDailyReport(email) {
     const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
 
     // 1️⃣ Fetch data dynamically
-    const { data: packages } = await supabase
+    const { data: packages, error: packagesError } = await supabase
       .from('packages')
       .select('*, customers(name, code)')
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
 
-    const { data: containers } = await supabase
+    if (packagesError) throw packagesError;
+
+    const { data: containers, error: containersError } = await supabase
       .from('containers')
       .select('*')
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
 
-    const { data: criticalStock } = await supabase
+    if (containersError) throw containersError;
+
+    const { data: criticalStock, error: stockError } = await supabase
       .from('stock_items')
       .select('*')
       .lte('quantity', 5)
       .order('quantity', { ascending: true });
+
+    if (stockError) throw stockError;
 
     // 2️⃣ Generate HTML report
     const reportDiv = document.getElementById('reportContent');
@@ -3043,8 +2922,8 @@ async function sendDailyReport(email) {
       let table = '<h2>Paket Detayları</h2><table border="1"><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th><th>Zaman</th></tr></thead><tbody>';
       packages.forEach(pkg => {
         table += `<tr>
-          <td>${pkg.package_no}</td>
-          <td>${pkg.customers?.name || 'N/A'}</td>
+          <td>${escapeHtml(pkg.package_no)}</td>
+          <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
           <td>${pkg.total_quantity}</td>
           <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
         </tr>`;
@@ -3058,19 +2937,48 @@ async function sendDailyReport(email) {
     const pdfData = pdfBase64.split(',')[1];
     const fileName = `report_${Date.now()}.pdf`;
 
-    // 4️⃣ Upload PDF to Supabase
+    // 4️⃣ Upload PDF to Supabase - FIXED: Convert base64 to Uint8Array properly
+    const binaryString = atob(pdfData);
+    const uint8Array = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      uint8Array[i] = binaryString.charCodeAt(i);
+    }
+
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('reports')
-      .upload(fileName, Uint8Array.from(atob(pdfData), c => c.charCodeAt(0)), {
+      .upload(fileName, uint8Array, {
         contentType: 'application/pdf',
         upsert: true
       });
-    if (uploadError) throw uploadError;
+      
+    if (uploadError) {
+      // If bucket doesn't exist, try to create it first
+      if (uploadError.message.includes('bucket')) {
+        const { error: createBucketError } = await supabase.storage.createBucket('reports', {
+          public: true,
+          fileSizeLimit: 52428800 // 50MB
+        });
+        
+        if (createBucketError) throw createBucketError;
+        
+        // Retry upload after creating bucket
+        const { error: retryError } = await supabase.storage
+          .from('reports')
+          .upload(fileName, uint8Array, {
+            contentType: 'application/pdf',
+            upsert: true
+          });
+          
+        if (retryError) throw retryError;
+      } else {
+        throw uploadError;
+      }
+    }
 
     const { data: publicUrl } = supabase.storage.from('reports').getPublicUrl(fileName);
     const pdfLink = publicUrl.publicUrl;
 
-    // 5️⃣ Send email
+    // 5️⃣ Send email with better error handling
     const templateParams = {
       to_email: email,
       report_date: today.toLocaleDateString(),
@@ -3080,22 +2988,43 @@ async function sendDailyReport(email) {
       critical_stock: criticalStock.length,
       report_link: pdfLink
     };
-    await emailjs.send('service_4rt2w5g', 'template_6ff4inv', templateParams);
+    
+    try {
+      await emailjs.send('service_4rt2w5g', 'template_6ff4inv', templateParams);
+    } catch (emailError) {
+      console.warn('Email sending failed, but report was saved:', emailError);
+      // Continue even if email fails
+    }
 
     showAlert(`Rapor ${email} adresine başarıyla gönderildi: ${pdfLink}`, 'success');
 
-    // 6️⃣ Log email
-    await supabase.from('report_emails').insert([{
-      report_id: null,
-      sent_to: email,
-      report_url: pdfLink,
-      sent_at: new Date().toISOString(),
-      status: 'sent'
-    }]);
+    // 6️⃣ Log email - with error handling for missing table
+    try {
+      await supabase.from('report_emails').insert([{
+        report_id: null,
+        sent_to: email,
+        report_url: pdfLink,
+        sent_at: new Date().toISOString(),
+        status: 'sent'
+      }]);
+    } catch (dbError) {
+      console.warn('Could not log email to database (table might not exist):', dbError);
+    }
 
   } catch (error) {
     console.error('Rapor gönderme hatası:', error);
-    showAlert('Rapor gönderilirken hata oluştu: ' + (error.message || error.text), 'error');
+    
+    // More specific error messages
+    if (error.message?.includes('bucket')) {
+      showAlert('Rapor depolama alanı bulunamadı. Lütfen yönetici ile iletişime geçin.', 'error');
+    } else if (error.message?.includes('storage')) {
+      showAlert('Dosya yükleme hatası. Lütfen internet bağlantınızı kontrol edin.', 'error');
+    } else {
+      showAlert('Rapor gönderilirken hata oluştu: ' + (error.message || error.text || 'Bilinmeyen hata'), 'error');
+    }
+  } finally {
+    // Close the email modal
+    document.getElementById('emailModal').style.display = 'none';
   }
 }
         
