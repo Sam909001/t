@@ -3044,87 +3044,313 @@ async function sendDailyReport() {
 }
 
 // PDF Generation Function
+// PDF Generation Function - Fixed version
 async function generatePDFReport(reportData) {
-    return new Promise((resolve) => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Title
-        doc.setFontSize(20);
-        doc.text('ProClean - Günlük İş Sonu Raporu', 105, 15, { align: 'center' });
-        
-        // Report details
-        doc.setFontSize(12);
-        doc.text(`Tarih: ${reportData.date}`, 20, 25);
-        doc.text(`Operatör: ${reportData.operator}`, 20, 32);
-        
-        // Summary section
-        doc.setFontSize(14);
-        doc.text('Özet', 20, 45);
-        doc.setFontSize(10);
+    return new Promise((resolve, reject) => {
+        try {
+            // Use jsPDF with autotable plugin
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Set default font
+            doc.setFont("helvetica");
+            
+            // Title
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            const title = 'ProClean - Günlük İş Sonu Raporu';
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const titleWidth = doc.getTextWidth(title);
+            doc.text(title, (pageWidth - titleWidth) / 2, 20);
+            
+            // Report details
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Tarih: ${reportData.date}`, 20, 35);
+            doc.text(`Operatör: ${reportData.operator}`, 20, 42);
+            doc.text(`Rapor ID: ${reportData.id || 'Yerel Kayıt'}`, 20, 49);
+            
+            // Summary section
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('ÖZET', 20, 65);
+            
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(`• Toplam Paket Sayısı: ${reportData.totalPackages}`, 30, 75);
+            doc.text(`• Toplam Ürün Adedi: ${reportData.totalItems}`, 30, 82);
+            doc.text(`• Konteyner Sayısı: ${reportData.containers || 0}`, 30, 89);
+            doc.text(`• Müşteri Sayısı: ${reportData.customers || 0}`, 30, 96);
+            doc.text(`• Kritik Stok Sayısı: ${reportData.criticalStock?.length || 0}`, 30, 103);
+            
+            let currentY = 115;
+            
+            // Critical stock table if exists
+            if (reportData.criticalStock && reportData.criticalStock.length > 0) {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('KRİTİK STOKLAR', 20, currentY);
+                currentY += 10;
+                
+                const criticalStockData = reportData.criticalStock.map(item => [
+                    item.code || 'N/A',
+                    item.name || 'N/A',
+                    item.quantity?.toString() || '0'
+                ]);
+                
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Stok Kodu', 'Ürün Adı', 'Mevcut Adet']],
+                    body: criticalStockData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [231, 76, 60],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        fontSize: 9,
+                        cellPadding: 3
+                    }
+                });
+                
+                currentY = doc.lastAutoTable.finalY + 15;
+            }
+            
+            // Package details table
+            if (reportData.packages && reportData.packages.length > 0) {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('PAKET DETAYLARI', 20, currentY);
+                currentY += 10;
+                
+                const packageData = reportData.packages.map(pkg => [
+                    pkg.package_no || 'N/A',
+                    pkg.customers?.name || 'N/A',
+                    pkg.total_quantity?.toString() || '0',
+                    pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A',
+                    pkg.packer || 'Bilinmiyor'
+                ]);
+                
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Paketleyen']],
+                    body: packageData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [52, 152, 219],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        fontSize: 8,
+                        cellPadding: 2
+                    },
+                    margin: { top: 10 },
+                    pageBreak: 'auto'
+                });
+                
+                currentY = doc.lastAutoTable.finalY + 15;
+            }
+            
+            // Container details table if exists
+            if (reportData.containers && reportData.containers.length > 0) {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('KONTEYNER DETAYLARI', 20, currentY);
+                currentY += 10;
+                
+                const containerData = reportData.containers.map(container => [
+                    container.container_no || 'N/A',
+                    container.customer || 'N/A',
+                    container.package_count?.toString() || '0',
+                    container.total_quantity?.toString() || '0',
+                    container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'
+                ]);
+                
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Konteyner No', 'Müşteri', 'Paket Sayısı', 'Toplam Adet', 'Oluşturulma Tarihi']],
+                    body: containerData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [46, 204, 113],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        fontSize: 8,
+                        cellPadding: 2
+                    },
+                    margin: { top: 10 }
+                });
+                
+                currentY = doc.lastAutoTable.finalY + 15;
+            }
+            
+            // Footer on each page
+            const addFooter = (doc) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'italic');
+                    doc.text(`Sayfa ${i} / ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+                    doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - 20, doc.internal.pageSize.height - 10, { align: 'right' });
+                }
+            };
+            
+            // Add footer to all pages
+            addFooter(doc);
+            
+            // Generate PDF blob
+            const pdfBlob = doc.output('blob');
+            resolve(pdfBlob);
+            
+        } catch (error) {
+            console.error('PDF oluşturma hatası:', error);
+            reject(new Error(`PDF oluşturulamadı: ${error.message}`));
+        }
+    });
+}
 
-        // Corrected lines: Convert numbers to strings with .toString()
-        doc.text(`Toplam Paket Sayısı: ${reportData.totalPackages.toString()}`, 20, 55);
-        doc.text(`Toplam Ürün Adedi: ${reportData.totalItems.toString()}`, 20, 62);
-        doc.text(`Konteyner Sayısı: ${reportData.containers.toString()}`, 20, 69);
-        doc.text(`Müşteri Sayısı: ${reportData.customers.toString()}`, 20, 76);
-        doc.text(`Kritik Stok Sayısı: ${reportData.criticalStock.length.toString()}`, 20, 83);
-        
-        // Critical stock table if exists
-        if (reportData.criticalStock && reportData.criticalStock.length > 0) {
-            doc.setFontSize(14);
-            doc.text('Kritik Stoklar', 20, 95);
-            
-            const criticalStockData = reportData.criticalStock.map(item => [
-                item.code,
-                item.name,
-                item.quantity.toString()
-            ]);
-            
-            doc.autoTable({
-                startY: 100,
-                head: [['Stok Kodu', 'Ürün Adı', 'Mevcut Adet']],
-                body: criticalStockData,
-                theme: 'grid',
-                headStyles: { fillColor: [231, 76, 60] }
-            });
-        }
-        
-        // Package details table
-        doc.setFontSize(14);
-        doc.text('Paket Detayları', 20, doc.lastAutoTable.finalY + 15);
-        
-        const packageData = reportData.packages.map(pkg => [
-            pkg.package_no,
-            pkg.customers?.name || 'N/A',
-            pkg.total_quantity.toString(),
-            new Date(pkg.created_at).toLocaleDateString('tr-TR'),
-            pkg.packer || 'Bilinmiyor'
-        ]);
-        
-        doc.autoTable({
-            startY: doc.lastAutoTable.finalY + 20,
-            head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Paketleyen']],
-            body: packageData,
-            theme: 'grid',
-            headStyles: { fillColor: [52, 152, 219] },
-            pageBreak: 'auto',
-            margin: { top: 20 }
-        });
-        
-        // Footer
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(10);
-            doc.text(`Sayfa ${i} / ${pageCount}`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
-            doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, 195, doc.internal.pageSize.height - 10, { align: 'right' });
-        }
-        
-        // Generate PDF blob
-        const pdfBlob = doc.output('blob');
-        resolve(pdfBlob);
-    });
+// Alternatif basit PDF oluşturma fonksiyonu (yedek)
+async function generateSimplePDFReport(reportData) {
+    return new Promise((resolve, reject) => {
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Basit başlık
+            doc.setFontSize(16);
+            doc.text('ProClean - Günlük Rapor', 20, 20);
+            
+            // Tarih ve operatör
+            doc.setFontSize(12);
+            doc.text(`Tarih: ${reportData.date}`, 20, 35);
+            doc.text(`Operatör: ${reportData.operator}`, 20, 45);
+            
+            // Özet bilgiler
+            doc.text('ÖZET:', 20, 60);
+            doc.text(`• Toplam Paket: ${reportData.totalPackages}`, 30, 70);
+            doc.text(`• Toplam Ürün: ${reportData.totalItems}`, 30, 80);
+            doc.text(`• Müşteri Sayısı: ${reportData.customers || 0}`, 30, 90);
+            
+            // PDF'i blob olarak döndür
+            const pdfBlob = doc.output('blob');
+            resolve(pdfBlob);
+            
+        } catch (error) {
+            reject(new Error('Basit PDF oluşturulamadı'));
+        }
+    });
+}
+
+// Güncellenmiş sendDailyReport fonksiyonu
+async function sendDailyReport() {
+    const email = document.getElementById('reportEmail').value;
+    
+    // Form validation
+    if (!validateForm([
+        { id: 'reportEmail', errorId: 'reportEmailError', type: 'email', required: true }
+    ])) {
+        return;
+    }
+
+    try {
+        if (!currentReportData) {
+            showAlert('Önce rapor oluşturmalısınız', 'error');
+            return;
+        }
+
+        showAlert('Rapor PDF hazırlanıyor ve gönderiliyor...', 'info');
+        
+        let pdfBlob;
+        
+        // Ana PDF oluşturma fonksiyonunu dene
+        try {
+            pdfBlob = await generatePDFReport(currentReportData);
+        } catch (pdfError) {
+            console.warn('Ana PDF oluşturma başarısız, basit PDF deneniyor:', pdfError);
+            // Yedek basit PDF oluşturma
+            pdfBlob = await generateSimplePDFReport(currentReportData);
+        }
+        
+        // Try to upload to Supabase storage and get a shareable link
+        let pdfUrl = null;
+        try {
+            pdfUrl = await uploadReportToStorage(pdfBlob, currentReportData);
+        } catch (uploadError) {
+            console.warn('PDF Supabase Storage\'a yüklenemedi:', uploadError);
+            // Continue with email attachment instead
+        }
+
+        // Prepare email template parameters
+        const templateParams = {
+            to_email: email,
+            to_name: selectedCustomer?.name || 'Müşteri',
+            report_date: currentReportData.date,
+            total_packages: currentReportData.totalPackages,
+            total_items: currentReportData.totalItems,
+            operator_name: currentReportData.operator,
+            critical_stock_count: currentReportData.criticalStock ? currentReportData.criticalStock.length : 0,
+            report_id: currentReportData.id || 'N/A',
+            report_url: pdfUrl || 'PDF eklenti olarak gönderildi'
+        };
+
+        // Send email with PDF
+        const emailResult = await sendReportEmail(email, templateParams, pdfUrl ? null : pdfBlob);
+        
+        if (emailResult.success) {
+            // Try to record email sending in database (with error handling)
+            try {
+                await supabase
+                    .from('report_emails')
+                    .insert([{
+                        report_id: currentReportData.id,
+                        sent_to: email,
+                        sent_at: new Date().toISOString(),
+                        status: 'sent',
+                        pdf_url: pdfUrl
+                    }]);
+            } catch (dbError) {
+                console.warn('E-posta kaydı veritabanına eklenemedi:', dbError);
+                // Continue without saving to database
+            }
+            
+            showAlert(`Rapor ${email} adresine başarıyla gönderildi`, 'success');
+        } else {
+            throw new Error(emailResult.error);
+        }
+        
+        closeEmailModal();
+        
+    } catch (error) {
+        console.error('Rapor gönderme hatası:', error);
+        showAlert(`Rapor gönderilemedi: ${error.message}`, 'error');
+    }
+}
+
+// Yardımcı fonksiyon: jsPDF versiyon kontrolü
+function checkJsPdfVersion() {
+    if (typeof window.jspdf === 'undefined') {
+        console.error('jsPDF kütüphanesi yüklenmemiş');
+        showAlert('PDF oluşturma kütüphanesi yüklenmemiş', 'error');
+        return false;
+    }
+    
+    // jsPDF versiyon bilgisini kontrol et
+    console.log('jsPDF versiyonu:', window.jspdf.jsPDF?.version || 'Bilinmiyor');
+    return true;
+}
+
+// PDF oluşturmadan önce versiyon kontrolü yap
+async function generatePDFReportSafe(reportData) {
+    if (!checkJsPdfVersion()) {
+        throw new Error('PDF kütüphanesi yüklenmemiş');
+    }
+    
+    return await generatePDFReport(reportData);
 }
 
 // Upload PDF to Supabase Storage
