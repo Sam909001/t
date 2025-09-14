@@ -2942,7 +2942,7 @@ input.invalid, select.invalid {
                         report_date: new Date(),
                         report_type: 'daily',
                         data: reportData,
-                        generated_by: currentUser?.uid || 'some_existing_uid_in_personnel'
+                        generated_by: currentUser?.uid
                     }]);
 
                 if (reportError) throw reportError;
