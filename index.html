@@ -1283,7 +1283,7 @@ input.invalid, select.invalid {
         const { data: userData, error: userError } = await supabase
           .from('personnel')
           .select('role, name')
-          .eq('email', data.user.email)
+          .eq('uid', data.user.id)
           .single();
 
         if (!userError && userData) {
