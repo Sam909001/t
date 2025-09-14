@@ -3028,7 +3028,6 @@ async function sendDailyReport(email) {
             </ul>
         `;
 
-        // Optional: add package details table
         if (reportData.packages.length > 0) {
             let packagesTable = '<h2>Paket Detayları</h2><table border="1"><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th><th>Zaman</th><th>Paketleyen</th></tr></thead><tbody>';
             reportData.packages.forEach(pkg => {
@@ -3045,29 +3044,24 @@ async function sendDailyReport(email) {
         }
 
         // 3️⃣ Generate PDF as Blob
-        const pdfBase64 = await html2pdf().from(reportDiv).output('datauristring');
-        const pdfBlob = await (await fetch(pdfBase64)).blob();
+        const pdfBlob = await html2pdf().from(reportDiv).outputPdf('blob');
 
         // 4️⃣ Upload PDF to Supabase Storage
-        const fileName = `daily_report_${Date.now()}.pdf`;
-        const { error: uploadError } = await supabase
-            .storage
-            .from('reports') // make sure you created "reports" bucket in Supabase
+        const fileName = `report_${Date.now()}.pdf`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('reports') // ✅ bucket must exist in Supabase
             .upload(fileName, pdfBlob, { contentType: 'application/pdf' });
 
         if (uploadError) throw uploadError;
 
-        // 5️⃣ Get public URL
-        const { data: urlData, error: urlError } = supabase
-            .storage
+        // 5️⃣ Get public link
+        const { data: publicUrlData } = supabase.storage
             .from('reports')
             .getPublicUrl(fileName);
 
-        if (urlError) throw urlError;
+        const publicUrl = publicUrlData.publicUrl;
 
-        const publicUrl = urlData.publicUrl;
-
-        // 6️⃣ Send email with PDF link via EmailJS
+        // 6️⃣ Send link via EmailJS
         const templateParams = {
             to_email: email,
             report_date: reportData.date,
@@ -3075,14 +3069,14 @@ async function sendDailyReport(email) {
             total_items: reportData.totalItems,
             operator: reportData.operator,
             critical_stock: reportData.criticalStock.length,
-            report_link: publicUrl // 🔗 dynamic link to the PDF
+            report_link: publicUrl // 🔗 goes inside email template
         };
 
-        await emailjs.send('service_4rt2w5g', 'template_6ff4inv', templateParams);
+        await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams);
 
         showAlert(`Rapor ${email} adresine başarıyla gönderildi`, 'success');
 
-        // 7️⃣ Log email sent in database
+        // 7️⃣ Log in DB
         await supabase.from('report_emails').insert([{
             report_id: report.id,
             sent_to: email,
