@@ -2946,15 +2946,14 @@ input.invalid, select.invalid {
         };
 
         // Raporu veritabanına kaydet - user_id yerine generated_by kullan
-        const { error: reportError } = await supabase
-            .from('reports')
-            .insert([{
-                report_date: new Date(),
-                report_type: 'daily',
-                data: reportData,
-                generated_by: currentUser?.name || 'Unknown', // user_id yerine name kullan
-                user_id: session.user.id // Eğer tabloda user_id sütunu varsa
-            }]);
+      const { error: reportError } = await supabase
+    .from('reports')
+    .insert([{
+        report_date: new Date(),
+        report_type: 'daily',
+        data: reportData,
+        generated_by: currentUser?.name || 'Unknown Operator'
+     }]);
 
         if (reportError) {
             // Eğer hala hata alıyorsak, user_id olmadan kaydetmeyi dene
