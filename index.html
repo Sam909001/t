@@ -3044,11 +3044,30 @@ async function sendDailyReport(email) {
             reportDiv.innerHTML += packagesTable;
         }
 
-        // 3️⃣ Generate PDF from hidden div
+        // 3️⃣ Generate PDF as Blob
         const pdfBase64 = await html2pdf().from(reportDiv).output('datauristring');
-        const pdfData = pdfBase64.split(',')[1]; // remove prefix
+        const pdfBlob = await (await fetch(pdfBase64)).blob();
 
-        // 4️⃣ Send PDF via EmailJS
+        // 4️⃣ Upload PDF to Supabase Storage
+        const fileName = `daily_report_${Date.now()}.pdf`;
+        const { error: uploadError } = await supabase
+            .storage
+            .from('reports') // make sure you created "reports" bucket in Supabase
+            .upload(fileName, pdfBlob, { contentType: 'application/pdf' });
+
+        if (uploadError) throw uploadError;
+
+        // 5️⃣ Get public URL
+        const { data: urlData, error: urlError } = supabase
+            .storage
+            .from('reports')
+            .getPublicUrl(fileName);
+
+        if (urlError) throw urlError;
+
+        const publicUrl = urlData.publicUrl;
+
+        // 6️⃣ Send email with PDF link via EmailJS
         const templateParams = {
             to_email: email,
             report_date: reportData.date,
@@ -3056,14 +3075,14 @@ async function sendDailyReport(email) {
             total_items: reportData.totalItems,
             operator: reportData.operator,
             critical_stock: reportData.criticalStock.length,
-            attachment: pdfData
+            report_link: publicUrl // 🔗 dynamic link to the PDF
         };
 
-        await emailjs.send('service_4rt2w5g', 'template_xx6gjef', templateParams);
+        await emailjs.send('service_4rt2w5g', 'template_6ff4inv', templateParams);
 
         showAlert(`Rapor ${email} adresine başarıyla gönderildi`, 'success');
 
-        // 5️⃣ Log email sent in database
+        // 7️⃣ Log email sent in database
         await supabase.from('report_emails').insert([{
             report_id: report.id,
             sent_to: email,
