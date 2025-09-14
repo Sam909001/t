@@ -3045,85 +3045,86 @@ async function sendDailyReport() {
 
 // PDF Generation Function
 async function generatePDFReport(reportData) {
-    return new Promise((resolve) => {
-        // Use jsPDF with autotable plugin
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Title
-        doc.setFontSize(20);
-        doc.text('ProClean - Günlük İş Sonu Raporu', 105, 15, { align: 'center' });
-        
-        // Report details
-        doc.setFontSize(12);
-        doc.text(`Tarih: ${reportData.date}`, 20, 25);
-        doc.text(`Operatör: ${reportData.operator}`, 20, 32);
-        
-        // Summary section
-        doc.setFontSize(14);
-        doc.text('Özet', 20, 45);
-        doc.setFontSize(10);
-        doc.text(`Toplam Paket Sayısı: ${reportData.totalPackages}`, 20, 55);
-        doc.text(`Toplam Ürün Adedi: ${reportData.totalItems}`, 20, 62);
-        doc.text(`Konteyner Sayısı: ${reportData.containers}`, 20, 69);
-        doc.text(`Müşteri Sayısı: ${reportData.customers}`, 20, 76);
-        doc.text(`Kritik Stok Sayısı: ${reportData.criticalStock.length}`, 20, 83);
-        
-        // Critical stock table if exists
-        if (reportData.criticalStock && reportData.criticalStock.length > 0) {
-            doc.setFontSize(14);
-            doc.text('Kritik Stoklar', 20, 95);
-            
-            const criticalStockData = reportData.criticalStock.map(item => [
-                item.code,
-                item.name,
-                item.quantity.toString()
-            ]);
-            
-            doc.autoTable({
-                startY: 100,
-                head: [['Stok Kodu', 'Ürün Adı', 'Mevcut Adet']],
-                body: criticalStockData,
-                theme: 'grid',
-                headStyles: { fillColor: [231, 76, 60] } // Red header for critical items
-            });
-        }
-        
-        // Package details table
-        doc.setFontSize(14);
-        doc.text('Paket Detayları', 20, doc.lastAutoTable.finalY + 15);
-        
-        const packageData = reportData.packages.map(pkg => [
-            pkg.package_no,
-            pkg.customers?.name || 'N/A',
-            pkg.total_quantity.toString(),
-            new Date(pkg.created_at).toLocaleDateString('tr-TR'),
-            pkg.packer || 'Bilinmiyor'
-        ]);
-        
-        doc.autoTable({
-            startY: doc.lastAutoTable.finalY + 20,
-            head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Paketleyen']],
-            body: packageData,
-            theme: 'grid',
-            headStyles: { fillColor: [52, 152, 219] }, // Blue header
-            pageBreak: 'auto',
-            margin: { top: 20 }
-        });
-        
-        // Footer
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(10);
-            doc.text(`Sayfa ${i} / ${pageCount}`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
-            doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, 195, doc.internal.pageSize.height - 10, { align: 'right' });
-        }
-        
-        // Generate PDF blob
-        const pdfBlob = doc.output('blob');
-        resolve(pdfBlob);
-    });
+    return new Promise((resolve) => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Title
+        doc.setFontSize(20);
+        doc.text('ProClean - Günlük İş Sonu Raporu', 105, 15, { align: 'center' });
+        
+        // Report details
+        doc.setFontSize(12);
+        doc.text(`Tarih: ${reportData.date}`, 20, 25);
+        doc.text(`Operatör: ${reportData.operator}`, 20, 32);
+        
+        // Summary section
+        doc.setFontSize(14);
+        doc.text('Özet', 20, 45);
+        doc.setFontSize(10);
+
+        // Corrected lines: Convert numbers to strings with .toString()
+        doc.text(`Toplam Paket Sayısı: ${reportData.totalPackages.toString()}`, 20, 55);
+        doc.text(`Toplam Ürün Adedi: ${reportData.totalItems.toString()}`, 20, 62);
+        doc.text(`Konteyner Sayısı: ${reportData.containers.toString()}`, 20, 69);
+        doc.text(`Müşteri Sayısı: ${reportData.customers.toString()}`, 20, 76);
+        doc.text(`Kritik Stok Sayısı: ${reportData.criticalStock.length.toString()}`, 20, 83);
+        
+        // Critical stock table if exists
+        if (reportData.criticalStock && reportData.criticalStock.length > 0) {
+            doc.setFontSize(14);
+            doc.text('Kritik Stoklar', 20, 95);
+            
+            const criticalStockData = reportData.criticalStock.map(item => [
+                item.code,
+                item.name,
+                item.quantity.toString()
+            ]);
+            
+            doc.autoTable({
+                startY: 100,
+                head: [['Stok Kodu', 'Ürün Adı', 'Mevcut Adet']],
+                body: criticalStockData,
+                theme: 'grid',
+                headStyles: { fillColor: [231, 76, 60] }
+            });
+        }
+        
+        // Package details table
+        doc.setFontSize(14);
+        doc.text('Paket Detayları', 20, doc.lastAutoTable.finalY + 15);
+        
+        const packageData = reportData.packages.map(pkg => [
+            pkg.package_no,
+            pkg.customers?.name || 'N/A',
+            pkg.total_quantity.toString(),
+            new Date(pkg.created_at).toLocaleDateString('tr-TR'),
+            pkg.packer || 'Bilinmiyor'
+        ]);
+        
+        doc.autoTable({
+            startY: doc.lastAutoTable.finalY + 20,
+            head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Paketleyen']],
+            body: packageData,
+            theme: 'grid',
+            headStyles: { fillColor: [52, 152, 219] },
+            pageBreak: 'auto',
+            margin: { top: 20 }
+        });
+        
+        // Footer
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(10);
+            doc.text(`Sayfa ${i} / ${pageCount}`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
+            doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, 195, doc.internal.pageSize.height - 10, { align: 'right' });
+        }
+        
+        // Generate PDF blob
+        const pdfBlob = doc.output('blob');
+        resolve(pdfBlob);
+    });
 }
 
 // Upload PDF to Supabase Storage
