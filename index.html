@@ -995,9 +995,9 @@ input.invalid, select.invalid {
 
     <script>
           // Supabase initialization - Varsayılan değerler
-        const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-        let SUPABASE_ANON_KEY = null;
-        let supabase = null;
+     const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
+  const SUPABASE_ANON_KEY = 'your-public-anon-key';
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         // EmailJS initialization
         (function() {
