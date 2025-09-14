@@ -1585,51 +1585,46 @@ input.invalid, select.invalid {
         }
 
         async function populatePersonnel() {
-    try {
-        elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+            try {
+                // Dropdown'u temizle
+                elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+                
+                const { data: personnel, error } = await supabase
+                    .from('personnel')
+                    .select('*')
+                    .order('name');
 
-        // Kullanıcının rolünü kontrol et ve ona göre verileri çek
-        if (currentUser && currentUser.role === 'admin') {
-            // Sadece yöneticiler tüm personelin listesini görebilir
-            const { data: personnel, error } = await supabase
-                .from('personnel')
-                .select('*')
-                .order('name');
-            
-            if (error) {
-                console.error('Yönetici yetkisi ile personel listesi yüklenemedi:', error);
-                throw error;
-            }
-
-            if (personnel && personnel.length > 0) {
-                personnel.forEach(person => {
+                if (error) {
+                    console.error('Error loading personnel:', error);
+                    // Add default current user
                     const option = document.createElement('option');
-                    // personnel tablosunun birincil anahtarı uid'dir, 'id' değil.
-                    option.value = person.uid; 
-                    option.textContent = person.name;
+                    option.value = currentUser?.uid || 'default';
+                    option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+                    option.selected = true;
                     elements.personnelSelect.appendChild(option);
-                });
-            }
+                    return;
+                }
 
-        } else if (currentUser) {
-            // Standart kullanıcılar sadece kendi isimlerini görebilir
-            const option = document.createElement('option');
-            option.value = currentUser.uid;
-            option.textContent = currentUser.name || 'Mevcut Kullanıcı';
-            option.selected = true;
-            elements.personnelSelect.appendChild(option);
-        } else {
-            // Kullanıcı yoksa, varsayılan bir seçenek göster
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'Personel seçin...';
-            elements.personnelSelect.appendChild(option);
+                if (personnel && personnel.length > 0) {
+                    personnel.forEach(person => {
+                        const option = document.createElement('option');
+                        option.value = person.id;
+                        option.textContent = person.name;
+                        elements.personnelSelect.appendChild(option);
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error in populatePersonnel:', error);
+                // Add default current user
+                const option = document.createElement('option');
+                option.value = currentUser?.uid || 'default';
+                option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+                option.selected = true;
+                elements.personnelSelect.appendChild(option);
+            }
         }
-    } catch (error) {
-        console.error('populatePersonnel fonksiyonunda hata oluştu:', error);
-        showAlert('Personel bilgileri yüklenirken bir hata oluştu.', 'error');
-    }
-}
+
         async function populatePackagesTable() {
             try {
                 elements.packagesTableBody.innerHTML = '';
@@ -2895,96 +2890,73 @@ input.invalid, select.invalid {
 
         // Report operations
         async function generateDailyReport() {
-    try {
-        // Mevcut oturumu kontrol et
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError || !session) {
-            showAlert('Rapor oluşturmak için oturum açmanız gerekiyor', 'error');
-            return;
+            try {
+                const today = new Date();
+                const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+                const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+                const { data: packages, error: packagesError } = await supabase
+                    .from('packages')
+                    .select(`
+                        *,
+                        customers (name, code)
+                    `)
+                    .gte('created_at', startOfDay)
+                    .lte('created_at', endOfDay);
+
+                if (packagesError) throw packagesError;
+
+                const { data: containers, error: containersError } = await supabase
+                    .from('containers')
+                    .select('*')
+                    .gte('created_at', startOfDay)
+                    .lte('created_at', endOfDay);
+
+                if (containersError) throw containersError;
+
+                // Kritik stokları al
+                const { data: criticalStock, error: stockError } = await supabase
+                    .from('stock_items')
+                    .select('*')
+                    .lte('quantity', 5)
+                    .order('quantity', { ascending: true });
+
+                if (stockError) throw stockError;
+
+                const reportData = {
+                    date: new Date().toLocaleDateString('tr-TR'),
+                    totalPackages: packages.length,
+                    totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+                    containers: containers.length,
+                    customers: [...new Set(packages.map(p => p.customers?.name))].length,
+                    packages: packages,
+                    containers: containers,
+                    criticalStock: criticalStock,
+                    operator: currentUser?.name || 'Bilinmiyor'
+                };
+
+                // Raporu veritabanına kaydet
+                const { error: reportError } = await supabase
+                    .from('reports')
+                    .insert([{
+                        report_date: new Date(),
+                        report_type: 'daily',
+                        data: reportData,
+                        generated_by: currentUser?.uid
+                    }]);
+
+                if (reportError) throw reportError;
+
+                // E-posta modalını göster
+                document.getElementById('reportEmail').value = selectedCustomer?.email || '';
+                document.getElementById('emailModal').style.display = 'flex';
+
+            } catch (error) {
+                console.error('Rapor oluşturma hatası:', error);
+                showAlert('Rapor oluşturulurken hata oluştu', 'error');
+            }
         }
 
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-
-        // Paketleri getir
-        const { data: packages, error: packagesError } = await supabase
-            .from('packages')
-            .select(`
-                *,
-                customers (name, code)
-            `)
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay);
-
-        if (packagesError) throw packagesError;
-
-        // Konteynerleri getir
-        const { data: containers, error: containersError } = await supabase
-            .from('containers')
-            .select('*')
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay);
-
-        if (containersError) throw containersError;
-
-        // Kritik stokları al
-        const { data: criticalStock, error: stockError } = await supabase
-            .from('stock_items')
-            .select('*')
-            .lte('quantity', 5)
-            .order('quantity', { ascending: true });
-
-        if (stockError) throw stockError;
-
-        const reportData = {
-            date: new Date().toLocaleDateString('tr-TR'),
-            totalPackages: packages.length,
-            totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-            totalContainers: containers.length,
-            customers: [...new Set(packages.map(p => p.customers?.name))].length,
-            packages: packages,
-            containers: containers,
-            criticalStock: criticalStock,
-            operator: currentUser?.name || 'Bilinmiyor'
-        };
-
-        // Raporu veritabanına kaydet - user_id yerine generated_by kullan
-      const { error: reportError } = await supabase
-    .from('reports')
-    .insert([{
-        report_date: new Date(),
-        report_type: 'daily',
-        data: reportData,
-        generated_by: currentUser?.name || 'Unknown Operator'
-     }]);
-
-        if (reportError) {
-            // Eğer hala hata alıyorsak, user_id olmadan kaydetmeyi dene
-            const { error: retryError } = await supabase
-                .from('reports')
-                .insert([{
-                    report_date: new Date(),
-                    report_type: 'daily',
-                    data: reportData,
-                    generated_by: currentUser?.name || 'Unknown'
-                    // user_id sütununu tamamen kaldırıyoruz
-                }]);
-                
-            if (retryError) throw retryError;
-        }
-
-        // E-posta modalını göster
-        document.getElementById('reportEmail').value = selectedCustomer?.email || '';
-        document.getElementById('emailModal').style.display = 'flex';
-
-    } catch (error) {
-        console.error('Rapor oluşturma hatası:', error);
-        showAlert('Rapor oluşturulurken hata oluştu: ' + error.message, 'error');
-    }
-}
-        
         function closeEmailModal() {
             document.getElementById('emailModal').style.display = 'none';
         }
