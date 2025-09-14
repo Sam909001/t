@@ -994,11 +994,11 @@ input.invalid, select.invalid {
         let SUPABASE_ANON_KEY = null;
         let supabase = null;
         
-        // EmailJS initialization
-        (function() {
-            // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
-            emailjs.init("jH-KlJ2ffs_lGwfsp");
-        })();
+       const MailerSend = require("@mailersend/mailersend");
+
+const mailer = new MailerSend({
+  api_key: "mlsn.fa7118adfdd32bb769adf366ec7317965a522acc08c422b3c884303f1500d425" // replace with your MailerSend API key
+});
         
         // Global state variables
         let selectedCustomer = null;
@@ -1011,6 +1011,8 @@ input.invalid, select.invalid {
         let scannerMode = false;
         let currentContainerDetails = null;
         let currentReportData = null;
+        let selectedCustomer = null; 
+        let currentUser = null;
 
         // Elementleri bir defa tanımla
         const elements = {
