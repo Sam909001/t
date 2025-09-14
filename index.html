@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
         :root {
@@ -644,6 +645,10 @@ input.invalid, select.invalid {
                         <div id="barcodeResult">
                             <div id="scannedBarcodes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
                         </div>
+
+                        
+                     <!-- Hidden div for PDF generation -->
+                    <div id="reportContent" style="display:none;"></div>
                         
                         <div class="quick-buttons">
                             <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
@@ -2983,69 +2988,93 @@ function closeEmailModal() {
     document.getElementById('emailModal').style.display = 'none';
 }
 
-        async function sendDailyReport() {
-            const email = document.getElementById('reportEmail').value;
-            
-            // Form doğrulama
-            if (!validateForm([
-                { id: 'reportEmail', errorId: 'reportEmailError', type: 'email', required: true }
-            ])) {
-                return;
-            }
-
-            try {
-                // Rapor verilerini al
-                const { data: reports, error: reportsError } = await supabase
-                    .from('reports')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (reportsError) throw reportsError;
-
-                if (!reports || reports.length === 0) {
-                    showAlert('Rapor bulunamadı', 'error');
-                    return;
-                }
-
-                const report = reports[0];
-                
-                // EmailJS ile e-posta gönderme
-                const templateParams = {
-                    to_email: email,
-                    report_date: new Date(report.report_date).toLocaleDateString('tr-TR'),
-                    total_packages: report.data.totalPackages,
-                    total_items: report.data.totalItems,
-                    operator: report.data.operator,
-                    critical_stock: report.data.criticalStock ? report.data.criticalStock.length : 0
-                };
-
-                // EmailJS servis ID ve template ID'lerinizi buraya ekleyin
-                emailjs.send('service_4rt2w5g', 'template_xx6gjef', templateParams)
-                    .then(function(response) {
-                        showAlert(`Rapor ${email} adresine gönderildi`, 'success');
-                        
-                        // E-posta gönderim kaydı
-                        supabase
-                            .from('report_emails')
-                            .insert([{
-                                report_id: report.id,
-                                sent_to: email,
-                                sent_at: new Date().toISOString(),
-                                status: 'sent'
-                            }]);
-                    }, function(error) {
-                        console.error('E-posta gönderme hatası:', error);
-                        showAlert('E-posta gönderilirken hata oluştu: ' + error.text, 'error');
-                    });
-                
-                closeEmailModal();
-                
-            } catch (error) {
-                console.error('Rapor gönderme hatası:', error);
-                showAlert('Rapor gönderilirken hata oluştu', 'error');
-            }
+async function sendDailyReport(email) {
+    try {
+        if (!email) {
+            showAlert('Lütfen geçerli bir e-posta girin', 'error');
+            return;
         }
+
+        // 1️⃣ Get the latest report from Supabase
+        const { data: reports, error: reportsError } = await supabase
+            .from('reports')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (reportsError) throw reportsError;
+        if (!reports || reports.length === 0) {
+            showAlert('Rapor bulunamadı', 'error');
+            return;
+        }
+
+        const report = reports[0];
+        const reportData = report.data;
+
+        // 2️⃣ Fill hidden div with report HTML
+        const reportDiv = document.getElementById('reportContent');
+        reportDiv.innerHTML = `
+            <h1>ProClean - İş Sonu Raporu</h1>
+            <p><strong>Tarih:</strong> ${reportData.date} | <strong>Operatör:</strong> ${reportData.operator}</p>
+            <h2>Özet</h2>
+            <ul>
+                <li>Toplam Paket Sayısı: ${reportData.totalPackages}</li>
+                <li>Toplam Ürün Adedi: ${reportData.totalItems}</li>
+                <li>Konteyner Sayısı: ${reportData.containers}</li>
+                <li>Müşteri Sayısı: ${reportData.customers}</li>
+                <li>Kritik Stok Sayısı: ${reportData.criticalStock.length}</li>
+            </ul>
+        `;
+
+        // Optional: add package details table
+        if (reportData.packages.length > 0) {
+            let packagesTable = '<h2>Paket Detayları</h2><table border="1"><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th><th>Zaman</th><th>Paketleyen</th></tr></thead><tbody>';
+            reportData.packages.forEach(pkg => {
+                packagesTable += `<tr>
+                    <td>${pkg.package_no}</td>
+                    <td>${pkg.customers?.name || 'N/A'}</td>
+                    <td>${pkg.total_quantity}</td>
+                    <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
+                    <td>${pkg.packer || ''}</td>
+                </tr>`;
+            });
+            packagesTable += '</tbody></table>';
+            reportDiv.innerHTML += packagesTable;
+        }
+
+        // 3️⃣ Generate PDF from hidden div
+        const pdfBase64 = await html2pdf().from(reportDiv).output('datauristring');
+        const pdfData = pdfBase64.split(',')[1]; // remove "data:application/pdf;base64," prefix
+
+        // 4️⃣ Send PDF via EmailJS
+        const templateParams = {
+            to_email: email,
+            report_date: reportData.date,
+            total_packages: reportData.totalPackages,
+            total_items: reportData.totalItems,
+            operator: reportData.operator,
+            critical_stock: reportData.criticalStock.length,
+            attachment: pdfData
+        };
+
+        await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams);
+
+        showAlert(`Rapor ${email} adresine başarıyla gönderildi`, 'success');
+
+        // 5️⃣ Optionally, log email sent in database
+        await supabase.from('report_emails').insert([{
+            report_id: report.id,
+            sent_to: email,
+            sent_at: new Date().toISOString(),
+            status: 'sent'
+        }]);
+
+    } catch (error) {
+        console.error('Rapor gönderme hatası:', error);
+        showAlert('Rapor gönderilirken hata oluştu: ' + (error.text || error.message), 'error');
+    }
+}
+
 
         async function previewReport() {
             await populatePackagesTable();
