@@ -1436,60 +1436,57 @@ input.invalid, select.invalid {
         }
 
         // Çevrimdışı destek
-        function setupOfflineSupport() {
-            window.addEventListener('online', () => {
-                document.getElementById('offlineIndicator').style.display = 'none';
-                elements.connectionStatus.textContent = 'Çevrimiçi';
-                showAlert('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
-                syncOfflineData();
-            });
+  // 2️⃣ Example alert function
+  function showAlert(message, type = 'info') {
+    const alertDiv = document.getElementById('alertContainer');
+    alertDiv.innerHTML = `<p class="${type}">${message}</p>`;
+  }
 
-            window.addEventListener('offline', () => {
-                document.getElementById('offlineIndicator').style.display = 'block';
-                elements.connectionStatus.textContent = 'Çevrimdışı';
-                showAlert('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
-            });
-
-            // Başlangıçta çevrimiçi durumu kontrol et
-            if (!navigator.onLine) {
-                document.getElementById('offlineIndicator').style.display = 'block';
-                elements.connectionStatus.textContent = 'Çevrimdışı';
-            }
-        }
-
-        // Çevrimdışı verileri senkronize et
-     async function syncOfflineData() {
+  // 3️⃣ Async function to sync offline data
+  async function syncOfflineData() {
     const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
-    
+
     if (Object.keys(offlineData).length === 0) return;
-    
+
     showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
-    
+
     try {
-        // Process packages with transaction-like approach
-        if (offlineData.packages && offlineData.packages.length > 0) {
-            const { data: insertedPackages, error } = await supabase
-                .from('packages')
-                .insert(offlineData.packages)
-                .select();
-            
-            if (error) throw error;
-            
-            // Remove successfully synced packages
-            localStorage.setItem('procleanOfflineData', JSON.stringify({
-                ...offlineData,
-                packages: []
-            }));
-        }
-        
-        // Similar approach for other data types...
-        
-        showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
+      // Packages
+      if (offlineData.packages && offlineData.packages.length > 0) {
+        const { data: insertedPackages, error } = await supabase
+          .from('packages')
+          .insert(offlineData.packages)
+          .select();
+
+        if (error) throw error;
+
+        // Remove synced packages
+        localStorage.setItem('procleanOfflineData', JSON.stringify({
+          ...offlineData,
+          packages: []
+        }));
+      }
+
+      // Add similar blocks here for other data types (containers, stock, etc.)
+
+      showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
     } catch (error) {
-        console.error('Senkronizasyon hatası:', error);
-        showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
+      console.error('Senkronizasyon hatası:', error);
+      showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
     }
-}
+  }
+
+  // 4️⃣ Safe invocation without top-level await
+  // Option A: Call automatically on page load
+  window.addEventListener('load', () => {
+    syncOfflineData(); // ✅ no top-level await needed
+  });
+
+  // Option B: Call on a button click
+  // document.getElementById('syncButton').addEventListener('click', () => {
+  //   syncOfflineData();
+  // });
+
                 
                 // Barkodları senkronize et
                 if (offlineData.barcodes && offlineData.barcodes.length > 0) {
@@ -2489,40 +2486,40 @@ input.invalid, select.invalid {
             }
         }
             
-        function selectPackage(pkg) {
-            // Remove selected class from all rows
-            document.querySelectorAll('#packagesTableBody tr').forEach(row => {
-                row.classList.remove('selected');
-            });
-            
-            // Add selected class to the clicked row
-            const rows = document.querySelectorAll('#packagesTableBody tr');
-            for (let i = 0; i < rows.length; i++) {
-                const checkbox = rows[i].querySelector('input[type="checkbox"]');
-                if (checkbox && checkbox.value === pkg.id) {
-                    rows[i].class.classList.add('selected');
-                    break;
-                }
-            }
-            
-            const detailContent = document.getElementById('packageDetailContent');
-            detailContent.innerHTML = `
-                <h4>Paket: ${pkg.package_no}</h4>
-                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
-                <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
-                <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
-                ${pkg.items ? `
-                    <h5>Ürünler:</h5>
-                    <ul>
-                        ${Object.entries(pkg.items).map(([product, quantity]) => 
-                            `<li>${product}: ${quantity} adet</li>`
-                        ).join('')}
-                    </ul>
-                ` : ''}
-            `;
+       function selectPackage(pkg) {
+    // Remove selected class from all rows
+    document.querySelectorAll('#packagesTableBody tr').forEach(row => {
+        row.classList.remove('selected');
+    });
+    
+    // Find and select the correct row
+    const rows = document.querySelectorAll('#packagesTableBody tr');
+    for (let i = 0; i < rows.length; i++) {
+        const firstCell = rows[i].querySelector('td:first-child');
+        if (firstCell && firstCell.querySelector('input[type="checkbox"]').value === pkg.id) {
+            rows[i].classList.add('selected');
+            break;
         }
-
+    }
+    
+    // Update package details
+    const detailContent = document.getElementById('packageDetailContent');
+    detailContent.innerHTML = `
+        <h4>Paket: ${pkg.package_no}</h4>
+        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
+        <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
+        <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
+        ${pkg.items ? `
+            <h5>Ürünler:</h5>
+            <ul>
+                ${Object.entries(pkg.items).map(([product, quantity]) => 
+                    `<li>${product}: ${quantity} adet</li>`
+                ).join('')}
+            </ul>
+        ` : ''}
+    `;
+}
         function generateBarcode(text) {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             JsBarcode(svg, text, {
