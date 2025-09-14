@@ -1000,11 +1000,14 @@ input.invalid, select.invalid {
         let SUPABASE_ANON_KEY = null;
         let supabase = null;
         
-        // EmailJS initialization
-        (function() {
-            // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
-            emailjs.init("jH-KlJ2ffs_lGwfsp");
-        })();
+        // EmailJS initialization with error handling
+try {
+    emailjs.init("jH-KlJ2ffs_lGwfsp");
+    console.log("EmailJS initialized successfully");
+} catch (error) {
+    console.error("EmailJS initialization failed:", error);
+    showAlert("E-posta servisi başlatılamadı. Raporlar e-posta ile gönderilemeyecek.", "warning");
+}
         
         // Global state variables
         let selectedCustomer = null;
