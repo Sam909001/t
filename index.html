@@ -3395,7 +3395,7 @@ async function sendReportEmail(email, templateParams, pdfBlob = null) {
             };
         } else {
             // Send without attachment if we have a URL instead
-            emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
+            emailjs.send('service_4rt2w5g', 'template_16f4gyy', templateParams)
                 .then(response => resolve({ success: true, response }))
                 .catch(error => resolve({ success: false, error }));
         }
