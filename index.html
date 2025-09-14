@@ -13,7 +13,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
         :root {
@@ -645,10 +644,6 @@ input.invalid, select.invalid {
                         <div id="barcodeResult">
                             <div id="scannedBarcodes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
                         </div>
-
-                        
-                     <!-- Hidden div for PDF generation -->
-                    <div id="reportContent" style="display:none;"></div>
                         
                         <div class="quick-buttons">
                             <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
@@ -993,8 +988,7 @@ input.invalid, select.invalid {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
-   <script>
-// ---------------- Global state variables ----------------
+    <script>
         // Supabase initialization - Varsayılan değerler
         const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
         let SUPABASE_ANON_KEY = null;
@@ -1429,52 +1423,80 @@ input.invalid, select.invalid {
         }
 
         // Çevrimdışı destek
- async function syncOfflineData() {
-  if (!supabase) {
-    showAlert('Supabase başlatılmadı. Önce API anahtarını girin.', 'error');
-    return;
-  }
+        function setupOfflineSupport() {
+            window.addEventListener('online', () => {
+                document.getElementById('offlineIndicator').style.display = 'none';
+                elements.connectionStatus.textContent = 'Çevrimiçi';
+                showAlert('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
+                syncOfflineData();
+            });
 
-  const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
-  if (Object.keys(offlineData).length === 0) return;
+            window.addEventListener('offline', () => {
+                document.getElementById('offlineIndicator').style.display = 'block';
+                elements.connectionStatus.textContent = 'Çevrimdışı';
+                showAlert('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
+            });
 
-  showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
+            // Başlangıçta çevrimiçi durumu kontrol et
+            if (!navigator.onLine) {
+                document.getElementById('offlineIndicator').style.display = 'block';
+                elements.connectionStatus.textContent = 'Çevrimdışı';
+            }
+        }
 
-  try {
-    // Sync packages
-    if (offlineData.packages && offlineData.packages.length > 0) {
-      const { error } = await supabase
-        .from('packages')
-        .insert(offlineData.packages);
+        // Çevrimdışı verileri senkronize et
+        async function syncOfflineData() {
+            const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+            
+            if (Object.keys(offlineData).length === 0) return;
+            
+            showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
+            
+            try {
+                // Paketleri senkronize et
+                if (offlineData.packages && offlineData.packages.length > 0) {
+                    for (const pkg of offlineData.packages) {
+                        const { error } = await supabase
+                            .from('packages')
+                            .insert([pkg]);
+                        
+                        if (error) console.error('Paket senkronizasyon hatası:', error);
+                    }
+                }
+                
+                // Barkodları senkronize et
+                if (offlineData.barcodes && offlineData.barcodes.length > 0) {
+                    for (const barcode of offlineData.barcodes) {
+                        const { error } = await supabase
+                            .from('barcodes')
+                            .insert([barcode]);
+                        
+                        if (error) console.error('Barkod senkronizasyon hatası:', error);
+                    }
+                }
+                
+                // Stok güncellemelerini senkronize et
+                if (offlineData.stockUpdates && offlineData.stockUpdates.length > 0) {
+                    for (const update of offlineData.stockUpdates) {
+                        const { error } = await supabase
+                            .from('stock_items')
+                            .update({ quantity: update.quantity })
+                            .eq('code', update.code);
+                        
+                        if (error) console.error('Stok senkronizasyon hatası:', error);
+                    }
+                }
+                
+                // Başarılı senkronizasyondan sonra çevrimdışı verileri temizle
+                localStorage.removeItem('procleanOfflineData');
+                showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
+                
+            } catch (error) {
+                console.error('Senkronizasyon hatası:', error);
+                showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
+            }
+        }
 
-      if (error) throw error;
-
-      offlineData.packages = []; // clear synced
-      localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
-    }
-
-    // Sync barcodes
-    if (offlineData.barcodes && offlineData.barcodes.length > 0) {
-      for (const barcode of offlineData.barcodes) {
-        const { error } = await supabase.from('barcodes').insert([barcode]);
-        if (error) console.error('Barkod senkronizasyon hatası:', error);
-      }
-      offlineData.barcodes = [];
-      localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
-    }
-
-    showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
-  } catch (error) {
-    console.error('Senkronizasyon hatası:', error);
-    showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
-  }
-}
-
-// Safe call on page load
-window.addEventListener('load', () => {
-  syncOfflineData(); // no await at top level
-});
-       
         // Çevrimdışı veri kaydetme
         function saveOfflineData(type, data) {
             const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
@@ -1504,32 +1526,31 @@ window.addEventListener('load', () => {
         }
 
         // Barkod tarayıcı dinleyicisi
-       function setupBarcodeScanner() {
-    let barcodeBuffer = '';
-    let lastKeyTime = Date.now();
-    const BARCODE_TIMEOUT = 100; // ms between keypresses to consider as part of same barcode
-    
-    elements.barcodeInput.addEventListener('keypress', function(e) {
-        const currentTime = Date.now();
-        
-        // Reset buffer if too much time passed since last key
-        if (currentTime - lastKeyTime > BARCODE_TIMEOUT) {
-            barcodeBuffer = '';
+        function setupBarcodeScanner() {
+            let barcodeBuffer = '';
+            let lastKeyTime = Date.now();
+            
+            elements.barcodeInput.addEventListener('keypress', function(e) {
+                // Barkod tarayıcı modu açıksa ve hızlı giriş yapılıyorsa
+                const currentTime = Date.now();
+                
+                if (scannerMode || currentTime - lastKeyTime < 50) {
+                    if (e.key === 'Enter') {
+                        if (barcodeBuffer.length > 5) { // Geçerli bir barkod uzunluğu
+                            elements.barcodeInput.value = barcodeBuffer;
+                            processBarcode();
+                        }
+                        barcodeBuffer = '';
+                    } else {
+                        barcodeBuffer += e.key;
+                    }
+                } else {
+                    barcodeBuffer = '';
+                }
+                
+                lastKeyTime = currentTime;
+            });
         }
-        
-        if (e.key === 'Enter') {
-            if (barcodeBuffer.length > 3) { // Reasonable minimum barcode length
-                elements.barcodeInput.value = barcodeBuffer;
-                processBarcode();
-            }
-            barcodeBuffer = '';
-        } else {
-            barcodeBuffer += e.key;
-        }
-        
-        lastKeyTime = currentTime;
-    });
-}
 
         // Data loading functions
         async function populateCustomers() {
@@ -2441,40 +2462,40 @@ window.addEventListener('load', () => {
             }
         }
             
-       function selectPackage(pkg) {
-    // Remove selected class from all rows
-    document.querySelectorAll('#packagesTableBody tr').forEach(row => {
-        row.classList.remove('selected');
-    });
-    
-    // Find and select the correct row
-    const rows = document.querySelectorAll('#packagesTableBody tr');
-    for (let i = 0; i < rows.length; i++) {
-        const firstCell = rows[i].querySelector('td:first-child');
-        if (firstCell && firstCell.querySelector('input[type="checkbox"]').value === pkg.id) {
-            rows[i].classList.add('selected');
-            break;
+        function selectPackage(pkg) {
+            // Remove selected class from all rows
+            document.querySelectorAll('#packagesTableBody tr').forEach(row => {
+                row.classList.remove('selected');
+            });
+            
+            // Add selected class to the clicked row
+            const rows = document.querySelectorAll('#packagesTableBody tr');
+            for (let i = 0; i < rows.length; i++) {
+                const checkbox = rows[i].querySelector('input[type="checkbox"]');
+                if (checkbox && checkbox.value === pkg.id) {
+                    rows[i].class.classList.add('selected');
+                    break;
+                }
+            }
+            
+            const detailContent = document.getElementById('packageDetailContent');
+            detailContent.innerHTML = `
+                <h4>Paket: ${pkg.package_no}</h4>
+                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+                <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
+                <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
+                <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
+                ${pkg.items ? `
+                    <h5>Ürünler:</h5>
+                    <ul>
+                        ${Object.entries(pkg.items).map(([product, quantity]) => 
+                            `<li>${product}: ${quantity} adet</li>`
+                        ).join('')}
+                    </ul>
+                ` : ''}
+            `;
         }
-    }
-    
-    // Update package details
-    const detailContent = document.getElementById('packageDetailContent');
-    detailContent.innerHTML = `
-        <h4>Paket: ${pkg.package_no}</h4>
-        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
-        <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
-        <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
-        ${pkg.items ? `
-            <h5>Ürünler:</h5>
-            <ul>
-                ${Object.entries(pkg.items).map(([product, quantity]) => 
-                    `<li>${product}: ${quantity} adet</li>`
-                ).join('')}
-            </ul>
-        ` : ''}
-    `;
-}
+
         function generateBarcode(text) {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             JsBarcode(svg, text, {
@@ -2868,248 +2889,142 @@ window.addEventListener('load', () => {
         }
 
         // Report operations
-      async function generateDailyReport() {
-    try {
-        // Correctly get the authenticated user's session and ID
-        const { data: { user } } = await supabase.auth.getSession();
+        async function generateDailyReport() {
+            try {
+                const today = new Date();
+                const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+                const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
 
-        // Check if the user is authenticated before proceeding
-        if (!user || !user.id) {
-            console.error('Kullanıcı oturum açmamış veya kimlik doğrulama başarısız.');
-            showAlert('Lütfen rapor oluşturmadan önce giriş yapın.', 'error');
-            return;
+                const { data: packages, error: packagesError } = await supabase
+                    .from('packages')
+                    .select(`
+                        *,
+                        customers (name, code)
+                    `)
+                    .gte('created_at', startOfDay)
+                    .lte('created_at', endOfDay);
+
+                if (packagesError) throw packagesError;
+
+                const { data: containers, error: containersError } = await supabase
+                    .from('containers')
+                    .select('*')
+                    .gte('created_at', startOfDay)
+                    .lte('created_at', endOfDay);
+
+                if (containersError) throw containersError;
+
+                // Kritik stokları al
+                const { data: criticalStock, error: stockError } = await supabase
+                    .from('stock_items')
+                    .select('*')
+                    .lte('quantity', 5)
+                    .order('quantity', { ascending: true });
+
+                if (stockError) throw stockError;
+
+                const reportData = {
+                    date: new Date().toLocaleDateString('tr-TR'),
+                    totalPackages: packages.length,
+                    totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+                    containers: containers.length,
+                    customers: [...new Set(packages.map(p => p.customers?.name))].length,
+                    packages: packages,
+                    containers: containers,
+                    criticalStock: criticalStock,
+                    operator: currentUser?.name || 'Bilinmiyor'
+                };
+
+                // Raporu veritabanına kaydet
+                const { error: reportError } = await supabase
+                    .from('reports')
+                    .insert([{
+                        report_date: new Date(),
+                        report_type: 'daily',
+                        data: reportData,
+                        generated_by: currentUser?.uid
+                    }]);
+
+                if (reportError) throw reportError;
+
+                // E-posta modalını göster
+                document.getElementById('reportEmail').value = selectedCustomer?.email || '';
+                document.getElementById('emailModal').style.display = 'flex';
+
+            } catch (error) {
+                console.error('Rapor oluşturma hatası:', error);
+                showAlert('Rapor oluşturulurken hata oluştu', 'error');
+            }
         }
 
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+        function closeEmailModal() {
+            document.getElementById('emailModal').style.display = 'none';
+        }
 
-        const { data: packages, error: packagesError } = await supabase
-            .from('packages')
-            .select(`
-                *,
-                customers (name, code)
-            `)
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay);
+        async function sendDailyReport() {
+            const email = document.getElementById('reportEmail').value;
+            
+            // Form doğrulama
+            if (!validateForm([
+                { id: 'reportEmail', errorId: 'reportEmailError', type: 'email', required: true }
+            ])) {
+                return;
+            }
 
-        if (packagesError) throw packagesError;
+            try {
+                // Rapor verilerini al
+                const { data: reports, error: reportsError } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
 
-        const { data: containers, error: containersError } = await supabase
-            .from('containers')
-            .select('*')
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay);
+                if (reportsError) throw reportsError;
 
-        if (containersError) throw containersError;
+                if (!reports || reports.length === 0) {
+                    showAlert('Rapor bulunamadı', 'error');
+                    return;
+                }
 
-        // Kritik stokları al
-        const { data: criticalStock, error: stockError } = await supabase
-            .from('stock_items')
-            .select('*')
-            .lte('quantity', 5)
-            .order('quantity', { ascending: true });
+                const report = reports[0];
+                
+                // EmailJS ile e-posta gönderme
+                const templateParams = {
+                    to_email: email,
+                    report_date: new Date(report.report_date).toLocaleDateString('tr-TR'),
+                    total_packages: report.data.totalPackages,
+                    total_items: report.data.totalItems,
+                    operator: report.data.operator,
+                    critical_stock: report.data.criticalStock ? report.data.criticalStock.length : 0
+                };
 
-        if (stockError) throw stockError;
+                // EmailJS servis ID ve template ID'lerinizi buraya ekleyin
+                emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
+                    .then(function(response) {
+                        showAlert(`Rapor ${email} adresine gönderildi`, 'success');
+                        
+                        // E-posta gönderim kaydı
+                        supabase
+                            .from('report_emails')
+                            .insert([{
+                                report_id: report.id,
+                                sent_to: email,
+                                sent_at: new Date().toISOString(),
+                                status: 'sent'
+                            }]);
+                    }, function(error) {
+                        console.error('E-posta gönderme hatası:', error);
+                        showAlert('E-posta gönderilirken hata oluştu: ' + error.text, 'error');
+                    });
+                
+                closeEmailModal();
+                
+            } catch (error) {
+                console.error('Rapor gönderme hatası:', error);
+                showAlert('Rapor gönderilirken hata oluştu', 'error');
+            }
+        }
 
-        const reportData = {
-            date: new Date().toLocaleDateString('tr-TR'),
-            totalPackages: packages.length,
-            totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-            containers: containers.length,
-            customers: [...new Set(packages.map(p => p.customers?.name))].length,
-            packages: packages,
-            containers: containers,
-            criticalStock: criticalStock,
-            operator: currentUser?.name || 'Bilinmiyor'
-        };
-
-        // Raporu veritabanına kaydet
-        const { error: reportError } = await supabase
-            .from('reports')
-            .insert([{
-                report_date: new Date(),
-                report_type: 'daily',
-                data: reportData,
-                generated_by: user.id // Pass the user ID directly from the session
-            }]);
-
-        if (reportError) throw reportError;
-
-        // E-posta modalını göster
-        document.getElementById('reportEmail').value = selectedCustomer?.email || '';
-        document.getElementById('emailModal').style.display = 'flex';
-
-    } catch (error) {
-        console.error('Rapor oluşturma hatası:', error);
-        showAlert('Rapor oluşturulurken hata oluştu', 'error');
-    }
-}
-             
-
-async function sendDailyReport(email) {
-  try {
-    email = email || document.getElementById('reportEmail').value;
-    if (!email || !email.includes('@')) {
-      showAlert('Lütfen geçerli bir e-posta girin', 'error');
-      return;
-    }
-
-    const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-
-    // 1️⃣ Fetch data dynamically
-    const { data: packages, error: packagesError } = await supabase
-      .from('packages')
-      .select('*, customers(name, code)')
-      .gte('created_at', startOfDay)
-      .lte('created_at', endOfDay);
-
-    if (packagesError) throw packagesError;
-
-    const { data: containers, error: containersError } = await supabase
-      .from('containers')
-      .select('*')
-      .gte('created_at', startOfDay)
-      .lte('created_at', endOfDay);
-
-    if (containersError) throw containersError;
-
-    const { data: criticalStock, error: stockError } = await supabase
-      .from('stock_items')
-      .select('*')
-      .lte('quantity', 5)
-      .order('quantity', { ascending: true });
-
-    if (stockError) throw stockError;
-
-    // 2️⃣ Generate HTML report
-    const reportDiv = document.getElementById('reportContent');
-    reportDiv.innerHTML = `
-      <h1>ProClean - İş Sonu Raporu</h1>
-      <p><strong>Tarih:</strong> ${today.toLocaleDateString()} | <strong>Operatör:</strong> ${currentUser?.name || 'Bilinmiyor'}</p>
-      <h2>Özet</h2>
-      <ul>
-        <li>Toplam Paket Sayısı: ${packages.length}</li>
-        <li>Toplam Ürün Adedi: ${packages.reduce((sum, p) => sum + p.total_quantity, 0)}</li>
-        <li>Konteyner Sayısı: ${containers.length}</li>
-        <li>Müşteri Sayısı: ${[...new Set(packages.map(p => p.customers?.name))].length}</li>
-        <li>Kritik Stok Sayısı: ${criticalStock.length}</li>
-      </ul>
-    `;
-
-    // Optional: package table
-    if (packages.length > 0) {
-      let table = '<h2>Paket Detayları</h2><table border="1"><thead><tr><th>Paket No</th><th>Müşteri</th><th>Adet</th><th>Zaman</th></tr></thead><tbody>';
-      packages.forEach(pkg => {
-        table += `<tr>
-          <td>${escapeHtml(pkg.package_no)}</td>
-          <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
-          <td>${pkg.total_quantity}</td>
-          <td>${new Date(pkg.created_at).toLocaleString('tr-TR')}</td>
-        </tr>`;
-      });
-      table += '</tbody></table>';
-      reportDiv.innerHTML += table;
-    }
-
-    // 3️⃣ Convert to PDF
-    const pdfBase64 = await html2pdf().from(reportDiv).output('datauristring');
-    const pdfData = pdfBase64.split(',')[1];
-    const fileName = `report_${Date.now()}.pdf`;
-
-    // 4️⃣ Upload PDF to Supabase - FIXED: Convert base64 to Uint8Array properly
-    const binaryString = atob(pdfData);
-    const uint8Array = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      uint8Array[i] = binaryString.charCodeAt(i);
-    }
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('reports')
-      .upload(fileName, uint8Array, {
-        contentType: 'application/pdf',
-        upsert: true
-      });
-      
-    if (uploadError) {
-      // If bucket doesn't exist, try to create it first
-      if (uploadError.message.includes('bucket')) {
-        const { error: createBucketError } = await supabase.storage.createBucket('reports', {
-          public: true,
-          fileSizeLimit: 52428800 // 50MB
-        });
-        
-        if (createBucketError) throw createBucketError;
-        
-        // Retry upload after creating bucket
-        const { error: retryError } = await supabase.storage
-          .from('reports')
-          .upload(fileName, uint8Array, {
-            contentType: 'application/pdf',
-            upsert: true
-          });
-          
-        if (retryError) throw retryError;
-      } else {
-        throw uploadError;
-      }
-    }
-
-    const { data: publicUrl } = supabase.storage.from('reports').getPublicUrl(fileName);
-    const pdfLink = publicUrl.publicUrl;
-
-    // 5️⃣ Send email with better error handling
-    const templateParams = {
-      to_email: email,
-      created_at: today.toLocaleDateString(),
-      total_packages: packages.length,
-      total_items: packages.reduce((sum, p) => sum + p.total_quantity, 0),
-      operator: currentUser?.name || 'Bilinmiyor',
-      critical_stock: criticalStock.length,
-      report_link: pdfLink
-    };
-    
-    try {
-      await emailjs.send('service_4rt2w5g', 'template_6ff4inv', templateParams);
-    } catch (emailError) {
-      console.warn('Email sending failed, but report was saved:', emailError);
-      // Continue even if email fails
-    }
-
-    showAlert(`Rapor ${email} adresine başarıyla gönderildi: ${pdfLink}`, 'success');
-
-    // 6️⃣ Log email - with error handling for missing table
-    try {
-      await supabase.from('report_emails').insert([{
-        report_id: null,
-        sent_to: email,
-        report_url: pdfLink,
-        sent_at: new Date().toISOString(),
-        status: 'sent'
-      }]);
-    } catch (dbError) {
-      console.warn('Could not log email to database (table might not exist):', dbError);
-    }
-
-  } catch (error) {
-    console.error('Rapor gönderme hatası:', error);
-    
-    // More specific error messages
-    if (error.message?.includes('bucket')) {
-      showAlert('Rapor depolama alanı bulunamadı. Lütfen yönetici ile iletişime geçin.', 'error');
-    } else if (error.message?.includes('storage')) {
-      showAlert('Dosya yükleme hatası. Lütfen internet bağlantınızı kontrol edin.', 'error');
-    } else {
-      showAlert('Rapor gönderilirken hata oluştu: ' + (error.message || error.text || 'Bilinmeyen hata'), 'error');
-    }
-  } finally {
-    // Close the email modal
-    document.getElementById('emailModal').style.display = 'none';
-  }
-}
-        
         async function previewReport() {
             await populatePackagesTable();
             
@@ -3423,18 +3338,17 @@ async function sendDailyReport(email) {
         }
 
         // Event listeners
-       // Move setupAuthListener outside the loadApiKey condition
-document.addEventListener('DOMContentLoaded', function() {
-    if (loadApiKey()) {
-        supabase = initializeSupabase();
-    } else {
-        showApiKeyModal();
-    }
-    
-    // Always set up the auth listener
-    if (supabase) {
-        setupAuthListener();
-    }  
+        document.addEventListener('DOMContentLoaded', function() {
+            // API anahtarını yükle ve supabase'i başlat
+            if (loadApiKey()) {
+                supabase = initializeSupabase();
+                if (supabase) {
+                    setupAuthListener();
+                }
+            } else {
+                showApiKeyModal();
+            }
+            
             // Login button event
             document.getElementById('loginBtn').addEventListener('click', login);
             
