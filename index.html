@@ -1489,15 +1489,19 @@ input.invalid, select.invalid {
 
                 
                 // Barkodları senkronize et
-                if (offlineData.barcodes && offlineData.barcodes.length > 0) {
-                    for (const barcode of offlineData.barcodes) {
-                        const { error } = await supabase
-                            .from('barcodes')
-                            .insert([barcode]);
-                        
-                        if (error) console.error('Barkod senkronizasyon hatası:', error);
-                    }
-                }
+               async function syncOfflineData() {
+    const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+
+    if (offlineData.barcodes && offlineData.barcodes.length > 0) {
+        for (const barcode of offlineData.barcodes) {
+            const { error } = await supabase
+                .from('barcodes')
+                .insert([barcode]);
+
+            if (error) console.error('Barkod senkronizasyon hatası:', error);
+        }
+    }
+}
                 
                 // Stok güncellemelerini senkronize et
                 if (offlineData.stockUpdates && offlineData.stockUpdates.length > 0) {
