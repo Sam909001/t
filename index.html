@@ -1075,6 +1075,46 @@ input.invalid, select.invalid {
   let scannerMode = false;
   let currentContainerDetails = null;
 
+       // Auth durum değişikliğini dinle
+supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        // Oturum açan kullanıcının bilgilerini al
+        if (session && session.user) {
+            const userId = session.user.id;
+            
+            // Veritabanından personel bilgilerini al
+            supabase
+                .from('personnel')
+                .select('role, name')
+                .eq('uid', userId) // 'uid' kolonunu kullan
+                .single()
+                .then(({ data: userData, error: userError }) => {
+                    if (!userError && userData) {
+                        currentUser = {
+                            email: session.user.email,
+                            uid: userId,
+                            name: userData.name || session.user.email.split('@')[0],
+                            role: userData.role
+                        };
+                    } else {
+                        // Eğer personel tablosunda kayıt yoksa varsayılan bilgilerle devam et
+                        currentUser = {
+                            email: session.user.email,
+                            uid: userId,
+                            name: session.user.email.split('@')[0],
+                            role: 'operator' // Varsayılan rol
+                        };
+                    }
+                    console.log('Kullanıcı bilgileri güncellendi:', currentUser);
+                });
+        }
+    } else {
+        // Oturum kapandığında veya yoksa currentUser'ı sıfırla
+        currentUser = null;
+        console.log('Oturum kapandı, currentUser sıfırlandı.');
+    }
+});
+
   // Elementleri bir defa tanımla
   const elements = {
     loginScreen: document.getElementById('loginScreen'),
