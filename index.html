@@ -1436,72 +1436,35 @@ input.invalid, select.invalid {
         }
 
         // Çevrimdışı destek
-  // 2️⃣ Example alert function
-  function showAlert(message, type = 'info') {
-    const alertDiv = document.getElementById('alertContainer');
-    alertDiv.innerHTML = `<p class="${type}">${message}</p>`;
-  }
-
-  // 3️⃣ Async function to sync offline data
   async function syncOfflineData() {
-    const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
-
-    if (Object.keys(offlineData).length === 0) return;
-
-    showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
-
-    try {
-      // Packages
-      if (offlineData.packages && offlineData.packages.length > 0) {
-        const { data: insertedPackages, error } = await supabase
-          .from('packages')
-          .insert(offlineData.packages)
-          .select();
-
-        if (error) throw error;
-
-        // Remove synced packages
-        localStorage.setItem('procleanOfflineData', JSON.stringify({
-          ...offlineData,
-          packages: []
-        }));
-      }
-
-      // Add similar blocks here for other data types (containers, stock, etc.)
-
-      showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
-    } catch (error) {
-      console.error('Senkronizasyon hatası:', error);
-      showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
-    }
-  }
-
-  // 4️⃣ Safe invocation without top-level await
-  // Option A: Call automatically on page load
-  window.addEventListener('load', () => {
-    syncOfflineData(); // ✅ no top-level await needed
-  });
-
-  // Option B: Call on a button click
-  // document.getElementById('syncButton').addEventListener('click', () => {
-  //   syncOfflineData();
-  // });
-
+            const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+            
+            if (Object.keys(offlineData).length === 0) return;
+            
+            showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
+            
+            try {
+                // Paketleri senkronize et
+                if (offlineData.packages && offlineData.packages.length > 0) {
+                    for (const pkg of offlineData.packages) {
+                        const { error } = await supabase
+                            .from('packages')
+                            .insert([pkg]);
+                        
+                        if (error) console.error('Paket senkronizasyon hatası:', error);
+                    }
+                }
                 
                 // Barkodları senkronize et
-               async function syncOfflineData() {
-    const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
-
-    if (offlineData.barcodes && offlineData.barcodes.length > 0) {
-        for (const barcode of offlineData.barcodes) {
-            const { error } = await supabase
-                .from('barcodes')
-                .insert([barcode]);
-
-            if (error) console.error('Barkod senkronizasyon hatası:', error);
-        }
-    }
-}
+                if (offlineData.barcodes && offlineData.barcodes.length > 0) {
+                    for (const barcode of offlineData.barcodes) {
+                        const { error } = await supabase
+                            .from('barcodes')
+                            .insert([barcode]);
+                        
+                        if (error) console.error('Barkod senkronizasyon hatası:', error);
+                    }
+                }
                 
                 // Stok güncellemelerini senkronize et
                 if (offlineData.stockUpdates && offlineData.stockUpdates.length > 0) {
