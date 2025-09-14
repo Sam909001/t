@@ -2937,14 +2937,13 @@ input.invalid, select.invalid {
 
                 // Raporu veritabanına kaydet
                 const { error: reportError } = await supabase
-                    .from('reports')
-                    .insert([{
-                        report_date: new Date(),
-                        report_type: 'daily',
-                        data: reportData,
-                        user_id: currentUser.uid
-                    }]);
-
+              .from('reports')
+   insert([{
+    report_date: new Date(),
+    report_type: 'daily',
+    data: reportData,
+    user_id: currentUser.uid
+}]);
                 if (reportError) throw reportError;
 
                 // E-posta modalını göster
