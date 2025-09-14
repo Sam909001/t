@@ -533,9 +533,9 @@ input.invalid, select.invalid {
 }
 
 @keyframes pulse {
-   0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
-   70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
-   100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
 }
 
 /* Container status */
@@ -549,33 +549,6 @@ input.invalid, select.invalid {
 .status-beklemede { background-color: #f39c12; color: white; }
 .status-sevk-edildi { background-color: #2ecc71; color: white; }
 .status-hazirlaniyor { background-color: #3498db; color: white; }
-
-/* Barcode label styling */
-.barcode-label {
-    width: 300px;
-    padding: 10px;
-    border: 1px solid #000;
-    text-align: center;
-    margin: 5px;
-    display: inline-block;
-    font-family: Arial, sans-serif;
-}
-
-.barcode-label h3 {
-    margin: 5px 0;
-    font-size: 16px;
-}
-
-.barcode-label p {
-    margin: 3px 0;
-    font-size: 12px;
-}
-
-.barcode-container {
-    margin: 10px 0;
-    display: flex;
-    justify-content: center;
-}
     </style>
 </head>
 <body>
@@ -1015,18 +988,16 @@ input.invalid, select.invalid {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
-    <script type="module">
-        // Import Supabase client
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-        
+    <script>
         // Supabase initialization - Varsayılan değerler
         const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
         let SUPABASE_ANON_KEY = null;
         let supabase = null;
         
-        // EmailJS initialization - KENDİ SERVİS VE ŞABLON ID'LERİNİZİ EKLEYİN
+        // EmailJS initialization
         (function() {
-            emailjs.init("YOUR_EMAILJS_USER_ID");
+            // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
+            emailjs.init("jH-KlJ2ffs_lGwfsp");
         })();
         
         // Global state variables
@@ -1160,7 +1131,7 @@ input.invalid, select.invalid {
             }
             
             try {
-                return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } catch (error) {
                 console.error('Supabase initialization error:', error);
                 showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
@@ -1278,15 +1249,39 @@ input.invalid, select.invalid {
             loginBtn.textContent = 'Giriş yapılıyor...';
 
             try {
-                // Simulate login for demo purposes
-                // In a real app, you would use supabase.auth.signInWithPassword()
-                setTimeout(() => {
-                    currentUser = {
-                        email: email,
-                        uid: 'demo-user-id',
-                        name: email.split('@')[0],
-                        role: 'operator'
-                    };
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+
+                if (error) {
+                    showAlert(`Giriş başarısız: ${error.message}`, 'error');
+                    return;
+                }
+
+                if (data.user && data.user.email) {
+                    // Kullanıcı rolünü al
+                    const { data: userData, error: userError } = await supabase
+                        .from('personnel')
+                        .select('role, name')
+                        .eq('email', data.user.email)
+                        .single();
+
+                    if (!userError && userData) {
+                        currentUser = {
+                            email: data.user.email,
+                            uid: data.user.id,
+                            name: userData.name || data.user.email.split('@')[0],
+                            role: userData.role
+                        };
+                    } else {
+                        currentUser = {
+                            email: data.user.email,
+                            uid: data.user.id,
+                            name: data.user.email.split('@')[0],
+                            role: 'operator' // Varsayılan rol
+                        };
+                    }
 
                     document.getElementById('userRole').textContent = 
                         `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
@@ -1297,17 +1292,15 @@ input.invalid, select.invalid {
                     showAlert('Giriş başarılı!', 'success');
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'flex';
-                    
-                    // Initialize the app
-                    initApp();
-                    
-                    loginBtn.disabled = false;
-                    loginBtn.textContent = 'Giriş Yap';
-                }, 1000);
+                    testConnection();
+                } else {
+                    showAlert('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
+                }
 
-            } catch (error) {
-                console.error('Login error:', error);
+            } catch (e) {
+                console.error('Login error:', e);
                 showAlert('Giriş sırasında bir hata oluştu.', 'error');
+            } finally {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Giriş Yap';
             }
@@ -1325,11 +1318,18 @@ input.invalid, select.invalid {
 
         // Kullanıcı çıkışı
         function logout() {
-            showAlert('Başarıyla çıkış yapıldı.', 'success');
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('appContainer').style.display = 'none';
-            document.getElementById('email').value = '';
-            document.getElementById('password').value = '';
+            if (!supabase) return;
+            
+            supabase.auth.signOut().then(() => {
+                showAlert('Başarıyla çıkış yapıldı.', 'success');
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('appContainer').style.display = 'none';
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+            }).catch(e => {
+                console.error('Çıkış yapılırken bir hata oluştu:', e);
+                showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
+            });
         }
 
         // State management functions
@@ -1552,27 +1552,31 @@ input.invalid, select.invalid {
             });
         }
 
-        /// Data loading functions
+        // Data loading functions
         async function populateCustomers() {
             try {
                 // Dropdown'u temizle
                 elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
                 
-                // Demo müşteriler - gerçek uygulamada Supabase'ten çekilecek
-                const demoCustomers = [
-                    { id: 1, name: "Ahmet Yılmaz", code: "C001" },
-                    { id: 2, name: "Ayşe Demir", code: "C002" },
-                    { id: 3, name: "Mehmet Kaya", code: "C003" },
-                    { id: 4, name: "Fatma Çelik", code: "C004" },
-                    { id: 5, name: "Mustafa Öztürk", code: "C005" }
-                ];
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
 
-                demoCustomers.forEach(customer => {
-                    const option = document.createElement('option');
-                    option.value = customer.id;
-                    option.textContent = `${customer.name} (${customer.code})`;
-                    elements.customerSelect.appendChild(option);
-                });
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.id;
+                        option.textContent = `${customer.name} (${customer.code})`;
+                        elements.customerSelect.appendChild(option);
+                    });
+                }
                 
             } catch (error) {
                 console.error('Error in populateCustomers:', error);
@@ -1585,19 +1589,30 @@ input.invalid, select.invalid {
                 // Dropdown'u temizle
                 elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
                 
-                // Demo personel - gerçek uygulamada Supabase'ten çekilecek
-                const demoPersonnel = [
-                    { id: 1, name: "Ali Yıldız" },
-                    { id: 2, name: "Zeynep Korkmaz" },
-                    { id: 3, name: "Hasan Yücel" }
-                ];
+                const { data: personnel, error } = await supabase
+                    .from('personnel')
+                    .select('*')
+                    .order('name');
 
-                demoPersonnel.forEach(person => {
+                if (error) {
+                    console.error('Error loading personnel:', error);
+                    // Add default current user
                     const option = document.createElement('option');
-                    option.value = person.id;
-                    option.textContent = person.name;
+                    option.value = currentUser?.uid || 'default';
+                    option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+                    option.selected = true;
                     elements.personnelSelect.appendChild(option);
-                });
+                    return;
+                }
+
+                if (personnel && personnel.length > 0) {
+                    personnel.forEach(person => {
+                        const option = document.createElement('option');
+                        option.value = person.id;
+                        option.textContent = person.name;
+                        elements.personnelSelect.appendChild(option);
+                    });
+                }
                 
             } catch (error) {
                 console.error('Error in populatePersonnel:', error);
@@ -1614,39 +1629,23 @@ input.invalid, select.invalid {
             try {
                 elements.packagesTableBody.innerHTML = '';
                 
-                // Demo paketler - gerçek uygulamada Supabase'ten çekilecek
-                const demoPackages = [
-                    { 
-                        id: 1, 
-                        package_no: "PKG-2025001", 
-                        customer_id: 1, 
-                        customers: { name: "Ahmet Yılmaz", code: "C001" },
-                        total_quantity: 15,
-                        created_at: new Date(),
-                        status: 'beklemede'
-                    },
-                    { 
-                        id: 2, 
-                        package_no: "PKG-2025002", 
-                        customer_id: 2, 
-                        customers: { name: "Ayşe Demir", code: "C002" },
-                        total_quantity: 8,
-                        created_at: new Date(Date.now() - 86400000),
-                        status: 'beklemede'
-                    },
-                    { 
-                        id: 3, 
-                        package_no: "PKG-2025003", 
-                        customer_id: 3, 
-                        customers: { name: "Mehmet Kaya", code: "C003" },
-                        total_quantity: 22,
-                        created_at: new Date(Date.now() - 172800000),
-                        status: 'sevk-edildi'
-                    }
-                ];
+                const { data: packages, error } = await supabase
+                    .from('packages')
+                    .select(`
+                        *,
+                        customers (name, code)
+                    `)
+                    .is('container_id', null)  // Only show packages not in a container
+                    .order('created_at', { ascending: false });
 
-                if (demoPackages && demoPackages.length > 0) {
-                    demoPackages.forEach(pkg => {
+                if (error) {
+                    console.error('Error loading packages:', error);
+                    showAlert('Paket verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (packages && packages.length > 0) {
+                    packages.forEach(pkg => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td><input type="checkbox" value="${pkg.id}" onchange="updatePackageSelection()"></td>
@@ -1664,7 +1663,7 @@ input.invalid, select.invalid {
                         elements.packagesTableBody.appendChild(row);
                     });
                     
-                    elements.totalPackages.textContent = demoPackages.length;
+                    elements.totalPackages.textContent = packages.length;
                 } else {
                     // Yalnızca bir kere "Henüz paket yok" mesajı ekle
                     if (elements.packagesTableBody.children.length === 0) {
@@ -1680,48 +1679,60 @@ input.invalid, select.invalid {
             }
         }
 
+        // Helper function to calculate total quantity of selected packages
+        async function calculateTotalQuantity(packageIds) {
+            try {
+                const { data: packages, error } = await supabase
+                    .from('packages')
+                    .select('total_quantity')
+                    .in('id', packageIds);
+                    
+                if (error) throw error;
+                
+                return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+            } catch (error) {
+                console.error('Error calculating total quantity:', error);
+                return packageIds.length; // Fallback to package count
+            }
+        }
+
         // Update the populateShippingTable function to use customer folders
         async function populateShippingTable() {
             try {
                 elements.shippingFolders.innerHTML = '';
                 
-                // Demo konteynerler - gerçek uygulamada Supabase'ten çekilecek
-                const demoContainers = [
-                    {
-                        id: 1,
-                        container_no: "CONT-2025001",
-                        customer: "Ahmet Yılmaz",
-                        package_count: 3,
-                        total_quantity: 45,
-                        status: "beklemede",
-                        created_at: new Date(),
-                        packages: [
-                            { package_no: "PKG-2025001", total_quantity: 15, customers: { name: "Ahmet Yılmaz" } },
-                            { package_no: "PKG-2025004", total_quantity: 20, customers: { name: "Ahmet Yılmaz" } },
-                            { package_no: "PKG-2025007", total_quantity: 10, customers: { name: "Ahmet Yılmaz" } }
-                        ]
-                    },
-                    {
-                        id: 2,
-                        container_no: "CONT-2025002",
-                        customer: "Ayşe Demir",
-                        package_count: 2,
-                        total_quantity: 18,
-                        status: "sevk-edildi",
-                        created_at: new Date(Date.now() - 86400000),
-                        packages: [
-                            { package_no: "PKG-2025002", total_quantity: 8, customers: { name: "Ayşe Demir" } },
-                            { package_no: "PKG-2025005", total_quantity: 10, customers: { name: "Ayşe Demir" } }
-                        ]
-                    }
-                ];
+                const filter = elements.shippingFilter?.value || 'all';
+                let query = supabase
+                    .from('containers')
+                    .select(`
+                        *,
+                        packages (
+                            id,
+                            package_no,
+                            total_quantity,
+                            customers (name, code)
+                        )
+                    `);
+                
+                if (filter !== 'all') {
+                    query = query.eq('status', filter);
+                }
+                
+                const { data: containers, error } = await query.order('created_at', { ascending: false });
 
-                if (demoContainers && demoContainers.length > 0) {
+                if (error) {
+                    console.error('Error loading containers:', error);
+                    showAlert('Sevkiyat verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (containers && containers.length > 0) {
                     // Müşterilere göre grupla
                     const customersMap = {};
                     
-                    demoContainers.forEach(container => {
-                        const customerName = container.customer || 'Diğer';
+                    containers.forEach(container => {
+                        const customerName = container.packages && container.packages.length > 0 ? 
+                            container.packages[0].customers?.name : container.customer || 'Diğer';
                         
                         if (!customersMap[customerName]) {
                             customersMap[customerName] = [];
@@ -1803,43 +1814,19 @@ input.invalid, select.invalid {
         // Konteyner detaylarını görüntüle
         async function viewContainerDetails(containerId) {
             try {
-                // Demo konteyner detayları - gerçek uygulamada Supabase'ten çekilecek
-                const demoContainers = [
-                    {
-                        id: 1,
-                        container_no: "CONT-2025001",
-                        customer: "Ahmet Yılmaz",
-                        package_count: 3,
-                        total_quantity: 45,
-                        status: "beklemede",
-                        created_at: new Date(),
-                        packages: [
-                            { package_no: "PKG-2025001", total_quantity: 15, customers: { name: "Ahmet Yılmaz" } },
-                            { package_no: "PKG-2025004", total_quantity: 20, customers: { name: "Ahmet Yılmaz" } },
-                            { package_no: "PKG-2025007", total_quantity: 10, customers: { name: "Ahmet Yılmaz" } }
-                        ]
-                    },
-                    {
-                        id: 2,
-                        container_no: "CONT-2025002",
-                        customer: "Ayşe Demir",
-                        package_count: 2,
-                        total_quantity: 18,
-                        status: "sevk-edildi",
-                        created_at: new Date(Date.now() - 86400000),
-                        packages: [
-                            { package_no: "PKG-2025002", total_quantity: 8, customers: { name: "Ayşe Demir" } },
-                            { package_no: "PKG-2025005", total_quantity: 10, customers: { name: "Ayşe Demir" } }
-                        ]
-                    }
-                ];
-                
-                const container = demoContainers.find(c => c.id == containerId);
-                
-                if (!container) {
-                    showAlert('Konteyner bulunamadı', 'error');
-                    return;
-                }
+                const { data: container, error } = await supabase
+                    .from('containers')
+                    .select(`
+                        *,
+                        packages (
+                            *,
+                            customers (name, code)
+                        )
+                    `)
+                    .eq('id', containerId)
+                    .single();
+
+                if (error) throw error;
                 
                 currentContainerDetails = container;
                 
@@ -1873,7 +1860,7 @@ input.invalid, select.invalid {
                                         <td>${pkg.package_no}</td>
                                         <td>${pkg.customers?.name || 'N/A'}</td>
                                         <td>${pkg.total_quantity}</td>
-                                        <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}</span></td>
+                                        <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1945,21 +1932,19 @@ input.invalid, select.invalid {
             try {
                 elements.stockTableBody.innerHTML = '';
                 
-                // Demo stok verileri - gerçek uygulamada Supabase'ten çekilecek
-                const demoStockItems = [
-                    { code: "ST001", name: "Büyük Çarşaf", quantity: 45, unit: "Adet", updated_at: new Date() },
-                    { code: "ST002", name: "Çarşaf", quantity: 32, unit: "Adet", updated_at: new Date() },
-                    { code: "ST003", name: "Büyük Nevresim", quantity: 28, unit: "Adet", updated_at: new Date() },
-                    { code: "ST004", name: "Nevresim", quantity: 15, unit: "Adet", updated_at: new Date() },
-                    { code: "ST005", name: "Büyük Havlu", quantity: 8, unit: "Adet", updated_at: new Date() },
-                    { code: "ST006", name: "Havlu", quantity: 4, unit: "Adet", updated_at: new Date() },
-                    { code: "ST007", name: "Yastık", quantity: 20, unit: "Adet", updated_at: new Date() },
-                    { code: "ST008", name: "Yastık Kılıfı", quantity: 18, unit: "Adet", updated_at: new Date() },
-                    { code: "ST009", name: "Alez", quantity: 12, unit: "Adet", updated_at: new Date() }
-                ];
+                const { data: stockItems, error } = await supabase
+                    .from('stock_items')
+                    .select('*')
+                    .order('name');
 
-                if (demoStockItems && demoStockItems.length > 0) {
-                    demoStockItems.forEach(item => {
+                if (error) {
+                    console.error('Error loading stock items:', error);
+                    showAlert('Stok verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (stockItems && stockItems.length > 0) {
+                    stockItems.forEach(item => {
                         const row = document.createElement('tr');
                         
                         // Determine stock status
@@ -2037,7 +2022,28 @@ input.invalid, select.invalid {
             }
             
             try {
-                showAlert(`Stok güncellendi: ${code}`, 'success');
+                if (!navigator.onLine) {
+                    // Çevrimdışı mod
+                    saveOfflineData('stockUpdates', {
+                        code: code,
+                        quantity: newQuantity,
+                        updated_at: new Date().toISOString()
+                    });
+                    showAlert(`Stok çevrimdışı güncellendi: ${code}`, 'warning');
+                } else {
+                    // Çevrimiçi mod
+                    const { error } = await supabase
+                        .from('stock_items')
+                        .update({ 
+                            quantity: newQuantity,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('code', code);
+                    
+                    if (error) throw error;
+                    
+                    showAlert(`Stok güncellendi: ${code}`, 'success');
+                }
                 
                 // Görünümü güncelle
                 quantitySpan.textContent = newQuantity;
@@ -2113,7 +2119,18 @@ input.invalid, select.invalid {
                     showAlert(`Barkod çevrimdışı kaydedildi: ${barcode}`, 'warning');
                 } else {
                     // Çevrimiçi mod
-                    scannedBarcodes.push({...barcodeData, id: Date.now()});
+                    const { data, error } = await supabase
+                        .from('barcodes')
+                        .insert([barcodeData])
+                        .select();
+
+                    if (error) {
+                        console.error('Barkod kaydedilemedi:', error);
+                        showAlert('Barkod işlenirken hata oluştu', 'error');
+                        return;
+                    }
+
+                    scannedBarcodes.push(data[0]);
                     showAlert(`Barkod kaydedildi: ${barcode}`, 'success');
                 }
 
@@ -2162,17 +2179,19 @@ input.invalid, select.invalid {
             try {
                 elements.customerList.innerHTML = '';
                 
-                // Demo müşteriler - gerçek uygulamada Supabase'ten çekilecek
-                const demoCustomers = [
-                    { id: 1, name: "Ahmet Yılmaz", code: "C001" },
-                    { id: 2, name: "Ayşe Demir", code: "C002" },
-                    { id: 3, name: "Mehmet Kaya", code: "C003" },
-                    { id: 4, name: "Fatma Çelik", code: "C004" },
-                    { id: 5, name: "Mustafa Öztürk", code: "C005" }
-                ];
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
 
-                if (demoCustomers && demoCustomers.length > 0) {
-                    demoCustomers.forEach(customer => {
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
                         const div = document.createElement('div');
                         div.className = 'customer-item';
                         div.innerHTML = `
@@ -2193,22 +2212,23 @@ input.invalid, select.invalid {
             }
         }
 
-        
         async function showAllCustomers() {
             try {
                 elements.allCustomersList.innerHTML = '';
                 
-                // Demo müşteriler - gerçek uygulamada Supabase'ten çekilecek
-                const demoCustomers = [
-                    { id: 1, name: "Ahmet Yılmaz", code: "C001", email: "ahmet@example.com" },
-                    { id: 2, name: "Ayşe Demir", code: "C002", email: "ayse@example.com" },
-                    { id: 3, name: "Mehmet Kaya", code: "C003", email: "mehmet@example.com" },
-                    { id: 4, name: "Fatma Çelik", code: "C004", email: "fatma@example.com" },
-                    { id: 5, name: "Mustafa Öztürk", code: "C005", email: "mustafa@example.com" }
-                ];
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
 
-                if (demoCustomers && demoCustomers.length > 0) {
-                    demoCustomers.forEach(customer => {
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
                         const div = document.createElement('div');
                         div.className = 'customer-item';
                         div.innerHTML = `
@@ -2228,7 +2248,7 @@ input.invalid, select.invalid {
                 showAlert('Müşteri yönetimi yükleme hatası', 'error');
             }
         }
-         
+
         async function addNewCustomer() {
             const code = document.getElementById('newCustomerCode').value.trim();
             const name = document.getElementById('newCustomerName').value.trim();
@@ -2244,6 +2264,16 @@ input.invalid, select.invalid {
             }
 
             try {
+                const { error } = await supabase
+                    .from('customers')
+                    .insert([{ code, name, email: email || null }]);
+
+                if (error) {
+                    console.error('Error adding customer:', error);
+                    showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
+                    return;
+                }
+
                 showAlert('Müşteri başarıyla eklendi', 'success');
                 
                 // Clear form
@@ -2265,6 +2295,17 @@ input.invalid, select.invalid {
             if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
 
             try {
+                const { error } = await supabase
+                    .from('customers')
+                    .delete()
+                    .eq('id', customerId);
+
+                if (error) {
+                    console.error('Error deleting customer:', error);
+                    showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
                 showAlert('Müşteri başarıyla silindi', 'success');
                 
                 // Refresh lists
@@ -2378,6 +2419,18 @@ input.invalid, select.invalid {
                     saveOfflineData('packages', packageData);
                     showAlert(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
                 } else {
+                    // Çevrimiçi mod
+                    const { data, error } = await supabase
+                        .from('packages')
+                        .insert([packageData])
+                        .select();
+
+                    if (error) {
+                        console.error('Error creating package:', error);
+                        showAlert('Paket oluşturulurken hata: ' + error.message, 'error');
+                        return;
+                    }
+
                     showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
                 }
 
@@ -2388,8 +2441,17 @@ input.invalid, select.invalid {
                 });
                 
                 // Taranan barkodları işlendi olarak işaretle
-                scannedBarcodes = scannedBarcodes.map(b => ({...b, processed: true}));
-                displayScannedBarcodes();
+                if (scannedBarcodes.length > 0 && navigator.onLine) {
+                    const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
+                    if (barcodeIds.length > 0) {
+                        await supabase
+                            .from('barcodes')
+                            .update({ processed: true })
+                            .in('id', barcodeIds);
+                    }
+                    scannedBarcodes = [];
+                    displayScannedBarcodes();
+                }
                 
                 // Refresh packages table
                 await populatePackagesTable();
@@ -2411,7 +2473,7 @@ input.invalid, select.invalid {
             for (let i = 0; i < rows.length; i++) {
                 const checkbox = rows[i].querySelector('input[type="checkbox"]');
                 if (checkbox && checkbox.value === pkg.id) {
-                    rows[i].classList.add('selected');
+                    rows[i].class.classList.add('selected');
                     break;
                 }
             }
@@ -2451,38 +2513,14 @@ input.invalid, select.invalid {
             if (!selectedRow) return null;
             
             const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-            
-            // Find the package in the demo data
-            const demoPackages = [
-                { 
-                    id: 1, 
-                    package_no: "PKG-2025001", 
-                    customer_id: 1, 
-                    customers: { name: "Ahmet Yılmaz", code: "C001" },
-                    total_quantity: 15,
-                    created_at: new Date(),
-                    status: 'beklemede',
-                    items: {
-                        "Büyük Çarşaf": 5,
-                        "Çarşaf": 10
-                    }
-                },
-                { 
-                    id: 2, 
-                    package_no: "PKG-2025002", 
-                    customer_id: 2, 
-                    customers: { name: "Ayşe Demir", code: "C002" },
-                    total_quantity: 8,
-                    created_at: new Date(Date.now() - 86400000),
-                    status: 'beklemede',
-                    items: {
-                        "Nevresim": 3,
-                        "Havlu": 5
-                    }
-                }
-            ];
-            
-            return demoPackages.find(pkg => pkg.id == packageId);
+            // In a real implementation, you would fetch the complete package data
+            // For now, we'll use the data from the row
+            return {
+                package_no: selectedRow.cells[1].textContent,
+                customers: { name: selectedRow.cells[2].textContent },
+                total_quantity: parseInt(selectedRow.cells[3].textContent),
+                created_at: selectedRow.cells[4].textContent
+            };
         }
 
         async function printLabel() {
@@ -2556,7 +2594,20 @@ input.invalid, select.invalid {
             if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
 
             try {
-                showAlert(`${checkboxes.length} paket silindi`, 'success');
+                const packageIds = Array.from(checkboxes).map(cb => cb.value);
+                
+                const { error } = await supabase
+                    .from('packages')
+                    .delete()
+                    .in('id', packageIds);
+
+                if (error) {
+                    console.error('Error deleting packages:', error);
+                    showAlert('Paketler silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showAlert(`${packageIds.length} paket silindi`, 'success');
                 await populatePackagesTable();
                 
             } catch (error) {
@@ -2600,10 +2651,36 @@ input.invalid, select.invalid {
                     const timestamp = new Date().getTime();
                     containerNo = `CONT-${timestamp.toString().slice(-6)}`;
                     
+                    const { data: newContainer, error } = await supabase
+                        .from('containers')
+                        .insert([{
+                            container_no: containerNo,
+                            customer: selectedCustomer?.name || '',
+                            package_count: selectedPackages.length,
+                            total_quantity: await calculateTotalQuantity(selectedPackages),
+                            status: 'beklemede',
+                            created_at: new Date().toISOString()
+                        }])
+                        .select();
+
+                    if (error) throw error;
+                    
+                    containerId = newContainer[0].id;
                     currentContainer = containerNo;
                     elements.containerNumber.textContent = containerNo;
                     saveAppState();
                 }
+
+                // Update packages with container reference
+                const { error: updateError } = await supabase
+                    .from('packages')
+                    .update({ 
+                        container_id: containerId,
+                        status: 'sevk-edildi'
+                    })
+                    .in('id', selectedPackages);
+
+                if (updateError) throw updateError;
 
                 showAlert(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
                 
@@ -2619,6 +2696,23 @@ input.invalid, select.invalid {
 
         async function shipContainer(containerNo) {
             try {
+                // First get the container ID
+                const { data: container, error: fetchError } = await supabase
+                    .from('containers')
+                    .select('id')
+                    .eq('container_no', containerNo)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                // Update container status
+                const { error: updateError } = await supabase
+                    .from('containers')
+                    .update({ status: 'sevk-edildi' })
+                    .eq('id', container.id);
+
+                if (updateError) throw updateError;
+
                 showAlert(`Konteyner ${containerNo} sevk edildi`, 'success');
                 await populateShippingTable();
                 
@@ -2726,7 +2820,7 @@ input.invalid, select.invalid {
             // Dosya tipi doğrulama
             const fileExtension = file.name.split('.').pop().toLowerCase();
             if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
-                document.getElementById('fileError').textContent = 'Sadece Excel veya CSV dosyaları yükleyebilirsiniz';
+                document.getElementById('fileError').textContent = 'Sadece Excel v CSV dosyaları yükleyebilirsiniz';
                 document.getElementById('fileError').style.display = 'block';
                 return;
             }
@@ -2734,7 +2828,55 @@ input.invalid, select.invalid {
             showAlert('Dosya yükleniyor...', 'warning');
 
             try {
-                showAlert('Stok dosyası başarıyla yüklendi', 'success');
+                let stockData = [];
+                
+                if (fileExtension === 'csv') {
+                    const text = await file.text();
+                    stockData = Papa.parse(text, { header: true }).data;
+                } else {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    stockData = XLSX.utils.sheet_to_json(worksheet);
+                }
+
+                let successCount = 0;
+                let errorCount = 0;
+                
+                for (const item of stockData) {
+                    const code = item['Stok Kodu'] || item['code'] || item['StokKodu'] || '';
+                    const name = item['Ürün Adı'] || item['name'] || item['ÜrünAdı'] || item['product'] || '';
+                    const quantity = parseInt(item['Mevcut Adet'] || item['quantity'] || item['MevcutAdet'] || 0);
+                    const unit = item['Birim'] || item['unit'] || 'Adet';
+                    
+                    if (!code || !name) {
+                        errorCount++;
+                        continue;
+                    }
+
+                    try {
+                        const { error } = await supabase
+                            .from('stock_items')
+                            .upsert({
+                                code: code,
+                                name: name,
+                                quantity: quantity,
+                                unit: unit,
+                                updated_at: new Date().toISOString()
+                            }, { onConflict: 'code' });
+
+                        if (error) {
+                            errorCount++;
+                        } else {
+                            successCount++;
+                        }
+                    } catch (e) {
+                        errorCount++;
+                    }
+                }
+
+                showAlert(`${successCount} stok öğesi güncellendi, ${errorCount} hata`, successCount > 0 ? 'success' : 'error');
                 document.getElementById('selectedFileName').textContent = '';
                 fileInput.value = '';
                 
@@ -2749,8 +2891,62 @@ input.invalid, select.invalid {
         // Report operations
         async function generateDailyReport() {
             try {
-                showAlert('Günlük rapor oluşturuldu', 'success');
-                
+                const today = new Date();
+                const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+                const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+                const { data: packages, error: packagesError } = await supabase
+                    .from('packages')
+                    .select(`
+                        *,
+                        customers (name, code)
+                    `)
+                    .gte('created_at', startOfDay)
+                    .lte('created_at', endOfDay);
+
+                if (packagesError) throw packagesError;
+
+                const { data: containers, error: containersError } = await supabase
+                    .from('containers')
+                    .select('*')
+                    .gte('created_at', startOfDay)
+                    .lte('created_at', endOfDay);
+
+                if (containersError) throw containersError;
+
+                // Kritik stokları al
+                const { data: criticalStock, error: stockError } = await supabase
+                    .from('stock_items')
+                    .select('*')
+                    .lte('quantity', 5)
+                    .order('quantity', { ascending: true });
+
+                if (stockError) throw stockError;
+
+                const reportData = {
+                    date: new Date().toLocaleDateString('tr-TR'),
+                    totalPackages: packages.length,
+                    totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+                    containers: containers.length,
+                    customers: [...new Set(packages.map(p => p.customers?.name))].length,
+                    packages: packages,
+                    containers: containers,
+                    criticalStock: criticalStock,
+                    operator: currentUser?.name || 'Bilinmiyor'
+                };
+
+                // Raporu veritabanına kaydet
+                const { error: reportError } = await supabase
+                    .from('reports')
+                    .insert([{
+                        report_date: new Date(),
+                        report_type: 'daily',
+                        data: reportData,
+                        generated_by: currentUser?.uid
+                    }]);
+
+                if (reportError) throw reportError;
+
                 // E-posta modalını göster
                 document.getElementById('reportEmail').value = selectedCustomer?.email || '';
                 document.getElementById('emailModal').style.display = 'flex';
@@ -2776,7 +2972,51 @@ input.invalid, select.invalid {
             }
 
             try {
-                showAlert(`Rapor ${email} adresine gönderildi`, 'success');
+                // Rapor verilerini al
+                const { data: reports, error: reportsError } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (reportsError) throw reportsError;
+
+                if (!reports || reports.length === 0) {
+                    showAlert('Rapor bulunamadı', 'error');
+                    return;
+                }
+
+                const report = reports[0];
+                
+                // EmailJS ile e-posta gönderme
+                const templateParams = {
+                    to_email: email,
+                    report_date: new Date(report.report_date).toLocaleDateString('tr-TR'),
+                    total_packages: report.data.totalPackages,
+                    total_items: report.data.totalItems,
+                    operator: report.data.operator,
+                    critical_stock: report.data.criticalStock ? report.data.criticalStock.length : 0
+                };
+
+                // EmailJS servis ID ve template ID'lerinizi buraya ekleyin
+                emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
+                    .then(function(response) {
+                        showAlert(`Rapor ${email} adresine gönderildi`, 'success');
+                        
+                        // E-posta gönderim kaydı
+                        supabase
+                            .from('report_emails')
+                            .insert([{
+                                report_id: report.id,
+                                sent_to: email,
+                                sent_at: new Date().toISOString(),
+                                status: 'sent'
+                            }]);
+                    }, function(error) {
+                        console.error('E-posta gönderme hatası:', error);
+                        showAlert('E-posta gönderilirken hata oluştu: ' + error.text, 'error');
+                    });
+                
                 closeEmailModal();
                 
             } catch (error) {
@@ -2788,38 +3028,35 @@ input.invalid, select.invalid {
         async function previewReport() {
             await populatePackagesTable();
             
-            // Demo rapor verileri
-            const demoPackages = [
-                { 
-                    package_no: "PKG-2025001", 
-                    customers: { name: "Ahmet Yılmaz" }, 
-                    total_quantity: 15, 
-                    created_at: new Date(),
-                    packer: currentUser?.name || 'Demo Kullanıcı'
-                },
-                { 
-                    package_no: "PKG-2025002", 
-                    customers: { name: "Ayşe Demir" }, 
-                    total_quantity: 8, 
-                    created_at: new Date(Date.now() - 86400000),
-                    packer: currentUser?.name || 'Demo Kullanıcı'
-                }
-            ];
-            
-            // Demo kritik stoklar
-            const demoCriticalStock = [
-                { code: "ST005", name: "Büyük Havlu", quantity: 8 },
-                { code: "ST006", name: "Havlu", quantity: 4 }
-            ];
-            
+            // Get packages data
+            const { data: packages } = await supabase
+                .from('packages')
+                .select(`
+                    *,
+                    customers (name, code)
+                `)
+                .order('created_at', { ascending: false });
+                
+            // Get containers data
+            const { data: containers } = await supabase
+                .from('containers')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            // Get critical stock
+            const { data: criticalStock } = await supabase
+                .from('stock_items')
+                .select('*')
+                .lte('quantity', 5)
+                .order('quantity', { ascending: true });
+
             const reportData = {
                 date: new Date().toLocaleDateString('tr-TR'),
-                totalPackages: demoPackages.length,
-                totalItems: demoPackages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-                containers: 2,
-                customers: [...new Set(demoPackages.map(p => p.customers?.name))].length,
-                packages: demoPackages,
-                criticalStock: demoCriticalStock,
+                totalPackages: packages.length,
+                totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
+                containers: containers.length,
+                customers: [...new Set(packages.map(p => p.customers?.name))].length,
+                criticalStock: criticalStock,
                 operator: currentUser?.name || 'Bilinmiyor'
             };
 
@@ -2883,7 +3120,7 @@ input.invalid, select.invalid {
                             </tr>
                         </thead>
                         <tbody>
-                            ${reportData.packages.map(pkg => `
+                            ${packages.map(pkg => `
                                 <tr>
                                     <td>${escapeHtml(pkg.package_no)}</td>
                                     <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
@@ -2910,6 +3147,20 @@ input.invalid, select.invalid {
                 const timestamp = new Date().getTime();
                 const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
                 
+                const { data: newContainer, error } = await supabase
+                    .from('containers')
+                    .insert([{
+                        container_no: containerNo,
+                        customer: '',
+                        package_count: 0,
+                        total_quantity: 0,
+                        status: 'beklemede',
+                        package_ids: []
+                    }])
+                    .select();
+
+                if (error) throw error;
+
                 elements.containerNumber.textContent = containerNo;
                 currentContainer = containerNo;
                 saveAppState();
@@ -2936,6 +3187,32 @@ input.invalid, select.invalid {
             if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
 
             try {
+                // Önce bu konteynerlere bağlı paketleri güncelle
+                const { error: updateError } = await supabase
+                    .from('packages')
+                    .update({ 
+                        container_id: null,
+                        status: 'beklemede'
+                    })
+                    .in('container_id', selectedContainers);
+
+                if (updateError) throw updateError;
+
+                // Sonra konteynerleri sil
+                const { error: deleteError } = await supabase
+                    .from('containers')
+                    .delete()
+                    .in('id', selectedContainers);
+
+                if (deleteError) throw deleteError;
+
+                // Eğer silinen konteyner aktif konteyner ise sıfırla
+                if (currentContainer && selectedContainers.includes(currentContainer)) {
+                    currentContainer = null;
+                    elements.containerNumber.textContent = 'Yok';
+                    saveAppState();
+                }
+                
                 showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
                 await populateShippingTable();
                 
@@ -3002,8 +3279,26 @@ input.invalid, select.invalid {
         function setupAuthListener() {
             if (!supabase) return;
             
-            // This would be implemented with real Supabase auth
-            console.log('Auth listener setup');
+            supabase.auth.onAuthStateChange((event, session) => {
+                console.log('Auth state change:', event, session?.user?.email || 'No user');
+                
+                if (session) {
+                    currentUser = {
+                        email: session.user.email,
+                        uid: session.user.id,
+                        name: session.user.email.split('@')[0]
+                    };
+                    
+                    document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+                    document.getElementById('loginScreen').style.display = "none";
+                    document.getElementById('appContainer').style.display = "flex";
+                    
+                    initApp();
+                } else {
+                    document.getElementById('loginScreen').style.display = "flex";
+                    document.getElementById('appContainer').style.display = "none";
+                }
+            });
         }
 
         // Load API key from localStorage
@@ -3018,7 +3313,7 @@ input.invalid, select.invalid {
 
         // Global error handler
         window.addEventListener('error', function(e) {
-            console.error('Global error:', e.message || e);
+            console.error('Global error:', e.error);
             showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
         });
 
@@ -3113,7 +3408,7 @@ input.invalid, select.invalid {
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('appContainer').style.display = 'none';
 
-            console.log('ProClean application initialized');
+            console.log('ProClean application initialized with Supabase authentication');
         });
     </script>
 </body>
