@@ -1010,6 +1010,7 @@ input.invalid, select.invalid {
         let editingStockItem = null;
         let scannerMode = false;
         let currentContainerDetails = null;
+        let currentReportData = null;
 
         // Elementleri bir defa tanımla
         const elements = {
@@ -2945,6 +2946,8 @@ input.invalid, select.invalid {
             }]);
 
         if (reportError) throw reportError;
+
+        currentReportData = reportData; // Store for later use
 
         // E-posta modalını göster
         document.getElementById('reportEmail').value = selectedCustomer?.email || '';
