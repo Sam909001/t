@@ -1130,21 +1130,28 @@ input.invalid, select.invalid {
         }
         
         // Supabase istemcisini başlat
-        function initializeSupabase() {
-            if (!SUPABASE_ANON_KEY) {
-                showApiKeyModal();
-                return null;
+       function initializeSupabase() {
+    if (!SUPABASE_ANON_KEY) {
+        showApiKeyModal();
+        return null;
+    }
+    
+    try {
+        // Add proper error handling for client creation
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true
             }
-            
-            try {
-                return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } catch (error) {
-                console.error('Supabase initialization error:', error);
-                showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
-                showApiKeyModal();
-                return null;
-            }
-        }
+        });
+        return client;
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
+        showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+        showApiKeyModal();
+        return null;
+    }
+}
         
         // API anahtarını kaydet ve istemciyi başlat
         function saveApiKey() {
