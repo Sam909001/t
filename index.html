@@ -989,349 +989,390 @@ input.invalid, select.invalid {
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
     <script>
-        // Supabase initialization - Varsayılan değerler
-        const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-        let SUPABASE_ANON_KEY = null;
-        let supabase = null;
-        
-        // EmailJS initialization
-        (function() {
-            // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
-            emailjs.init("jH-KlJ2ffs_lGwfsp");
-        })();
-        
-        // Global state variables
-        let selectedCustomer = null;
-        let currentPackage = {};
-        let currentContainer = null;
-        let selectedProduct = null;
-        let currentUser = null;
-        let scannedBarcodes = [];
-        let editingStockItem = null;
-        let scannerMode = false;
-        let currentContainerDetails = null;
+   // ---------------- Global state variables ----------------
+const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
+let SUPABASE_ANON_KEY = localStorage.getItem('procleanApiKey');
+let supabase = null;
+let currentUser = null;
+let selectedCustomer = null;
+let currentPackage = {};
+let currentContainer = null;
+let selectedProduct = null;
+let scannedBarcodes = [];
+let editingStockItem = null;
+let scannerMode = false;
+let currentContainerDetails = null;
 
-        // Elementleri bir defa tanımla
-        const elements = {
-            loginScreen: document.getElementById('loginScreen'),
-            appContainer: document.getElementById('appContainer'),
-            loginButton: document.getElementById('loginBtn'),
-            emailInput: document.getElementById('email'),
-            passwordInput: document.getElementById('password'),
-            customerSelect: document.getElementById('customerSelect'),
-            personnelSelect: document.getElementById('personnelSelect'),
-            currentDate: document.getElementById('currentDate'),
-            barcodeInput: document.getElementById('barcodeInput'),
-            packagesTableBody: document.getElementById('packagesTableBody'),
-            packageDetailContent: document.getElementById('packageDetailContent'),
-            shippingFolders: document.getElementById('shippingFolders'),
-            stockTableBody: document.getElementById('stockTableBody'),
-            customerList: document.getElementById('customerList'),
-            allCustomersList: document.getElementById('allCustomersList'),
-            toast: document.getElementById('toast'),
-            containerNumber: document.getElementById('containerNumber'),
-            totalPackages: document.getElementById('totalPackages'),
-            shippingFilter: document.getElementById('shippingFilter'),
-            stockSearch: document.getElementById('stockSearch'),
-            selectAllPackages: document.getElementById('selectAllPackages'),
-            apiKeyModal: document.getElementById('apiKeyModal'),
-            apiKeyInput: document.getElementById('apiKeyInput'),
-            quantityInput: document.getElementById('quantityInput'),
-            quantityModal: document.getElementById('quantityModal'),
-            quantityModalTitle: document.getElementById('quantityModalTitle'),
-            scannedBarcodes: document.getElementById('scannedBarcodes'),
-            connectionStatus: document.getElementById('connectionStatus'),
-            alertContainer: document.getElementById('alertContainer'),
-            scannerToggle: document.getElementById('scannerToggle'),
-            containerSearch: document.getElementById('containerSearch')
-        };
-        
-        // Profesyonel alert sistemi
-        function showAlert(message, type = 'info', duration = 5000) {
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type}`;
-            alert.innerHTML = `
-                <span>${message}</span>
-                <button class="alert-close">&times;</button>
-            `;
-            
-            elements.alertContainer.appendChild(alert);
-            
-            // Kapatma butonu
-            alert.querySelector('.alert-close').addEventListener('click', () => {
+// ---------------- DOM Element References ----------------
+const elements = {
+    loginScreen: document.getElementById('loginScreen'),
+    appContainer: document.getElementById('appContainer'),
+    loginButton: document.getElementById('loginBtn'),
+    emailInput: document.getElementById('email'),
+    passwordInput: document.getElementById('password'),
+    customerSelect: document.getElementById('customerSelect'),
+    personnelSelect: document.getElementById('personnelSelect'),
+    currentDate: document.getElementById('currentDate'),
+    barcodeInput: document.getElementById('barcodeInput'),
+    packagesTableBody: document.getElementById('packagesTableBody'),
+    packageDetailContent: document.getElementById('packageDetailContent'),
+    shippingFolders: document.getElementById('shippingFolders'),
+    stockTableBody: document.getElementById('stockTableBody'),
+    customerList: document.getElementById('customerList'),
+    allCustomersList: document.getElementById('allCustomersList'),
+    toast: document.getElementById('toast'),
+    containerNumber: document.getElementById('containerNumber'),
+    totalPackages: document.getElementById('totalPackages'),
+    shippingFilter: document.getElementById('shippingFilter'),
+    stockSearch: document.getElementById('stockSearch'),
+    selectAllPackages: document.getElementById('selectAllPackages'),
+    apiKeyModal: document.getElementById('apiKeyModal'),
+    apiKeyInput: document.getElementById('apiKeyInput'),
+    quantityInput: document.getElementById('quantityInput'),
+    quantityModal: document.getElementById('quantityModal'),
+    quantityModalTitle: document.getElementById('quantityModalTitle'),
+    scannedBarcodes: document.getElementById('scannedBarcodes'),
+    connectionStatus: document.getElementById('connectionStatus'),
+    alertContainer: document.getElementById('alertContainer'),
+    scannerToggle: document.getElementById('scannerToggle'),
+    containerSearch: document.getElementById('containerSearch'),
+    logoutBtn: document.getElementById('logoutBtn')
+};
+
+// ---------------- Core Functions ----------------
+
+// Profesyonel alert sistemi
+function showAlert(message, type = 'info', duration = 5000) {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.innerHTML = `
+        <span>${message}</span>
+        <button class="alert-close">&times;</button>
+    `;
+    elements.alertContainer.appendChild(alert);
+
+    alert.querySelector('.alert-close').addEventListener('click', () => {
+        alert.classList.add('hide');
+        setTimeout(() => alert.remove(), 300);
+    });
+
+    if (duration > 0) {
+        setTimeout(() => {
+            if (alert.parentNode) {
                 alert.classList.add('hide');
                 setTimeout(() => alert.remove(), 300);
-            });
-            
-            // Otomatik kapanma
-            if (duration > 0) {
-                setTimeout(() => {
-                    if (alert.parentNode) {
-                        alert.classList.add('hide');
-                        setTimeout(() => alert.remove(), 300);
-                    }
-                }, duration);
             }
-            
-            return alert;
-        }
-        
-        // Yardımcı fonksiyonlar
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = `toast ${type} show`;
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
-        }
-        
-        // Form doğrulama fonksiyonu
-        function validateForm(inputs) {
-            let isValid = true;
-            
-            inputs.forEach(input => {
-                const element = document.getElementById(input.id);
-                const errorElement = document.getElementById(input.errorId);
-                
-                if (input.required && !element.value.trim()) {
-                    element.classList.add('invalid');
-                    errorElement.style.display = 'block';
-                    isValid = false;
-                } else if (input.type === 'email' && element.value.trim() && !isValidEmail(element.value)) {
-                    element.classList.add('invalid');
-                    errorElement.style.display = 'block';
-                    errorElement.textContent = 'Geçerli bir e-posta adresi girin';
-                    isValid = false;
-                } else if (input.type === 'number' && element.value && (!Number.isInteger(Number(element.value)) || Number(element.value) < 1)) {
-                    element.classList.add('invalid');
-                    errorElement.style.display = 'block';
-                    errorElement.textContent = 'Geçerli bir sayı girin';
-                    isValid = false;
-                } else {
-                    element.classList.remove('invalid');
-                    errorElement.style.display = 'none';
-                }
-            });
-            
-            return isValid;
-        }
-        
-        function isValidEmail(email) {
-            const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-            return re.test(String(email).toLowerCase());
-        }
-        
-        // Supabase istemcisini başlat
-        function initializeSupabase() {
-            if (!SUPABASE_ANON_KEY) {
-                showApiKeyModal();
-                return null;
-            }
-            
-            try {
-                return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } catch (error) {
-                console.error('Supabase initialization error:', error);
-                showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
-                showApiKeyModal();
-                return null;
-            }
-        }
-        
-        // API anahtarını kaydet ve istemciyi başlat
-        function saveApiKey() {
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
-            if (!apiKey) {
-                showAlert('Lütfen bir API anahtarı girin', 'error');
-                return;
-            }
-            
-            localStorage.setItem('procleanApiKey', apiKey);
-            SUPABASE_ANON_KEY = apiKey;
-            supabase = initializeSupabase();
-            
-            if (supabase) {
-                document.getElementById('apiKeyModal').style.display = 'none';
-                showAlert('API anahtarı kaydedildi', 'success');
-                testConnection();
-            }
-        }
-        
-        // API anahtarı modalını göster
-        function showApiKeyModal() {
-            const apiKeyInput = document.getElementById('apiKeyInput');
-            if (apiKeyInput) {
-                apiKeyInput.value = SUPABASE_ANON_KEY || '';
-                document.getElementById('apiKeyModal').style.display = 'flex';
-            }
-        }
+        }, duration);
+    }
+    return alert;
+}
 
-        // API anahtarı yardımı göster
-        function showApiKeyHelp() {
-            const helpWindow = window.open('', '_blank');
-            helpWindow.document.write(`
-                <html>
-                <head>
-                    <title>Supabase API Anahtarı Alma Rehberi</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
-                        h1 { color: #2c3e50; }
-                        .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
-                    </style>
-                </head>
-                <body>
-                    <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
-                    <div class="step">
-                        <h3>1. Supabase hesabınıza giriş yapın</h3>
-                        <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
-                    </div>
-                    <div class="step">
-                        <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
-                    </div>
-                    <div class="step">
-                        <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
-                    </div>
-                    <div class="step">
-                        <h3>4. API sekmesine gidin</h3>
-                    </div>
-                    <div class="step">
-                        <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
-                        <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
-                    </div>
-                    <div class="step">
-                        <h3>Önemli Not:</h3>
-                        <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
-                    </div>
-                </body>
-                </html>
-            `);
+// Yardımcı fonksiyonlar
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// Form doğrulama fonksiyonu
+function validateForm(inputs) {
+    let isValid = true;
+    inputs.forEach(input => {
+        const element = document.getElementById(input.id);
+        const errorElement = document.getElementById(input.errorId);
+        if (input.required && !element.value.trim()) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
+            isValid = false;
+        } else if (input.type === 'email' && element.value.trim() && !isValidEmail(element.value)) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
+            errorElement.textContent = 'Geçerli bir e-posta adresi girin';
+            isValid = false;
+        } else if (input.type === 'number' && element.value && (!Number.isInteger(Number(element.value)) || Number(element.value) < 1)) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
+            errorElement.textContent = 'Geçerli bir sayı girin';
+            isValid = false;
+        } else {
+            element.classList.remove('invalid');
+            errorElement.style.display = 'none';
         }
+    });
+    return isValid;
+}
 
-        // Supabase bağlantısını test et
-        async function testConnection() {
-            if (!supabase) {
-                showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
-                return;
+function isValidEmail(email) {
+    const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
+}
+
+// API anahtarı yardımı göster
+function showApiKeyHelp() {
+    const helpWindow = window.open('', '_blank');
+    helpWindow.document.write(`
+        <html>
+        <head>
+            <title>Supabase API Anahtarı Alma Rehberi</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+                h1 { color: #2c3e50; }
+                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
+            <div class="step">
+                <h3>1. Supabase hesabınıza giriş yapın</h3>
+                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
+            </div>
+            <div class="step">
+                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
+            </div>
+            <div class="step">
+                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
+            </div>
+            <div class="step">
+                <h3>4. API sekmesine gidin</h3>
+            </div>
+            <div class="step">
+                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
+                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
+            </div>
+            <div class="step">
+                <h3>Önemli Not:</h3>
+                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
+            </div>
+        </body>
+        </html>
+    `);
+}
+
+// API anahtar modalını gösterir
+function showApiKeyModal() {
+    if (elements.apiKeyInput) {
+        elements.apiKeyInput.value = SUPABASE_ANON_KEY || '';
+        document.getElementById('apiKeyModal').style.display = 'flex';
+    }
+}
+
+// API anahtarını kaydeder
+function saveApiKey() {
+    const apiKey = elements.apiKeyInput.value.trim();
+    if (!apiKey) {
+        showAlert('Lütfen bir API anahtarı girin', 'error');
+        return;
+    }
+    localStorage.setItem('procleanApiKey', apiKey);
+    SUPABASE_ANON_KEY = apiKey;
+    initializeSupabase();
+    elements.apiKeyModal.style.display = 'none';
+    showAlert('API anahtarı kaydedildi. Lütfen giriş yapın.', 'success');
+}
+
+// Supabase istemcisini başlatır ve oturum durumunu dinler
+function initializeSupabase() {
+    if (!SUPABASE_ANON_KEY) {
+        console.warn('No API key found, showing modal…');
+        showApiKeyModal();
+        return;
+    }
+    try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true
             }
-            try {
-                const { data, error } = await supabase.from('customers').select('*').limit(1);
-                if (error) throw error;
-                console.log('Supabase connection test successful:', data);
-            } catch (e) {
-                console.error('Supabase connection test failed:', e.message);
-                showAlert('Veritabanına bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.', 'error');
-            }
-        }
-
-        // Kullanıcı girişi
-        async function login() {
-            if (!supabase) {
-                showAlert('Lütfen önce API anahtarını girin.', 'error');
-                showApiKeyModal();
-                return;
-            }
-
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            // Form doğrulama
-            if (!validateForm([
-                { id: 'email', errorId: 'emailError', type: 'email', required: true },
-                { id: 'password', errorId: 'passwordError', type: 'text', required: true }
-            ])) {
-                return;
-            }
-
-            const loginBtn = document.getElementById('loginBtn');
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'Giriş yapılıyor...';
-
-            try {
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password,
-                });
-
-                if (error) {
-                    showAlert(`Giriş başarısız: ${error.message}`, 'error');
-                    return;
-                }
-
-                if (data.user && data.user.email) {
-                    // Kullanıcı rolünü al
-                    const { data: userData, error: userError } = await supabase
+        });
+        console.log('✅ Supabase initialized');
+        // Auth durum değişikliğini dinle - Doğru yer burası
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                if (session && session.user) {
+                    const userId = session.user.id;
+                    const {
+                        data: userData,
+                        error: userError
+                    } = await supabase
                         .from('personnel')
                         .select('role, name')
-                        .eq('email', data.user.email)
+                        .eq('uid', userId)
                         .single();
 
                     if (!userError && userData) {
                         currentUser = {
-                            email: data.user.email,
-                            uid: data.user.id,
-                            name: userData.name || data.user.email.split('@')[0],
+                            email: session.user.email,
+                            uid: userId,
+                            name: userData.name || session.user.email.split('@')[0],
                             role: userData.role
                         };
                     } else {
-                        currentUser = {
-                            email: data.user.email,
-                            uid: data.user.id,
-                            name: data.user.email.split('@')[0],
-                            role: 'operator' // Varsayılan rol
-                        };
+                        // If no record found, create a default one
+                        const { data: insertData, error: insertError } = await supabase.from('personnel').insert({
+                            uid: userId,
+                            name: session.user.email.split('@')[0],
+                            role: 'operator'
+                        }).select('role, name').single();
+
+                        if (!insertError && insertData) {
+                            currentUser = {
+                                email: session.user.email,
+                                uid: userId,
+                                name: insertData.name,
+                                role: insertData.role
+                            };
+                            showAlert('Yeni kullanıcı hesabı oluşturuldu.', 'info');
+                        } else {
+                            console.error('Failed to create new personnel record:', insertError);
+                            showAlert('Kullanıcı bilgileri yüklenemedi. Yönetici ile iletişime geçin.', 'error');
+                            return; // Stop if user data can't be set
+                        }
                     }
-
-                    document.getElementById('userRole').textContent = 
-                        `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
-                    
-                    // Rol bazlı yetkilendirme
-                    applyRoleBasedPermissions(currentUser.role);
-                    
-                    showAlert('Giriş başarılı!', 'success');
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('appContainer').style.display = 'flex';
+                    console.log('Kullanıcı bilgileri güncellendi:', currentUser);
+                    elements.loginScreen.style.display = 'none';
+                    elements.appContainer.style.display = 'flex';
+                    showAlert(`Hoş geldiniz, ${currentUser.name}!`, 'success');
+                    if (currentUser.role) {
+                        applyRoleBasedPermissions(currentUser.role);
+                    }
                     testConnection();
-                } else {
-                    showAlert('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
                 }
-
-            } catch (e) {
-                console.error('Login error:', e);
-                showAlert('Giriş sırasında bir hata oluştu.', 'error');
-            } finally {
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'Giriş Yap';
-            }
-        }
-
-        function applyRoleBasedPermissions(role) {
-            const adminOnlyElements = document.querySelectorAll('.admin-only');
-            
-            if (role === 'admin') {
-                adminOnlyElements.forEach(el => el.style.display = 'block');
             } else {
-                adminOnlyElements.forEach(el => el.style.display = 'none');
+                currentUser = null;
+                elements.loginScreen.style.display = 'flex';
+                elements.appContainer.style.display = 'none';
+                console.log('Oturum kapandı, kullanıcı oturum açma ekranına yönlendirildi.');
             }
-        }
+        });
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
+        showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+        showApiKeyModal();
+    }
+}
 
-        // Kullanıcı çıkışı
-        function logout() {
-            if (!supabase) return;
-            
-            supabase.auth.signOut().then(() => {
-                showAlert('Başarıyla çıkış yapıldı.', 'success');
-                document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('appContainer').style.display = 'none';
-                document.getElementById('email').value = '';
-                document.getElementById('password').value = '';
-            }).catch(e => {
-                console.error('Çıkış yapılırken bir hata oluştu:', e);
-                showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
-            });
-        }
+// Supabase bağlantısını test et
+async function testConnection() {
+    if (!supabase) {
+        showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+        return;
+    }
+    try {
+        const {
+            data,
+            error
+        } = await supabase.from('customers').select('*').limit(1);
+        if (error) throw error;
+        console.log('Supabase connection test successful:', data);
+    } catch (e) {
+        console.error('Supabase connection test failed:', e.message);
+        showAlert('Veritabanına bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.', 'error');
+    }
+}
 
+// Rol bazlı yetkilendirme
+function applyRoleBasedPermissions(role) {
+    const adminOnlyElements = document.querySelectorAll('.admin-only');
+    if (role === 'admin') {
+        adminOnlyElements.forEach(el => el.style.display = 'block');
+    } else {
+        adminOnlyElements.forEach(el => el.style.display = 'none');
+    }
+}
+
+// Kullanıcı girişi
+async function login() {
+    if (!supabase) {
+        showAlert('Lütfen önce API anahtarını girin.', 'error');
+        showApiKeyModal();
+        return;
+    }
+    const email = elements.emailInput.value;
+    const password = elements.passwordInput.value;
+    if (!validateForm([{
+            id: 'email',
+            errorId: 'emailError',
+            type: 'email',
+            required: true
+        }, {
+            id: 'password',
+            errorId: 'passwordError',
+            type: 'text',
+            required: true
+        }])) {
+        return;
+    }
+    elements.loginButton.disabled = true;
+    elements.loginButton.textContent = 'Giriş yapılıyor...';
+    try {
+        const {
+            error
+        } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+        if (error) throw error;
+    } catch (e) {
+        console.error('Login error:', e);
+        showAlert(`Giriş başarısız: ${e.message}`, 'error');
+    } finally {
+        elements.loginButton.disabled = false;
+        elements.loginButton.textContent = 'Giriş Yap';
+    }
+}
+
+// Kullanıcı çıkışı
+async function logout() {
+    if (!supabase) return;
+    try {
+        const {
+            error
+        } = await supabase.auth.signOut();
+        if (error) throw error;
+    } catch (e) {
+        console.error('Çıkış yapılırken bir hata oluştu:', e);
+        showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
+    }
+}
+
+// EmailJS initialization with error handling
+try {
+    emailjs.init("jH-KlJ2ffs_lGwfsp");
+    console.log("EmailJS initialized successfully");
+} catch (error) {
+    console.error("EmailJS initialization failed:", error);
+    showAlert("E-posta servisi başlatılamadı. Raporlar e-posta ile gönderilemeyecek.", "warning");
+}
+
+// ---------------- Application Entry Point ----------------
+// DOM yüklenince çalışacak ana fonksiyon
+document.addEventListener('DOMContentLoaded', () => {
+    // API key check
+    if (SUPABASE_ANON_KEY) {
+        initializeSupabase();
+    } else {
+        showApiKeyModal();
+    }
+    // Event listeners
+    if (elements.loginButton) {
+        elements.loginButton.addEventListener('click', login);
+    }
+    if (elements.logoutBtn) {
+        elements.logoutBtn.addEventListener('click', logout);
+    }
+    const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+    if (saveApiKeyBtn) {
+        saveApiKeyBtn.addEventListener('click', saveApiKey);
+    }
+    const apiKeyHelpBtn = document.getElementById('apiKeyHelpBtn');
+    if (apiKeyHelpBtn) {
+        apiKeyHelpBtn.addEventListener('click', showApiKeyHelp);
+    }
+});
+        
         // State management functions
         function saveAppState() {
             const state = {
