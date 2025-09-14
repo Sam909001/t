@@ -2949,14 +2949,14 @@ async function generateDailyReport() {
         };
 
         // 5️⃣ Insert report into database
-        const { error: reportError } = await supabase
-            .from('reports')
-            .insert([{
-                report_date: new Date(),
-                report_type: 'daily',
-                data: reportData,
-                user_id: currentUser.uid // Correctly uses the authenticated user's UID
-            }]);
+const { error: reportError } = await supabase
+    .from('reports')
+    .insert([{
+        report_date: new Date(),
+        report_type: 'daily',
+        data: reportData,
+        user_id: currentUser.uid // Doğrudan 'user_id' sütununa yazın
+    }]);
 
         if (reportError) throw reportError;
 
