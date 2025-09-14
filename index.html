@@ -990,6 +990,7 @@ input.invalid, select.invalid {
 
     <script>
    // ---------------- Global state variables ----------------
+// ---------------- Global state variables ----------------
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = localStorage.getItem('procleanApiKey');
 let supabase = null;
@@ -1188,69 +1189,91 @@ function initializeSupabase() {
             }
         });
         console.log('✅ Supabase initialized');
-        // Auth durum değişikliğini dinle - Doğru yer burası
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                if (session && session.user) {
-                    const userId = session.user.id;
-                    const {
-                        data: userData,
-                        error: userError
-                    } = await supabase
-                        .from('personnel')
-                        .select('role, name')
-                        .eq('uid', userId)
-                        .single();
-
-                    if (!userError && userData) {
-                        currentUser = {
-                            email: session.user.email,
-                            uid: userId,
-                            name: userData.name || session.user.email.split('@')[0],
-                            role: userData.role
-                        };
-                    } else {
-                        // If no record found, create a default one
-                        const { data: insertData, error: insertError } = await supabase.from('personnel').insert({
-                            uid: userId,
-                            name: session.user.email.split('@')[0],
-                            role: 'operator'
-                        }).select('role, name').single();
-
-                        if (!insertError && insertData) {
-                            currentUser = {
-                                email: session.user.email,
-                                uid: userId,
-                                name: insertData.name,
-                                role: insertData.role
-                            };
-                            showAlert('Yeni kullanıcı hesabı oluşturuldu.', 'info');
-                        } else {
-                            console.error('Failed to create new personnel record:', insertError);
-                            showAlert('Kullanıcı bilgileri yüklenemedi. Yönetici ile iletişime geçin.', 'error');
-                            return; // Stop if user data can't be set
-                        }
-                    }
-                    console.log('Kullanıcı bilgileri güncellendi:', currentUser);
-                    elements.loginScreen.style.display = 'none';
-                    elements.appContainer.style.display = 'flex';
-                    showAlert(`Hoş geldiniz, ${currentUser.name}!`, 'success');
-                    if (currentUser.role) {
-                        applyRoleBasedPermissions(currentUser.role);
-                    }
-                    testConnection();
-                }
+        // Auth durum değişikliğini dinle - Sadece UI'ı yönetmek için kullanıyoruz
+        supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) {
+                // We handle user data fetching inside the login function now
+                elements.loginScreen.style.display = 'none';
+                elements.appContainer.style.display = 'flex';
             } else {
-                currentUser = null;
                 elements.loginScreen.style.display = 'flex';
                 elements.appContainer.style.display = 'none';
                 console.log('Oturum kapandı, kullanıcı oturum açma ekranına yönlendirildi.');
             }
         });
+        // Check for an existing session on page load
+        handleUserState();
     } catch (error) {
         console.error('Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
         showApiKeyModal();
+    }
+}
+
+// Yeni: Kullanıcı verilerini alır ve currentUser'ı ayarlar
+async function handleUserState() {
+    const {
+        data: {
+            session
+        },
+        error: sessionError
+    } = await supabase.auth.getSession();
+    if (sessionError) {
+        console.error("Error getting session:", sessionError);
+        return;
+    }
+    if (session && session.user) {
+        const userId = session.user.id;
+        const {
+            data: userData,
+            error: userError
+        } = await supabase
+            .from('personnel')
+            .select('role, name')
+            .eq('uid', userId)
+            .single();
+
+        if (!userError && userData) {
+            currentUser = {
+                email: session.user.email,
+                uid: userId,
+                name: userData.name || session.user.email.split('@')[0],
+                role: userData.role
+            };
+        } else {
+            // If no record found, create a default one
+            const {
+                data: insertData,
+                error: insertError
+            } = await supabase.from('personnel').insert({
+                uid: userId,
+                name: session.user.email.split('@')[0],
+                role: 'operator'
+            }).select('role, name').single();
+
+            if (!insertError && insertData) {
+                currentUser = {
+                    email: session.user.email,
+                    uid: userId,
+                    name: insertData.name,
+                    role: insertData.role
+                };
+                showAlert('Yeni kullanıcı hesabı oluşturuldu.', 'info');
+            } else {
+                console.error('Failed to create new personnel record:', insertError);
+                showAlert('Kullanıcı bilgileri yüklenemedi. Yönetici ile iletişime geçin.', 'error');
+                return;
+            }
+        }
+        console.log('Kullanıcı bilgileri güncellendi:', currentUser);
+        showAlert(`Hoş geldiniz, ${currentUser.name}!`, 'success');
+        if (currentUser.role) {
+            applyRoleBasedPermissions(currentUser.role);
+        }
+        testConnection();
+    } else {
+        currentUser = null;
+        console.log('No active user session.');
     }
 }
 
@@ -1309,12 +1332,18 @@ async function login() {
     elements.loginButton.textContent = 'Giriş yapılıyor...';
     try {
         const {
+            data,
             error
         } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
         });
         if (error) throw error;
+        // Call the new state handler after successful login
+        if (data.user) {
+            await handleUserState();
+            showAlert('Giriş başarılı!', 'success');
+        }
     } catch (e) {
         console.error('Login error:', e);
         showAlert(`Giriş başarısız: ${e.message}`, 'error');
