@@ -2989,11 +2989,12 @@ function closeEmailModal() {
 }
 
 async function sendDailyReport(email) {
-    try {
-        if (!email) {
-            showAlert('Lütfen geçerli bir e-posta girin', 'error');
-            return;
-        }
+    email = email || document.getElementById('reportEmail').value;
+
+    if (!email || !email.includes('@')) {
+        showAlert('Lütfen geçerli bir e-posta girin', 'error');
+        return;
+    }
 
         // 1️⃣ Get the latest report from Supabase
         const { data: reports, error: reportsError } = await supabase
