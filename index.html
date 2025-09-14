@@ -1520,31 +1520,32 @@ try {
         }
 
         // Barkod tarayıcı dinleyicisi
-        function setupBarcodeScanner() {
-            let barcodeBuffer = '';
-            let lastKeyTime = Date.now();
-            
-            elements.barcodeInput.addEventListener('keypress', function(e) {
-                // Barkod tarayıcı modu açıksa ve hızlı giriş yapılıyorsa
-                const currentTime = Date.now();
-                
-                if (scannerMode || currentTime - lastKeyTime < 50) {
-                    if (e.key === 'Enter') {
-                        if (barcodeBuffer.length > 5) { // Geçerli bir barkod uzunluğu
-                            elements.barcodeInput.value = barcodeBuffer;
-                            processBarcode();
-                        }
-                        barcodeBuffer = '';
-                    } else {
-                        barcodeBuffer += e.key;
-                    }
-                } else {
-                    barcodeBuffer = '';
-                }
-                
-                lastKeyTime = currentTime;
-            });
+       function setupBarcodeScanner() {
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+    const BARCODE_TIMEOUT = 100; // ms between keypresses to consider as part of same barcode
+    
+    elements.barcodeInput.addEventListener('keypress', function(e) {
+        const currentTime = Date.now();
+        
+        // Reset buffer if too much time passed since last key
+        if (currentTime - lastKeyTime > BARCODE_TIMEOUT) {
+            barcodeBuffer = '';
         }
+        
+        if (e.key === 'Enter') {
+            if (barcodeBuffer.length > 3) { // Reasonable minimum barcode length
+                elements.barcodeInput.value = barcodeBuffer;
+                processBarcode();
+            }
+            barcodeBuffer = '';
+        } else {
+            barcodeBuffer += e.key;
+        }
+        
+        lastKeyTime = currentTime;
+    });
+}
 
         // Data loading functions
         async function populateCustomers() {
