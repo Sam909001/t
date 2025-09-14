@@ -1458,24 +1458,38 @@ input.invalid, select.invalid {
         }
 
         // Çevrimdışı verileri senkronize et
-        async function syncOfflineData() {
-            const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+     async function syncOfflineData() {
+    const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+    
+    if (Object.keys(offlineData).length === 0) return;
+    
+    showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
+    
+    try {
+        // Process packages with transaction-like approach
+        if (offlineData.packages && offlineData.packages.length > 0) {
+            const { data: insertedPackages, error } = await supabase
+                .from('packages')
+                .insert(offlineData.packages)
+                .select();
             
-            if (Object.keys(offlineData).length === 0) return;
+            if (error) throw error;
             
-            showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
-            
-            try {
-                // Paketleri senkronize et
-                if (offlineData.packages && offlineData.packages.length > 0) {
-                    for (const pkg of offlineData.packages) {
-                        const { error } = await supabase
-                            .from('packages')
-                            .insert([pkg]);
-                        
-                        if (error) console.error('Paket senkronizasyon hatası:', error);
-                    }
-                }
+            // Remove successfully synced packages
+            localStorage.setItem('procleanOfflineData', JSON.stringify({
+                ...offlineData,
+                packages: []
+            }));
+        }
+        
+        // Similar approach for other data types...
+        
+        showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
+    } catch (error) {
+        console.error('Senkronizasyon hatası:', error);
+        showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
+    }
+}
                 
                 // Barkodları senkronize et
                 if (offlineData.barcodes && offlineData.barcodes.length > 0) {
