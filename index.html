@@ -2890,9 +2890,6 @@ input.invalid, select.invalid {
         }
 
         // Report operations
-      // Global variable to store the current report data
-let currentReportData = null;
-
 async function generateDailyReport() {
     try {
         showAlert('Günlük rapor oluşturuluyor...', 'info');
@@ -3165,7 +3162,7 @@ async function sendReportEmail(email, templateParams, pdfBlob = null) {
                 templateParams.pdf_attachment = reader.result;
                 templateParams.pdf_name = `proclean-report-${templateParams.report_date}.pdf`;
                 
-                emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', templateParams)
+                emailjs.send('service_4rt2w5g', 'template_16f4gyy', templateParams)
                     .then(response => resolve({ success: true, response }))
                     .catch(error => resolve({ success: false, error }));
             };
