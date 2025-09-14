@@ -3416,17 +3416,18 @@ async function sendDailyReport(email) {
         }
 
         // Event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            // API anahtarını yükle ve supabase'i başlat
-            if (loadApiKey()) {
-                supabase = initializeSupabase();
-                if (supabase) {
-                    setupAuthListener();
-                }
-            } else {
-                showApiKeyModal();
-            }
-            
+       // Move setupAuthListener outside the loadApiKey condition
+document.addEventListener('DOMContentLoaded', function() {
+    if (loadApiKey()) {
+        supabase = initializeSupabase();
+    } else {
+        showApiKeyModal();
+    }
+    
+    // Always set up the auth listener
+    if (supabase) {
+        setupAuthListener();
+    }  
             // Login button event
             document.getElementById('loginBtn').addEventListener('click', login);
             
