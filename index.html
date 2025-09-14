@@ -2988,16 +2988,22 @@ function closeEmailModal() {
     document.getElementById('emailModal').style.display = 'none';
 }
 
+<!-- Hidden div for generating PDF -->
+<div id="reportContent" style="display:none;"></div>
+        
+
 async function sendDailyReport(email) {
     try {
+        // 1️⃣ Get the email from input if not passed
         email = email || document.getElementById('reportEmail').value;
-
         if (!email || !email.includes('@')) {
             showAlert('Lütfen geçerli bir e-posta girin', 'error');
             return;
         }
 
-        // 1️⃣ Get the latest report from Supabase
+        console.log('Sending report to:', email);
+
+        // 2️⃣ Get the latest report from Supabase
         const { data: reports, error: reportsError } = await supabase
             .from('reports')
             .select('*')
@@ -3013,7 +3019,7 @@ async function sendDailyReport(email) {
         const report = reports[0];
         const reportData = report.data;
 
-        // 2️⃣ Fill hidden div with report HTML
+        // 3️⃣ Fill hidden div with report HTML
         const reportDiv = document.getElementById('reportContent');
         reportDiv.innerHTML = `
             <h1>ProClean - İş Sonu Raporu</h1>
@@ -3043,25 +3049,28 @@ async function sendDailyReport(email) {
             reportDiv.innerHTML += packagesTable;
         }
 
-        // 3️⃣ Generate PDF as Blob
-        const pdfBlob = await html2pdf().from(reportDiv).outputPdf('blob');
+        // 4️⃣ Generate PDF from hidden div
+        const pdfBase64 = await html2pdf().from(reportDiv).output('datauristring');
+        const pdfBlob = await (await fetch(pdfBase64)).blob();
 
-        // 4️⃣ Upload PDF to Supabase Storage
+        // 5️⃣ Upload PDF to Supabase Storage
         const fileName = `report_${Date.now()}.pdf`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('reports') // ✅ bucket must exist in Supabase
-            .upload(fileName, pdfBlob, { contentType: 'application/pdf' });
+        const { data: uploadData, error: uploadError } = await supabase
+            .storage
+            .from('reports')
+            .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
 
         if (uploadError) throw uploadError;
 
-        // 5️⃣ Get public link
-        const { data: publicUrlData } = supabase.storage
+        // 6️⃣ Get public URL
+        const { publicUrl, error: urlError } = supabase
+            .storage
             .from('reports')
             .getPublicUrl(fileName);
 
-        const publicUrl = publicUrlData.publicUrl;
+        if (urlError) throw urlError;
 
-        // 6️⃣ Send link via EmailJS
+        // 7️⃣ Send email via EmailJS with the public link
         const templateParams = {
             to_email: email,
             report_date: reportData.date,
@@ -3069,14 +3078,14 @@ async function sendDailyReport(email) {
             total_items: reportData.totalItems,
             operator: reportData.operator,
             critical_stock: reportData.criticalStock.length,
-            report_link: publicUrl // 🔗 goes inside email template
+            report_link: publicUrl
         };
 
         await emailjs.send('service_4rt2w5g', 'template_6ff4inv', templateParams);
 
         showAlert(`Rapor ${email} adresine başarıyla gönderildi`, 'success');
 
-        // 7️⃣ Log in DB
+        // 8️⃣ Log email sent in database
         await supabase.from('report_emails').insert([{
             report_id: report.id,
             sent_to: email,
