@@ -2998,7 +2998,7 @@ async function sendDailyReport(email) {
         }
 
         // 2️⃣ Get the latest report from Supabase
-        const { data: reports, error: reportsError } = await supabaseClient
+        const { data: reports, error: reportsError } = await supabase
             .from('reports')
             .select('*')
             .order('created_at', { ascending: false })
