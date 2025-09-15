@@ -2614,29 +2614,36 @@ function initializeElements() {
             };
         }
 
-          async function printLabel(selectedPackage) {
-    if (!selectedPackage) {
-        showAlert('Etiket yazdırmak için bir paket seçin', 'error');
+          async function printAllLabels() {
+    // Find all checked packages in your table
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+
+    if (checkboxes.length === 0) {
+        showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
         return;
     }
 
-    try {
-        // Create printable content
-        let printContent = `
-            <div class="print-label" style="text-align:center; font-family:Arial; padding:10px;">
+    let printContent = '';
+
+    checkboxes.forEach(cb => {
+        // Get package data (assuming you store it in data-package attribute as JSON)
+        const pkg = JSON.parse(cb.dataset.package);
+
+        let labelContent = `
+            <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; page-break-after:always;">
                 <h2>ProClean</h2>
-                <p><strong>Paket No:</strong> ${selectedPackage.package_no}</p>
-                <p><strong>Müşteri:</strong> ${selectedPackage.customers?.name || 'N/A'}</p>
+                <p><strong>Paket No:</strong> ${pkg.package_no}</p>
+                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
                 <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
         `;
-        
-        // Generate barcode for each product type
-        if (selectedPackage.items && typeof selectedPackage.items === 'object') {
-            Object.entries(selectedPackage.items).forEach(([product, quantity]) => {
-                const barcodeData = `${selectedPackage.package_no}-${product}-${quantity}`;
+
+        // Generate barcodes for each product type
+        if (pkg.items && typeof pkg.items === 'object') {
+            Object.entries(pkg.items).forEach(([product, quantity]) => {
+                const barcodeData = `${pkg.package_no}-${product}-${quantity}`;
                 const barcodeSvg = generateBarcode(barcodeData);
-                
-                printContent += `
+
+                labelContent += `
                     <div style="page-break-inside: avoid; margin: 15px 0; padding: 10px; border: 1px dashed #ccc;">
                         <p><strong>${product}:</strong> ${quantity}</p>
                         <div>${barcodeSvg}</div>
@@ -2644,57 +2651,45 @@ function initializeElements() {
                 `;
             });
         } else {
-            // Fallback: generate a single barcode for the package
-            const barcodeSvg = generateBarcode(selectedPackage.package_no);
-            printContent += `
+            // Fallback: single barcode
+            const barcodeSvg = generateBarcode(pkg.package_no);
+            labelContent += `
                 <div style="margin: 15px 0;">
-                    <p><strong>Toplam Adet:</strong> ${selectedPackage.total_quantity || 0}</p>
+                    <p><strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}</p>
                     <div>${barcodeSvg}</div>
                 </div>
             `;
         }
-        
-        printContent += `</div>`;
-        
-        // Add to print container (optional preview)
-        const printContainer = document.getElementById('printContainer');
-        if (printContainer) {
-            printContainer.innerHTML = printContent;
-        }
-        
-        // Open print dialog
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Paket Etiketi - ${selectedPackage.package_no}</title>
-                    <style>
-                        body { display:block; margin:0; padding:20px; }
-                        @media print {
-                            body { padding: 0; }
-                            .print-label { width: 100%; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${printContent}
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            setTimeout(function() {
-                                window.close();
-                            }, 100);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
-        
-    } catch (error) {
-        console.error('Error printing label:', error);
-        showAlert('Etiket yazdırılırken hata oluştu', 'error');
-    }
+
+        labelContent += `</div>`;
+
+        // Add this label to the total printable content
+        printContent += labelContent;
+    });
+
+    // Open one print window for all labels
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Tüm Etiketler</title>
+                <style>
+                    body { margin:0; padding:20px; font-family:Arial; }
+                    .print-label { margin-bottom:20px; text-align:center; page-break-after:always; }
+                </style>
+            </head>
+            <body>
+                ${printContent}
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() { window.close(); }, 100);
+                    };
+                <\/script>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
 }
         
         async function deleteSelectedPackages() {
