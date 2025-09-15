@@ -1693,7 +1693,7 @@ function initializeElements() {
             }
         }
 
-        async function populatePackagesTable() {
+       async function populatePackagesTable() {
             try {
                 elements.packagesTableBody.innerHTML = '';
                 
@@ -1715,10 +1715,20 @@ function initializeElements() {
                 if (packages && packages.length > 0) {
                     packages.forEach(pkg => {
                         const row = document.createElement('tr');
+                        
+                        // Format product information
+                        let productInfo = '';
+                        if (pkg.items && typeof pkg.items === 'object') {
+                            productInfo = Object.entries(pkg.items)
+                                .map(([product, quantity]) => `${product}: ${quantity}`)
+                                .join(', ');
+                        }
+                        
                         row.innerHTML = `
                             <td><input type="checkbox" value="${pkg.id}" onchange="updatePackageSelection()"></td>
                             <td>${pkg.package_no}</td>
                             <td>${pkg.customers?.name || 'N/A'}</td>
+                            <td>${productInfo || 'N/A'}</td>
                             <td>${pkg.total_quantity}</td>
                             <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
                             <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
@@ -1736,7 +1746,7 @@ function initializeElements() {
                     // Yalnızca bir kere "Henüz paket yok" mesajı ekle
                     if (elements.packagesTableBody.children.length === 0) {
                         const row = document.createElement('tr');
-                        row.innerHTML = '<td colspan="6" style="text-align:center; color:#666;">Henüz paket yok</td>';
+                        row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
                         elements.packagesTableBody.appendChild(row);
                     }
                 }
@@ -1746,7 +1756,7 @@ function initializeElements() {
                 showAlert('Paket tablosu yükleme hatası', 'error');
             }
         }
-
+        
         // Helper function to calculate total quantity of selected packages
         async function calculateTotalQuantity(packageIds) {
             try {
