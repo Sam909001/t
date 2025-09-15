@@ -702,7 +702,6 @@ input.invalid, select.invalid {
                 <th>Paket No</th>
                 <th>Müşteri</th>
                 <th>Ürün</th>
-                <th>Adet</th>
                 <th>Tarih</th>
                 <th>Durum</th>
             </tr>
@@ -1729,7 +1728,6 @@ function initializeElements() {
                             <td>${pkg.package_no}</td>
                             <td>${pkg.customers?.name || 'N/A'}</td>
                             <td>${productInfo || 'N/A'}</td>
-                            <td>${pkg.total_quantity}</td>
                             <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
                             <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
                         `;
