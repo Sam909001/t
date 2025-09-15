@@ -2620,12 +2620,30 @@ function generateBarcode(text) {
     }
 }
         
-     async function printLabel() {
+     async function printLabel(packageId) {
     try {
-        const selectedPackage = await getSelectedPackage();
+        showAlert('Etiket yazdırılıyor...', 'info');
+
+        // Yerel olarak depolanmış 'packages' dizisinde paketi bulun
+        const selectedPackage = packages.find(p => p.id === packageId);
+
         if (!selectedPackage) {
             showAlert('Etiket yazdırmak için bir paket seçin', 'error');
             return;
+        }
+
+        // Paketin durumunu 'sevk-edildi' olarak güncelleyin
+        if (selectedPackage.status !== 'sevk-edildi') {
+            const { error: updateError } = await supabase
+                .from('packages')
+                .update({ status: 'sevk-edildi' })
+                .eq('id', packageId);
+            
+            if (updateError) {
+                throw new Error(`Paket durumu güncellenemedi: ${updateError.message}`);
+            }
+
+            showAlert('Paket durumu "sevk-edildi" olarak güncellendi.', 'success');
         }
 
         // Make a copy of data (avoid live reference issues)
@@ -2647,9 +2665,6 @@ function generateBarcode(text) {
                 <div>${barcodeSvg}</div>
             </div>
         `;
-
-        // Only update print container (does not affect table)
-        document.getElementById('printContainer').innerHTML = printContent;
 
         // Open print dialog in new window
         const printWindow = window.open('', '_blank');
@@ -2675,9 +2690,13 @@ function generateBarcode(text) {
         `);
         printWindow.document.close();
 
+        showAlert('Etiket yazdırma işlemi tamamlandı.', 'success');
+        // Paket listesini yenileyin
+        renderPackages();
+
     } catch (error) {
         console.error('Error printing label:', error);
-        showAlert('Etiket yazdırılırken hata oluştu', 'error');
+        showAlert(`Etiket yazdırılırken hata oluştu: ${error.message}`, 'error');
     }
 }
         
