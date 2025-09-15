@@ -1694,67 +1694,65 @@ function initializeElements() {
         }
 
        async function populatePackagesTable() {
-            try {
-                elements.packagesTableBody.innerHTML = '';
-                
-                const { data: packages, error } = await supabase
-                    .from('packages')
-                    .select(`
-                        *,
-                        customers (name, code)
-                    `)
-                    .is('container_id', null)  // Only show packages not in a container
-                    .order('created_at', { ascending: false });
+    try {
+        elements.packagesTableBody.innerHTML = '';
+        
+        const { data: packages, error } = await supabase
+            .from('packages')
+            .select(`
+                *,
+                customers (name, code)
+            `)
+            .is('container_id', null)
+            .order('created_at', { ascending: false });
 
-                if (error) {
-                    console.error('Error loading packages:', error);
-                    showAlert('Paket verileri yüklenemedi', 'error');
-                    return;
-                }
-
-                if (packages && packages.length > 0) {
-                    packages.forEach(pkg => {
-                        const row = document.createElement('tr');
-                        
-                        // Format product information
-                        let productInfo = '';
-                        if (pkg.items && typeof pkg.items === 'object') {
-                            productInfo = Object.entries(pkg.items)
-                                .map(([product, quantity]) => `${product}: ${quantity}`)
-                                .join(', ');
-                        }
-                        
-                        row.innerHTML = `
-                            <td><input type="checkbox" value="${pkg.id}" onchange="updatePackageSelection()"></td>
-                            <td>${pkg.package_no}</td>
-                            <td>${pkg.customers?.name || 'N/A'}</td>
-                            <td>${productInfo || 'N/A'}</td>
-                            <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                            <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                        `;
-                        row.onclick = (e) => {
-                            if (e.target.type !== 'checkbox') {
-                                selectPackage(pkg);
-                            }
-                        };
-                        elements.packagesTableBody.appendChild(row);
-                    });
-                    
-                    elements.totalPackages.textContent = packages.length;
-                } else {
-                    // Yalnızca bir kere "Henüz paket yok" mesajı ekle
-                    if (elements.packagesTableBody.children.length === 0) {
-                        const row = document.createElement('tr');
-                        row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
-                        elements.packagesTableBody.appendChild(row);
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Error in populatePackagesTable:', error);
-                showAlert('Paket tablosu yükleme hatası', 'error');
-            }
+        if (error) {
+            console.error('Error loading packages:', error);
+            showAlert('Paket verileri yüklenemedi', 'error');
+            return;
         }
+
+        if (packages && packages.length > 0) {
+            packages.forEach(pkg => {
+                const row = document.createElement('tr');
+                
+                // Format product information
+                let productInfo = '';
+                if (pkg.items && typeof pkg.items === 'object') {
+                    productInfo = Object.entries(pkg.items)
+                        .map(([product, quantity]) => `${product}: ${quantity}`)
+                        .join(', ');
+                }
+                
+                // Paket verilerini data attribute olarak sakla
+                row.innerHTML = `
+                    <td><input type="checkbox" value="${pkg.id}" data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}' onchange="updatePackageSelection()"></td>
+                    <td>${pkg.package_no}</td>
+                    <td>${pkg.customers?.name || 'N/A'}</td>
+                    <td>${productInfo || 'N/A'}</td>
+                    <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
+                    <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                `;
+                row.onclick = (e) => {
+                    if (e.target.type !== 'checkbox') {
+                        selectPackage(pkg);
+                    }
+                };
+                elements.packagesTableBody.appendChild(row);
+            });
+            
+            elements.totalPackages.textContent = packages.length;
+        } else {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
+            elements.packagesTableBody.appendChild(row);
+        }
+        
+    } catch (error) {
+        console.error('Error in populatePackagesTable:', error);
+        showAlert('Paket tablosu yükleme hatası', 'error');
+    }
+}
         
         // Helper function to calculate total quantity of selected packages
         async function calculateTotalQuantity(packageIds) {
@@ -2588,17 +2586,37 @@ function initializeElements() {
        // This function needs to be a global function
 
         // This function needs to be a global function
-        function generateBarcode(text) {
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            JsBarcode(svg, text, {
-                format: "CODE128",
-                lineColor: "#000",
-                width: 2,
-                height: 40,
-                displayValue: true
-            });
-            return svg.outerHTML;
+       function generateBarcode(text) {
+    try {
+        // Önce mevcut SVG'leri temizle
+        const container = document.createElement('div');
+        
+        // JsBarcode'u kullanarak barkodu oluştur
+        JsBarcode(container, text, {
+            format: "CODE128",
+            lineColor: "#000",
+            width: 2,
+            height: 40,
+            displayValue: true,
+            fontOptions: "bold",
+            font: "OCRB",
+            textMargin: 5,
+            margin: 5
+        });
+        
+        // SVG elementini al
+        const svg = container.querySelector('svg');
+        if (!svg) {
+            throw new Error('SVG oluşturulamadı');
         }
+        
+        // SVG'yi string olarak döndür
+        return svg.outerHTML;
+    } catch (error) {
+        console.error('Barkod oluşturma hatası:', error);
+        return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
+    }
+}
         
       function getSelectedPackage() {
             const selectedRow = document.querySelector('#packagesTableBody tr.selected');
@@ -2616,10 +2634,9 @@ function initializeElements() {
         }
 
           async function printAllLabels() {
-
-    // Find all checked packages in your table
+    // Seçili paketleri bul
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-
+    
     if (checkboxes.length === 0) {
         showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
         return;
@@ -2627,57 +2644,66 @@ function initializeElements() {
 
     let printContent = '';
 
-    checkboxes.forEach(cb => {
-        // Get package data (assuming you store it in data-package attribute as JSON)
-        const pkg = JSON.parse(cb.dataset.package);
+    // Her bir seçili paket için
+    for (const cb of checkboxes) {
+        try {
+            // Paket verilerini al
+            const pkg = JSON.parse(cb.dataset.package.replace(/&apos;/g, "'"));
+            
+            let labelContent = `
+                <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; page-break-after:always;">
+                    <h2>ProClean</h2>
+                    <p><strong>Paket No:</strong> ${pkg.package_no}</p>
+                    <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+                    <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
+            `;
 
-        let labelContent = `
-            <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; page-break-after:always;">
-                <h2>ProClean</h2>
-                <p><strong>Paket No:</strong> ${pkg.package_no}</p>
-                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
-        `;
+            // Ürünler için barkod oluştur
+            if (pkg.items && typeof pkg.items === 'object') {
+                Object.entries(pkg.items).forEach(([product, quantity]) => {
+                    const barcodeData = `${pkg.package_no}-${product}-${quantity}`;
+                    const barcodeSvg = generateBarcode(barcodeData);
 
-        // Generate barcodes for each product type
-        if (pkg.items && typeof pkg.items === 'object') {
-            Object.entries(pkg.items).forEach(([product, quantity]) => {
-                const barcodeData = `${pkg.package_no}-${product}-${quantity}`;
-                const barcodeSvg = generateBarcode(barcodeData);
-
+                    labelContent += `
+                        <div style="page-break-inside: avoid; margin: 15px 0; padding: 10px; border: 1px dashed #ccc;">
+                            <p><strong>${product}:</strong> ${quantity} adet</p>
+                            <div>${barcodeSvg}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                // Fallback: tek barkod
+                const barcodeSvg = generateBarcode(pkg.package_no);
                 labelContent += `
-                    <div style="page-break-inside: avoid; margin: 15px 0; padding: 10px; border: 1px dashed #ccc;">
-                        <p><strong>${product}:</strong> ${quantity}</p>
+                    <div style="margin: 15px 0;">
+                        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}</p>
                         <div>${barcodeSvg}</div>
                     </div>
                 `;
-            });
-        } else {
-            // Fallback: single barcode
-            const barcodeSvg = generateBarcode(pkg.package_no);
-            labelContent += `
-                <div style="margin: 15px 0;">
-                    <p><strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}</p>
-                    <div>${barcodeSvg}</div>
-                </div>
-            `;
+            }
+
+            labelContent += `</div>`;
+            printContent += labelContent;
+            
+        } catch (error) {
+            console.error('Paket verisi ayrıştırma hatası:', error);
+            showAlert('Bir paketin verileri okunamadı', 'error');
         }
+    }
 
-        labelContent += `</div>`;
-
-        // Add this label to the total printable content
-        printContent += labelContent;
-    });
-
-    // Open one print window for all labels
+    // Yazdırma penceresini aç
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
         <html>
             <head>
-                <title>Tüm Etiketler</title>
+                <title>Paket Etiketleri</title>
                 <style>
                     body { margin:0; padding:20px; font-family:Arial; }
                     .print-label { margin-bottom:20px; text-align:center; page-break-after:always; }
+                    @media print {
+                        body { margin:0; padding:0; }
+                        .print-label { page-break-after:always; }
+                    }
                 </style>
             </head>
             <body>
@@ -2692,6 +2718,8 @@ function initializeElements() {
         </html>
     `);
     printWindow.document.close();
+    
+    showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
 }
         
         async function deleteSelectedPackages() {
