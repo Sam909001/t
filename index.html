@@ -2585,7 +2585,9 @@ function initializeElements() {
 }
 
        // This function needs to be a global function
-function generateBarcode(text) {
+
+        // This function needs to be a global function
+        function generateBarcode(text) {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             JsBarcode(svg, text, {
                 format: "CODE128",
@@ -2596,7 +2598,7 @@ function generateBarcode(text) {
             });
             return svg.outerHTML;
         }
-
+        
       function getSelectedPackage() {
             const selectedRow = document.querySelector('#packagesTableBody tr.selected');
             if (!selectedRow) return null;
