@@ -2577,67 +2577,17 @@ function initializeElements() {
 }
 
        // This function needs to be a global function
-function generateBarcode(packageNo, labelText) {
-    // Create SVG element dynamically
-    const svg = document.createElement('svg');
-    JsBarcode(svg, packageNo, {
-        format: "CODE128",
-        displayValue: true,
-        text: labelText,
-        fontSize: 14
-    });
-    return svg;
-}
-
-async function printLabels(selectedPackages) {
-    if (!selectedPackages || selectedPackages.length === 0) {
-        showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
-        return;
-    }
-
-    try {
-        let printContent = '';
-
-        selectedPackages.forEach(pkg => {
-            const itemName = pkg.item_name;
-            const quantity = pkg.quantity;
-            const date = pkg.tarih || new Date().toLocaleDateString();
-            const packageNo = pkg.package_no;
-
-            const labelText = `${itemName}: ${quantity}`;
-
-            // Generate barcode SVG
-            const barcodeSvg = generateBarcode(packageNo, labelText);
-
-            // Add this label to the printable content
-            printContent += `
-                <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; page-break-after:always;">
-                    <h3>${itemName}</h3>
-                    <p>${labelText}</p>
-                    <p>Tarih: ${date}</p>
-                    ${barcodeSvg.outerHTML}
-                </div>
-            `;
-        });
-
-        // Open print window
-        const printWindow = window.open('', '', 'width=400,height=600');
-        printWindow.document.write(`
-            <html>
-            <head>
-                <title>Etiketler</title>
-            </head>
-            <body>${printContent}</body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-
-    } catch (error) {
-        console.error('Error printing labels:', error);
-        showAlert(`Etiket yazdırma hatası: ${error.message}`, 'error');
-    }
-}
+ function generateBarcode(text) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            JsBarcode(svg, text, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 2,
+                height: 40,
+                displayValue: true
+            });
+            return svg.outerHTML;
+        }
         
        function getSelectedPackage() {
             const selectedRow = document.querySelector('#packagesTableBody tr.selected');
