@@ -2585,7 +2585,7 @@ function initializeElements() {
 }
 
        // This function needs to be a global function
- function generateBarcode(text) {
+function generateBarcode(text) {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             JsBarcode(svg, text, {
                 format: "CODE128",
@@ -2596,8 +2596,8 @@ function initializeElements() {
             });
             return svg.outerHTML;
         }
-        
-       function getSelectedPackage() {
+
+        function getSelectedPackage() {
             const selectedRow = document.querySelector('#packagesTableBody tr.selected');
             if (!selectedRow) return null;
             
@@ -2611,11 +2611,11 @@ function initializeElements() {
                 created_at: selectedRow.cells[4].textContent
             };
         }
-        
-     async function printLabel() {
+
+        async function printLabel() {
             const selectedPackage = getSelectedPackage();
             if (!selectedPackage) {
-                showAlert('Etiket yazdırmak için bir paket seçin', 'error');
+                showToast('Etiket yazdırmak için bir paket seçin', 'error');
                 return;
             }
 
@@ -2625,21 +2625,17 @@ function initializeElements() {
                 
                 // Create printable content
                 const printContent = `
-                    <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
+                    <div style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
                         <h2>ProClean</h2>
                         <p><strong>Paket No:</strong> ${selectedPackage.package_no}</p>
                         <p><strong>Müşteri:</strong> ${selectedPackage.customers?.name || 'N/A'}</p>
                         <p><strong>Adet:</strong> ${selectedPackage.total_quantity}</p>
-                        <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
+                        <p><strong>Tarih:</strong> ${new Date(selectedPackage.created_at).toLocaleDateString('tr-TR')}</p>
                         <div>${barcodeSvg}</div>
                     </div>
                 `;
                 
-                // Add to print container
-                const printContainer = document.getElementById('printContainer');
-                printContainer.innerHTML = printContent;
-                
-                // Open print dialog
+                // Open print window
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(`
                     <html>
@@ -2647,21 +2643,10 @@ function initializeElements() {
                             <title>Paket Etiketi - ${selectedPackage.package_no}</title>
                             <style>
                                 body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
-                                @media print {
-                                    body { height: auto; }
-                                }
                             </style>
                         </head>
-                        <body>
+                        <body onload="window.print(); window.close();">
                             ${printContent}
-                            <script>
-                                window.onload = function() {
-                                    window.print();
-                                    setTimeout(function() {
-                                        window.close();
-                                    }, 100);
-                                };
-                            <\/script>
                         </body>
                     </html>
                 `);
@@ -2669,7 +2654,7 @@ function initializeElements() {
                 
             } catch (error) {
                 console.error('Error printing label:', error);
-                showAlert('Etiket yazdırılırken hata oluştu', 'error');
+                showToast('Etiket yazdırılırken hata oluştu', 'error');
             }
         }
         
