@@ -2583,48 +2583,58 @@ function generateBarcode(packageNo, labelText) {
     JsBarcode(svg, packageNo, {
         format: "CODE128",
         displayValue: true,
-        text: labelText, // label below barcode
+        text: labelText,
         fontSize: 14
     });
     return svg;
 }
 
-async function printLabel() {
-    const selectedPackage = getSelectedPackage(); // get from your table
-    if (!selectedPackage) {
-        showAlert('Etiket yazdırmak için bir paket seçin', 'error');
+async function printLabels(selectedPackages) {
+    if (!selectedPackages || selectedPackages.length === 0) {
+        showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
         return;
     }
 
     try {
-        const itemName = selectedPackage.item_name; // use actual item name
-        const quantity = selectedPackage.quantity;
-        const date = selectedPackage.tarih || new Date().toLocaleDateString();
-        const packageNo = selectedPackage.package_no;
+        let printContent = '';
 
-        const labelText = `${itemName}: ${quantity}`; // replaces “Adet”
+        selectedPackages.forEach(pkg => {
+            const itemName = pkg.item_name;
+            const quantity = pkg.quantity;
+            const date = pkg.tarih || new Date().toLocaleDateString();
+            const packageNo = pkg.package_no;
 
-        // Generate barcode SVG
-        const barcodeSvg = generateBarcode(packageNo, labelText);
+            const labelText = `${itemName}: ${quantity}`;
 
-        // Build printable content
-        const printContent = `
-            <div class="print-label" style="text-align:center; font-family:Arial; padding:10px">
-                <h3>${itemName}</h3>
-                <p>${labelText}</p>
-                <p>Tarih: ${date}</p>
-                ${barcodeSvg.outerHTML}
-            </div>
-        `;
+            // Generate barcode SVG
+            const barcodeSvg = generateBarcode(packageNo, labelText);
+
+            // Add this label to the printable content
+            printContent += `
+                <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; page-break-after:always;">
+                    <h3>${itemName}</h3>
+                    <p>${labelText}</p>
+                    <p>Tarih: ${date}</p>
+                    ${barcodeSvg.outerHTML}
+                </div>
+            `;
+        });
 
         // Open print window
         const printWindow = window.open('', '', 'width=400,height=600');
-        printWindow.document.write(printContent);
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Etiketler</title>
+            </head>
+            <body>${printContent}</body>
+            </html>
+        `);
         printWindow.document.close();
         printWindow.print();
 
     } catch (error) {
-        console.error('Error printing label:', error);
+        console.error('Error printing labels:', error);
         showAlert(`Etiket yazdırma hatası: ${error.message}`, 'error');
     }
 }
