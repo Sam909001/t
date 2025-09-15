@@ -2585,16 +2585,27 @@ function initializeElements() {
 
         // This function needs to be a global function
  function generateBarcode(text) {
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            JsBarcode(svg, text, {
-                format: "CODE128",
-                lineColor: "#000",
-                width: 2,
-                height: 40,
-                displayValue: true
-            });
-            return svg.outerHTML;
-        }
+    try {
+        // Önce bir div oluştur
+        const div = document.createElement('div');
+        // JsBarcode'u kullanarak barkodu div içinde oluştur
+        JsBarcode(div, text, {
+            format: "CODE128",
+            lineColor: "#000",
+            width: 2,
+            height: 40,
+            displayValue: true
+        });
+        // Div içindeki SVG'yi al
+        const svg = div.innerHTML;
+        // Div'i temizle
+        div.remove();
+        return svg;
+    } catch (error) {
+        console.error('Barkod oluşturma hatası:', error);
+        return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
+    }
+}
         
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
