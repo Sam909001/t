@@ -720,7 +720,7 @@ input.invalid, select.invalid {
                         
                         <div class="package-actions">
                             <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
-                            <button class="btn print-barcode-btn" onclick="printBarcode('${pkg.id}')">Barkod Yazdır</button>
+                            <button type="button" class="btn btn-warning" onclick="printLabel()">Etiket Yazdır</button>
                             <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
                         </div>
                     </div>
@@ -2606,74 +2606,67 @@ function generateBarcode(content) {
             };
         }
 
-      async function printBarcode(packageId) {
+     async function printLabel() {
     try {
-        showAlert('Barkod hazırlanıyor...', 'info');
-
-        // 1. Fetch the package from the database
-        const { data: pkg, error: packageError } = await supabase
-            .from('packages')
-            .select(`
-                *,
-                customers (name)
-            `)
-            .eq('id', packageId)
-            .single();
-
-        if (packageError) {
-            throw new Error(`Paket verileri alınamadı: ${packageError.message}`);
+        const selectedPackage = getSelectedPackage();
+        if (!selectedPackage) {
+            showAlert('Etiket yazdırmak için bir paket seçin', 'error');
+            return;
         }
 
-        // 2. Update package status if it's not already 'sevk-edildi'
-        if (pkg.status !== 'sevk-edildi') {
-            const { error: updateError } = await supabase
-                .from('packages')
-                .update({ status: 'sevk-edildi' })
-                .eq('id', packageId);
-            
-            if (updateError) {
-                throw new Error(`Paket durumu güncellenemedi: ${updateError.message}`);
-            }
+        // Make a copy of data (avoid live reference issues)
+        const pkgNo = selectedPackage.package_no;
+        const pkgCustomer = selectedPackage.customers?.name || 'N/A';
+        const pkgQty = selectedPackage.total_quantity;
 
-            showAlert('Paket durumu "sevk-edildi" olarak güncellendi.', 'success');
-        }
+        // Generate barcode SVG
+        const barcodeSvg = generateBarcode(pkgNo);
 
-        // 3. Generate and prepare the barcode for printing
-        const barcodeContent = `${pkg.package_no}-${pkg.customers.name}`;
-        generateBarcode(barcodeContent);
-
-        // Prepare print container
-        const printContainer = document.getElementById('printContainer');
-        const barcodeEl = document.getElementById('barcode');
-        const printInfo = `
-            <div>
-                <p><strong>Paket No:</strong> ${pkg.package_no}</p>
-                <p><strong>Müşteri:</strong> ${pkg.customers.name}</p>
+        // Create printable content
+        const printContent = `
+            <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
+                <h2>ProClean</h2>
+                <p><strong>Paket No:</strong> ${pkgNo}</p>
+                <p><strong>Müşteri:</strong> ${pkgCustomer}</p>
+                <p><strong>Adet:</strong> ${pkgQty}</p>
+                <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
+                <div>${barcodeSvg}</div>
             </div>
         `;
-        printContainer.innerHTML = printInfo;
-        printContainer.appendChild(barcodeEl);
 
-        // 4. Hide other elements and show the print container
-        document.getElementById('appContainer').style.display = 'none';
-        printContainer.style.display = 'block';
+        // Only update print container (does not affect table)
+        document.getElementById('printContainer').innerHTML = printContent;
 
-        // 5. Trigger the print dialog
-        setTimeout(() => {
-            window.print();
-            // 6. After printing, clean up and show the main app container
-            printContainer.style.display = 'none';
-            document.getElementById('appContainer').style.display = 'block';
-            showAlert('Barkod yazdırma işlemi tamamlandı.', 'success');
-            // 7. Refresh the package list
-            renderPackages();
-        }, 500);
+        // Open print dialog in new window
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Paket Etiketi - ${pkgNo}</title>
+                    <style>
+                        body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+                        @media print { body { height: auto; } }
+                    </style>
+                </head>
+                <body>
+                    ${printContent}
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(function() { window.close(); }, 100);
+                        };
+                    <\/script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
 
     } catch (error) {
-        console.error('Barkod yazdırma hatası:', error);
-        showAlert(`Barkod hazırlanamadı: ${error.message}`, 'error');
+        console.error('Error printing label:', error);
+        showAlert('Etiket yazdırılırken hata oluştu', 'error');
     }
 }
+
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
             if (checkboxes.length === 0) {
