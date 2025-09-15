@@ -1015,70 +1015,106 @@ input.invalid, select.invalid {
         })();
 
         // Elementleri bir defa tanımla
-        const elements = {
-            loginScreen: document.getElementById('loginScreen'),
-            appContainer: document.getElementById('appContainer'),
-            loginButton: document.getElementById('loginBtn'),
-            emailInput: document.getElementById('email'),
-            passwordInput: document.getElementById('password'),
-            customerSelect: document.getElementById('customerSelect'),
-            personnelSelect: document.getElementById('personnelSelect'),
-            currentDate: document.getElementById('currentDate'),
-            barcodeInput: document.getElementById('barcodeInput'),
-            packagesTableBody: document.getElementById('packagesTableBody'),
-            packageDetailContent: document.getElementById('packageDetailContent'),
-            shippingFolders: document.getElementById('shippingFolders'),
-            stockTableBody: document.getElementById('stockTableBody'),
-            customerList: document.getElementById('customerList'),
-            allCustomersList: document.getElementById('allCustomersList'),
-            toast: document.getElementById('toast'),
-            containerNumber: document.getElementById('containerNumber'),
-            totalPackages: document.getElementById('totalPackages'),
-            shippingFilter: document.getElementById('shippingFilter'),
-            stockSearch: document.getElementById('stockSearch'),
-            selectAllPackages: document.getElementById('selectAllPackages'),
-            apiKeyModal: document.getElementById('apiKeyModal'),
-            apiKeyInput: document.getElementById('apiKeyInput'),
-            quantityInput: document.getElementById('quantityInput'),
-            quantityModal: document.getElementById('quantityModal'),
-            quantityModalTitle: document.getElementById('quantityModalTitle'),
-            scannedBarcodes: document.getElementById('scannedBarcodes'),
-            connectionStatus: document.getElementById('connectionStatus'),
-            alertContainer: document.getElementById('alertContainer'),
-            scannerToggle: document.getElementById('scannerToggle'),
-            containerSearch: document.getElementById('containerSearch')
-        };
+const elements = {};
+
+function initializeElementsObject() {
+    const elementMap = {
+        loginScreen: 'loginScreen',
+        appContainer: 'appContainer',
+        loginButton: 'loginBtn',
+        emailInput: 'email',
+        passwordInput: 'password',
+        customerSelect: 'customerSelect',
+        personnelSelect: 'personnelSelect',
+        currentDate: 'currentDate',
+        barcodeInput: 'barcodeInput',
+        packagesTableBody: 'packagesTableBody',
+        packageDetailContent: 'packageDetailContent',
+        shippingFolders: 'shippingFolders',
+        stockTableBody: 'stockTableBody',
+        customerList: 'customerList',
+        allCustomersList: 'allCustomersList',
+        toast: 'toast',
+        containerNumber: 'containerNumber',
+        totalPackages: 'totalPackages',
+        shippingFilter: 'shippingFilter',
+        stockSearch: 'stockSearch',
+        selectAllPackages: 'selectAllPackages',
+        apiKeyModal: 'apiKeyModal',
+        apiKeyInput: 'apiKeyInput',
+        quantityInput: 'quantityInput',
+        quantityModal: 'quantityModal',
+        quantityModalTitle: 'quantityModalTitle',
+        scannedBarcodes: 'scannedBarcodes',
+        connectionStatus: 'connectionStatus',
+        alertContainer: 'alertContainer',
+        scannerToggle: 'scannerToggle',
+        containerSearch: 'containerSearch'
+    };
+    
+    Object.keys(elementMap).forEach(key => {
+        const element = document.getElementById(elementMap[key]);
+        if (element) {
+            elements[key] = element;
+        } else {
+            console.warn(`Element ${elementMap[key]} not found`);
+            elements[key] = null;
+        }
+    });
+    
+    return elements;
+}
         
         // Profesyonel alert sistemi
-        function showAlert(message, type = 'info', duration = 5000) {
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type}`;
-            alert.innerHTML = `
-                <span>${message}</span>
-                <button class="alert-close">&times;</button>
-            `;
-            
-            elements.alertContainer.appendChild(alert);
-            
-            // Kapatma butonu
-            alert.querySelector('.alert-close').addEventListener('click', () => {
+       function showAlert(message, type = 'info', duration = 5000) {
+    if (!elements.alertContainer) {
+        console.error('Alert container not found, using console instead');
+        console.log(`${type.toUpperCase()}: ${message}`);
+        return;
+    }
+    
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    
+    const span = document.createElement('span');
+    span.textContent = message; // Use textContent for XSS protection
+    
+    const button = document.createElement('button');
+    button.className = 'alert-close';
+    button.textContent = '×';
+    
+    alert.appendChild(span);
+    alert.appendChild(button);
+    
+    elements.alertContainer.appendChild(alert);
+    
+    // Close button event
+    button.addEventListener('click', () => {
+        alert.classList.add('hide');
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 300);
+    });
+    
+    // Auto close
+    if (duration > 0) {
+        setTimeout(() => {
+            if (alert.parentNode) {
                 alert.classList.add('hide');
-                setTimeout(() => alert.remove(), 300);
-            });
-            
-            // Otomatik kapanma
-            if (duration > 0) {
                 setTimeout(() => {
                     if (alert.parentNode) {
-                        alert.classList.add('hide');
-                        setTimeout(() => alert.remove(), 300);
+                        alert.remove();
                     }
-                }, duration);
+                }, 300);
             }
-            
-            return alert;
-        }
-        
+        }, duration);
+    }
+    
+    return alert;
+}
+
         // Yardımcı fonksiyonlar
         function showToast(message, type = 'info') {
             const toast = document.getElementById('toast');
@@ -1335,6 +1371,21 @@ input.invalid, select.invalid {
             });
         }
 
+        // 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
+function initializeElements() {
+    const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
+    const elements = {};
+    
+    elementIds.forEach(id => {
+        elements[id] = document.getElementById(id);
+        if (!elements[id]) {
+            console.error(`Element ${id} not found`);
+        }
+    });
+    
+    return elements;
+}
+        
         // State management functions
         function saveAppState() {
             const state = {
@@ -1529,64 +1580,77 @@ input.invalid, select.invalid {
         }
 
         // Barkod tarayıcı dinleyicisi
-        function setupBarcodeScanner() {
-            let barcodeBuffer = '';
-            let lastKeyTime = Date.now();
-            
-            elements.barcodeInput.addEventListener('keypress', function(e) {
-                // Barkod tarayıcı modu açıksa ve hızlı giriş yapılıyorsa
-                const currentTime = Date.now();
-                
-                if (scannerMode || currentTime - lastKeyTime < 50) {
-                    if (e.key === 'Enter') {
-                        if (barcodeBuffer.length > 5) { // Geçerli bir barkod uzunluğu
-                            elements.barcodeInput.value = barcodeBuffer;
-                            processBarcode();
-                        }
-                        barcodeBuffer = '';
-                    } else {
-                        barcodeBuffer += e.key;
-                    }
-                } else {
-                    barcodeBuffer = '';
+      function setupBarcodeScanner() {
+    if (!elements.barcodeInput) {
+        console.error('Barcode input element not found');
+        return;
+    }
+    
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+    
+    elements.barcodeInput.addEventListener('keypress', function(e) {
+        const currentTime = Date.now();
+        
+        if (scannerMode || currentTime - lastKeyTime < 50) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (barcodeBuffer.length > 5) {
+                    elements.barcodeInput.value = barcodeBuffer;
+                    processBarcode();
                 }
-                
-                lastKeyTime = currentTime;
-            });
+                barcodeBuffer = '';
+            } else {
+                barcodeBuffer += e.key;
+            }
+        } else {
+            barcodeBuffer = '';
         }
+        
+        lastKeyTime = currentTime;
+    });
+}
 
         // Data loading functions
-        async function populateCustomers() {
-            try {
-                // Dropdown'u temizle
-                elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
-                
-                const { data: customers, error } = await supabase
-                    .from('customers')
-                    .select('*')
-                    .order('name');
+   async function populateCustomers() {
+    try {
+        if (!elements.customerSelect) {
+            console.error('Customer select element not found');
+            showAlert('Müşteri seçim alanı bulunamadı', 'error');
+            return;
+        }
+        
+        // Clear dropdown
+        elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
+        
+        if (!supabase) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        const { data: customers, error } = await supabase
+            .from('customers')
+            .select('*')
+            .order('name');
 
-                if (error) {
-                    console.error('Error loading customers:', error);
-                    showAlert('Müşteri verileri yüklenemedi', 'error');
-                    return;
-                }
-
-                if (customers && customers.length > 0) {
-                    customers.forEach(customer => {
-                        const option = document.createElement('option');
-                        option.value = customer.id;
-                        option.textContent = `${customer.name} (${customer.code})`;
-                        elements.customerSelect.appendChild(option);
-                    });
-                }
-                
-            } catch (error) {
-                console.error('Error in populateCustomers:', error);
-                showAlert('Müşteri yükleme hatası', 'error');
-            }
+        if (error) {
+            handleSupabaseError(error, 'Müşteri yükleme');
+            return;
         }
 
+        if (customers && customers.length > 0) {
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = `${customer.name} (${customer.code})`;
+                elements.customerSelect.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error in populateCustomers:', error);
+        showAlert('Müşteri yükleme hatası: ' + error.message, 'error');
+    }
+}
         async function populatePersonnel() {
             try {
                 // Dropdown'u temizle
@@ -2094,60 +2158,70 @@ input.invalid, select.invalid {
         }
 
         // Barkod işleme fonksiyonu
-        async function processBarcode() {
-            const barcode = elements.barcodeInput.value.trim();
-            if (!barcode) {
-                showAlert('Barkod girin', 'error');
+      async function processBarcode() {
+    if (!elements.barcodeInput) {
+        showAlert('Barkod girişi bulunamadı', 'error');
+        return;
+    }
+    
+    const barcode = elements.barcodeInput.value.trim();
+    if (!barcode) {
+        showAlert('Barkod girin', 'error');
+        return;
+    }
+
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    try {
+        const barcodeData = {
+            barcode: barcode,
+            customer_id: selectedCustomer.id,
+            scanned_at: new Date().toISOString(),
+            processed: false
+        };
+
+        if (!navigator.onLine) {
+            // Offline mode
+            saveOfflineData('barcodes', barcodeData);
+            scannedBarcodes.push({...barcodeData, id: 'offline-' + Date.now()});
+            showAlert(`Barkod çevrimdışı kaydedildi: ${barcode}`, 'warning');
+        } else {
+            // Online mode with proper error handling
+            if (!supabase) {
+                throw new Error('Supabase client not initialized');
+            }
+            
+            const { data, error } = await supabase
+                .from('barcodes')
+                .insert([barcodeData])
+                .select();
+
+            if (error) {
+                handleSupabaseError(error, 'Barkod kaydetme');
                 return;
             }
 
-            if (!selectedCustomer) {
-                showAlert('Önce müşteri seçin', 'error');
-                return;
-            }
-
-            try {
-                // Barkodu veritabanına kaydet
-                const barcodeData = {
-                    barcode: barcode,
-                    customer_id: selectedCustomer.id,
-                    scanned_at: new Date().toISOString(),
-                    processed: false
-                };
-
-                if (!navigator.onLine) {
-                    // Çevrimdışı mod
-                    saveOfflineData('barcodes', barcodeData);
-                    scannedBarcodes.push({...barcodeData, id: 'offline-' + Date.now()});
-                    showAlert(`Barkod çevrimdışı kaydedildi: ${barcode}`, 'warning');
-                } else {
-                    // Çevrimiçi mod
-                    const { data, error } = await supabase
-                        .from('barcodes')
-                        .insert([barcodeData])
-                        .select();
-
-                    if (error) {
-                        console.error('Barkod kaydedilemedi:', error);
-                        showAlert('Barkod işlenirken hata oluştu', 'error');
-                        return;
-                    }
-
-                    scannedBarcodes.push(data[0]);
-                    showAlert(`Barkod kaydedildi: ${barcode}`, 'success');
-                }
-
-                elements.barcodeInput.value = '';
-                elements.barcodeInput.focus();
-                
-                // Barkodları göster
-                displayScannedBarcodes();
-                
-            } catch (error) {
-                console.error('Barkod işleme hatası:', error);
-                showAlert('Barkod işlenirken bir hata oluştu', 'error');
+            if (data && data.length > 0) {
+                scannedBarcodes.push(data[0]);
+                showAlert(`Barkod kaydedildi: ${barcode}`, 'success');
             }
         }
+
+        elements.barcodeInput.value = '';
+        if (elements.barcodeInput.focus) {
+            elements.barcodeInput.focus();
+        }
+        
+        displayScannedBarcodes();
+        
+    } catch (error) {
+        console.error('Barkod işleme hatası:', error);
+        showAlert('Barkod işlenirken bir hata oluştu: ' + error.message, 'error');
+    }
+}
 
         // Taranan barkodları göster
         function displayScannedBarcodes() {
@@ -2465,39 +2539,41 @@ input.invalid, select.invalid {
             }
         }
             
-        function selectPackage(pkg) {
-            // Remove selected class from all rows
-            document.querySelectorAll('#packagesTableBody tr').forEach(row => {
-                row.classList.remove('selected');
-            });
-            
-            // Add selected class to the clicked row
-            const rows = document.querySelectorAll('#packagesTableBody tr');
-            for (let i = 0; i < rows.length; i++) {
-                const checkbox = rows[i].querySelector('input[type="checkbox"]');
-                if (checkbox && checkbox.value === pkg.id) {
-                    rows[i].class.classList.add('selected');
-                    break;
-                }
-            }
-            
-            const detailContent = document.getElementById('packageDetailContent');
-            detailContent.innerHTML = `
-                <h4>Paket: ${pkg.package_no}</h4>
-                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
-                <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
-                <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
-                ${pkg.items ? `
-                    <h5>Ürünler:</h5>
-                    <ul>
-                        ${Object.entries(pkg.items).map(([product, quantity]) => 
-                            `<li>${product}: ${quantity} adet</li>`
-                        ).join('')}
-                    </ul>
-                ` : ''}
-            `;
+      function selectPackage(pkg) {
+    // Remove selected class from all rows
+    document.querySelectorAll('#packagesTableBody tr').forEach(row => {
+        row.classList.remove('selected');
+    });
+    
+    // Add selected class to the clicked row
+    const rows = document.querySelectorAll('#packagesTableBody tr');
+    for (let i = 0; i < rows.length; i++) {
+        const checkbox = rows[i].querySelector('input[type="checkbox"]');
+        if (checkbox && checkbox.value === pkg.id) {
+            rows[i].classList.add('selected'); // FIXED: removed extra "class."
+            break;
         }
+    }
+    
+    const detailContent = document.getElementById('packageDetailContent');
+    if (detailContent) {
+        detailContent.innerHTML = `
+            <h4>Paket: ${pkg.package_no}</h4>
+            <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+            <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
+            <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
+            <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
+            ${pkg.items ? `
+                <h5>Ürünler:</h5>
+                <ul>
+                    ${Object.entries(pkg.items).map(([product, quantity]) => 
+                        `<li>${escapeHtml(product)}: ${quantity} adet</li>`
+                    ).join('')}
+                </ul>
+            ` : ''}
+        `;
+    }
+}
 
         function generateBarcode(text) {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -2730,16 +2806,25 @@ input.invalid, select.invalid {
         }
 
         // Stock operations
-        function searchStock() {
-            const searchTerm = elements.stockSearch.value.toLowerCase();
-            const rows = elements.stockTableBody.querySelectorAll('tr');
-            
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
-            });
-        }
-
+function searchStock() {
+    if (!elements.stockSearch) {
+        console.error('Stock search input not found');
+        return;
+    }
+    
+    if (!elements.stockTableBody) {
+        console.error('Stock table body not found');
+        return;
+    }
+    
+    const searchTerm = elements.stockSearch.value.toLowerCase();
+    const rows = elements.stockTableBody.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+}
         function clearStockSearch() {
             elements.stockSearch.value = '';
             const rows = elements.stockTableBody.querySelectorAll('tr');
@@ -2971,7 +3056,12 @@ async function generateDailyReport() {
 }
 
 function closeEmailModal() {
-    document.getElementById('emailModal').style.display = 'none';
+    const modal = document.getElementById('emailModal');
+    if (modal) {
+        modal.style.display = 'none';
+    } else {
+        console.warn('Email modal not found');
+    }
 }
         
 // PDF Generation Function - Fixed version
@@ -3365,8 +3455,14 @@ async function sendReportEmail(email, templateParams, pdfBlob = null) {
 
 // Güncellenmiş sendDailyReport fonksiyonu
 async function sendDailyReport() {
-    const email = document.getElementById('reportEmail').value;
-    console.log('Alınan e-posta adresi:', email); // Bu satırı ekleyin
+    const emailInput = document.getElementById('reportEmail');
+    if (!emailInput) {
+        showAlert('E-posta alanı bulunamadı', 'error');
+        return;
+    }
+    
+    const email = emailInput.value;
+    console.log('Alınan e-posta adresi:', email);
     
     // Form validation
     if (!validateForm([
@@ -3385,9 +3481,13 @@ async function sendDailyReport() {
         
         let pdfBlob;
         
-        // PDF oluştur
+        // PDF oluştur - with proper error handling
         try {
-            pdfBlob = await generatePDFReportSafe(currentReportData);
+            if (typeof generatePDFReportSafe === 'function') {
+                pdfBlob = await generatePDFReportSafe(currentReportData);
+            } else {
+                throw new Error('PDF generation function not available');
+            }
         } catch (pdfError) {
             console.warn('PDF oluşturma başarısız:', pdfError);
             throw new Error('Rapor PDF\'i oluşturulamadı');
@@ -3467,7 +3567,7 @@ async function sendDailyReport() {
             throw new Error(`E-posta gönderilemedi: ${emailResult.error}`);
         }
         
-    } catch (error) {
+  } catch (error) {
         console.error('Rapor gönderme hatası:', error);
         showAlert(`Rapor gönderilemedi: ${error.message}`, 'error');
     }
@@ -3519,8 +3619,117 @@ async function initializeApp() {
 }
 
 // Uygulama yüklendiğinde storage'ı kontrol et
-document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
+    document.addEventListener('DOMContentLoaded', function() {
+    try {
+        console.log('Initializing ProClean application...');
+        
+        // Initialize elements first
+        initializeElementsObject();
+        
+        // Check critical elements exist before adding listeners
+        const loginBtn = elements.loginButton;
+        const emailInput = elements.emailInput;
+        const passwordInput = elements.passwordInput;
+        
+        if (loginBtn) {
+            loginBtn.addEventListener('click', login);
+            console.log('Login button listener added');
+        } else {
+            console.error('Login button not found - check HTML structure');
+            showAlert('Giriş butonu bulunamadı', 'error');
+        }
+        
+        // Logout button
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
+        
+        // Enter key listeners
+        if (emailInput) {
+            emailInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    login();
+                }
+            });
+        }
+        
+        if (passwordInput) {
+            passwordInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    login();
+                }
+            });
+        }
+        
+        // Quantity modal enter key
+        if (elements.quantityInput) {
+            elements.quantityInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    confirmQuantity();
+                }
+            });
+        }
+        
+        // Customer select change listener
+        if (elements.customerSelect) {
+            elements.customerSelect.addEventListener('change', function() {
+                const customerId = this.value;
+                if (customerId) {
+                    const selectedOption = this.options[this.selectedIndex];
+                    selectedCustomer = {
+                        id: customerId,
+                        name: selectedOption.textContent.split(' (')[0],
+                        code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                    };
+                    showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+                } else {
+                    selectedCustomer = null;
+                }
+            });
+        }
+        
+        // Tab click events
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+                if (tabName) {
+                    switchTab(tabName);
+                }
+            });
+        });
+        
+        // API key initialization
+        if (loadApiKey()) {
+            supabase = initializeSupabase();
+            if (supabase) {
+                setupAuthListener();
+                console.log('Supabase client initialized successfully');
+            } else {
+                console.warn('Failed to initialize Supabase client');
+            }
+        } else {
+            console.log('No saved API key found, showing API key modal');
+            showApiKeyModal();
+        }
+        
+        // Set initial display states
+        if (elements.loginScreen) {
+            elements.loginScreen.style.display = 'flex';
+        }
+        if (elements.appContainer) {
+            elements.appContainer.style.display = 'none';
+        }
+        
+        console.log('ProClean application initialized successfully');
+        
+    } catch (error) {
+        console.error('Critical error during DOMContentLoaded:', error);
+        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
+    }
 });
         
 async function previewReport() {
@@ -3684,11 +3893,14 @@ async function previewReport() {
         }
 
         function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
         // Initialize auth state listener
         function setupAuthListener() {
             if (!supabase) return;
@@ -3732,25 +3944,29 @@ async function previewReport() {
         });
 
         // API hata yönetimi
-        function handleSupabaseError(error, context) {
-            console.error(`Supabase error in ${context}:`, error);
-            
-            if (error.code === '42501') {
-                showAlert('Bu işlem için yetkiniz bulunmamaktadır.', 'error');
-            } else if (error.code === '42P01') {
-                showAlert('Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.', 'error');
-            } else if (error.code === '08006') {
-                showAlert('Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.', 'error');
-            } else {
-                showAlert(`${context} sırasında bir hata oluştu: ${error.message}`, 'error');
-            }
-            
-            // Çevrimdışı moda geç
-            if (!navigator.onLine) {
-                document.getElementById('offlineIndicator').style.display = 'block';
-            }
-        }
-
+       function handleSupabaseError(error, context) {
+    console.error(`Supabase error in ${context}:`, error);
+    
+    let userMessage = `${context} sırasında bir hata oluştu.`;
+    
+    if (error.code === '42501') {
+        userMessage = 'Bu işlem için yetkiniz bulunmamaktadır.';
+    } else if (error.code === '42P01') {
+        userMessage = 'Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.';
+    } else if (error.code === '08006') {
+        userMessage = 'Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
+    } else if (error.message) {
+        userMessage += ' ' + error.message;
+    }
+    
+    showAlert(userMessage, 'error');
+    
+    // Switch to offline mode if connection issue
+    if (!navigator.onLine && elements.connectionStatus) {
+        elements.connectionStatus.textContent = 'Çevrimdışı';
+        document.getElementById('offlineIndicator')?.style.setProperty('display', 'block');
+    }
+}
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
             // API anahtarını yükle ve supabase'i başlat
