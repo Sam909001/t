@@ -985,9 +985,6 @@ input.invalid, select.invalid {
 
     <!-- Print Label Container (hidden) -->
     <div id="printContainer" style="display:none;"></div>
-    <div class="print-area">
-    <svg id="barcode"></svg>
-</div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
@@ -2580,21 +2577,17 @@ function initializeElements() {
 }
 
        // This function needs to be a global function
-function generateBarcode(code) {
-    // Ensure element exists
-    const barcodeEl = document.getElementById('barcode');
-    if (!barcodeEl) {
-        console.error("Barcode element not found!");
-        return;
-    }
-
-    // Render barcode
-    JsBarcode(barcodeEl, code, {
-        format: "CODE128",
-        displayValue: true,
-        fontSize: 14
-    });
-}
+function generateBarcode(text) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            JsBarcode(svg, text, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 2,
+                height: 40,
+                displayValue: true
+            });
+            return svg.outerHTML;
+        }
         
        async function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
