@@ -2577,45 +2577,42 @@ function initializeElements() {
 }
 
        // This function needs to be a global function
-function generateBarcode(code, labelText) {
+function generateBarcode(packageNo, labelText) {
     // Create SVG element dynamically
     const svg = document.createElement('svg');
-    svg.id = 'barcode';
-    svg.style.marginBottom = "10px";
-    document.body.appendChild(svg); // or append to a specific container
-
-    // Render barcode
-    JsBarcode(svg, code, {
+    JsBarcode(svg, packageNo, {
         format: "CODE128",
         displayValue: true,
-        fontSize: 14,
-        text: labelText // This sets the text below the barcode
+        text: labelText, // label below barcode
+        fontSize: 14
     });
-
     return svg;
 }
 
 async function printLabel() {
-    const selectedPackage = getSelectedPackage();
+    const selectedPackage = getSelectedPackage(); // get from your table
     if (!selectedPackage) {
         showAlert('Etiket yazdırmak için bir paket seçin', 'error');
         return;
     }
 
     try {
-        // Prepare the label text: "Item Name: Quantity"
-        const itemName = selectedPackage.item_name; // ensure this field exists
+        const itemName = selectedPackage.item_name; // use actual item name
         const quantity = selectedPackage.quantity;
-        const labelText = `${itemName}: ${quantity}`;
+        const date = selectedPackage.tarih || new Date().toLocaleDateString();
+        const packageNo = selectedPackage.package_no;
 
-        // Generate barcode
-        const barcodeSvg = generateBarcode(selectedPackage.package_no, labelText);
+        const labelText = `${itemName}: ${quantity}`; // replaces “Adet”
 
-        // Create printable content
+        // Generate barcode SVG
+        const barcodeSvg = generateBarcode(packageNo, labelText);
+
+        // Build printable content
         const printContent = `
             <div class="print-label" style="text-align:center; font-family:Arial; padding:10px">
                 <h3>${itemName}</h3>
                 <p>${labelText}</p>
+                <p>Tarih: ${date}</p>
                 ${barcodeSvg.outerHTML}
             </div>
         `;
@@ -2628,10 +2625,9 @@ async function printLabel() {
 
     } catch (error) {
         console.error('Error printing label:', error);
-        showAlert(`Error printing label: ${error.message}`, 'error');
+        showAlert(`Etiket yazdırma hatası: ${error.message}`, 'error');
     }
 }
-
         
        function getSelectedPackage() {
             const selectedRow = document.querySelector('#packagesTableBody tr.selected');
