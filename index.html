@@ -2604,7 +2604,7 @@ function generateBarcode(text) {
             };
         }
         
-     sync function printLabel() {
+     async function printLabel() {
             const selectedPackage = getSelectedPackage();
             if (!selectedPackage) {
                 showAlert('Etiket yazdırmak için bir paket seçin', 'error');
