@@ -549,6 +549,63 @@ input.invalid, select.invalid {
 .status-beklemede { background-color: #f39c12; color: white; }
 .status-sevk-edildi { background-color: #2ecc71; color: white; }
 .status-hazirlaniyor { background-color: #3498db; color: white; }
+
+
+        .window-frame {
+    background: #2c3e50;
+    color: white;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    -webkit-app-region: drag; /* For electron-like draggable title bar */
+}
+.window-buttons {
+    display: flex;
+    gap: 8px;
+}
+.window-buttons button {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+.window-buttons .close { background: #e74c3c; }
+.window-buttons .min { background: #f1c40f; }
+.window-buttons .max { background: #2ecc71; }
+.app-container {
+    border-radius: 0; /* remove heavy rounded corners */
+    border: 1px solid #cfcfcf;
+}
+.tab {
+    border-radius: 0;
+}
+.modal-content {
+    border-radius: 0;
+    border: 1px solid #aaa;
+}
+body {
+    font-family: system-ui, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+::-webkit-scrollbar {
+    width: 12px;
+}
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+.btn {
+    border-radius: 2px; /* less round */
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
     </style>
 </head>
 <body>
