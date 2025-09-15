@@ -2584,132 +2584,17 @@ function initializeElements() {
 }
 
         // This function needs to be a global function
-     function generateBarcode(text) {
-    try {
-        // Önce bir div oluştur
-        const div = document.createElement('div');
-        // JsBarcode'u kullanarak barkodu div içinde oluştur
-        JsBarcode(div, text, {
-            format: "CODE128",
-            lineColor: "#000",
-            width: 2,
-            height: 40,
-            displayValue: true
-        });
-        // Div içindeki SVG'yi al
-        const svg = div.innerHTML;
-        // Div'i temizle
-        div.remove();
-        return svg;
-    } catch (error) {
-        console.error('Barkod oluşturma hatası:', error);
-        return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
-    }
-}
-        
-      function getSelectedPackage() {
-            const selectedRow = document.querySelector('#packagesTableBody tr.selected');
-            if (!selectedRow) return null;
-            
-            const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-            // In a real implementation, you would fetch the complete package data
-            // For now, we'll use the data from the row
-            return {
-                package_no: selectedRow.cells[1].textContent,
-                customers: { name: selectedRow.cells[2].textContent },
-                total_quantity: parseInt(selectedRow.cells[4].textContent),
-                created_at: selectedRow.cells[5].textContent
-            };
+ function generateBarcode(text) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            JsBarcode(svg, text, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 2,
+                height: 40,
+                displayValue: true
+            });
+            return svg.outerHTML;
         }
-
-          async function printAllLabels() {
-    // Seçili paketleri bul
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    
-    if (checkboxes.length === 0) {
-        showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
-        return;
-    }
-
-    let printContent = '';
-
-    // Her bir seçili paket için
-    for (const cb of checkboxes) {
-        try {
-            // Paket verilerini al
-            const pkg = JSON.parse(cb.dataset.package.replace(/&apos;/g, "'"));
-            
-            let labelContent = `
-                <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; page-break-after:always;">
-                    <h2>ProClean</h2>
-                    <p><strong>Paket No:</strong> ${pkg.package_no}</p>
-                    <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                    <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
-            `;
-
-            // Ürünler için barkod oluştur
-            if (pkg.items && typeof pkg.items === 'object') {
-                Object.entries(pkg.items).forEach(([product, quantity]) => {
-                    const barcodeData = `${pkg.package_no}-${product}-${quantity}`;
-                    const barcodeSvg = generateBarcode(barcodeData);
-
-                    labelContent += `
-                        <div style="page-break-inside: avoid; margin: 15px 0; padding: 10px; border: 1px dashed #ccc;">
-                            <p><strong>${product}:</strong> ${quantity} adet</p>
-                            <div>${barcodeSvg}</div>
-                        </div>
-                    `;
-                });
-            } else {
-                // Fallback: tek barkod
-                const barcodeSvg = generateBarcode(pkg.package_no);
-                labelContent += `
-                    <div style="margin: 15px 0;">
-                        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}</p>
-                        <div>${barcodeSvg}</div>
-                    </div>
-                `;
-            }
-
-            labelContent += `</div>`;
-            printContent += labelContent;
-            
-        } catch (error) {
-            console.error('Paket verisi ayrıştırma hatası:', error);
-            showAlert('Bir paketin verileri okunamadı', 'error');
-        }
-    }
-
-    // Yazdırma penceresini aç
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Paket Etiketleri</title>
-                <style>
-                    body { margin:0; padding:20px; font-family:Arial; }
-                    .print-label { margin-bottom:20px; text-align:center; page-break-after:always; }
-                    @media print {
-                        body { margin:0; padding:0; }
-                        .print-label { page-break-after:always; }
-                    }
-                </style>
-            </head>
-            <body>
-                ${printContent}
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(function() { window.close(); }, 100);
-                    };
-                <\/script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-    
-    showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
-}
         
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
