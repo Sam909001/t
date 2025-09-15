@@ -2612,41 +2612,77 @@ function generateBarcode(text) {
             };
         }
 
-        async function printLabel() {
-            const selectedPackage = getSelectedPackage();
-            if (!selectedPackage) {
-                showToast('Etiket yazdırmak için bir paket seçin', 'error');
+           async function printLabel() {
+            if (!selectedPackageForPrinting) {
+                showAlert('Etiket yazdırmak için bir paket seçin', 'error');
                 return;
             }
 
             try {
-                // Generate barcode
-                const barcodeSvg = generateBarcode(selectedPackage.package_no);
-                
                 // Create printable content
-                const printContent = `
-                    <div style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
+                let printContent = `
+                    <div class="print-label" style="text-align:center; font-family:Arial; padding:10px;">
                         <h2>ProClean</h2>
-                        <p><strong>Paket No:</strong> ${selectedPackage.package_no}</p>
-                        <p><strong>Müşteri:</strong> ${selectedPackage.customers?.name || 'N/A'}</p>
-                        <p><strong>Adet:</strong> ${selectedPackage.total_quantity}</p>
-                        <p><strong>Tarih:</strong> ${new Date(selectedPackage.created_at).toLocaleDateString('tr-TR')}</p>
-                        <div>${barcodeSvg}</div>
-                    </div>
+                        <p><strong>Paket No:</strong> ${selectedPackageForPrinting.package_no}</p>
+                        <p><strong>Müşteri:</strong> ${selectedPackageForPrinting.customers?.name || 'N/A'}</p>
+                        <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
                 `;
                 
-                // Open print window
+                // Generate barcode for each product type
+                if (selectedPackageForPrinting.items && typeof selectedPackageForPrinting.items === 'object') {
+                    Object.entries(selectedPackageForPrinting.items).forEach(([product, quantity]) => {
+                        const barcodeData = `${selectedPackageForPrinting.package_no}-${product}-${quantity}`;
+                        const barcodeSvg = generateBarcode(barcodeData);
+                        
+                        printContent += `
+                            <div style="page-break-inside: avoid; margin: 15px 0; padding: 10px; border: 1px dashed #ccc;">
+                                <p><strong>Ürün:</strong> ${product}</p>
+                                <p><strong>Adet:</strong> ${quantity}</p>
+                                <div>${barcodeSvg}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    // Fallback: generate a single barcode for the package
+                    const barcodeSvg = generateBarcode(selectedPackageForPrinting.package_no);
+                    printContent += `
+                        <div style="margin: 15px 0;">
+                            <p><strong>Toplam Adet:</strong> ${selectedPackageForPrinting.total_quantity}</p>
+                            <div>${barcodeSvg}</div>
+                        </div>
+                    `;
+                }
+                
+                printContent += `</div>`;
+                
+                // Add to print container
+                const printContainer = document.getElementById('printContainer');
+                printContainer.innerHTML = printContent;
+                
+                // Open print dialog
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(`
                     <html>
                         <head>
-                            <title>Paket Etiketi - ${selectedPackage.package_no}</title>
+                            <title>Paket Etiketi - ${selectedPackageForPrinting.package_no}</title>
                             <style>
-                                body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+                                body { display:block; margin:0; padding:20px; }
+                                @media print {
+                                    body { padding: 0; }
+                                    .print-label { width: 100%; }
+                                }
                             </style>
                         </head>
-                        <body onload="window.print(); window.close();">
+                        <body>
                             ${printContent}
+                            <script>
+                                window.onload = function() {
+                                    window.print();
+                                    setTimeout(function() {
+                                        window.close();
+                                    }, 100);
+                                };
+                            <\/script>
                         </body>
                     </html>
                 `);
@@ -2654,7 +2690,7 @@ function generateBarcode(text) {
                 
             } catch (error) {
                 console.error('Error printing label:', error);
-                showToast('Etiket yazdırılırken hata oluştu', 'error');
+                showAlert('Etiket yazdırılırken hata oluştu', 'error');
             }
         }
         
