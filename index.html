@@ -2589,38 +2589,22 @@ function generateBarcode(text) {
             return svg.outerHTML;
         }
         
-       async function getSelectedPackage() {
-    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
-    if (!selectedRow) return null;
-    
-    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-    
-    try {
-        // Fetch the complete package data from the database
-        const { data: package, error } = await supabase
-            .from('packages')
-            .select(`
-                *,
-                customers (name, code)
-            `)
-            .eq('id', packageId)
-            .single();
-
-        if (error) {
-            console.error('Error fetching package:', error);
-            showAlert('Paket verileri alınamadı', 'error');
-            return null;
+       function getSelectedPackage() {
+            const selectedRow = document.querySelector('#packagesTableBody tr.selected');
+            if (!selectedRow) return null;
+            
+            const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
+            // In a real implementation, you would fetch the complete package data
+            // For now, we'll use the data from the row
+            return {
+                package_no: selectedRow.cells[1].textContent,
+                customers: { name: selectedRow.cells[2].textContent },
+                total_quantity: parseInt(selectedRow.cells[3].textContent),
+                created_at: selectedRow.cells[4].textContent
+            };
         }
-
-        return package;
-    } catch (error) {
-        console.error('Error in getSelectedPackage:', error);
-        showAlert('Paket bilgileri alınırken hata oluştu', 'error');
-        return null;
-    }
-}
         
-     async function printLabel() {
+     sync function printLabel() {
             const selectedPackage = getSelectedPackage();
             if (!selectedPackage) {
                 showAlert('Etiket yazdırmak için bir paket seçin', 'error');
