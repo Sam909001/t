@@ -700,6 +700,7 @@ input.invalid, select.invalid {
                                         <input type="checkbox" id="selectAllPackages" onchange="toggleSelectAll()">
                                     </th>
                                     <th>Paket No</th>
+                                    <th>>Ürün</th>
                                     <th>Müşteri</th>
                                     <th>Adet</th>
                                     <th>Tarih</th>
@@ -2574,7 +2575,20 @@ function initializeElements() {
             ` : ''}
         `;
     }
-} 
+}
+
+       // This function needs to be a global function
+ function generateBarcode(text) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            JsBarcode(svg, text, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 2,
+                height: 40,
+                displayValue: true
+            });
+            return svg.outerHTML;
+        }
         
        function getSelectedPackage() {
             const selectedRow = document.querySelector('#packagesTableBody tr.selected');
@@ -2591,6 +2605,99 @@ function initializeElements() {
             };
         }
         
+     async function printLabel() {
+            const selectedPackage = getSelectedPackage();
+            if (!selectedPackage) {
+                showAlert('Etiket yazdırmak için bir paket seçin', 'error');
+                return;
+            }
+
+            try {
+                // Generate barcode
+                const barcodeSvg = generateBarcode(selectedPackage.package_no);
+                
+                // Create printable content
+                const printContent = `
+                    <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
+                        <h2>ProClean</h2>
+                        <p><strong>Paket No:</strong> ${selectedPackage.package_no}</p>
+                        <p><strong>Müşteri:</strong> ${selectedPackage.customers?.name || 'N/A'}</p>
+                        <p><strong>Adet:</strong> ${selectedPackage.total_quantity}</p>
+                        <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
+                        <div>${barcodeSvg}</div>
+                    </div>
+                `;
+                
+                // Add to print container
+                const printContainer = document.getElementById('printContainer');
+                printContainer.innerHTML = printContent;
+                
+                // Open print dialog
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Paket Etiketi - ${selectedPackage.package_no}</title>
+                            <style>
+                                body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+                                @media print {
+                                    body { height: auto; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            ${printContent}
+                            <script>
+                                window.onload = function() {
+                                    window.print();
+                                    setTimeout(function() {
+                                        window.close();
+                                    }, 100);
+                                };
+                            <\/script>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                
+            } catch (error) {
+                console.error('Error printing label:', error);
+                showAlert('Etiket yazdırılırken hata oluştu', 'error');
+            }
+        }
+        
+        async function deleteSelectedPackages() {
+            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+            if (checkboxes.length === 0) {
+                showAlert('Silinecek paket seçin', 'error');
+                return;
+            }
+
+            if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+            try {
+                const packageIds = Array.from(checkboxes).map(cb => cb.value);
+                
+                const { error } = await supabase
+                    .from('packages')
+                    .delete()
+                    .in('id', packageIds);
+
+                if (error) {
+                    console.error('Error deleting packages:', error);
+                    showAlert('Paketler silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showAlert(`${packageIds.length} paket silindi`, 'success');
+                await populatePackagesTable();
+                
+            } catch (error) {
+                console.error('Error in deleteSelectedPackages:', error);
+                showAlert('Paket silme hatası', 'error');
+            }
+        }
+
         function toggleSelectAll() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
             const selectAll = document.getElementById('selectAllPackages').checked;
@@ -2607,167 +2714,6 @@ function initializeElements() {
             document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
         }
 
-        function generateBarcode() {
-    const input = document.getElementById('barcodeInput');
-    const barcodeValue = input.value.trim();
-    
-    if (!barcodeValue) {
-        showToast('Lütfen barkod değeri girin', 'warning');
-        return;
-    }
-
-    const selectedPackage = getSelectedPackage();
-    let itemType = 'ADET'; // Default fallback
-    
-    if (selectedPackage) {
-        // Get item type from selected package
-        itemType = selectedPackage.itemType || 'ADET';
-    }
-
-    // Create barcode container
-    const barcodeContainer = document.getElementById('barcodeContainer');
-    if (!barcodeContainer) {
-        const container = document.createElement('div');
-        container.id = 'barcodeContainer';
-        container.style.marginTop = '1rem';
-        document.querySelector('.barcode-section').appendChild(container);
-    }
-
-    try {
-        // Clear previous barcodes
-        document.getElementById('barcodeContainer').innerHTML = '';
-        
-        // Create canvas for barcode
-        const canvas = document.createElement('canvas');
-        canvas.id = 'barcode-' + Date.now();
-        document.getElementById('barcodeContainer').appendChild(canvas);
-
-        // Generate barcode with item type
-        JsBarcode(canvas, barcodeValue, {
-            format: "CODE128",
-            width: 2,
-            height: 60,
-            displayValue: true,
-            text: itemType, // Use item type instead of "adet"
-            fontSize: 12,
-            textAlign: "center",
-            textPosition: "bottom"
-        });
-
-        // Add print button
-        const printBtn = document.createElement('button');
-        printBtn.className = 'btn btn-primary';
-        printBtn.style.marginTop = '0.5rem';
-        printBtn.style.width = '100%';
-        printBtn.innerHTML = '<i class="fas fa-print"></i> Barkod Yazdır';
-        printBtn.onclick = () => printBarcode(canvas);
-        document.getElementById('barcodeContainer').appendChild(printBtn);
-
-        showToast('Barkod oluşturuldu', 'success');
-        input.value = '';
-    } catch (error) {
-        console.error('Barcode generation error:', error);
-        showToast('Barkod oluşturulurken hata oluştu', 'error');
-    }
-}
-
-// Function to generate multiple barcodes at once
-function generateMultipleBarcodes() {
-    const input = document.getElementById('barcodeInput');
-    const barcodeValues = input.value.trim().split('\n').filter(v => v.trim());
-    
-    if (barcodeValues.length === 0) {
-        showToast('Lütfen barkod değerlerini girin (her satıra bir barkod)', 'warning');
-        return;
-    }
-
-    const selectedPackage = getSelectedPackage();
-    let itemType = 'ADET';
-    
-    if (selectedPackage) {
-        itemType = selectedPackage.itemType || 'ADET';
-    }
-
-    const barcodeContainer = document.getElementById('barcodeContainer');
-    if (!barcodeContainer) {
-        const container = document.createElement('div');
-        container.id = 'barcodeContainer';
-        container.style.marginTop = '1rem';
-        document.querySelector('.barcode-section').appendChild(container);
-    }
-
-    try {
-        document.getElementById('barcodeContainer').innerHTML = '';
-        
-        barcodeValues.forEach((value, index) => {
-            const canvas = document.createElement('canvas');
-            canvas.id = 'barcode-' + Date.now() + '-' + index;
-            canvas.style.display = 'block';
-            canvas.style.marginBottom = '10px';
-            document.getElementById('barcodeContainer').appendChild(canvas);
-
-            JsBarcode(canvas, value.trim(), {
-                format: "CODE128",
-                width: 2,
-                height: 60,
-                displayValue: true,
-                text: itemType,
-                fontSize: 12,
-                textAlign: "center",
-                textPosition: "bottom"
-            });
-        });
-
-        // Add print all button
-        const printBtn = document.createElement('button');
-        printBtn.className = 'btn btn-primary';
-        printBtn.style.marginTop = '0.5rem';
-        printBtn.style.width = '100%';
-        printBtn.innerHTML = '<i class="fas fa-print"></i> Tüm Barkodları Yazdır';
-        printBtn.onclick = printAllBarcodes;
-        document.getElementById('barcodeContainer').appendChild(printBtn);
-
-        showToast(`${barcodeValues.length} adet barkod oluşturuldu`, 'success');
-        input.value = '';
-    } catch (error) {
-        console.error('Multiple barcode generation error:', error);
-        showToast('Barkodlar oluşturulurken hata oluştu', 'error');
-    }
-}
-
-function printlabel() {
-    const barcodes = document.querySelectorAll('#barcodeContainer canvas');
-    if (barcodes.length === 0) {
-        showToast('Yazdırılacak barkod bulunamadı', 'warning');
-        return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Barkod Yazdırma</title>
-            <style>
-                body { margin: 20px; }
-                canvas { display: block; margin-bottom: 20px; page-break-inside: avoid; }
-                @media print { 
-                    canvas { margin-bottom: 10px; }
-                    @page { margin: 10mm; }
-                }
-            </style>
-        </head>
-        <body>
-    `);
-
-    barcodes.forEach(canvas => {
-        printWindow.document.write(canvas.outerHTML);
-    });
-
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    printWindow.print();
-}
-        
         // Shipping operations
         async function sendToRamp(containerNo = null) {
             try {
