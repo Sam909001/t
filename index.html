@@ -1007,6 +1007,8 @@ input.invalid, select.invalid {
         let scannerMode = false;
         let currentContainerDetails = null;
         let currentReportData = null;
+        let selectedCustomer = null;
+        let selectedPackageForPrinting = null;
 
          // EmailJS initialization
         (function() {
@@ -4070,6 +4072,21 @@ async function previewReport() {
 
             console.log('ProClean application initialized with Supabase authentication');
         });
+        // packagesTableBody'ye olay dinleyicisi ekle
+document.getElementById('packagesTableBody').addEventListener('change', function(event) {
+    if (event.target.type === 'checkbox') {
+        const checkbox = event.target;
+        const packageId = checkbox.dataset.packageId;
+
+        if (checkbox.checked) {
+            // Seçilen paketi packages dizisinden bul ve atamasını yap
+            selectedPackageForPrinting = packages.find(pkg => pkg.id === packageId);
+        } else {
+            // Seçim kaldırıldıysa değişkeni null yap
+            selectedPackageForPrinting = null;
+        }
+    }
+});
     </script>
 </body>
 </html>
