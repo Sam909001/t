@@ -4090,24 +4090,6 @@ async function previewReport() {
 
             console.log('ProClean application initialized with Supabase authentication');
         });
-        // Add this code block inside your DOMContentLoaded function
-document.getElementById('packagesTableBody').addEventListener('change', function(event) {
-    // Check if the changed element is a checkbox
-    if (event.target.type === 'checkbox') {
-        const checkbox = event.target;
-        const packageId = checkbox.dataset.packageId;
-
-        // Find the package data from the packages array
-        if (checkbox.checked) {
-            selectedPackageForPrinting = packages.find(pkg => pkg.id === packageId);
-            // Optional: for debugging purposes, you can log the selected package
-            console.log("Selected package for printing:", selectedPackageForPrinting);
-        } else {
-            // If the checkbox is unchecked, clear the selected package
-            selectedPackageForPrinting = null;
-        }
-    }
-});
  </script>
 </body>
 </html>
