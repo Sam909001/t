@@ -2597,7 +2597,7 @@ function generateBarcode(text) {
             return svg.outerHTML;
         }
 
-        function getSelectedPackage() {
+      function getSelectedPackage() {
             const selectedRow = document.querySelector('#packagesTableBody tr.selected');
             if (!selectedRow) return null;
             
@@ -2607,8 +2607,8 @@ function generateBarcode(text) {
             return {
                 package_no: selectedRow.cells[1].textContent,
                 customers: { name: selectedRow.cells[2].textContent },
-                total_quantity: parseInt(selectedRow.cells[3].textContent),
-                created_at: selectedRow.cells[4].textContent
+                total_quantity: parseInt(selectedRow.cells[4].textContent),
+                created_at: selectedRow.cells[5].textContent
             };
         }
 
