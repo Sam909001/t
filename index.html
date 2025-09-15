@@ -2620,85 +2620,66 @@ function generateBarcode(text) {
     }
 }
         
-     async function printLabel(packageId) {
-    try {
-        showAlert('Etiket yazdırılıyor...', 'info');
-
-        // Yerel olarak depolanmış 'packages' dizisinde paketi bulun
-        const selectedPackage = packages.find(p => p.id === packageId);
-
-        if (!selectedPackage) {
-            showAlert('Etiket yazdırmak için bir paket seçin', 'error');
-            return;
-        }
-
-        // Paketin durumunu 'sevk-edildi' olarak güncelleyin
-        if (selectedPackage.status !== 'sevk-edildi') {
-            const { error: updateError } = await supabase
-                .from('packages')
-                .update({ status: 'sevk-edildi' })
-                .eq('id', packageId);
-            
-            if (updateError) {
-                throw new Error(`Paket durumu güncellenemedi: ${updateError.message}`);
+     async function printLabel() {
+            const selectedPackage = getSelectedPackage();
+            if (!selectedPackage) {
+                showAlert('Etiket yazdırmak için bir paket seçin', 'error');
+                return;
             }
 
-            showAlert('Paket durumu "sevk-edildi" olarak güncellendi.', 'success');
+            try {
+                // Generate barcode
+                const barcodeSvg = generateBarcode(selectedPackage.package_no);
+                
+                // Create printable content
+                const printContent = `
+                    <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
+                        <h2>ProClean</h2>
+                        <p><strong>Paket No:</strong> ${selectedPackage.package_no}</p>
+                        <p><strong>Müşteri:</strong> ${selectedPackage.customers?.name || 'N/A'}</p>
+                        <p><strong>Adet:</strong> ${selectedPackage.total_quantity}</p>
+                        <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
+                        <div>${barcodeSvg}</div>
+                    </div>
+                `;
+                
+                // Add to print container
+                const printContainer = document.getElementById('printContainer');
+                printContainer.innerHTML = printContent;
+                
+                // Open print dialog
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Paket Etiketi - ${selectedPackage.package_no}</title>
+                            <style>
+                                body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+                                @media print {
+                                    body { height: auto; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            ${printContent}
+                            <script>
+                                window.onload = function() {
+                                    window.print();
+                                    setTimeout(function() {
+                                        window.close();
+                                    }, 100);
+                                };
+                            <\/script>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                
+            } catch (error) {
+                console.error('Error printing label:', error);
+                showAlert('Etiket yazdırılırken hata oluştu', 'error');
+            }
         }
-
-        // Make a copy of data (avoid live reference issues)
-        const pkgNo = selectedPackage.package_no;
-        const pkgCustomer = selectedPackage.customers?.name || 'N/A';
-        const pkgQty = selectedPackage.total_quantity;
-
-        // Generate barcode SVG
-        const barcodeSvg = generateBarcode(pkgNo);
-
-        // Create printable content
-        const printContent = `
-            <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; border:1px solid #000; width:300px;">
-                <h2>ProClean</h2>
-                <p><strong>Paket No:</strong> ${pkgNo}</p>
-                <p><strong>Müşteri:</strong> ${pkgCustomer}</p>
-                <p><strong>Adet:</strong> ${pkgQty}</p>
-                <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
-                <div>${barcodeSvg}</div>
-            </div>
-        `;
-
-        // Open print dialog in new window
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Paket Etiketi - ${pkgNo}</title>
-                    <style>
-                        body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
-                        @media print { body { height: auto; } }
-                    </style>
-                </head>
-                <body>
-                    ${printContent}
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            setTimeout(function() { window.close(); }, 100);
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
-
-        showAlert('Etiket yazdırma işlemi tamamlandı.', 'success');
-        // Paket listesini yenileyin
-        renderPackages();
-
-    } catch (error) {
-        console.error('Error printing label:', error);
-        showAlert(`Etiket yazdırılırken hata oluştu: ${error.message}`, 'error');
-    }
-}
         
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
