@@ -720,7 +720,7 @@ input.invalid, select.invalid {
                         
                         <div class="package-actions">
                             <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
-                            <button type="button" class="btn btn-warning" onclick="printLabel()">Etiket Yazdır</button>
+                            <button class="btn print-barcode-btn" onclick="printBarcode('${pkg.id}')">Barkod Yazdır</button>
                             <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
                         </div>
                     </div>
