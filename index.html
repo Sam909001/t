@@ -2616,11 +2616,6 @@ function initializeElements() {
 
           async function printAllLabels() {
 
-              const selectedPackages = getSelectedPackages(); // must return an array of package objects
-    if (!selectedPackages || selectedPackages.length === 0) {
-        showAlert("Lütfen en az bir paket seçin", "error");
-        return;
-    }
     // Find all checked packages in your table
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
 
