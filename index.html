@@ -2677,12 +2677,11 @@ function getSelectedPackage() {
     
     const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
     
-    // Get data from row cells
     return {
         id: packageId,
         package_no: selectedRow.cells[1].textContent,
         customers: { name: selectedRow.cells[2].textContent },
-        total_quantity: parseInt(selectedRow.cells[3].textContent),
+        total_quantity: selectedRow.cells[3].textContent.trim(), // now as text
         created_at: selectedRow.cells[4].textContent
     };
 }
