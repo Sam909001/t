@@ -2643,6 +2643,7 @@ async function printAllLabels() {
     printWindow.document.close();
 
     showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
+    }
         
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
