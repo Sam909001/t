@@ -1659,6 +1659,16 @@ function initializeElements() {
         showAlert('Müşteri yükleme hatası: ' + error.message, 'error');
     }
 }
+
+        function checkOnlineStatus() {
+    if (!navigator.onLine) {
+        showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
+        return false;
+    }
+    return true;
+}
+
+        
         async function populatePersonnel() {
             try {
                 // Dropdown'u temizle
