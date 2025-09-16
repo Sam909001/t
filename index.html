@@ -2644,9 +2644,9 @@ function getSelectedPackage() {
 
 // ✅ Print all selected labels
 async function printAllLabels() {
-    // Seçili paketleri bul
+    // Find all checked packages in your table
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    
+
     if (checkboxes.length === 0) {
         showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
         return;
@@ -2654,65 +2654,57 @@ async function printAllLabels() {
 
     let printContent = '';
 
-    for (const cb of checkboxes) {
-        try {
-            // Paket verilerini al (önce JSON.stringify ile saklandığından emin olun!)
-            const pkg = JSON.parse(cb.dataset.package);
+    checkboxes.forEach(cb => {
+        // Get package data (assuming you store it in data-package attribute as JSON)
+        const pkg = JSON.parse(cb.dataset.package);
 
-            let labelContent = `
-                <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; page-break-after:always;">
-                    <h2>ProClean</h2>
-                    <p><strong>Paket No:</strong> ${pkg.package_no}</p>
-                    <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                    <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
-            `;
+        let labelContent = `
+            <div class="print-label" style="text-align:center; font-family:Arial; padding:10px; page-break-after:always;">
+                <h2>ProClean</h2>
+                <p><strong>Paket No:</strong> ${pkg.package_no}</p>
+                <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+                <p><strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
+        `;
 
-            // Ürünler için barkod oluştur
-            if (pkg.items && typeof pkg.items === 'object') {
-                Object.entries(pkg.items).forEach(([product, quantity]) => {
-                    const barcodeData = `${pkg.package_no}-${product}-${quantity}`;
-                    const barcodeSvg = generateBarcode(barcodeData);
+        // Generate barcodes for each product type
+        if (pkg.items && typeof pkg.items === 'object') {
+            Object.entries(pkg.items).forEach(([product, quantity]) => {
+                const barcodeData = `${pkg.package_no}-${product}-${quantity}`;
+                const barcodeSvg = generateBarcode(barcodeData);
 
-                    labelContent += `
-                        <div style="page-break-inside: avoid; margin: 15px 0; padding: 10px; border: 1px dashed #ccc;">
-                            <p><strong>${product}:</strong> ${quantity} adet</p>
-                            <div>${barcodeSvg}</div>
-                        </div>
-                    `;
-                });
-            } else {
-                // Fallback: tek barkod
-                const barcodeSvg = generateBarcode(pkg.package_no);
                 labelContent += `
-                    <div style="margin: 15px 0;">
-                        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}</p>
+                    <div style="page-break-inside: avoid; margin: 15px 0; padding: 10px; border: 1px dashed #ccc;">
+                        <p><strong>${product}:</strong> ${quantity}</p>
                         <div>${barcodeSvg}</div>
                     </div>
                 `;
-            }
-
-            labelContent += `</div>`;
-            printContent += labelContent;
-
-        } catch (error) {
-            console.error('Paket verisi ayrıştırma hatası:', error);
-            showAlert('Bir paketin verileri okunamadı', 'error');
+            });
+        } else {
+            // Fallback: single barcode
+            const barcodeSvg = generateBarcode(pkg.package_no);
+            labelContent += `
+                <div style="margin: 15px 0;">
+                    <p><strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}</p>
+                    <div>${barcodeSvg}</div>
+                </div>
+            `;
         }
-    }
 
-    // Yazdırma penceresini aç
+        labelContent += `</div>`;
+
+        // Add this label to the total printable content
+        printContent += labelContent;
+    });
+
+    // Open one print window for all labels
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
         <html>
             <head>
-                <title>Paket Etiketleri</title>
+                <title>Tüm Etiketler</title>
                 <style>
                     body { margin:0; padding:20px; font-family:Arial; }
                     .print-label { margin-bottom:20px; text-align:center; page-break-after:always; }
-                    @media print {
-                        body { margin:0; padding:0; }
-                        .print-label { page-break-after:always; }
-                    }
                 </style>
             </head>
             <body>
@@ -2720,16 +2712,14 @@ async function printAllLabels() {
                 <script>
                     window.onload = function() {
                         window.print();
-                        setTimeout(function() { window.close(); }, 200);
+                        setTimeout(function() { window.close(); }, 100);
                     };
                 <\/script>
             </body>
         </html>
     `);
     printWindow.document.close();
-
-    showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
-    }
+}
         
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
