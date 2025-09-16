@@ -721,7 +721,7 @@ input.invalid, select.invalid {
                         
                         <div class="package-actions">
                             <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
-                            <button type="button" class="btn btn-warning" onclick="printLabel()">Etiket Yazdır</button>
+                            <button type="button" class="btn btn-warning" onclick="printAllLabels()">Etiket Yazdır</button>
                             <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
                         </div>
                     </div>
@@ -3235,6 +3235,11 @@ function searchStock() {
 async function generateDailyReport() {
     try {
         showAlert('Günlük rapor oluşturuluyor...', 'info');
+
+        // Fetch the authenticated user first
+const { data: { user }, error: userError } = await supabase.auth.getUser();
+if (userError) throw new Error(`User fetch error: ${userError.message}`);
+if (!user) throw new Error('User not authenticated');
         
         const today = new Date();
         const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
@@ -3278,21 +3283,22 @@ async function generateDailyReport() {
             packages: packages,
             containers: containers,
             criticalStock: criticalStock,
-            operator: currentUser?.name || 'Bilinmiyor',
-            generated_at: new Date().toISOString()
-        };
+            operator: user.user_metadata?.full_name || 'Bilinmiyor',
+            user_id: user.id
+            };
 
         // Save report to database
-        const { data: report, error: reportError } = await supabase
-            .from('reports')
-            .insert([{
-                report_date: new Date(),
-                report_type: 'daily',
-                data: currentReportData,
-                user_id: currentUser.uid
-            }])
-            .select()
-            .single();
+       const { data: report, error: reportError } = await supabase
+    .from('reports')
+    .insert([{
+        report_date: new Date(),
+        report_type: 'daily',
+        data: currentReportData,
+        user_id: user.id
+    }])
+    .select()
+    .single();
+
 
         if (reportError) throw new Error(`Rapor kaydedilemedi: ${reportError.message}`);
 
