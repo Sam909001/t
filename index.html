@@ -2700,24 +2700,20 @@ async function printAllLabels() {
     // For each selected package
     for (const cb of checkboxes) {
         try {
-            // Get the row for this checkbox
             const row = cb.closest('tr');
             if (!row) continue;
-            
-            // Extract package data from the row
+
+            // Use Ürün column as text instead of parsing as number
             const pkg = {
                 package_no: row.cells[1].textContent,
                 customers: { name: row.cells[2].textContent },
-                total_quantity: parseInt(row.cells[3].textContent),
+                total_quantity: row.cells[3].textContent.trim(), // now text
                 created_at: row.cells[4].textContent
             };
-            
-            // If you need full package data, fetch it from database
-            // For now, we'll use the basic data we have
-            
-            // Generate barcode for the package
+
+            // Generate barcode
             const barcodeSvg = generateBarcode(pkg.package_no);
-            
+
             let labelContent = `
                 <div class="print-label" style="
                     text-align: center;
@@ -2734,7 +2730,7 @@ async function printAllLabels() {
                     <hr style="margin: 10px 0;">
                     <p style="margin: 5px 0;"><strong>Paket No:</strong> ${pkg.package_no}</p>
                     <p style="margin: 5px 0;"><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                    <p style="margin: 5px 0;"><strong>Adet:</strong> ${pkg.total_quantity}</p>
+                    <p style="margin: 5px 0;"><strong>Ürün:</strong> ${pkg.total_quantity}</p>
                     <p style="margin: 5px 0;"><strong>Tarih:</strong> ${pkg.created_at}</p>
                     <div style="margin: 20px 0;">
                         ${barcodeSvg}
@@ -2743,11 +2739,10 @@ async function printAllLabels() {
             `;
 
             printContent += labelContent;
-            
+
         } catch (error) {
             console.error('Paket verisi işleme hatası:', error);
             console.error('Checkbox value:', cb.value);
-            // Continue with next package
             continue;
         }
     }
@@ -2757,7 +2752,6 @@ async function printAllLabels() {
         return;
     }
 
-    // Include JsBarcode library in the print window
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
         <!DOCTYPE html>
@@ -2767,46 +2761,22 @@ async function printAllLabels() {
                 <meta charset="UTF-8">
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"><\/script>
                 <style>
-                    body { 
-                        margin: 0; 
-                        padding: 20px; 
-                        font-family: Arial, sans-serif;
-                    }
-                    .print-label { 
-                        margin-bottom: 20px; 
-                        text-align: center; 
-                        page-break-after: always;
-                    }
+                    body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                    .print-label { margin-bottom: 20px; text-align: center; page-break-after: always; }
                     @media print {
                         body { margin: 0; padding: 0; }
-                        .print-label { 
-                            page-break-after: always;
-                            page-break-inside: avoid;
-                        }
+                        .print-label { page-break-after: always; page-break-inside: avoid; }
                     }
-                    svg {
-                        max-width: 100%;
-                        height: auto;
-                    }
+                    svg { max-width: 100%; height: auto; }
                 </style>
             </head>
             <body>
                 ${printContent}
                 <script>
-                    // Re-generate barcodes after the page loads
                     window.onload = function() {
-                        // Find all SVG placeholders and regenerate if needed
-                        const svgs = document.querySelectorAll('svg');
-                        if (svgs.length === 0) {
-                            console.error('No barcodes found to render');
-                        }
-                        
-                        // Trigger print after a short delay
                         setTimeout(function() {
                             window.print();
-                            setTimeout(function() { 
-                                window.close(); 
-                            }, 1000);
+                            setTimeout(() => window.close(), 1000);
                         }, 500);
                     };
                 <\/script>
@@ -2814,31 +2784,8 @@ async function printAllLabels() {
         </html>
     `);
     printWindow.document.close();
-    
-    showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
-}
 
-// Alternative: Simple barcode generation using text-based representation
-function generateSimpleBarcode(text) {
-    // This is a fallback if JsBarcode doesn't work
-    // It creates a simple text-based representation
-    const barcodeHtml = `
-        <div style="
-            font-family: 'Libre Barcode 128', monospace;
-            font-size: 48px;
-            letter-spacing: 2px;
-            background: white;
-            padding: 10px;
-            border: 1px solid #000;
-            display: inline-block;
-        ">
-            *${text}*
-        </div>
-        <div style="font-size: 12px; margin-top: 5px; text-align: center;">
-            ${text}
-        </div>
-    `;
-    return barcodeHtml;
+    showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
 }
         
         async function deleteSelectedPackages() {
