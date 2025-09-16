@@ -4021,6 +4021,18 @@ async function previewReport() {
 
             console.log('ProClean application initialized with Supabase authentication');
         });
+      // Add this section here 👇
+    document.getElementById('packagesTableBody').addEventListener('change', function(event) {
+        if (event.target.type === 'checkbox') {
+            const checkbox = event.target;
+            const packageId = checkbox.dataset.packageId;
+            if (checkbox.checked) {
+                selectedPackageForPrinting = packages.find(pkg => pkg.id === packageId);
+            } else {
+                selectedPackageForPrinting = null;
+            }
+        }
+    });
     </script>
 </body>
 </html>
