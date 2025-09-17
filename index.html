@@ -2695,50 +2695,48 @@ async function printAllLabels() {
         return;
     }
 
-    let printContent = '';
+    showAlert(`${checkboxes.length} etiket hazırlanıyor...`, 'info');
 
-    // For each selected package
+    // Array to hold the PPLA commands for each selected label
+    let allPplaCommands = '';
+    
+    const LABEL_WIDTH = 100; // in mm
+    const LABEL_HEIGHT = 80; // in mm
+    const DPI = 203; // Argox OS-214EX default DPI
+
+    // Convert dimensions to dots
+    const widthInDots = Math.round((LABEL_WIDTH / 25.4) * DPI);
+    const heightInDots = Math.round((LABEL_HEIGHT / 25.4) * DPI);
+
+    // For each selected package, generate PPLA commands
     for (const cb of checkboxes) {
         try {
             const row = cb.closest('tr');
             if (!row) continue;
 
-            // Use Ürün column as text instead of parsing as number
             const pkg = {
                 package_no: row.cells[1].textContent,
                 customers: { name: row.cells[2].textContent },
-                total_quantity: row.cells[3].textContent.trim(), // now text
-                created_at: row.cells[4].textContent
+                total_quantity: row.cells[3].textContent.trim()
             };
 
-            // Generate barcode
-            const barcodeSvg = generateBarcode(pkg.package_no);
+            const barcodeContent = `${pkg.package_no}-${pkg.customers.name}`;
 
-            let labelContent = `
-                <div class="print-label" style="
-                    text-align: center;
-                    font-family: Arial, sans-serif;
-                    padding: 20px;
-                    border: 2px solid #000;
-                    margin-bottom: 20px;
-                    page-break-after: always;
-                    width: 300px;
-                    margin-left: auto;
-                    margin-right: auto;
-                ">
-                    <h2 style="margin: 10px 0;">ProClean</h2>
-                    <hr style="margin: 10px 0;">
-                    <p style="margin: 5px 0;"><strong>Paket No:</strong> ${pkg.package_no}</p>
-                    <p style="margin: 5px 0;"><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                    <p style="margin: 5px 0;"><strong>Ürün:</strong> ${pkg.total_quantity}</p>
-                    <p style="margin: 5px 0;"><strong>Tarih:</strong> ${pkg.created_at}</p>
-                    <div style="margin: 20px 0;">
-                        ${barcodeSvg}
-                    </div>
-                </div>
-            `;
-
-            printContent += labelContent;
+            // PPLA commands for a single label
+            const pplaCommands = `
+N
+ZT
+I8,A,001
+q${widthInDots}
+S2
+D16
+V0
+AD,30,30,0,3,1,1,N,"${pkg.customers.name}"
+B30,100,0,1A,10,3,60,B,"${barcodeContent}"
+P1
+`;
+            // Add the commands for this label to the overall command string
+            allPplaCommands += pplaCommands;
 
         } catch (error) {
             console.error('Paket verisi işleme hatası:', error);
@@ -2747,45 +2745,33 @@ async function printAllLabels() {
         }
     }
 
-    if (!printContent) {
+    if (!allPplaCommands) {
         showAlert('Etiket oluşturulamadı', 'error');
         return;
     }
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <title>Paket Etiketleri</title>
-                <meta charset="UTF-8">
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"><\/script>
-                <style>
-                    body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-                    .print-label { margin-bottom: 20px; text-align: center; page-break-after: always; }
-                    @media print {
-                        body { margin: 0; padding: 0; }
-                        .print-label { page-break-after: always; page-break-inside: avoid; }
-                    }
-                    svg { max-width: 100%; height: auto; }
-                </style>
-            </head>
-            <body>
-                ${printContent}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            setTimeout(() => window.close(), 1000);
-                        }, 500);
-                    };
-                <\/script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
+    // Now, send all the PPLA commands at once to the Node.js server
+    try {
+        const response = await fetch('http://localhost:3000/print-label', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ pplaCommands: allPplaCommands }),
+        });
 
-    showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
+        const result = await response.text();
+
+        if (response.ok) {
+            showAlert(`${checkboxes.length} etiket başarıyla yazdırıldı.`, 'success');
+        } else {
+            showAlert(`Yazdırma hatası: ${result}`, 'error');
+        }
+
+    } catch (error) {
+        console.error('Yazdırma hatası:', error);
+        showAlert(`Sunucuya bağlanılamadı. Hata: ${error.message}`, 'error');
+    }
 }
         
         async function deleteSelectedPackages() {
