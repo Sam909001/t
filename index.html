@@ -3057,13 +3057,23 @@ function checkPrinterStatus() {
 }
 
 // Manual printer initialization (if needed)
-function initializePrinter() {
+async function initializePrinter() {
     console.log('🔄 Manually initializing printer...');
+    
     printer = new PrinterService();
+
+    try {
+        await printer.connect(); // Ensure the printer is connected
+        console.log('✅ Printer connected successfully');
+    } catch (err) {
+        console.error('❌ Printer initialization failed:', err);
+    }
+
     return printer;
 }
 
 console.log('📜 Printer service script loaded successfully');
+
         
       async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
