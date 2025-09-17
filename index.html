@@ -3057,23 +3057,88 @@ function checkPrinterStatus() {
 }
 
 // Manual printer initialization (if needed)
+// server.js
+import express from 'express';
+import bodyParser from 'body-parser';
+// Import your PrinterService implementation
+import PrinterService from './PrinterService.js'; // adjust path
+
+const app = express();
+const PORT = 3001;
+
+app.use(bodyParser.json());
+
+let printer;
+let isPrinterReady = false;
+
+// -------------------------
+// Initialize Printer Service
+// -------------------------
 async function initializePrinter() {
-    console.log('🔄 Manually initializing printer...');
-    
+    console.log('🔄 Initializing printer service...');
     printer = new PrinterService();
 
     try {
-        await printer.connect(); // Ensure the printer is connected
+        await printer.connect(); // connect/init your printer
+        isPrinterReady = true;
         console.log('✅ Printer connected successfully');
     } catch (err) {
+        isPrinterReady = false;
         console.error('❌ Printer initialization failed:', err);
     }
-
-    return printer;
 }
 
-console.log('📜 Printer service script loaded successfully');
+// Initialize printer on server start
+initializePrinter();
 
+// -------------------------
+// Print Barcode API
+// -------------------------
+app.post('/api/print/barcode', async (req, res) => {
+    try {
+        if (!printer || !isPrinterReady) {
+            return res.status(500).json({ error: 'Printer not initialized' });
+        }
+
+        const { barcode, labelText } = req.body;
+        if (!barcode || !labelText) {
+            return res.status(400).json({ error: 'Missing barcode or labelText' });
+        }
+
+        console.log(`📦 Printing label: "${barcode}" with text: "${labelText}"`);
+
+        const result = await printer.printBarcode(barcode, labelText);
+
+        if (result) {
+            console.log('🖨️ Print successful');
+            res.json({ success: true });
+        } else {
+            console.error('❌ Print failed');
+            res.status(500).json({ error: 'Print failed' });
+        }
+    } catch (err) {
+        console.error('❌ Print API error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// -------------------------
+// Optional: Re-initialize printer via API
+// -------------------------
+app.post('/api/printer/reconnect', async (req, res) => {
+    try {
+        await initializePrinter();
+        if (isPrinterReady) res.json({ success: true, message: 'Printer reconnected' });
+        else res.status(500).json({ success: false, message: 'Failed to reconnect printer' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// -------------------------
+app.listen(PORT, () => {
+    console.log(`🖨️ Printer server running at http://localhost:${PORT}`);
+});
         
       async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
