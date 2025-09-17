@@ -2695,97 +2695,80 @@ async function printAllLabels() {
         return;
     }
 
-    let printContent = '';
+    // Check if printer service is available
+    if (!printer || !printer.isConnected) {
+        showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
+        return;
+    }
 
-    // For each selected package
-    for (const cb of checkboxes) {
+    showAlert(`${checkboxes.length} paket etiketi yazdırılıyor... Lütfen bekleyin.`, 'info', 5000);
+
+    let successCount = 0;
+    let errorCount = 0;
+    const totalLabels = checkboxes.length;
+
+    // Print each selected package
+    for (let i = 0; i < checkboxes.length; i++) {
+        const cb = checkboxes[i];
+        
         try {
             const row = cb.closest('tr');
-            if (!row) continue;
+            if (!row) {
+                errorCount++;
+                continue;
+            }
 
-            // Use Ürün column as text instead of parsing as number
+            // Extract package data from table row
             const pkg = {
-                package_no: row.cells[1].textContent,
-                customers: { name: row.cells[2].textContent },
-                total_quantity: row.cells[3].textContent.trim(), // now text
-                created_at: row.cells[4].textContent
+                package_no: row.cells[1].textContent.trim(),
+                customer_name: row.cells[2].textContent.trim(),
+                product: row.cells[3].textContent.trim(),
+                created_at: row.cells[4].textContent.trim()
             };
 
-            // Generate barcode
-            const barcodeSvg = generateBarcode(pkg.package_no);
+            console.log(`Printing label ${i + 1}/${totalLabels}:`, pkg);
 
-            let labelContent = `
-                <div class="print-label" style="
-                    text-align: center;
-                    font-family: Arial, sans-serif;
-                    padding: 20px;
-                    border: 2px solid #000;
-                    margin-bottom: 20px;
-                    page-break-after: always;
-                    width: 300px;
-                    margin-left: auto;
-                    margin-right: auto;
-                ">
-                    <h2 style="margin: 10px 0;">ProClean</h2>
-                    <hr style="margin: 10px 0;">
-                    <p style="margin: 5px 0;"><strong>Paket No:</strong> ${pkg.package_no}</p>
-                    <p style="margin: 5px 0;"><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-                    <p style="margin: 5px 0;"><strong>Ürün:</strong> ${pkg.total_quantity}</p>
-                    <p style="margin: 5px 0;"><strong>Tarih:</strong> ${pkg.created_at}</p>
-                    <div style="margin: 20px 0;">
-                        ${barcodeSvg}
-                    </div>
-                </div>
-            `;
+            // Create label text (this will appear on the physical label)
+            const labelText = `${pkg.customer_name} - ${pkg.product}`;
+            
+            // Use package_no as barcode
+            const barcode = pkg.package_no;
 
-            printContent += labelContent;
+            // Send to printer via Node.js service
+            const printResult = await printer.printBarcode(barcode, labelText);
+
+            if (printResult) {
+                successCount++;
+                console.log(`✅ Label ${i + 1} printed successfully`);
+            } else {
+                errorCount++;
+                console.log(`❌ Failed to print label ${i + 1}`);
+            }
+
+            // Add delay between prints to avoid overwhelming the printer
+            if (i < checkboxes.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+            }
 
         } catch (error) {
-            console.error('Paket verisi işleme hatası:', error);
-            console.error('Checkbox value:', cb.value);
+            console.error(`Error printing label ${i + 1}:`, error);
+            errorCount++;
+            
+            // Continue with next label even if one fails
             continue;
         }
     }
 
-    if (!printContent) {
-        showAlert('Etiket oluşturulamadı', 'error');
-        return;
+    // Show final result
+    if (successCount > 0 && errorCount === 0) {
+        showAlert(`✅ ${successCount} etiket başarıyla yazdırıldı!`, 'success');
+    } else if (successCount > 0 && errorCount > 0) {
+        showAlert(`⚠️ ${successCount} etiket yazdırıldı, ${errorCount} hata oluştu.`, 'warning');
+    } else {
+        showAlert(`❌ Hiçbir etiket yazdırılamadı. ${errorCount} hata oluştu.`, 'error');
     }
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <title>Paket Etiketleri</title>
-                <meta charset="UTF-8">
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"><\/script>
-                <style>
-                    body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-                    .print-label { margin-bottom: 20px; text-align: center; page-break-after: always; }
-                    @media print {
-                        body { margin: 0; padding: 0; }
-                        .print-label { page-break-after: always; page-break-inside: avoid; }
-                    }
-                    svg { max-width: 100%; height: auto; }
-                </style>
-            </head>
-            <body>
-                ${printContent}
-                <script>
-                    window.onload = function() {
-                        setTimeout(function() {
-                            window.print();
-                            setTimeout(() => window.close(), 1000);
-                        }, 500);
-                    };
-                <\/script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-
-    showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
+    console.log(`Print job completed: ${successCount} success, ${errorCount} errors`);
 }
         
         async function deleteSelectedPackages() {
