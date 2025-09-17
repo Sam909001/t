@@ -721,7 +721,7 @@ input.invalid, select.invalid {
                         
                         <div class="package-actions">
                             <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
-                            <button type="button" class="btn btn-warning" onclick="printAllLabelsWithProgress()">Etiket Yazdır</button>
+                            <button type="button" class="btn btn-warning" onclick="printAllLabels()">Etiket Yazdır</button>
                             <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
                         </div>
                     </div>
@@ -987,15 +987,6 @@ input.invalid, select.invalid {
     <!-- Print Label Container (hidden) -->
     <div id="printContainer" style="display:none;"></div>
 
-    <div class="printer-status-section">
-    <div id="printer-status" class="printer-status">
-        <span id="printer-indicator">🔴</span>
-        <span id="printer-text">Checking printer...</span>
-        <button id="test-printer" onclick="testPrinter()">Test Printer</button>
-        <button onclick="checkPrinterStatus()">Check Status</button>
-    </div>
-</div>
-    
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
@@ -2695,134 +2686,139 @@ function getSelectedPackage() {
     };
 }
 
-        
-
-
-// frontend.js
-class PrinterService {
-    constructor(serverUrl = 'http://localhost:3001') {
-        this.serverUrl = serverUrl;
-        this.isConnected = false;
-        console.log('🖨️ Initializing printer service...');
-        this.checkConnection();
-    }
-
-    async checkConnection() {
-        try {
-            const res = await fetch(`${this.serverUrl}/api/test`);
-            const data = await res.json();
-
-            if (res.ok) {
-                this.isConnected = true;
-                this.updateStatus('connected', '✅ Printer server connected');
-                console.log('✅ Printer server connected:', data);
-            } else {
-                this.isConnected = false;
-                this.updateStatus('error', '❌ Server responded with error');
-            }
-        } catch (err) {
-            this.isConnected = false;
-            this.updateStatus('error', '❌ Printer server not found');
-            console.error('❌ Printer server error:', err);
-        }
-    }
-
-    updateStatus(status, message) {
-        const indicator = document.getElementById('printer-indicator');
-        const text = document.getElementById('printer-text');
-
-        if (indicator) indicator.textContent = status === 'connected' ? '🟢' : '🔴';
-        if (text) text.textContent = message;
-
-        console.log(`Printer status: ${status} - ${message}`);
-    }
-
-    async printBarcode(barcode, text = '') {
-        if (!this.isConnected) {
-            console.error('❌ Printer not connected');
-            alert('Printer server is not connected. Please check if the Node.js server is running.');
-            return false;
-        }
-
-        try {
-            const res = await fetch(`${this.serverUrl}/api/print/barcode`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ barcode, text })
-            });
-            const result = await res.json();
-
-            if (result.success) {
-                console.log(`✅ Print successful: ${barcode}`);
-                return true;
-            } else {
-                console.error(`❌ Print failed: ${result.error}`);
-                alert(`❌ Print failed: ${result.error}`);
-                return false;
-            }
-        } catch (err) {
-            console.error('❌ Print error:', err);
-            alert(`❌ Print error: ${err.message}`);
-            return false;
-        }
-    }
-}
-
-// Global printer instance
-let printer;
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-    printer = new PrinterService();
-});
-
-// Example: print all selected labels
-async function printAllLabelsWithProgress() {
+async function printAllLabels() {
+    // Find selected packages
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) return alert('Select at least one package.');
-
-    for (let cb of checkboxes) {
-        const row = cb.closest('tr');
-        const pkgNo = row.cells[1]?.textContent.trim();
-        const text = row.cells[2]?.textContent.trim() + ' - ' + row.cells[3]?.textContent.trim();
-        await printer.printBarcode(pkgNo, text);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
-    }
-
-    alert('✅ Printing done.');
-}
-
-        
-      async function deleteSelectedPackages() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    
     if (checkboxes.length === 0) {
-        showAlert('Silinecek paket seçin', 'error');
+        showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
         return;
     }
 
-    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+    let printContent = '';
 
-    const packageIds = Array.from(checkboxes).map(cb => cb.value);
+    // For each selected package
+    for (const cb of checkboxes) {
+        try {
+            const row = cb.closest('tr');
+            if (!row) continue;
 
-    try {
-        const { error } = await supabase
-            .from('packages')
-            .delete()
-            .in('id', packageIds);
+            // Use Ürün column as text instead of parsing as number
+            const pkg = {
+                package_no: row.cells[1].textContent,
+                customers: { name: row.cells[2].textContent },
+                total_quantity: row.cells[3].textContent.trim(), // now text
+                created_at: row.cells[4].textContent
+            };
 
-        if (error) {
-            console.error('Error deleting packages:', error);
-            showAlert('Paketler silinirken hata: ' + error.message, 'error');
-            return;
+            // Generate barcode
+            const barcodeSvg = generateBarcode(pkg.package_no);
+
+            let labelContent = `
+                <div class="print-label" style="
+                    text-align: center;
+                    font-family: Arial, sans-serif;
+                    padding: 20px;
+                    border: 2px solid #000;
+                    margin-bottom: 20px;
+                    page-break-after: always;
+                    width: 300px;
+                    margin-left: auto;
+                    margin-right: auto;
+                ">
+                    <h2 style="margin: 10px 0;">ProClean</h2>
+                    <hr style="margin: 10px 0;">
+                    <p style="margin: 5px 0;"><strong>Paket No:</strong> ${pkg.package_no}</p>
+                    <p style="margin: 5px 0;"><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+                    <p style="margin: 5px 0;"><strong>Ürün:</strong> ${pkg.total_quantity}</p>
+                    <p style="margin: 5px 0;"><strong>Tarih:</strong> ${pkg.created_at}</p>
+                    <div style="margin: 20px 0;">
+                        ${barcodeSvg}
+                    </div>
+                </div>
+            `;
+
+            printContent += labelContent;
+
+        } catch (error) {
+            console.error('Paket verisi işleme hatası:', error);
+            console.error('Checkbox value:', cb.value);
+            continue;
         }
-
-        showAlert(`${packageIds.length} paket silindi`, 'success');
-        await populatePackagesTable();
-    } catch (err) {
-        console.error('Unexpected error:', err);
-        showAlert('Beklenmeyen bir hata oluştu: ' + err.message, 'error');
     }
+
+    if (!printContent) {
+        showAlert('Etiket oluşturulamadı', 'error');
+        return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Paket Etiketleri</title>
+                <meta charset="UTF-8">
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"><\/script>
+                <style>
+                    body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                    .print-label { margin-bottom: 20px; text-align: center; page-break-after: always; }
+                    @media print {
+                        body { margin: 0; padding: 0; }
+                        .print-label { page-break-after: always; page-break-inside: avoid; }
+                    }
+                    svg { max-width: 100%; height: auto; }
+                </style>
+            </head>
+            <body>
+                ${printContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            setTimeout(() => window.close(), 1000);
+                        }, 500);
+                    };
+                <\/script>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+
+    showAlert(`${checkboxes.length} paket için etiket yazdırılıyor`, 'success');
 }
+        
+        async function deleteSelectedPackages() {
+            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+            if (checkboxes.length === 0) {
+                showAlert('Silinecek paket seçin', 'error');
+                return;
+            }
+
+            if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+            try {
+                const packageIds = Array.from(checkboxes).map(cb => cb.value);
+                
+                const { error } = await supabase
+                    .from('packages')
+                    .delete()
+                    .in('id', packageIds);
+
+                if (error) {
+                    console.error('Error deleting packages:', error);
+                    showAlert('Paketler silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showAlert(`${packageIds.length} paket silindi`, 'success');
+                await populatePackagesTable();
+                
+            } catch (error) {
+                console.error('Error in deleteSelectedPackages:', error);
+                showAlert('Paket silme hatası', 'error');
+            }
+        }
 
         function toggleSelectAll() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
