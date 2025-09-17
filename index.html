@@ -1830,6 +1830,9 @@ function initializeElements() {
             }
         }
 
+
+        
+
        async function populatePackagesTable() {
     try {
         elements.packagesTableBody.innerHTML = '';
@@ -1890,6 +1893,9 @@ function initializeElements() {
         showAlert('Paket tablosu yükleme hatası', 'error');
     }
 }
+
+
+        
         
         // Helper function to calculate total quantity of selected packages
         async function calculateTotalQuantity(packageIds) {
@@ -1907,6 +1913,9 @@ function initializeElements() {
                 return packageIds.length; // Fallback to package count
             }
         }
+
+
+        
 
         // Update the populateShippingTable function to use customer folders
         async function populateShippingTable() {
@@ -2023,6 +2032,9 @@ function initializeElements() {
             }
         }
 
+
+        
+
         // Konteyner detaylarını görüntüle
         async function viewContainerDetails(containerId) {
             try {
@@ -2089,6 +2101,9 @@ function initializeElements() {
             }
         }
 
+
+        
+
         // Konteyner detay modalını kapat
         function closeContainerDetailModal() {
             document.getElementById('containerDetailModal').style.display = 'none';
@@ -2103,6 +2118,9 @@ function initializeElements() {
             }
         }
 
+
+
+        
         // Konteyner ara
         function searchContainers() {
             const searchTerm = elements.containerSearch.value.toLowerCase();
@@ -2140,6 +2158,10 @@ function initializeElements() {
             checkboxes.forEach(cb => cb.checked = checkbox.checked);
         }
 
+
+
+
+        
         async function populateStockTable() {
             try {
                 elements.stockTableBody.innerHTML = '';
@@ -2203,6 +2225,10 @@ function initializeElements() {
             }
         }
 
+
+
+
+        
         // Stok düzenleme fonksiyonları
         function editStockItem(button, code) {
             const row = button.closest('tr');
@@ -2220,6 +2246,9 @@ function initializeElements() {
             editingStockItem = code;
         }
 
+
+
+        
         async function saveStockItem(code) {
             const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
             const quantityInput = row.querySelector('.stock-quantity-input');
@@ -2285,6 +2314,10 @@ function initializeElements() {
             }
         }
 
+
+
+        
+
         function cancelEditStockItem(code, originalQuantity) {
             const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
             const quantityInput = row.querySelector('.stock-quantity-input');
@@ -2302,6 +2335,9 @@ function initializeElements() {
             editingStockItem = null;
         }
 
+
+
+        
         // Barkod işleme fonksiyonu
       async function processBarcode() {
     if (!elements.barcodeInput) {
@@ -2368,6 +2404,9 @@ function initializeElements() {
     }
 }
 
+
+
+        
         // Taranan barkodları göster
         function displayScannedBarcodes() {
             const container = document.getElementById('scannedBarcodes');
@@ -2396,6 +2435,10 @@ function initializeElements() {
             container.appendChild(list);
         }
 
+
+
+
+        
         // Customer operations
         async function showCustomers() {
             try {
@@ -2434,6 +2477,9 @@ function initializeElements() {
             }
         }
 
+
+        
+
         async function showAllCustomers() {
             try {
                 elements.allCustomersList.innerHTML = '';
@@ -2470,6 +2516,9 @@ function initializeElements() {
                 showAlert('Müşteri yönetimi yükleme hatası', 'error');
             }
         }
+
+
+        
 
         async function addNewCustomer() {
             const code = document.getElementById('newCustomerCode').value.trim();
@@ -2513,6 +2562,9 @@ function initializeElements() {
             }
         }
 
+
+        
+
         async function deleteCustomer(customerId) {
             if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
 
@@ -2540,6 +2592,9 @@ function initializeElements() {
             }
         }
 
+
+
+        
         function selectCustomerFromModal(customer) {
             selectedCustomer = customer;
             elements.customerSelect.value = customer.id;
@@ -2547,6 +2602,9 @@ function initializeElements() {
             showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
         }
 
+
+
+        
         // Package operations
         function openQuantityModal(product) {
             selectedProduct = product;
@@ -2557,6 +2615,10 @@ function initializeElements() {
             elements.quantityInput.focus();
         }
 
+
+
+
+        
         function confirmQuantity() {
             const quantity = parseInt(elements.quantityInput.value);
             
@@ -2581,11 +2643,18 @@ function initializeElements() {
             closeQuantityModal();
         }
 
+
+
+        
         function openManualEntry() {
             document.getElementById('manualModal').style.display = 'flex';
             document.getElementById('manualProduct').focus();
         }
 
+
+
+
+        
         function addManualProduct() {
             const product = document.getElementById('manualProduct').value.trim();
             const quantity = parseInt(document.getElementById('manualQuantity').value);
@@ -2610,6 +2679,9 @@ function initializeElements() {
             closeManualModal();
         }
 
+
+
+        
         async function completePackage() {
             if (!selectedCustomer) {
                 showAlert('Önce müşteri seçin', 'error');
@@ -2683,6 +2755,10 @@ function initializeElements() {
                 showAlert('Paket oluşturma hatası', 'error');
             }
         }
+
+
+
+        
             
       function selectPackage(pkg) {
     // Remove selected class from all rows
@@ -2720,6 +2796,10 @@ function initializeElements() {
     }
 }
 
+
+
+        
+
         // This function needs to be a global function
 function generateBarcode(text) {
     try {
@@ -2743,6 +2823,10 @@ function generateBarcode(text) {
         return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
     }
 } 
+
+
+
+        
         
 function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
@@ -2759,6 +2843,9 @@ function getSelectedPackage() {
     };
 }
 
+
+
+        
 async function printAllLabels() {
     // Find selected packages
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
@@ -2843,6 +2930,9 @@ async function printAllLabels() {
 
     console.log(`Print job completed: ${successCount} success, ${errorCount} errors`);
 }
+
+
+        
         
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
@@ -2876,6 +2966,9 @@ async function printAllLabels() {
             }
         }
 
+
+
+        
         function toggleSelectAll() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
             const selectAll = document.getElementById('selectAllPackages').checked;
@@ -2885,6 +2978,9 @@ async function printAllLabels() {
             });
         }
 
+
+        
+
         function updatePackageSelection() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
             const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
@@ -2892,6 +2988,10 @@ async function printAllLabels() {
             document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
         }
 
+
+
+
+        
         // Shipping operations
         async function sendToRamp(containerNo = null) {
             try {
@@ -2954,6 +3054,9 @@ async function printAllLabels() {
             }
         }
 
+
+
+        
         async function shipContainer(containerNo) {
             try {
                 // First get the container ID
@@ -2982,10 +3085,16 @@ async function printAllLabels() {
             }
         }
 
+
+        
+
         function filterShipping() {
             populateShippingTable();
         }
 
+
+
+        
         // Stock operations
 function searchStock() {
     if (!elements.stockSearch) {
@@ -3006,6 +3115,11 @@ function searchStock() {
         row.style.display = text.includes(searchTerm) ? '' : 'none';
     });
 }
+
+
+
+
+        
         function clearStockSearch() {
             elements.stockSearch.value = '';
             const rows = elements.stockTableBody.querySelectorAll('tr');
@@ -3013,6 +3127,9 @@ function searchStock() {
                 row.style.display = '';
             });
         }
+
+
+        
 
         // Stok şablonu indirme
         function downloadTemplate() {
@@ -3033,6 +3150,10 @@ function searchStock() {
             showAlert('Stok şablonu indirildi', 'success');
         }
 
+
+
+
+        
         // Stokları dışa aktarma
         function exportStock() {
             try {
@@ -3078,6 +3199,9 @@ function searchStock() {
             }
         }
 
+
+
+        
         async function uploadStockFile() {
             const fileInput = document.getElementById('stockFileUpload');
             const file = fileInput.files[0];
@@ -3157,6 +3281,10 @@ function searchStock() {
             }
         }
 
+
+
+
+        
         // Report operations
 async function generateDailyReport() {
     try {
@@ -3242,6 +3370,10 @@ if (!user) throw new Error('User not authenticated');
     }
 }
 
+
+
+
+        
 function closeEmailModal() {
     const modal = document.getElementById('emailModal');
     if (modal) {
@@ -3250,6 +3382,10 @@ function closeEmailModal() {
         console.warn('Email modal not found');
     }
 }
+
+
+
+
         
 // PDF Generation Function - Fixed version
 async function generatePDFReport(reportData) {
@@ -3421,6 +3557,10 @@ async function generatePDFReport(reportData) {
     });
 }
 
+
+
+        
+
 // Alternatif basit PDF oluşturma fonksiyonu (yedek)
 async function generateSimplePDFReport(reportData) {
     return new Promise((resolve, reject) => {
@@ -3452,6 +3592,10 @@ async function generateSimplePDFReport(reportData) {
         }
     });
 }
+
+
+
+        
 // Yardımcı fonksiyon: jsPDF versiyon kontrolü
 function checkJsPdfVersion() {
     if (typeof window.jspdf === 'undefined') {
@@ -3465,6 +3609,10 @@ function checkJsPdfVersion() {
     return true;
 }
 
+
+
+
+        
 // PDF oluşturmadan önce versiyon kontrolü yap
 async function generatePDFReportSafe(reportData) {
     if (!checkJsPdfVersion()) {
@@ -3473,6 +3621,10 @@ async function generatePDFReportSafe(reportData) {
     
     return await generatePDFReport(reportData);
 }
+
+
+
+        
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
     try {
@@ -3516,6 +3668,10 @@ async function setupStorageBucket() {
     }
 }
 
+
+
+
+        
 // Güncellenmiş upload fonksiyonu
 async function uploadReportToStorage(pdfBlob, reportData) {
     try {
@@ -3555,6 +3711,10 @@ async function uploadReportToStorage(pdfBlob, reportData) {
     }
 }
 
+
+
+
+        
 // EmailJS yapılandırma kontrolü
 function checkEmailJSConfig() {
     if (typeof emailjs === 'undefined') {
@@ -3571,6 +3731,10 @@ function checkEmailJSConfig() {
     }
 }
 
+
+
+
+        
 // Alternatif e-posta gönderim fonksiyonu (EmailJS yoksa)
 async function sendEmailFallback(email, subject, body, pdfBlob = null) {
     // Basit bir mailto: linki oluştur
@@ -3586,6 +3750,10 @@ async function sendEmailFallback(email, subject, body, pdfBlob = null) {
     }
 }
 
+
+
+
+        
 // Güncellenmiş e-posta gönderim fonksiyonu
 async function sendReportEmail(email, templateParams, pdfBlob = null) {
     try {
@@ -3640,6 +3808,10 @@ async function sendReportEmail(email, templateParams, pdfBlob = null) {
     }
 }
 
+
+
+
+        
 // Güncellenmiş sendDailyReport fonksiyonu
 async function sendDailyReport() {
     const emailInput = document.getElementById('reportEmail');
@@ -3760,6 +3932,10 @@ async function sendDailyReport() {
     }
 }
 
+
+
+
+        
 // Yardımcı fonksiyon: EmailJS yapılandırma modalı
 function showEmailJSConfigModal() {
     const modal = document.createElement('div');
@@ -3791,6 +3967,10 @@ function showEmailJSConfigModal() {
     document.body.appendChild(modal);
 }
 
+
+
+
+        
 // Uygulama başlangıcında storage'ı kontrol et
 async function initializeApp() {
     try {
@@ -3918,6 +4098,10 @@ async function initializeApp() {
         showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
     }
 });
+
+
+
+        
         
 async function previewReport() {
     if (!currentReportData) {
@@ -3946,6 +4130,10 @@ async function previewReport() {
         showAlert('Rapor önizlenemedi', 'error');
     }
 }
+
+
+
+        
 
         // Container operations
         function loadCurrentContainer() {
@@ -3983,6 +4171,11 @@ async function previewReport() {
                 showAlert('Konteyner oluşturulurken hata oluştu', 'error');
             }
         }
+
+
+
+
+        
 
         async function deleteContainer() {
             // Seçili konteynerleri al
@@ -4032,6 +4225,10 @@ async function previewReport() {
             }
         }
 
+
+
+        
+
         // Utility functions
         function switchTab(tabName) {
             // Hide all tab panes
@@ -4054,6 +4251,10 @@ async function previewReport() {
             }
         }
 
+
+
+        
+
         function closeAllModals() {
             document.getElementById('customerModal').style.display = 'none';
             document.getElementById('allCustomersModal').style.display = 'none';
@@ -4062,15 +4263,12 @@ async function previewReport() {
             document.getElementById('manualModal').style.display = 'none';
             document.getElementById('containerDetailModal').style.display = 'none';
         }
-
         function closeModal() {
             document.getElementById('customerModal').style.display = 'none';
         }
-
         function closeAllCustomersModal() {
             document.getElementById('allCustomersModal').style.display = 'none';
         }
-
         function closeQuantityModal() {
             document.getElementById('quantityModal').style.display = 'none';
         }
@@ -4088,6 +4286,10 @@ async function previewReport() {
     div.textContent = text;
     return div.innerHTML;
 }
+
+
+
+        
         // Initialize auth state listener
         function setupAuthListener() {
             if (!supabase) return;
@@ -4114,6 +4316,10 @@ async function previewReport() {
             });
         }
 
+
+
+
+        
         // Load API key from localStorage
         function loadApiKey() {
             const savedApiKey = localStorage.getItem('procleanApiKey');
@@ -4130,6 +4336,10 @@ async function previewReport() {
             showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
         });
 
+
+
+
+        
         // API hata yönetimi
        function handleSupabaseError(error, context) {
     console.error(`Supabase error in ${context}:`, error);
@@ -4283,6 +4493,10 @@ class PrinterService {
         // implement actual test print logic here
     }
 }
+
+
+
+        
         async printBarcode(barcode, text = '') {
         if (!this.isConnected) {
             console.error('❌ Printer not connected');
@@ -4404,11 +4618,18 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(generateBarcode, 1000);
 });
 
+
+
+        
 // Optional manual initialization
 function initializePrinter() {
     printer = new PrinterService();
     return printer;
 }
+
+
+
+        
 
 function checkPrinterStatus() {
     if (!printer) return false;
