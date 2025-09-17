@@ -2834,65 +2834,6 @@ class PrinterService {
         this.checkConnection();
     }
 
-    // Check if printer server is alive
-    async checkConnection() {
-        try {
-            const response = await fetch(`${this.serverUrl}/api/test`);
-            const data = await response.json();
-            if (response.ok) {
-                this.isConnected = true;
-                this.updateStatus('connected', '✅ Printer server connected');
-                console.log('✅ Printer server connected:', data);
-            } else {
-                this.isConnected = false;
-                this.updateStatus('error', '❌ Server responded with error');
-            }
-        } catch (error) {
-            this.isConnected = false;
-            this.updateStatus('error', '❌ Printer server not found');
-            console.error('❌ Printer server error:', error);
-        }
-    }
-
-    // Update UI indicator
-    updateStatus(status, message) {
-        const indicator = document.getElementById('printer-indicator');
-        const text = document.getElementById('printer-text');
-        if (indicator) indicator.textContent = status === 'connected' ? '🟢' : '🔴';
-        if (text) text.textContent = message;
-        console.log(`Printer status: ${status} - ${message}`);
-    }
-
-    // Show alerts on the page
-    showAlert(message, type = 'info', duration = 5000) {
-        const alertDiv = document.createElement('div');
-        alertDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 5px;
-            color: white;
-            z-index: 10000;
-            font-weight: 500;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            max-width: 400px;
-            background: ${type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : '#3498db'};
-        `;
-        alertDiv.textContent = message;
-        document.body.appendChild(alertDiv);
-        setTimeout(() => alertDiv.remove(), duration);
-    }
-
-    // Test print
-    async testPrint() {
-        console.log('🧪 Test print...');
-        const result = await this.printBarcode('TEST123456', 'Test Label ' + new Date().toLocaleTimeString());
-        if (result) this.showAlert('✅ Test print successful!', 'success');
-        else this.showAlert('❌ Test print failed!', 'error');
-        return result;
-    }
-
     // Print barcode + text
     async printBarcode(barcode, text = '') {
         if (!this.isConnected) {
@@ -4521,14 +4462,6 @@ async function previewReport() {
             }
         }
     });
-
-class PrinterService {
-    constructor() {
-        this.serverUrl = 'http://localhost:3001';
-        this.isConnected = false;
-        console.log('🖨️ Initializing printer service...');
-        this.checkConnection();
-    }
     
     async checkConnection() {
         try {
