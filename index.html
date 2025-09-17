@@ -4175,37 +4175,8 @@ async function previewReport() {
             }
         }
     });
-        // Sayfa yüklendiğinde çalışacak kod
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('📄 Sayfa yüklendi, yazıcı servisi başlatılıyor...');
-            
-            // Yazıcı servisini başlat
-            printer = new PrinterService();
-            
-            // Barkod oluşturma butonu
-            document.getElementById('generateBtn').addEventListener('click', generateBarcode);
-            
-            // Test yazdırma butonu
-            document.getElementById('testPrintBtn').addEventListener('click', function() {
-                if (printer) {
-                    printer.testPrint();
-                } else {
-                    alert('Yazıcı servisi başlatılmamış. Lütfen bekleyin...');
-                }
-            });
-            
-            // Yazdırma butonu
-            document.getElementById('printBtn').addEventListener('click', printBarcode);
-            
-            // İlk barkodu oluştur
-            setTimeout(generateBarcode, 1000);
-        });
-        // ==========================================
-// PRINTER SERVICE CLASS - Add this to your JavaScript
-// ==========================================
+     let printer = null;
 
-let printer = null;
-        
 class PrinterService {
     constructor() {
         this.serverUrl = 'http://localhost:3001';
@@ -4218,7 +4189,6 @@ class PrinterService {
         try {
             const response = await fetch(`${this.serverUrl}/api/test`);
             const data = await response.json();
-            
             if (response.ok) {
                 this.isConnected = true;
                 this.updateStatus('connected', '✅ Printer server connected');
@@ -4237,24 +4207,25 @@ class PrinterService {
     updateStatus(status, message) {
         const indicator = document.getElementById('printer-indicator');
         const text = document.getElementById('printer-text');
-        
         if (indicator && text) {
             indicator.textContent = status === 'connected' ? '🟢' : '🔴';
             text.textContent = message;
         }
-        
         console.log(`Printer status: ${status} - ${message}`);
     }
-// ==========================================
-// INITIALIZE PRINTER SERVICE - VERY IMPORTANT!
-// =========================================
+
+    async testPrint() {
+        console.log('🖨️ Test print called');
+        // implement actual test print logic here
+    }
+}
 
 // Initialize printer service when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 Page loaded, initializing printer service...');
     printer = new PrinterService();
-    
-    // Give it a moment to initialize
+
+    // Optional: give it a moment to initialize
     setTimeout(() => {
         if (printer && printer.isConnected) {
             console.log('✅ Printer service ready');
@@ -4262,78 +4233,29 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('⚠️ Printer service not connected - check Node.js server');
         }
     }, 2000);
+
+    // Attach button events
+    const generateBtn = document.getElementById('generateBtn');
+    const testPrintBtn = document.getElementById('testPrintBtn');
+    const printBtn = document.getElementById('printBtn');
+
+    if (generateBtn) generateBtn.addEventListener('click', generateBarcode);
+    if (testPrintBtn) testPrintBtn.addEventListener('click', () => printer.testPrint());
+    if (printBtn) printBtn.addEventListener('click', printBarcode);
+
+    // Initial barcode generation
+    setTimeout(generateBarcode, 1000);
 });
 
-// Alternative initialization if DOMContentLoaded doesn't work
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!printer) {
-            printer = new PrinterService();
-        }
-    });
-} else {
-    // DOM already loaded
-    if (!printer) {
-        printer = new PrinterService();
-    }
-}
-
-// ==========================================
-// FIXED PRINT ALL LABELS FUNCTION
-// ==========================================
-
-
-// ==========================================
-// TEST FUNCTIONS
-// ==========================================
-
-async function testPrinter() {
-    console.log('🧪 Test printer button clicked');
-    
-    if (!printer) {
-        console.log('⚠️ Printer not initialized, trying to initialize...');
-        printer = new PrinterService();
-        await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-    
-    const testBtn = document.getElementById('test-printer');
-    if (testBtn) {
-        const originalText = testBtn.textContent;
-        testBtn.disabled = true;
-        testBtn.textContent = 'Testing...';
-        
-        await printer.testPrint();
-        
-        testBtn.disabled = false;
-        testBtn.textContent = originalText;
-    } else {
-        await printer.testPrint();
-    }
-}
-
-// Check printer status
-function checkPrinterStatus() {
-    console.log('🔍 Checking printer status...');
-    
-    if (!printer) {
-        console.log('❌ Printer not defined');
-        return false;
-    }
-    
-    console.log(`📊 Printer status:`, {
-        defined: !!printer,
-        connected: printer.isConnected,
-        serverUrl: printer.serverUrl
-    });
-    
-    return printer.isConnected;
-}
-
-// Manual printer initialization (if needed)
+// Optional manual initialization
 function initializePrinter() {
-    console.log('🔄 Manually initializing printer...');
     printer = new PrinterService();
     return printer;
+}
+
+function checkPrinterStatus() {
+    if (!printer) return false;
+    return printer.isConnected;
 }
 
 console.log('📜 Printer service script loaded successfully');
