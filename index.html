@@ -1017,6 +1017,7 @@ let scannerMode = false;
 let currentContainerDetails = null;
 let currentReportData = null;
 let selectedPackageForPrinting = null;
+let printer;
 
 // EmailJS initialization
 (function() {
@@ -4218,10 +4219,6 @@ class PrinterService {
         
         console.log(`Printer status: ${status} - ${message}`);
     }
-    
-    
-        // Global printer değişkeni
-        let printer;
 
         // Sayfa yüklendiğinde çalışacak kod
         document.addEventListener('DOMContentLoaded', function() {
