@@ -2888,7 +2888,7 @@ class EnhancedPrinterService extends PrinterService {
             }
 
             if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
-
+         }
             try {
                 const packageIds = Array.from(checkboxes).map(cb => cb.value);
                 
