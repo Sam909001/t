@@ -2834,6 +2834,43 @@ class PrinterService {
         this.checkConnection();
     }
 
+     async checkConnection() {
+        try {
+            const response = await fetch(`${this.serverUrl}/api/test`);
+            const data = await response.json();
+            if (response.ok) {
+                this.isConnected = true;
+                this.updateStatus('connected', '✅ Printer server connected');
+                console.log('✅ Printer server connected:', data);
+            } else {
+                this.isConnected = false;
+                this.updateStatus('error', '❌ Server responded with error');
+            }
+        } catch (error) {
+            this.isConnected = false;
+            this.updateStatus('error', '❌ Printer server not found');
+            console.error('❌ Printer server error:', error);
+        }
+    }
+    
+    updateStatus(status, message) {
+        const indicator = document.getElementById('printer-indicator');
+        const text = document.getElementById('printer-text');
+        if (indicator && text) {
+            indicator.textContent = status === 'connected' ? '🟢' : '🔴';
+            text.textContent = message;
+        }
+        console.log(`Printer status: ${status} - ${message}`);
+    }
+
+    async testPrint() {
+        console.log('🖨️ Test print called');
+        // implement actual test print logic here
+    }
+}
+
+
+        
     // Print barcode + text
     async printBarcode(barcode, text = '') {
         if (!this.isConnected) {
@@ -4462,42 +4499,6 @@ async function previewReport() {
             }
         }
     });
-    
-    async checkConnection() {
-        try {
-            const response = await fetch(`${this.serverUrl}/api/test`);
-            const data = await response.json();
-            if (response.ok) {
-                this.isConnected = true;
-                this.updateStatus('connected', '✅ Printer server connected');
-                console.log('✅ Printer server connected:', data);
-            } else {
-                this.isConnected = false;
-                this.updateStatus('error', '❌ Server responded with error');
-            }
-        } catch (error) {
-            this.isConnected = false;
-            this.updateStatus('error', '❌ Printer server not found');
-            console.error('❌ Printer server error:', error);
-        }
-    }
-    
-    updateStatus(status, message) {
-        const indicator = document.getElementById('printer-indicator');
-        const text = document.getElementById('printer-text');
-        if (indicator && text) {
-            indicator.textContent = status === 'connected' ? '🟢' : '🔴';
-            text.textContent = message;
-        }
-        console.log(`Printer status: ${status} - ${message}`);
-    }
-
-    async testPrint() {
-        console.log('🖨️ Test print called');
-        // implement actual test print logic here
-    }
-}
-
 
 
         
