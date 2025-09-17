@@ -2806,37 +2806,36 @@ async function printAllLabelsWithProgress() {
 } 
 
         
-        async function deleteSelectedPackages() {
-            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-            if (checkboxes.length === 0) {
-                showAlert('Silinecek paket seçin', 'error');
-                return;
-            }
+      async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
 
-            if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
-         }
-            try {
-                const packageIds = Array.from(checkboxes).map(cb => cb.value);
-                
-                const { error } = await supabase
-                    .from('packages')
-                    .delete()
-                    .in('id', packageIds);
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
 
-                if (error) {
-                    console.error('Error deleting packages:', error);
-                    showAlert('Paketler silinirken hata: ' + error.message, 'error');
-                    return;
-                }
+    const packageIds = Array.from(checkboxes).map(cb => cb.value);
 
-                showAlert(`${packageIds.length} paket silindi`, 'success');
-                await populatePackagesTable();
-                
-            } catch (error) {
-                console.error('Error in deleteSelectedPackages:', error);
-                showAlert('Paket silme hatası', 'error');
-            }
+    try {
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
+
+        if (error) {
+            console.error('Error deleting packages:', error);
+            showAlert('Paketler silinirken hata: ' + error.message, 'error');
+            return;
         }
+
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+    } catch (err) {
+        console.error('Unexpected error:', err);
+        showAlert('Beklenmeyen bir hata oluştu: ' + err.message, 'error');
+    }
+}
 
         function toggleSelectAll() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
