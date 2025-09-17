@@ -3056,19 +3056,6 @@ function checkPrinterStatus() {
     return printer.isConnected;
 }
 
-// server.js
-const express = require('express');
-const bodyParser = require('body-parser');
-const PrinterService = require('./PrinterService.js'); // adjust path
-
-const app = express();
-const PORT = 3001;
-
-app.use(bodyParser.json());
-
-// Your printer initialization and routes here...
-
-
 let printer;
 let isPrinterReady = false;
 
