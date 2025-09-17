@@ -2930,14 +2930,13 @@ function generateBarcode(text) {
     try {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 
-        // Set proper width & height for professional scanning
         JsBarcode(svg, text, {
-            format: "CODE128",      // widely supported barcode type
+            format: "CODE128",      // scannable format
             lineColor: "#000",       // black bars
-            width: 3,                // width of a single bar (increase for scannability)
-            height: 80,              // height of the barcode
-            displayValue: true,      // show human-readable text below
-            fontSize: 16,            // font size for the text
+            width: 4,                // width of a single bar
+            height: 307,             // 3.2 inches in pixels
+            displayValue: true,      // show human-readable text
+            fontSize: 26,            // font size for text
             margin: 10               // padding around barcode
         });
 
@@ -2948,6 +2947,7 @@ function generateBarcode(text) {
         return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
     }
 }
+
 
 
 // ================== Table Package Selection ==================
