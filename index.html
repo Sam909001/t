@@ -1017,7 +1017,6 @@ let scannerMode = false;
 let currentContainerDetails = null;
 let currentReportData = null;
 let selectedPackageForPrinting = null;
-let printer;
 
 // EmailJS initialization
 (function() {
@@ -4205,6 +4204,8 @@ async function previewReport() {
 // PRINTER SERVICE CLASS - Add this to your JavaScript
 // ==========================================
 
+let printer = null;
+        
 class PrinterService {
     constructor() {
         this.serverUrl = 'http://localhost:3001';
