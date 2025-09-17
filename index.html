@@ -2657,28 +2657,37 @@ function initializeElements() {
 }
 
         // This function needs to be a global function
-function generateBarcode(text) {
-    try {
-        // Create an SVG element
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        
-        // Generate barcode using JsBarcode
-        JsBarcode(svg, text, {
-            format: "CODE128",
-            lineColor: "#000",
-            width: 2,
-            height: 40,
-            displayValue: true
-        });
-        
-        // Return the SVG as HTML string
-        return svg.outerHTML;
-        
-    } catch (error) {
-        console.error('Barkod oluşturma hatası:', error);
-        return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
-    }
-}
+function generateBarcode() {
+            const barcodeText = document.getElementById('barcodeText').value || 'PKG-123456';
+            const barcodeLabel = document.getElementById('barcodeLabel').value || 'Örnek Barkod';
+            const barcodeType = document.getElementById('barcodeType').value || 'CODE128';
+            
+            try {
+                // SVG elementini temizle
+                const barcodeSvg = document.getElementById('barcode');
+                barcodeSvg.innerHTML = '';
+                
+                // Yeni barkodu oluştur
+                JsBarcode(barcodeSvg, barcodeText, {
+                    format: barcodeType,
+                    lineColor: "#000",
+                    width: 2,
+                    height: 40,
+                    displayValue: true
+                });
+                
+                // Bilgi metnini güncelle
+                const barcodeInfo = document.querySelector('.barcode-info');
+                if (barcodeInfo) {
+                    barcodeInfo.textContent = `${barcodeLabel} | ${barcodeText}`;
+                }
+                
+                console.log('✅ Barkod oluşturuldu:', barcodeText);
+            } catch (error) {
+                console.error('❌ Barkod oluşturma hatası:', error);
+                alert('Barkod oluşturulurken hata oluştu: ' + error.message);
+            }
+        }
 
 function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
@@ -4260,20 +4269,87 @@ class PrinterService {
     }
     
     async testPrint() {
-        const testBarcode = '123456789';
-        const testText = `Test - ${new Date().toLocaleTimeString()}`;
-        console.log('🧪 Testing printer...');
-        const result = await this.printBarcode(testBarcode, testText);
-        
-        if (result) {
-            showAlert('✅ Test print successful!', 'success');
-        } else {
-            showAlert('❌ Test print failed!', 'error');
+                const testData = {
+                    barcode: 'TEST123456',
+                    text: 'Test Barkodu - ' + new Date().toLocaleTimeString(),
+                    format: 'CODE128',
+                    copies: 1
+                };
+                
+                console.log('🧪 Test yazdırma...');
+                const result = await this.printBarcode(testData);
+                
+                if (result) {
+                    this.showAlert('✅ Test yazdırma başarılı!', 'success');
+                } else {
+                    this.showAlert('❌ Test yazdırma başarısız!', 'error');
+                }
+                
+                return result;
+            }
+            
+            showAlert(message, type) {
+                // Basit bir alert kutusu oluştur
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 15px 20px;
+                    border-radius: 5px;
+                    color: white;
+                    z-index: 10000;
+                    font-weight: 500;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                    max-width: 400px;
+                `;
+                
+                if (type === 'success') {
+                    alertDiv.style.background = '#2ecc71';
+                } else {
+                    alertDiv.style.background = '#e74c3c';
+                }
+                
+                alertDiv.textContent = message;
+                document.body.appendChild(alertDiv);
+                
+                // 5 saniye sonra kaldır
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.parentNode.removeChild(alertDiv);
+                    }
+                }, 5000);
+            }
         }
-        
-        return result;
-    }
-}
+
+        // Global printer değişkeni
+        let printer;
+
+        // Sayfa yüklendiğinde çalışacak kod
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 Sayfa yüklendi, yazıcı servisi başlatılıyor...');
+            
+            // Yazıcı servisini başlat
+            printer = new PrinterService();
+            
+            // Barkod oluşturma butonu
+            document.getElementById('generateBtn').addEventListener('click', generateBarcode);
+            
+            // Test yazdırma butonu
+            document.getElementById('testPrintBtn').addEventListener('click', function() {
+                if (printer) {
+                    printer.testPrint();
+                } else {
+                    alert('Yazıcı servisi başlatılmamış. Lütfen bekleyin...');
+                }
+            });
+            
+            // Yazdırma butonu
+            document.getElementById('printBtn').addEventListener('click', printBarcode);
+            
+            // İlk barkodu oluştur
+            setTimeout(generateBarcode, 1000);
+        });
 
 // ==========================================
 // INITIALIZE PRINTER SERVICE - VERY IMPORTANT!
