@@ -2801,28 +2801,6 @@ function initializeElements() {
         
 
         // This function needs to be a global function
-function generateBarcode(text) {
-    try {
-        // Create an SVG element
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        
-        // Generate barcode using JsBarcode
-        JsBarcode(svg, text, {
-            format: "CODE128",
-            lineColor: "#000",
-            width: 2,
-            height: 40,
-            displayValue: true
-        });
-        
-        // Return the SVG as HTML string
-        return svg.outerHTML;
-        
-    } catch (error) {
-        console.error('Barkod oluşturma hatası:', error);
-        return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
-    }
-} 
 
 
 
@@ -2846,90 +2824,184 @@ function getSelectedPackage() {
 
 
         
-async function printAllLabels() {
-    // Find selected packages
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    
-    if (checkboxes.length === 0) {
-        showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
-        return;
+let printer = null;
+
+class PrinterService {
+    constructor(serverUrl = 'http://localhost:3001') {
+        this.serverUrl = serverUrl;
+        this.isConnected = false;
+        console.log('🖨️ Initializing printer service...');
+        this.checkConnection();
     }
 
-    // Check if printer service is available
-    if (!printer || !printer.isConnected) {
-        showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
-        return;
-    }
-
-    showAlert(`${checkboxes.length} paket etiketi yazdırılıyor... Lütfen bekleyin.`, 'info', 5000);
-
-    let successCount = 0;
-    let errorCount = 0;
-    const totalLabels = checkboxes.length;
-
-    // Print each selected package
-    for (let i = 0; i < checkboxes.length; i++) {
-        const cb = checkboxes[i];
-        
+    // Check if printer server is alive
+    async checkConnection() {
         try {
-            const row = cb.closest('tr');
-            if (!row) {
-                errorCount++;
-                continue;
-            }
-
-            // Extract package data from table row
-            const pkg = {
-                package_no: row.cells[1].textContent.trim(),
-                customer_name: row.cells[2].textContent.trim(),
-                product: row.cells[3].textContent.trim(),
-                created_at: row.cells[4].textContent.trim()
-            };
-
-            console.log(`Printing label ${i + 1}/${totalLabels}:`, pkg);
-
-            // Create label text (this will appear on the physical label)
-            const labelText = `${pkg.customer_name} - ${pkg.product}`;
-            
-            // Use package_no as barcode
-            const barcode = pkg.package_no;
-
-            // Send to printer via Node.js service
-            const printResult = await printer.printBarcode(barcode, labelText);
-
-            if (printResult) {
-                successCount++;
-                console.log(`✅ Label ${i + 1} printed successfully`);
+            const response = await fetch(`${this.serverUrl}/api/test`);
+            const data = await response.json();
+            if (response.ok) {
+                this.isConnected = true;
+                this.updateStatus('connected', '✅ Printer server connected');
+                console.log('✅ Printer server connected:', data);
             } else {
-                errorCount++;
-                console.log(`❌ Failed to print label ${i + 1}`);
+                this.isConnected = false;
+                this.updateStatus('error', '❌ Server responded with error');
             }
-
-            // Add delay between prints to avoid overwhelming the printer
-            if (i < checkboxes.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-            }
-
         } catch (error) {
-            console.error(`Error printing label ${i + 1}:`, error);
-            errorCount++;
-            
-            // Continue with next label even if one fails
-            continue;
+            this.isConnected = false;
+            this.updateStatus('error', '❌ Printer server not found');
+            console.error('❌ Printer server error:', error);
         }
     }
 
-    // Show final result
-    if (successCount > 0 && errorCount === 0) {
-        showAlert(`✅ ${successCount} etiket başarıyla yazdırıldı!`, 'success');
-    } else if (successCount > 0 && errorCount > 0) {
-        showAlert(`⚠️ ${successCount} etiket yazdırıldı, ${errorCount} hata oluştu.`, 'warning');
-    } else {
-        showAlert(`❌ Hiçbir etiket yazdırılamadı. ${errorCount} hata oluştu.`, 'error');
+    // Update UI indicator
+    updateStatus(status, message) {
+        const indicator = document.getElementById('printer-indicator');
+        const text = document.getElementById('printer-text');
+        if (indicator) indicator.textContent = status === 'connected' ? '🟢' : '🔴';
+        if (text) text.textContent = message;
+        console.log(`Printer status: ${status} - ${message}`);
     }
+
+    // Show alerts on the page
+    showAlert(message, type = 'info', duration = 5000) {
+        const alertDiv = document.createElement('div');
+        alertDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            z-index: 10000;
+            font-weight: 500;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+            background: ${type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : '#3498db'};
+        `;
+        alertDiv.textContent = message;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), duration);
+    }
+
+    // Test print
+    async testPrint() {
+        console.log('🧪 Test print...');
+        const result = await this.printBarcode('TEST123456', 'Test Label ' + new Date().toLocaleTimeString());
+        if (result) this.showAlert('✅ Test print successful!', 'success');
+        else this.showAlert('❌ Test print failed!', 'error');
+        return result;
+    }
+
+    // Print barcode + text
+    async printBarcode(barcode, text = '') {
+        if (!this.isConnected) {
+            console.error('❌ Printer not connected');
+            this.showAlert('Printer server is not connected. Please check Node.js server.', 'error');
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${this.serverUrl}/api/print/barcode`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ barcode, text, copies: 1 })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log(`✅ Print successful: ${barcode}`);
+                return true;
+            } else {
+                console.error(`❌ Print failed: ${result.error}`);
+                this.showAlert(`❌ Print failed: ${result.error}`, 'error');
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Print error:', error);
+            this.showAlert(`❌ Print error: ${error.message}`, 'error');
+            return false;
+        }
+    }
+}
+
+// Generate barcode SVG
+function generateBarcode(text) {
+    try {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        JsBarcode(svg, text, { format: "CODE128", lineColor: "#000", width: 2, height: 40, displayValue: true });
+        return svg.outerHTML;
+    } catch (error) {
+        console.error('Barkod oluşturma hatası:', error);
+        return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
+    }
+}
+
+// Get selected package from table
+function getSelectedPackage(row) {
+    return {
+        package_no: row.cells[1].textContent.trim(),
+        customer_name: row.cells[2].textContent.trim(),
+        product: row.cells[3].textContent.trim(),
+        created_at: row.cells[4].textContent.trim()
+    };
+}
+
+// Print all selected labels
+async function printAllLabels() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (!checkboxes.length) return printer.showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
+    if (!printer.isConnected) return printer.showAlert('Yazıcı servisi bağlı değil.', 'error');
+
+    printer.showAlert(`${checkboxes.length} paket etiketi yazdırılıyor...`, 'info', 5000);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < checkboxes.length; i++) {
+        const row = checkboxes[i].closest('tr');
+        if (!row) { errorCount++; continue; }
+
+        const pkg = getSelectedPackage(row);
+        const labelText = `${pkg.customer_name} - ${pkg.product}`;
+        const barcode = pkg.package_no;
+
+        const result = await printer.printBarcode(barcode, labelText);
+        if (result) successCount++; else errorCount++;
+
+        // 1-second delay between prints
+        if (i < checkboxes.length - 1) await new Promise(res => setTimeout(res, 1000));
+    }
+
+    if (successCount > 0 && errorCount === 0) printer.showAlert(`✅ ${successCount} etiket başarıyla yazdırıldı!`, 'success');
+    else if (successCount > 0 && errorCount > 0) printer.showAlert(`⚠️ ${successCount} etiket yazdırıldı, ${errorCount} hata oluştu.`, 'warning');
+    else printer.showAlert(`❌ Hiçbir etiket yazdırılamadı. ${errorCount} hata oluştu.`, 'error');
 
     console.log(`Print job completed: ${successCount} success, ${errorCount} errors`);
 }
+
+// Initialize printer service on page load
+document.addEventListener('DOMContentLoaded', () => {
+    printer = new PrinterService();
+
+    setTimeout(() => {
+        if (printer.isConnected) console.log('✅ Printer service ready');
+        else console.log('⚠️ Printer service not connected - check Node.js server');
+    }, 2000);
+
+    // Attach buttons
+    const generateBtn = document.getElementById('generateBtn');
+    const testPrintBtn = document.getElementById('testPrintBtn');
+    const printBtn = document.getElementById('printBtn');
+
+    if (generateBtn) generateBtn.addEventListener('click', () => {
+        const row = document.querySelector('#packagesTableBody tr.selected');
+        if (row) row.cells[1].innerHTML = generateBarcode(row.cells[1].textContent.trim());
+    });
+    if (testPrintBtn) testPrintBtn.addEventListener('click', () => printer.testPrint());
+    if (printBtn) printBtn.addEventListener('click', printAllLabels);
+});
 
 
         
@@ -4497,146 +4569,7 @@ class PrinterService {
 
 
         
-        async printBarcode(barcode, text = '') {
-        if (!this.isConnected) {
-            console.error('❌ Printer not connected');
-            showAlert('Printer server is not connected. Please check if the Node.js server is running.', 'error');
-            return false;
-        }
-        
-        try {
-            console.log(`🖨️ Printing: ${barcode} - ${text}`);
-            
-            const response = await fetch(`${this.serverUrl}/api/print/barcode`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    barcode: barcode,
-                    text: text,
-                    copies: 1
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log(`✅ Print successful: ${barcode}`);
-                return true;
-            } else {
-                console.error(`❌ Print failed: ${result.error}`);
-                showAlert(`❌ Print failed: ${result.error}`, 'error');
-                return false;
-            }
-            
-        } catch (error) {
-            console.error(`❌ Print error:`, error);
-            showAlert(`❌ Print error: ${error.message}`, 'error');
-            return false;
-        }
-    }
-    
-    async testPrint() {
-                const testData = {
-                    barcode: 'TEST123456',
-                    text: 'Test Barkodu - ' + new Date().toLocaleTimeString(),
-                    format: 'CODE128',
-                    copies: 1
-                };
-                
-                console.log('🧪 Test yazdırma...');
-                const result = await this.printBarcode(testData);
-                
-                if (result) {
-                    this.showAlert('✅ Test yazdırma başarılı!', 'success');
-                } else {
-                    this.showAlert('❌ Test yazdırma başarısız!', 'error');
-                }
-                
-                return result;
-            }
-            
-            showAlert(message, type) {
-                // Basit bir alert kutusu oluştur
-                const alertDiv = document.createElement('div');
-                alertDiv.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    padding: 15px 20px;
-                    border-radius: 5px;
-                    color: white;
-                    z-index: 10000;
-                    font-weight: 500;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-                    max-width: 400px;
-                `;
-                
-                if (type === 'success') {
-                    alertDiv.style.background = '#2ecc71';
-                } else {
-                    alertDiv.style.background = '#e74c3c';
-                }
-                
-                alertDiv.textContent = message;
-                document.body.appendChild(alertDiv);
-                
-                // 5 saniye sonra kaldır
-                setTimeout(() => {
-                    if (alertDiv.parentNode) {
-                        alertDiv.parentNode.removeChild(alertDiv);
-                    }
-                }, 5000);
-            }
-        }
-
-// Initialize printer service when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 Page loaded, initializing printer service...');
-    printer = new PrinterService();
-
-    // Optional: give it a moment to initialize
-    setTimeout(() => {
-        if (printer && printer.isConnected) {
-            console.log('✅ Printer service ready');
-        } else {
-            console.log('⚠️ Printer service not connected - check Node.js server');
-        }
-    }, 2000);
-
-    // Attach button events
-    const generateBtn = document.getElementById('generateBtn');
-    const testPrintBtn = document.getElementById('testPrintBtn');
-    const printBtn = document.getElementById('printBtn');
-
-    if (generateBtn) generateBtn.addEventListener('click', generateBarcode);
-    if (testPrintBtn) testPrintBtn.addEventListener('click', () => printer.testPrint());
-    if (printBtn) printBtn.addEventListener('click', printBarcode);
-
-    // Initial barcode generation
-    setTimeout(generateBarcode, 1000);
-});
-
-
-
-        
-// Optional manual initialization
-function initializePrinter() {
-    printer = new PrinterService();
-    return printer;
-}
-
-
-
-        
-
-function checkPrinterStatus() {
-    if (!printer) return false;
-    return printer.isConnected;
-}
-
-console.log('📜 Printer service script loaded successfully');
+      
     </script>
 </body>
 </html>
