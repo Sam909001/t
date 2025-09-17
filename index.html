@@ -2698,24 +2698,21 @@ function getSelectedPackage() {
         
 
 
-// ==========================================
-// PRINTER SERVICE CLASS - Add this to your JavaScript
-// ==========================================
-
+// frontend.js
 class PrinterService {
-    constructor() {
-        this.serverUrl = 'http://localhost:3001';
+    constructor(serverUrl = 'http://localhost:3001') {
+        this.serverUrl = serverUrl;
         this.isConnected = false;
         console.log('🖨️ Initializing printer service...');
         this.checkConnection();
     }
-    
+
     async checkConnection() {
         try {
-            const response = await fetch(`${this.serverUrl}/api/test`);
-            const data = await response.json();
-            
-            if (response.ok) {
+            const res = await fetch(`${this.serverUrl}/api/test`);
+            const data = await res.json();
+
+            if (res.ok) {
                 this.isConnected = true;
                 this.updateStatus('connected', '✅ Printer server connected');
                 console.log('✅ Printer server connected:', data);
@@ -2723,410 +2720,78 @@ class PrinterService {
                 this.isConnected = false;
                 this.updateStatus('error', '❌ Server responded with error');
             }
-        } catch (error) {
+        } catch (err) {
             this.isConnected = false;
             this.updateStatus('error', '❌ Printer server not found');
-            console.error('❌ Printer server error:', error);
+            console.error('❌ Printer server error:', err);
         }
     }
-    
+
     updateStatus(status, message) {
         const indicator = document.getElementById('printer-indicator');
         const text = document.getElementById('printer-text');
-        
-        if (indicator && text) {
-            indicator.textContent = status === 'connected' ? '🟢' : '🔴';
-            text.textContent = message;
-        }
-        
+
+        if (indicator) indicator.textContent = status === 'connected' ? '🟢' : '🔴';
+        if (text) text.textContent = message;
+
         console.log(`Printer status: ${status} - ${message}`);
     }
-    
+
     async printBarcode(barcode, text = '') {
         if (!this.isConnected) {
             console.error('❌ Printer not connected');
-            showAlert('Printer server is not connected. Please check if the Node.js server is running.', 'error');
+            alert('Printer server is not connected. Please check if the Node.js server is running.');
             return false;
         }
-        
+
         try {
-            console.log(`🖨️ Printing: ${barcode} - ${text}`);
-            
-            const response = await fetch(`${this.serverUrl}/api/print/barcode`, {
+            const res = await fetch(`${this.serverUrl}/api/print/barcode`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    barcode: barcode,
-                    text: text,
-                    copies: 1
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ barcode, text })
             });
-            
-            const result = await response.json();
-            
+            const result = await res.json();
+
             if (result.success) {
                 console.log(`✅ Print successful: ${barcode}`);
                 return true;
             } else {
                 console.error(`❌ Print failed: ${result.error}`);
-                showAlert(`❌ Print failed: ${result.error}`, 'error');
+                alert(`❌ Print failed: ${result.error}`);
                 return false;
             }
-            
-        } catch (error) {
-            console.error(`❌ Print error:`, error);
-            showAlert(`❌ Print error: ${error.message}`, 'error');
+        } catch (err) {
+            console.error('❌ Print error:', err);
+            alert(`❌ Print error: ${err.message}`);
             return false;
         }
     }
-    
-    async testPrint() {
-        const testBarcode = '123456789';
-        const testText = `Test - ${new Date().toLocaleTimeString()}`;
-        console.log('🧪 Testing printer...');
-        const result = await this.printBarcode(testBarcode, testText);
-        
-        if (result) {
-            showAlert('✅ Test print successful!', 'success');
-        } else {
-            showAlert('❌ Test print failed!', 'error');
-        }
-        
-        return result;
-    }
 }
 
-// ==========================================
-// INITIALIZE PRINTER SERVICE - VERY IMPORTANT!
-// ==========================================
-
-// Create the global printer variable
+// Global printer instance
 let printer;
 
-// Initialize printer service when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 Page loaded, initializing printer service...');
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
     printer = new PrinterService();
-    
-    // Give it a moment to initialize
-    setTimeout(() => {
-        if (printer && printer.isConnected) {
-            console.log('✅ Printer service ready');
-        } else {
-            console.log('⚠️ Printer service not connected - check Node.js server');
-        }
-    }, 2000);
 });
 
-// Alternative initialization if DOMContentLoaded doesn't work
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!printer) {
-            printer = new PrinterService();
-        }
-    });
-} else {
-    // DOM already loaded
-    if (!printer) {
-        printer = new PrinterService();
-    }
-}
-
-// ==========================================
-// FIXED PRINT ALL LABELS FUNCTION
-// ==========================================
-
+// Example: print all selected labels
 async function printAllLabelsWithProgress() {
-    console.log('🚀 Starting printAllLabels function...');
-    
-    // Check if printer is defined
-    if (typeof printer === 'undefined' || !printer) {
-        console.error('❌ Printer service not initialized');
-        showAlert('Yazıcı servisi başlatılmamış. Sayfayı yenileyin ve tekrar deneyin.', 'error');
-        
-        // Try to initialize printer now
-        try {
-            printer = new PrinterService();
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
-            
-            if (!printer.isConnected) {
-                showAlert('Yazıcı servisi bağlanamadı. Node.js sunucusunun çalıştığından emin olun.', 'error');
-                return;
-            }
-        } catch (error) {
-            console.error('Failed to initialize printer:', error);
-            showAlert('Yazıcı servisi başlatılamadı: ' + error.message, 'error');
-            return;
-        }
-    }
-    
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    console.log(`📦 Found ${checkboxes.length} selected packages`);
-    
-    if (checkboxes.length === 0) {
-        showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
-        return;
+    if (checkboxes.length === 0) return alert('Select at least one package.');
+
+    for (let cb of checkboxes) {
+        const row = cb.closest('tr');
+        const pkgNo = row.cells[1]?.textContent.trim();
+        const text = row.cells[2]?.textContent.trim() + ' - ' + row.cells[3]?.textContent.trim();
+        await printer.printBarcode(pkgNo, text);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
     }
 
-    if (!printer.isConnected) {
-        showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
-        
-        // Try to reconnect
-        console.log('🔄 Attempting to reconnect...');
-        await printer.checkConnection();
-        
-        if (!printer.isConnected) {
-            return;
-        }
-    }
-
-    const totalLabels = checkboxes.length;
-    let processedLabels = 0;
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Create progress indicator
-    const progressDiv = document.createElement('div');
-    progressDiv.id = 'print-progress';
-    progressDiv.innerHTML = `
-        <div style="position: fixed; top: 20px; right: 20px; background: #fff; 
-                    border: 2px solid #007bff; border-radius: 8px; padding: 15px; 
-                    box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 9999; min-width: 300px;">
-            <h4 style="margin: 0 0 10px 0; color: #007bff;">🖨️ Etiketler Yazdırılıyor</h4>
-            <div style="margin: 5px 0;">
-                <span id="progress-text">0 / ${totalLabels} etiket yazdırıldı</span>
-            </div>
-            <div style="background: #e9ecef; border-radius: 4px; height: 8px; margin: 10px 0;">
-                <div id="progress-bar" style="background: #007bff; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;"></div>
-            </div>
-            <div id="current-label" style="font-size: 12px; color: #666; margin-top: 5px;">Hazırlanıyor...</div>
-            <button onclick="document.getElementById('print-progress').remove()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-top: 10px;">İptal</button>
-        </div>
-    `;
-    document.body.appendChild(progressDiv);
-
-    function updateProgress() {
-        const progressText = document.getElementById('progress-text');
-        const progressBar = document.getElementById('progress-bar');
-        
-        if (progressText) progressText.textContent = `${processedLabels} / ${totalLabels} etiket yazdırıldı`;
-        if (progressBar) progressBar.style.width = `${(processedLabels / totalLabels) * 100}%`;
-    }
-
-    try {
-        console.log(`🖨️ Starting to print ${totalLabels} labels...`);
-        
-        for (let i = 0; i < checkboxes.length; i++) {
-            const cb = checkboxes[i];
-            
-            const currentLabelDiv = document.getElementById('current-label');
-            if (currentLabelDiv) {
-                currentLabelDiv.textContent = `İşleniyor: ${i + 1}. etiket...`;
-            }
-
-            try {
-                const row = cb.closest('tr');
-                if (!row) {
-                    console.warn(`⚠️ Row not found for checkbox ${i}`);
-                    errorCount++;
-                    processedLabels++;
-                    updateProgress();
-                    continue;
-                }
-
-                // Extract data from table row
-                const pkg = {
-                    package_no: row.cells[1]?.textContent?.trim() || 'NO_BARCODE',
-                    customer_name: row.cells[2]?.textContent?.trim() || 'NO_CUSTOMER',
-                    product: row.cells[3]?.textContent?.trim() || 'NO_PRODUCT',
-                    created_at: row.cells[4]?.textContent?.trim() || 'NO_DATE'
-                };
-
-                console.log(`📦 Processing package ${i + 1}:`, pkg);
-
-                if (currentLabelDiv) {
-                    currentLabelDiv.textContent = `Yazdırılıyor: ${pkg.package_no} - ${pkg.customer_name}`;
-                }
-
-                const labelText = `${pkg.customer_name} - ${pkg.product}`;
-                const barcode = pkg.package_no;
-
-                const printResult = await printer.printBarcode(barcode, labelText);
-
-                if (printResult) {
-                    successCount++;
-                    console.log(`✅ Label ${i + 1} printed successfully`);
-                } else {
-                    errorCount++;
-                    console.log(`❌ Failed to print label ${i + 1}`);
-                }
-
-                processedLabels++;
-                updateProgress();
-
-                // Delay between prints
-                if (i < checkboxes.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                }
-
-            } catch (error) {
-                console.error(`❌ Error processing label ${i + 1}:`, error);
-                errorCount++;
-                processedLabels++;
-                updateProgress();
-                continue;
-            }
-        }
-
-        // Final status update
-        const currentLabelDiv = document.getElementById('current-label');
-        if (currentLabelDiv) {
-            currentLabelDiv.textContent = `Tamamlandı! ${successCount} başarılı, ${errorCount} hata`;
-        }
-
-        setTimeout(() => {
-            if (successCount > 0 && errorCount === 0) {
-                showAlert(`✅ ${successCount} etiket başarıyla yazdırıldı!`, 'success');
-            } else if (successCount > 0 && errorCount > 0) {
-                showAlert(`⚠️ ${successCount} etiket yazdırıldı, ${errorCount} hata oluştu.`, 'warning');
-            } else {
-                showAlert(`❌ Hiçbir etiket yazdırılamadı. ${errorCount} hata oluştu.`, 'error');
-            }
-
-            setTimeout(() => {
-                const progressDiv = document.getElementById('print-progress');
-                if (progressDiv) progressDiv.remove();
-            }, 3000);
-        }, 1000);
-
-    } catch (error) {
-        console.error('❌ Print all labels error:', error);
-        showAlert('Yazdırma işlemi sırasında hata oluştu: ' + error.message, 'error');
-        
-        const progressDiv = document.getElementById('print-progress');
-        if (progressDiv) progressDiv.remove();
-    }
+    alert('✅ Printing done.');
 }
 
-// ==========================================
-// TEST FUNCTIONS
-// ==========================================
-
-async function testPrinter() {
-    console.log('🧪 Test printer button clicked');
-    
-    if (!printer) {
-        console.log('⚠️ Printer not initialized, trying to initialize...');
-        printer = new PrinterService();
-        await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-    
-    const testBtn = document.getElementById('test-printer');
-    if (testBtn) {
-        const originalText = testBtn.textContent;
-        testBtn.disabled = true;
-        testBtn.textContent = 'Testing...';
-        
-        await printer.testPrint();
-        
-        testBtn.disabled = false;
-        testBtn.textContent = originalText;
-    } else {
-        await printer.testPrint();
-    }
-}
-
-// Check printer status
-function checkPrinterStatus() {
-    console.log('🔍 Checking printer status...');
-    
-    if (!printer) {
-        console.log('❌ Printer not defined');
-        return false;
-    }
-    
-    console.log(`📊 Printer status:`, {
-        defined: !!printer,
-        connected: printer.isConnected,
-        serverUrl: printer.serverUrl
-    });
-    
-    return printer.isConnected;
-}
-
-let printer;
-let isPrinterReady = false;
-
-// -------------------------
-// Initialize Printer Service
-// -------------------------
-async function initializePrinter() {
-    console.log('🔄 Initializing printer service...');
-    printer = new PrinterService();
-
-    try {
-        await printer.connect(); // connect/init your printer
-        isPrinterReady = true;
-        console.log('✅ Printer connected successfully');
-    } catch (err) {
-        isPrinterReady = false;
-        console.error('❌ Printer initialization failed:', err);
-    }
-}
-
-// Initialize printer on server start
-initializePrinter();
-
-// -------------------------
-// Print Barcode API
-// -------------------------
-app.post('/api/print/barcode', async (req, res) => {
-    try {
-        if (!printer || !isPrinterReady) {
-            return res.status(500).json({ error: 'Printer not initialized' });
-        }
-
-        const { barcode, labelText } = req.body;
-        if (!barcode || !labelText) {
-            return res.status(400).json({ error: 'Missing barcode or labelText' });
-        }
-
-        console.log(`📦 Printing label: "${barcode}" with text: "${labelText}"`);
-
-        const result = await printer.printBarcode(barcode, labelText);
-
-        if (result) {
-            console.log('🖨️ Print successful');
-            res.json({ success: true });
-        } else {
-            console.error('❌ Print failed');
-            res.status(500).json({ error: 'Print failed' });
-        }
-    } catch (err) {
-        console.error('❌ Print API error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// -------------------------
-// Optional: Re-initialize printer via API
-// -------------------------
-app.post('/api/printer/reconnect', async (req, res) => {
-    try {
-        await initializePrinter();
-        if (isPrinterReady) res.json({ success: true, message: 'Printer reconnected' });
-        else res.status(500).json({ success: false, message: 'Failed to reconnect printer' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// -------------------------
-app.listen(PORT, () => {
-    console.log(`🖨️ Printer server running at http://localhost:${PORT}`);
-});
         
       async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
