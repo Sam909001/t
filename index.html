@@ -2826,6 +2826,12 @@ function getSelectedPackage() {
         
 let printer = null;
 
+
+
+     
+
+
+// ================== Printer Service Class ==================
 class PrinterService {
     constructor(serverUrl = 'http://localhost:3001') {
         this.serverUrl = serverUrl;
@@ -2834,7 +2840,8 @@ class PrinterService {
         this.checkConnection();
     }
 
-     async checkConnection() {
+    // Check printer server connection
+    async checkConnection() {
         try {
             const response = await fetch(`${this.serverUrl}/api/test`);
             const data = await response.json();
@@ -2852,25 +2859,39 @@ class PrinterService {
             console.error('❌ Printer server error:', error);
         }
     }
-    
+
+    // Update UI status
     updateStatus(status, message) {
         const indicator = document.getElementById('printer-indicator');
         const text = document.getElementById('printer-text');
-        if (indicator && text) {
-            indicator.textContent = status === 'connected' ? '🟢' : '🔴';
-            text.textContent = message;
-        }
+        if (indicator) indicator.textContent = status === 'connected' ? '🟢' : '🔴';
+        if (text) text.textContent = message;
         console.log(`Printer status: ${status} - ${message}`);
     }
 
-    async testPrint() {
-        console.log('🖨️ Test print called');
-        // implement actual test print logic here
+    // Show alert message
+    showAlert(message, type = 'info', duration = 5000) {
+        const alertDiv = document.createElement('div');
+        alertDiv.style.cssText = `
+            position: fixed; top: 20px; right: 20px; padding: 15px 20px;
+            border-radius: 5px; color: white; z-index: 10000; font-weight: 500;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px;
+            background: ${type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : '#3498db'};
+        `;
+        alertDiv.textContent = message;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), duration);
     }
-}
 
+    // Test print
+    async testPrint() {
+        console.log('🧪 Test print...');
+        const result = await this.printBarcode('TEST123456', 'Test Label ' + new Date().toLocaleTimeString());
+        if (result) this.showAlert('✅ Test print successful!', 'success');
+        else this.showAlert('❌ Test print failed!', 'error');
+        return result;
+    }
 
-        
     // Print barcode + text
     async printBarcode(barcode, text = '') {
         if (!this.isConnected) {
@@ -2904,7 +2925,7 @@ class PrinterService {
     }
 }
 
-// Generate barcode SVG
+// ================== Barcode Generator ==================
 function generateBarcode(text) {
     try {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -2916,7 +2937,7 @@ function generateBarcode(text) {
     }
 }
 
-// Get selected package from table
+// ================== Table Package Selection ==================
 function getSelectedPackage(row) {
     return {
         package_no: row.cells[1].textContent.trim(),
@@ -2926,7 +2947,7 @@ function getSelectedPackage(row) {
     };
 }
 
-// Print all selected labels
+// ================== Print All Selected Labels ==================
 async function printAllLabels() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     if (!checkboxes.length) return printer.showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
@@ -2948,7 +2969,6 @@ async function printAllLabels() {
         const result = await printer.printBarcode(barcode, labelText);
         if (result) successCount++; else errorCount++;
 
-        // 1-second delay between prints
         if (i < checkboxes.length - 1) await new Promise(res => setTimeout(res, 1000));
     }
 
@@ -2959,7 +2979,7 @@ async function printAllLabels() {
     console.log(`Print job completed: ${successCount} success, ${errorCount} errors`);
 }
 
-// Initialize printer service on page load
+// ================== Initialize on Page Load ==================
 document.addEventListener('DOMContentLoaded', () => {
     printer = new PrinterService();
 
@@ -2968,7 +2988,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else console.log('⚠️ Printer service not connected - check Node.js server');
     }, 2000);
 
-    // Attach buttons
+    // Attach button events
     const generateBtn = document.getElementById('generateBtn');
     const testPrintBtn = document.getElementById('testPrintBtn');
     const printBtn = document.getElementById('printBtn');
@@ -2977,6 +2997,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = document.querySelector('#packagesTableBody tr.selected');
         if (row) row.cells[1].innerHTML = generateBarcode(row.cells[1].textContent.trim());
     });
+
     if (testPrintBtn) testPrintBtn.addEventListener('click', () => printer.testPrint());
     if (printBtn) printBtn.addEventListener('click', printAllLabels);
 });
@@ -4499,10 +4520,6 @@ async function previewReport() {
             }
         }
     });
-
-
-        
-      
     </script>
 </body>
 </html>
