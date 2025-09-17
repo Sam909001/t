@@ -4176,6 +4176,31 @@ async function previewReport() {
             }
         }
     });
+        // Sayfa yüklendiğinde çalışacak kod
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 Sayfa yüklendi, yazıcı servisi başlatılıyor...');
+            
+            // Yazıcı servisini başlat
+            printer = new PrinterService();
+            
+            // Barkod oluşturma butonu
+            document.getElementById('generateBtn').addEventListener('click', generateBarcode);
+            
+            // Test yazdırma butonu
+            document.getElementById('testPrintBtn').addEventListener('click', function() {
+                if (printer) {
+                    printer.testPrint();
+                } else {
+                    alert('Yazıcı servisi başlatılmamış. Lütfen bekleyin...');
+                }
+            });
+            
+            // Yazdırma butonu
+            document.getElementById('printBtn').addEventListener('click', printBarcode);
+            
+            // İlk barkodu oluştur
+            setTimeout(generateBarcode, 1000);
+        });
         // ==========================================
 // PRINTER SERVICE CLASS - Add this to your JavaScript
 // ==========================================
@@ -4219,33 +4244,6 @@ class PrinterService {
         
         console.log(`Printer status: ${status} - ${message}`);
     }
-
-        // Sayfa yüklendiğinde çalışacak kod
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('📄 Sayfa yüklendi, yazıcı servisi başlatılıyor...');
-            
-            // Yazıcı servisini başlat
-            printer = new PrinterService();
-            
-            // Barkod oluşturma butonu
-            document.getElementById('generateBtn').addEventListener('click', generateBarcode);
-            
-            // Test yazdırma butonu
-            document.getElementById('testPrintBtn').addEventListener('click', function() {
-                if (printer) {
-                    printer.testPrint();
-                } else {
-                    alert('Yazıcı servisi başlatılmamış. Lütfen bekleyin...');
-                }
-            });
-            
-            // Yazdırma butonu
-            document.getElementById('printBtn').addEventListener('click', printBarcode);
-            
-            // İlk barkodu oluştur
-            setTimeout(generateBarcode, 1000);
-        });
-
 // ==========================================
 // INITIALIZE PRINTER SERVICE - VERY IMPORTANT!
 // =========================================
