@@ -4283,6 +4283,99 @@ class PrinterService {
         // implement actual test print logic here
     }
 }
+        async printBarcode(barcode, text = '') {
+        if (!this.isConnected) {
+            console.error('❌ Printer not connected');
+            showAlert('Printer server is not connected. Please check if the Node.js server is running.', 'error');
+            return false;
+        }
+        
+        try {
+            console.log(`🖨️ Printing: ${barcode} - ${text}`);
+            
+            const response = await fetch(`${this.serverUrl}/api/print/barcode`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    barcode: barcode,
+                    text: text,
+                    copies: 1
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Print successful: ${barcode}`);
+                return true;
+            } else {
+                console.error(`❌ Print failed: ${result.error}`);
+                showAlert(`❌ Print failed: ${result.error}`, 'error');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error(`❌ Print error:`, error);
+            showAlert(`❌ Print error: ${error.message}`, 'error');
+            return false;
+        }
+    }
+    
+    async testPrint() {
+                const testData = {
+                    barcode: 'TEST123456',
+                    text: 'Test Barkodu - ' + new Date().toLocaleTimeString(),
+                    format: 'CODE128',
+                    copies: 1
+                };
+                
+                console.log('🧪 Test yazdırma...');
+                const result = await this.printBarcode(testData);
+                
+                if (result) {
+                    this.showAlert('✅ Test yazdırma başarılı!', 'success');
+                } else {
+                    this.showAlert('❌ Test yazdırma başarısız!', 'error');
+                }
+                
+                return result;
+            }
+            
+            showAlert(message, type) {
+                // Basit bir alert kutusu oluştur
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 15px 20px;
+                    border-radius: 5px;
+                    color: white;
+                    z-index: 10000;
+                    font-weight: 500;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                    max-width: 400px;
+                `;
+                
+                if (type === 'success') {
+                    alertDiv.style.background = '#2ecc71';
+                } else {
+                    alertDiv.style.background = '#e74c3c';
+                }
+                
+                alertDiv.textContent = message;
+                document.body.appendChild(alertDiv);
+                
+                // 5 saniye sonra kaldır
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.parentNode.removeChild(alertDiv);
+                    }
+                }, 5000);
+            }
+        }
 
 // Initialize printer service when page loads
 document.addEventListener('DOMContentLoaded', function() {
