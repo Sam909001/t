@@ -2929,13 +2929,26 @@ class PrinterService {
 function generateBarcode(text) {
     try {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        JsBarcode(svg, text, { format: "CODE128", lineColor: "#000", width: 2, height: 40, displayValue: true });
+
+        // Set proper width & height for professional scanning
+        JsBarcode(svg, text, {
+            format: "CODE128",      // widely supported barcode type
+            lineColor: "#000",       // black bars
+            width: 3,                // width of a single bar (increase for scannability)
+            height: 80,              // height of the barcode
+            displayValue: true,      // show human-readable text below
+            fontSize: 16,            // font size for the text
+            margin: 10               // padding around barcode
+        });
+
         return svg.outerHTML;
+
     } catch (error) {
         console.error('Barkod oluşturma hatası:', error);
         return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
     }
 }
+
 
 // ================== Table Package Selection ==================
 function getSelectedPackage(row) {
