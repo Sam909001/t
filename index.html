@@ -1018,6 +1018,7 @@ let scannerMode = false;
 let currentContainerDetails = null;
 let currentReportData = null;
 let selectedPackageForPrinting = null;
+let supabase;
 
 // EmailJS initialization
 (function() {
@@ -4047,79 +4048,61 @@ function showEmailJSConfigModal() {
 
 
         
-// Uygulama başlangıcında storage'ı kontrol et
+// Global variables
+let isConnectionAlertShown = false;
+
+// ------------------ App Initialization ------------------
 async function initializeApp() {
     try {
-        // Storage bucket'ı kontrol et ve gerekirse oluştur
         await setupStorageBucket();
-        
-        // Diğer başlangıç işlemleri...
         console.log('Uygulama başlatıldı');
-        
     } catch (error) {
         console.warn('Başlangıç hatası:', error);
     }
 }
 
-// Uygulama yüklendiğinde storage'ı kontrol et
-    document.addEventListener('DOMContentLoaded', function() {
+// ------------------ DOMContentLoaded ------------------
+document.addEventListener('DOMContentLoaded', function () {
     try {
         console.log('Initializing ProClean application...');
-        
-        // Initialize elements first
+
+        // Initialize elements
         initializeElementsObject();
-        
-        // Check critical elements exist before adding listeners
+
+        // Buttons
         const loginBtn = elements.loginButton;
+        const logoutBtn = document.getElementById('logoutBtn');
         const emailInput = elements.emailInput;
         const passwordInput = elements.passwordInput;
-        
-        if (loginBtn) {
-            loginBtn.addEventListener('click', login);
-            console.log('Login button listener added');
-        } else {
-            console.error('Login button not found - check HTML structure');
-            showAlert('Giriş butonu bulunamadı', 'error');
-        }
-        
-        // Logout button
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', logout);
-        }
-        
+
+        if (loginBtn) loginBtn.addEventListener('click', login);
+        if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
         // Enter key listeners
-        if (emailInput) {
-            emailInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    login();
-                }
+        [emailInput, passwordInput, elements.quantityInput, elements.barcodeInput].forEach(input => {
+            if (input) {
+                input.addEventListener('keypress', e => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (input === elements.quantityInput) confirmQuantity();
+                        else if (input === elements.barcodeInput) processBarcode();
+                        else login();
+                    }
+                });
+            }
+        });
+
+        // Tab click events
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function () {
+                const tabName = this.getAttribute('data-tab');
+                switchTab(tabName);
             });
-        }
-        
-        if (passwordInput) {
-            passwordInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    login();
-                }
-            });
-        }
-        
-        // Quantity modal enter key
-        if (elements.quantityInput) {
-            elements.quantityInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    confirmQuantity();
-                }
-            });
-        }
-        
+        });
+
         // Customer select change listener
         if (elements.customerSelect) {
-            elements.customerSelect.addEventListener('change', function() {
+            elements.customerSelect.addEventListener('change', function () {
                 const customerId = this.value;
                 if (customerId) {
                     const selectedOption = this.options[this.selectedIndex];
@@ -4134,410 +4117,198 @@ async function initializeApp() {
                 }
             });
         }
-        
-        // Tab click events
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                const tabName = this.getAttribute('data-tab');
-                if (tabName) {
-                    switchTab(tabName);
-                }
-            });
-        });
-        
-        // API key initialization
+
+        // API key / Supabase init
         if (loadApiKey()) {
             supabase = initializeSupabase();
-            if (supabase) {
-                setupAuthListener();
-                console.log('Supabase client initialized successfully');
-            } else {
-                console.warn('Failed to initialize Supabase client');
-            }
-        } else {
-            console.log('No saved API key found, showing API key modal');
-            showApiKeyModal();
-        }
-        
-        // Set initial display states
-        if (elements.loginScreen) {
-            elements.loginScreen.style.display = 'flex';
-        }
-        if (elements.appContainer) {
-            elements.appContainer.style.display = 'none';
-        }
-        
+            if (supabase) setupAuthListener();
+            else console.warn('Failed to initialize Supabase client');
+        } else showApiKeyModal();
+
+        // Initial UI state
+        if (elements.loginScreen) elements.loginScreen.style.display = 'flex';
+        if (elements.appContainer) elements.appContainer.style.display = 'none';
+
         console.log('ProClean application initialized successfully');
-        
     } catch (error) {
         console.error('Critical error during DOMContentLoaded:', error);
         showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
     }
+
+    // Packages table checkbox listener
+    const tableBody = document.getElementById('packagesTableBody');
+    if (tableBody) {
+        tableBody.addEventListener('change', event => {
+            if (event.target.type === 'checkbox') {
+                const packageId = event.target.dataset.packageId;
+                selectedPackageForPrinting = event.target.checked
+                    ? packages.find(pkg => pkg.id === packageId)
+                    : null;
+            }
+        });
+    }
 });
 
-
-
-        
-        
+// ------------------ Report Preview ------------------
 async function previewReport() {
     if (!currentReportData) {
         showAlert('Önce rapor oluşturmalısınız', 'error');
         return;
     }
-    
     try {
-        // Generate PDF
         const pdfBlob = await generatePDFReport(currentReportData);
-        
-        // Create object URL for the PDF
         const pdfUrl = URL.createObjectURL(pdfBlob);
-        
-        // Open PDF in a new window
         const reportWindow = window.open(pdfUrl, '_blank');
-        
-        // Clean up the URL when window is closed
-        if (reportWindow) {
-            reportWindow.onbeforeunload = function() {
-                URL.revokeObjectURL(pdfUrl);
-            };
-        }
+        if (reportWindow) reportWindow.onbeforeunload = () => URL.revokeObjectURL(pdfUrl);
     } catch (error) {
         console.error('Rapor önizleme hatası:', error);
         showAlert('Rapor önizlenemedi', 'error');
     }
 }
 
+// ------------------ Container Operations ------------------
+function loadCurrentContainer() {
+    showAlert('Mevcut konteyner yüklendi', 'success');
+}
 
+async function createNewContainer() {
+    try {
+        const timestamp = new Date().getTime();
+        const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+        const { data: newContainer, error } = await supabase
+            .from('containers')
+            .insert([{ container_no: containerNo, customer: '', package_count: 0, total_quantity: 0, status: 'beklemede', package_ids: [] }])
+            .select();
+        if (error) throw error;
 
-        
-
-        // Container operations
-        function loadCurrentContainer() {
-            showAlert('Mevcut konteyner yüklendi', 'success');
-        }
-
-        async function createNewContainer() {
-            try {
-                const timestamp = new Date().getTime();
-                const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-                
-                const { data: newContainer, error } = await supabase
-                    .from('containers')
-                    .insert([{
-                        container_no: containerNo,
-                        customer: '',
-                        package_count: 0,
-                        total_quantity: 0,
-                        status: 'beklemede',
-                        package_ids: []
-                    }])
-                    .select();
-
-                if (error) throw error;
-
-                elements.containerNumber.textContent = containerNo;
-                currentContainer = containerNo;
-                saveAppState();
-                
-                showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
-                await populateShippingTable();
-                
-            } catch (error) {
-                console.error('Error creating container:', error);
-                showAlert('Konteyner oluşturulurken hata oluştu', 'error');
-            }
-        }
-
-
-
-
-        
-
-        async function deleteContainer() {
-            // Seçili konteynerleri al
-            const selectedContainers = Array.from(document.querySelectorAll('.container-checkbox:checked'))
-                .map(cb => cb.value);
-                
-            if (selectedContainers.length === 0) {
-                showAlert('Silinecek konteyner seçin', 'error');
-                return;
-            }
-
-            if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
-
-            try {
-                // Önce bu konteynerlere bağlı paketleri güncelle
-                const { error: updateError } = await supabase
-                    .from('packages')
-                    .update({ 
-                        container_id: null,
-                        status: 'beklemede'
-                    })
-                    .in('container_id', selectedContainers);
-
-                if (updateError) throw updateError;
-
-                // Sonra konteynerleri sil
-                const { error: deleteError } = await supabase
-                    .from('containers')
-                    .delete()
-                    .in('id', selectedContainers);
-
-                if (deleteError) throw deleteError;
-
-                // Eğer silinen konteyner aktif konteyner ise sıfırla
-                if (currentContainer && selectedContainers.includes(currentContainer)) {
-                    currentContainer = null;
-                    elements.containerNumber.textContent = 'Yok';
-                    saveAppState();
-                }
-                
-                showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
-                await populateShippingTable();
-                
-            } catch (error) {
-                console.error('Error deleting container:', error);
-                showAlert('Konteyner silinirken hata oluştu', 'error');
-            }
-        }
-
-
-
-        
-
-        // Utility functions
-        function switchTab(tabName) {
-            // Hide all tab panes
-            document.querySelectorAll('.tab-pane').forEach(pane => {
-                pane.classList.remove('active');
-            });
-            
-            // Deactivate all tabs
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Activate selected tab
-            const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
-            const selectedPane = document.getElementById(`${tabName}Tab`);
-            
-            if (selectedTab && selectedPane) {
-                selectedTab.classList.add('active');
-                selectedPane.classList.add('active');
-            }
-        }
-
-
-
-        
-
-        function closeAllModals() {
-            document.getElementById('customerModal').style.display = 'none';
-            document.getElementById('allCustomersModal').style.display = 'none';
-            document.getElementById('emailModal').style.display = 'none';
-            document.getElementById('quantityModal').style.display = 'none';
-            document.getElementById('manualModal').style.display = 'none';
-            document.getElementById('containerDetailModal').style.display = 'none';
-        }
-        function closeModal() {
-            document.getElementById('customerModal').style.display = 'none';
-        }
-        function closeAllCustomersModal() {
-            document.getElementById('allCustomersModal').style.display = 'none';
-        }
-        function closeQuantityModal() {
-            document.getElementById('quantityModal').style.display = 'none';
-        }
-
-        function closeManualModal() {
-            document.getElementById('manualModal').style.display = 'none';
-        }
-
-        function escapeHtml(text) {
-    if (typeof text !== 'string') {
-        return String(text);
+        elements.containerNumber.textContent = containerNo;
+        currentContainer = containerNo;
+        saveAppState();
+        showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+        await populateShippingTable();
+    } catch (error) {
+        console.error('Error creating container:', error);
+        showAlert('Konteyner oluşturulurken hata oluştu', 'error');
     }
-    
+}
+
+async function deleteContainer() {
+    const selectedContainers = Array.from(document.querySelectorAll('.container-checkbox:checked')).map(cb => cb.value);
+    if (!selectedContainers.length) {
+        showAlert('Silinecek konteyner seçin', 'error');
+        return;
+    }
+    if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ container_id: null, status: 'beklemede' })
+            .in('container_id', selectedContainers);
+        if (updateError) throw updateError;
+
+        const { error: deleteError } = await supabase
+            .from('containers')
+            .delete()
+            .in('id', selectedContainers);
+        if (deleteError) throw deleteError;
+
+        if (currentContainer && selectedContainers.includes(currentContainer)) {
+            currentContainer = null;
+            elements.containerNumber.textContent = 'Yok';
+            saveAppState();
+        }
+
+        showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
+        await populateShippingTable();
+    } catch (error) {
+        console.error('Error deleting container:', error);
+        showAlert('Konteyner silinirken hata oluştu', 'error');
+    }
+}
+
+// ------------------ UI Utilities ------------------
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    const selectedPane = document.getElementById(`${tabName}Tab`);
+    if (selectedTab && selectedPane) {
+        selectedTab.classList.add('active');
+        selectedPane.classList.add('active');
+    }
+}
+
+function closeAllModals() {
+    ['customerModal','allCustomersModal','emailModal','quantityModal','manualModal','containerDetailModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+}
+
+function escapeHtml(text) {
+    if (typeof text !== 'string') return String(text);
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-
-
-        
-       // Initialize auth state listener
-// Add a new variable at the top of your script block, outside of any functions
-let isConnectionAlertShown = false;
-
-// Initialize auth state listener
+// ------------------ Auth Listener ------------------
 function setupAuthListener() {
     if (!supabase) return;
-
     supabase.auth.onAuthStateChange((event, session) => {
         console.log('Auth state change:', event, session?.user?.email || 'No user');
 
         if (session) {
-            currentUser = {
-                email: session.user.email,
-                uid: session.user.id,
-                name: session.user.email.split('@')[0]
-            };
-            
+            currentUser = { email: session.user.email, uid: session.user.id, name: session.user.email.split('@')[0] };
             document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
             document.getElementById('loginScreen').style.display = "none";
             document.getElementById('appContainer').style.display = "flex";
-            
             initApp();
-            
-            // Check the flag before showing the alert
             if (!isConnectionAlertShown) {
                 showAlert('Supabase bağlantısı başarılı.', 'success');
                 isConnectionAlertShown = true;
             }
-
         } else {
             document.getElementById('loginScreen').style.display = "flex";
             document.getElementById('appContainer').style.display = "none";
-            // Reset the flag if the user logs out
-            isConnectionAlertShown = false; 
+            isConnectionAlertShown = false;
         }
     });
 }
 
-
-
-
-        
-        // Load API key from localStorage
-        function loadApiKey() {
-            const savedApiKey = localStorage.getItem('procleanApiKey');
-            if (savedApiKey) {
-                SUPABASE_ANON_KEY = savedApiKey;
-                return true;
-            }
-            return false;
-        }
-
-        // Global error handler
-        window.addEventListener('error', function(e) {
-            console.error('Global error:', e.error);
-            showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
-        });
-
-
-
-
-        
-        // API hata yönetimi
-       function handleSupabaseError(error, context) {
-    console.error(`Supabase error in ${context}:`, error);
-    
-    let userMessage = `${context} sırasında bir hata oluştu.`;
-    
-    if (error.code === '42501') {
-        userMessage = 'Bu işlem için yetkiniz bulunmamaktadır.';
-    } else if (error.code === '42P01') {
-        userMessage = 'Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.';
-    } else if (error.code === '08006') {
-        userMessage = 'Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
-    } else if (error.message) {
-        userMessage += ' ' + error.message;
+// ------------------ API Key ------------------
+function loadApiKey() {
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        return true;
     }
-    
+    return false;
+}
+
+// ------------------ Global Error Handler ------------------
+window.addEventListener('error', e => {
+    console.error('Global error:', e.error);
+    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+});
+
+// ------------------ Supabase Error Handler ------------------
+function handleSupabaseError(error, context) {
+    console.error(`Supabase error in ${context}:`, error);
+    let userMessage = `${context} sırasında bir hata oluştu.`;
+    if (error.code === '42501') userMessage = 'Bu işlem için yetkiniz bulunmamaktadır.';
+    else if (error.code === '42P01') userMessage = 'Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.';
+    else if (error.code === '08006') userMessage = 'Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
+    else if (error.message) userMessage += ' ' + error.message;
     showAlert(userMessage, 'error');
-    
-    // Switch to offline mode if connection issue
+
     if (!navigator.onLine && elements.connectionStatus) {
         elements.connectionStatus.textContent = 'Çevrimdışı';
         document.getElementById('offlineIndicator')?.style.setProperty('display', 'block');
     }
 }
-        // Event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            // API anahtarını yükle ve supabase'i başlat
-            if (loadApiKey()) {
-                supabase = initializeSupabase();
-                if (supabase) {
-                    setupAuthListener();
-                }
-            } else {
-                showApiKeyModal();
-            }
-            
-             // Login button event
-            document.getElementById('loginBtn').addEventListener('click', login);
-            
-            // Logout button event
-            document.getElementById('logoutBtn').addEventListener('click', logout);
-            
-            // Enter key for login
-            document.getElementById('email').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') login();
-            });
-            document.getElementById('password').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') login();
-            });
-            
-            // Quantity modal enter key
-            if (elements.quantityInput) {
-                elements.quantityInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') confirmQuantity();
-                });
-            }
-            
-            // Barcode input enter key
-            if (elements.barcodeInput) {
-                elements.barcodeInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') processBarcode();
-                });
-            }
-            
-            // Tab click events
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const tabName = this.getAttribute('data-tab');
-                    switchTab(tabName);
-                });
-            });
-            
-            // Customer select change
-            if (elements.customerSelect) {
-                elements.customerSelect.addEventListener('change', function() {
-                    const customerId = this.value;
-                    if (customerId) {
-                        // Find customer from populated options
-                        const selectedOption = this.options[this.selectedIndex];
-                        selectedCustomer = {
-                            id: customerId,
-                            name: selectedOption.textContent.split(' (')[0],
-                            code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                        };
-                        showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
-                    } else {
-                        selectedCustomer = null;
-                    }
-                });
-            }
-            
-            // Initial state
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('appContainer').style.display = 'none';
 
-            console.log('ProClean application initialized with Supabase authentication');
-        });
-      // Add this section here 👇
-    document.getElementById('packagesTableBody').addEventListener('change', function(event) {
-        if (event.target.type === 'checkbox') {
-            const checkbox = event.target;
-            const packageId = checkbox.dataset.packageId;
-            if (checkbox.checked) {
-                selectedPackageForPrinting = packages.find(pkg => pkg.id === packageId);
-            } else {
-                selectedPackageForPrinting = null;
-            }
-        }
-    });
     </script>
 </body>
 </html>
