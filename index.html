@@ -4367,31 +4367,40 @@ async function previewReport() {
 
         
        // Initialize auth state listener
+// Add a new variable at the top of your script block, outside of any functions
+let isConnectionAlertShown = false;
+
+// Initialize auth state listener
 function setupAuthListener() {
     if (!supabase) return;
 
     supabase.auth.onAuthStateChange((event, session) => {
         console.log('Auth state change:', event, session?.user?.email || 'No user');
 
-        if (event === 'SIGNED_IN') {
-            const user = session.user;
+        if (session) {
             currentUser = {
-                email: user.email,
-                uid: user.id,
-                name: user.email.split('@')[0]
+                email: session.user.email,
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
             };
             
             document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
             document.getElementById('loginScreen').style.display = "none";
             document.getElementById('appContainer').style.display = "flex";
-
+            
             initApp();
             
-            // This is the line that will now only run once on sign-in
-            showAlert('Supabase bağlantısı başarılı.', 'success'); 
-        } else if (event === 'SIGNED_OUT') {
+            // Check the flag before showing the alert
+            if (!isConnectionAlertShown) {
+                showAlert('Supabase bağlantısı başarılı.', 'success');
+                isConnectionAlertShown = true;
+            }
+
+        } else {
             document.getElementById('loginScreen').style.display = "flex";
             document.getElementById('appContainer').style.display = "none";
+            // Reset the flag if the user logs out
+            isConnectionAlertShown = false; 
         }
     });
 }
