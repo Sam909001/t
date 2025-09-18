@@ -4608,16 +4608,19 @@ async function initializeApp() {
        // Initialize settings when app loads
 initializeSettings();
 
-// Add settings button event listener
-document.getElementById('settingsBtn').addEventListener('click', showSettingsModal);
-document.getElementById('closeSettingsModalBtn').addEventListener('click', closeSettingsModal);
-
-// Close modal when clicking outside
-window.addEventListener('click', function(event) {
-    if (event.target === document.getElementById('settingsModal')) {
-        closeSettingsModal();
+    // Settings button event listeners - ADD THIS
+    const settingsBtn = document.getElementById('settingsBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsModalBtn');
+    
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', showSettingsModal);
+    } else {
+        console.error('Settings button not found');
     }
-});
+    
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', closeSettingsModal);
+    }
         
         
         // Set initial display states
