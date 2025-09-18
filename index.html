@@ -1315,6 +1315,19 @@ window.addEventListener('error', e => {
 });
 
 
+async function logout() {
+    if (!supabase) return;
+    try {
+        await supabase.auth.signOut();
+        currentUser = null;
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('appContainer').style.display = 'none';
+        showAlert('Çıkış yapıldı.', 'success');
+    } catch (e) {
+        console.error('Logout error:', e);
+        showAlert('Çıkış sırasında bir hata oluştu.', 'error');
+    }
+}
 
 
         
