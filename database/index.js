@@ -1,4 +1,4 @@
-// Supabase initialization and configuration
+/// Supabase initialization and configuration
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
