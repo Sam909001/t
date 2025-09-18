@@ -1123,6 +1123,11 @@ function initializeElementsObject() {
         alertContainer: 'alertContainer',
         scannerToggle: 'scannerToggle',
         containerSearch: 'containerSearch'
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        toggleThemeBtn: 'toggleThemeBtn',
+        downloadDataBtn: 'downloadDataBtn',
+        changeApiKeyBtn: 'changeApiKeyBtn',
     };
     
     Object.keys(elementMap).forEach(key => {
@@ -1137,8 +1142,6 @@ function initializeElementsObject() {
     
     return elements;
 }
-
-
 
         
 
@@ -2744,6 +2747,17 @@ function initializeElements() {
 
 
 
+        // New additions for the settings modal
+            function showSettingsModal() {
+                elements.settingsModal.style.display = 'flex';
+            }
+
+            function closeSettingsModal() {
+                elements.settingsModal.style.display = 'none';
+            }
+
+
+
         
         async function completePackage() {
             if (!selectedCustomer) {
@@ -4215,6 +4229,24 @@ async function initializeApp() {
                 }
             });
         });
+
+         function applySavedTheme() {
+                const savedTheme = localStorage.getItem('procleanTheme');
+                if (savedTheme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                }
+            }
+
+            function toggleDarkMode() {
+                document.body.classList.toggle('dark-mode');
+                if (document.body.classList.contains('dark-mode')) {
+                    localStorage.setItem('procleanTheme', 'dark');
+                    showAlert('Koyu tema etkinleştirildi.', 'info');
+                } else {
+                    localStorage.setItem('procleanTheme', 'light');
+                    showAlert('Açık tema etkinleştirildi.', 'info');
+                }
+            }
         
         // API key initialization
         if (loadApiKey()) {
@@ -4229,6 +4261,34 @@ async function initializeApp() {
             console.log('No saved API key found, showing API key modal');
             showApiKeyModal();
         }
+
+        // New event listener for settings button
+                if (elements.settingsBtn) {
+                    elements.settingsBtn.addEventListener('click', showSettingsModal);
+                }
+                
+                if (elements.closeSettingsModalBtn) {
+                    elements.closeSettingsModalBtn.addEventListener('click', closeSettingsModal);
+                }
+
+                // New event listeners for settings modal buttons
+                if (elements.toggleThemeBtn) {
+                    elements.toggleThemeBtn.addEventListener('click', toggleDarkMode);
+                }
+                if (elements.downloadDataBtn) {
+                    elements.downloadDataBtn.addEventListener('click', downloadDataAsJson);
+                }
+                if (elements.changeApiKeyBtn) {
+                    elements.changeApiKeyBtn.addEventListener('click', showApiKeyModal);
+                }
+                
+                // Close modal on outside click
+                window.onclick = function(event) {
+                    if (event.target == elements.settingsModal) {
+                        closeSettingsModal();
+                    }
+                }
+        
         
         // Set initial display states
         if (elements.loginScreen) {
