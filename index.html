@@ -2922,14 +2922,19 @@ class PrinterService {
             doc.addImage(barcodeImage, "PNG", 10, 48, labelWidth - 20, 30);
 
             // Export PDF as pure base64
-            const pdfBase64 = doc.output("datauristring").split(",")[1];
+const pdfBase64 = doc.output("datauristring").split(",")[1];
 
-            // Send to server
-            const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pdf: pdfBase64 })
-            });
+// Send to server
+const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+        pdfData: pdfBase64,         // ✅ correct key
+        fileName: `${pkg.package_no}.pdf`,
+        copies: 1
+    })
+});
+
 
             const result = await response.json();
             if (result.success) {
