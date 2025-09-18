@@ -651,6 +651,28 @@ input:checked + .toggle-slider:before {
     background-color: var(--warning);
     color: white;
 }
+        .printer-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: #f8f9fa;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    border: 1px solid #dee2e6;
+}
+
+.printer-status.connected {
+    background: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.printer-status.error {
+    background: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
     </style>
     </head>
 <body>
@@ -695,6 +717,17 @@ input:checked + .toggle-slider:before {
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Yükleniyor...</span>
+
+                <div class="printer-status-section">
+    <div id="printer-status" class="printer-status">
+        <span id="printer-indicator">🔴</span>
+        <span id="printer-text">Checking printer...</span>
+        <button id="test-printer" onclick="testPrinter()">Test Printer</button>
+        <button onclick="checkPrinterStatus()">Check Status</button>
+    </div>
+</div>
+
+            
                 <button type="button" class="btn btn-primary" id="settingsBtn">
     <i class="fas fa-gear"></i> Ayarlar
 </button>
@@ -1233,15 +1266,7 @@ input:checked + .toggle-slider:before {
 
     <!-- Print Label Container (hidden) -->
     <div id="printContainer" style="display:none;"></div>
-
-    <div class="printer-status-section">
-    <div id="printer-status" class="printer-status">
-        <span id="printer-indicator">🔴</span>
-        <span id="printer-text">Checking printer...</span>
-        <button id="test-printer" onclick="testPrinter()">Test Printer</button>
-        <button onclick="checkPrinterStatus()">Check Status</button>
-    </div>
-</div>
+    
     
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
@@ -3198,10 +3223,25 @@ class PrinterService {
     constructor(serverUrl = 'http://localhost:3001') {
         this.serverUrl = serverUrl;
         this.isConnected = false;
+        this.statusElement = document.getElementById('printerStatus');
+        this.indicatorElement = document.getElementById('printer-indicator');
+        this.textElement = document.getElementById('printer-text');
+        
         console.log('🖨️ Initializing printer service...');
         this.checkConnection();
     }
 
+    updateStatus(status, message) {
+        if (this.statusElement && this.indicatorElement && this.textElement) {
+            this.statusElement.className = `printer-status ${status}`;
+            this.indicatorElement.textContent = status === 'connected' ? '🟢' : '🔴';
+            this.textElement.textContent = message;
+        }
+        console.log(`Printer status: ${status} - ${message}`);
+    }
+
+
+    
     async checkConnection() {
         try {
             const response = await fetch(`${this.serverUrl}/api/test`);
