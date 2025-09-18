@@ -15,8 +15,7 @@
 <script src="libs/jspdf.plugin.autotable.min.js"></script>
 <script src="libs/papaparse.min.js"></script>
 <script src="libs/xlsx.full.min.js"></script>
-
-
+    
     <style>
         :root {
             --primary: #2c3e50;
@@ -718,7 +717,8 @@ input:checked + .toggle-slider:before {
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Yükleniyor...</span>
-               <div class="printer-status-section">
+
+                <div class="printer-status-section">
     <div id="printer-status" class="printer-status">
         <span id="printer-indicator">🔴</span>
         <span id="printer-text">Checking printer...</span>
@@ -4608,19 +4608,16 @@ async function initializeApp() {
        // Initialize settings when app loads
 initializeSettings();
 
-    // Settings button event listeners - ADD THIS
-    const settingsBtn = document.getElementById('settingsBtn');
-    const closeSettingsBtn = document.getElementById('closeSettingsModalBtn');
-    
-    if (settingsBtn) {
-        settingsBtn.addEventListener('click', showSettingsModal);
-    } else {
-        console.error('Settings button not found');
+// Add settings button event listener
+document.getElementById('settingsBtn').addEventListener('click', showSettingsModal);
+document.getElementById('closeSettingsModalBtn').addEventListener('click', closeSettingsModal);
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    if (event.target === document.getElementById('settingsModal')) {
+        closeSettingsModal();
     }
-    
-    if (closeSettingsBtn) {
-        closeSettingsBtn.addEventListener('click', closeSettingsModal);
-    }
+});
         
         
         // Set initial display states
