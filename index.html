@@ -1002,12 +1002,12 @@ input.invalid, select.invalid {
 
     <script>
         // Supabase initialization - Varsayılan değerler
-// ------------------ Supabase Initialization ------------------
+// ------------------ Global Variables ------------------
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
 
-// Global state variables
+// Global state
 let selectedCustomer = null;
 let currentPackage = {};
 let currentContainer = null;
@@ -1019,14 +1019,14 @@ let scannerMode = false;
 let currentContainerDetails = null;
 let currentReportData = null;
 let selectedPackageForPrinting = null;
-let isConnectionAlertShown = false; // ✅ To prevent duplicate alerts
+let isConnectionAlertShown = false;
 
-// ------------------ EmailJS ------------------
+// EmailJS initialization
 (function() {
-    emailjs.init("jH-KlJ2ffs_lGwfsp"); // Replace with your ID
+    emailjs.init("jH-KlJ2ffs_lGwfsp");
 })();
 
-// ------------------ DOM Elements ------------------
+// ------------------ Elements ------------------
 const elements = {};
 function initializeElementsObject() {
     const elementMap = {
@@ -1062,23 +1062,23 @@ function initializeElementsObject() {
         scannerToggle: 'scannerToggle',
         containerSearch: 'containerSearch'
     };
-
     Object.keys(elementMap).forEach(key => {
-        const el = document.getElementById(elementMap[key]);
-        if (!el) console.warn(`Element ${elementMap[key]} not found`);
-        elements[key] = el || null;
+        const element = document.getElementById(elementMap[key]);
+        if (element) elements[key] = element;
+        else {
+            console.warn(`Element ${elementMap[key]} not found`);
+            elements[key] = null;
+        }
     });
-
     return elements;
 }
 
-// ------------------ Alerts & Toast ------------------
+// ------------------ Alert & Toast ------------------
 function showAlert(message, type = 'info', duration = 5000) {
     if (!elements.alertContainer) {
         console.log(`${type.toUpperCase()}: ${message}`);
         return;
     }
-
     const alert = document.createElement('div');
     alert.className = `alert alert-${type}`;
     const span = document.createElement('span');
@@ -1086,29 +1086,24 @@ function showAlert(message, type = 'info', duration = 5000) {
     const button = document.createElement('button');
     button.className = 'alert-close';
     button.textContent = '×';
-
     alert.appendChild(span);
     alert.appendChild(button);
     elements.alertContainer.appendChild(alert);
-
     button.addEventListener('click', () => {
         alert.classList.add('hide');
         setTimeout(() => alert.remove(), 300);
     });
-
     if (duration > 0) {
         setTimeout(() => {
             alert.classList.add('hide');
             setTimeout(() => alert.remove(), 300);
         }, duration);
     }
-
     return alert;
 }
 
 function showToast(message, type = 'info') {
-    const toast = elements.toast;
-    if (!toast) return;
+    const toast = document.getElementById('toast');
     toast.textContent = message;
     toast.className = `toast ${type} show`;
     setTimeout(() => toast.classList.remove('show'), 3000);
@@ -1117,37 +1112,28 @@ function showToast(message, type = 'info') {
 // ------------------ Form Validation ------------------
 function validateForm(inputs) {
     let isValid = true;
-
     inputs.forEach(input => {
-        const el = document.getElementById(input.id);
-        const errEl = document.getElementById(input.errorId);
-
-        if (!el) return;
-
-        if (input.required && !el.value.trim()) {
-            el.classList.add('invalid');
-            if (errEl) errEl.style.display = 'block';
+        const element = document.getElementById(input.id);
+        const errorElement = document.getElementById(input.errorId);
+        if (input.required && !element.value.trim()) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
             isValid = false;
-        } else if (input.type === 'email' && !isValidEmail(el.value)) {
-            el.classList.add('invalid');
-            if (errEl) {
-                errEl.style.display = 'block';
-                errEl.textContent = 'Geçerli bir e-posta adresi girin';
-            }
+        } else if (input.type === 'email' && element.value.trim() && !isValidEmail(element.value)) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
+            errorElement.textContent = 'Geçerli bir e-posta adresi girin';
             isValid = false;
-        } else if (input.type === 'number' && (!Number.isInteger(Number(el.value)) || Number(el.value) < 1)) {
-            el.classList.add('invalid');
-            if (errEl) {
-                errEl.style.display = 'block';
-                errEl.textContent = 'Geçerli bir sayı girin';
-            }
+        } else if (input.type === 'number' && element.value && (!Number.isInteger(Number(element.value)) || Number(element.value) < 1)) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
+            errorElement.textContent = 'Geçerli bir sayı girin';
             isValid = false;
         } else {
-            el.classList.remove('invalid');
-            if (errEl) errEl.style.display = 'none';
+            element.classList.remove('invalid');
+            errorElement.style.display = 'none';
         }
     });
-
     return isValid;
 }
 
@@ -1156,15 +1142,14 @@ function isValidEmail(email) {
     return re.test(String(email).toLowerCase());
 }
 
-// ------------------ Supabase Client ------------------
+// ------------------ Supabase Initialization ------------------
 function initializeSupabase() {
     if (supabase && SUPABASE_ANON_KEY) return supabase;
-
     if (!SUPABASE_ANON_KEY) {
+        console.warn('Supabase API key not set, showing modal');
         showApiKeyModal();
         return null;
     }
-
     try {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized successfully');
@@ -1178,47 +1163,43 @@ function initializeSupabase() {
 }
 
 function saveApiKey() {
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    if (!apiKeyInput || !apiKeyInput.value.trim()) {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    if (!apiKey) {
         showAlert('Lütfen bir API anahtarı girin', 'error');
         return;
     }
-
-    supabase = null;
-    SUPABASE_ANON_KEY = apiKeyInput.value.trim();
-    localStorage.setItem('procleanApiKey', SUPABASE_ANON_KEY);
-
-    const client = initializeSupabase();
-    if (client) {
+    supabase = null; // reset client
+    SUPABASE_ANON_KEY = apiKey;
+    localStorage.setItem('procleanApiKey', apiKey);
+    const newClient = initializeSupabase();
+    if (newClient) {
         document.getElementById('apiKeyModal').style.display = 'none';
         showAlert('API anahtarı kaydedildi', 'success');
+        testConnection();
     }
 }
 
 function showApiKeyModal() {
     const apiKeyInput = document.getElementById('apiKeyInput');
-    if (apiKeyInput) apiKeyInput.value = SUPABASE_ANON_KEY || '';
-    document.getElementById('apiKeyModal').style.display = 'flex';
+    if (apiKeyInput) {
+        apiKeyInput.value = SUPABASE_ANON_KEY || '';
+        document.getElementById('apiKeyModal').style.display = 'flex';
+    }
 }
 
-// ------------------ Test Supabase Connection ------------------
-async function testConnection(showSuccessAlert = true) {
+async function testConnection() {
     if (!supabase) {
         showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
         return false;
     }
-
     try {
         const { data, error } = await supabase.from('customers').select('*').limit(1);
         if (error) throw error;
-
         console.log('Supabase connection test successful:', data);
-
-        if (showSuccessAlert && !isConnectionAlertShown) {
+        if (!isConnectionAlertShown) {
             showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
             isConnectionAlertShown = true;
         }
-
         return true;
     } catch (e) {
         console.error('Supabase connection test failed:', e.message);
@@ -1227,17 +1208,40 @@ async function testConnection(showSuccessAlert = true) {
     }
 }
 
+// ------------------ Auth Listener ------------------
+function setupAuthListener() {
+    if (!supabase) return;
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change:', event, session?.user?.email || 'No user');
+        if (session) {
+            currentUser = { email: session.user.email, uid: session.user.id, name: session.user.email.split('@')[0] };
+            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+            document.getElementById('loginScreen').style.display = "none";
+            document.getElementById('appContainer').style.display = "flex";
+            if (!isConnectionAlertShown) {
+                showAlert('Supabase bağlantısı başarılı.', 'success');
+                isConnectionAlertShown = true;
+            }
+        } else {
+            document.getElementById('loginScreen').style.display = "flex";
+            document.getElementById('appContainer').style.display = "none";
+            isConnectionAlertShown = false;
+        }
+    });
+}
+
 // ------------------ Login ------------------
 async function login() {
-    if (!supabase && !initializeSupabase()) {
-        showAlert('Lütfen önce API anahtarını girin.', 'error');
-        showApiKeyModal();
-        return;
+    if (!supabase) {
+        const client = initializeSupabase();
+        if (!client) {
+            showAlert('Lütfen önce API anahtarını girin.', 'error');
+            showApiKeyModal();
+            return;
+        }
     }
-
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
-
     if (!validateForm([
         { id: 'email', errorId: 'emailError', type: 'email', required: true },
         { id: 'password', errorId: 'passwordError', type: 'text', required: true }
@@ -1249,30 +1253,37 @@ async function login() {
 
     try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) { showAlert(`Giriş başarısız: ${error.message}`, 'error'); return; }
+        if (error) {
+            showAlert(`Giriş başarısız: ${error.message}`, 'error');
+            return;
+        }
 
-        if (data.user) {
+        if (data.user && data.user.email) {
             const { data: userData, error: userError } = await supabase
                 .from('personnel')
                 .select('role, name')
                 .eq('email', data.user.email)
                 .single();
 
-            currentUser = userData && !userError ? {
-                email: data.user.email,
-                uid: data.user.id,
-                name: userData.name || data.user.email.split('@')[0],
-                role: userData.role
-            } : {
-                email: data.user.email,
-                uid: data.user.id,
-                name: data.user.email.split('@')[0],
-                role: 'operator'
-            };
+            if (!userError && userData) {
+                currentUser = {
+                    email: data.user.email,
+                    uid: data.user.id,
+                    name: userData.name || data.user.email.split('@')[0],
+                    role: userData.role
+                };
+            } else {
+                currentUser = {
+                    email: data.user.email,
+                    uid: data.user.id,
+                    name: data.user.email.split('@')[0],
+                    role: 'operator'
+                };
+            }
 
-            const userRoleEl = document.getElementById('userRole');
-            if (userRoleEl) {
-                userRoleEl.textContent = 
+            const userRoleElement = document.getElementById('userRole');
+            if (userRoleElement) {
+                userRoleElement.textContent = 
                     `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
             }
 
@@ -1280,15 +1291,14 @@ async function login() {
                 applyRoleBasedPermissions(currentUser.role);
             }
 
+            showAlert('Giriş başarılı!', 'success');
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
-            showAlert('Giriş başarılı!', 'success');
-
-            // ✅ Only show testConnection alert once
-            testConnection(false);
+            testConnection();
         } else {
             showAlert('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
         }
+
     } catch (e) {
         console.error('Login error:', e);
         showAlert('Giriş sırasında bir hata oluştu.', 'error');
@@ -1298,68 +1308,11 @@ async function login() {
     }
 }
 
-
-
-        
-
-// Yardımcı fonksiyonlar
-function getSupabaseClient() {
-    if (!supabase) {
-        return initializeSupabase();
-    }
-    return supabase;
-}
-
-
-
-
-        
-function isSupabaseReady() {
-    return supabase !== null && SUPABASE_ANON_KEY !== null;
-}
-
-// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
-document.addEventListener('DOMContentLoaded', () => {
-    const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
-        SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
-        console.log('API key loaded from localStorage');
-    }
+// ------------------ Global Error Handler ------------------
+window.addEventListener('error', e => {
+    console.error('Global error:', e.error);
+    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
 });
-
-
-
-        
-        function applyRoleBasedPermissions(role) {
-            const adminOnlyElements = document.querySelectorAll('.admin-only');
-            
-            if (role === 'admin') {
-                adminOnlyElements.forEach(el => el.style.display = 'block');
-            } else {
-                adminOnlyElements.forEach(el => el.style.display = 'none');
-            }
-        }
-
-
-
-        
-
-        // Kullanıcı çıkışı
-        function logout() {
-            if (!supabase) return;
-            
-            supabase.auth.signOut().then(() => {
-                showAlert('Başarıyla çıkış yapıldı.', 'success');
-                document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('appContainer').style.display = 'none';
-                document.getElementById('email').value = '';
-                document.getElementById('password').value = '';
-            }).catch(e => {
-                console.error('Çıkış yapılırken bir hata oluştu:', e);
-                showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
-            });
-        }
 
 
 
