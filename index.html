@@ -2908,16 +2908,15 @@ class PrinterService {
     constructor(serverUrl = 'http://localhost:3001') {
         this.serverUrl = serverUrl;
         this.isConnected = false;
+        console.log('🖨️ Initializing printer service...');
         this.checkConnection();
     }
 
     async checkConnection() {
         try {
             const response = await fetch(`${this.serverUrl}/api/test`);
-            let data = null;
-            try { data = await response.json(); } catch { data = { success: false }; }
-
-            if (response.ok && data.success) {
+            const data = await response.json().catch(() => ({ success: false, error: "Server did not return JSON" }));
+            if (response.ok && data.success !== false) {
                 this.isConnected = true;
                 this.updateStatus('connected', '✅ Printer server connected');
             } else {
@@ -2927,12 +2926,7 @@ class PrinterService {
         } catch (err) {
             this.isConnected = false;
             this.updateStatus('error', '❌ Printer server not found');
-            console.error(err);
         }
-
-        // Enable print button if connected
-        const printBtn = document.getElementById('printBtn');
-        if (printBtn) printBtn.disabled = !this.isConnected;
     }
 
     updateStatus(status, message) {
@@ -2947,9 +2941,9 @@ class PrinterService {
         const alertDiv = document.createElement('div');
         alertDiv.style.cssText = `
             position: fixed; top: 20px; right: 20px; padding: 15px 20px;
-            border-radius: 5px; color: white; z-index: 10000; font-weight: 500;
+            border-radius: 5px; color: white; z-index: 10000; font-weight: 600;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px;
-            background: ${type==='success'?'#2ecc71':type==='error'?'#e74c3c':type==='warning'?'#f39c12':'#3498db'};
+            background: ${type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : type === 'warning' ? '#f39c12' : '#3498db'};
         `;
         alertDiv.textContent = message;
         document.body.appendChild(alertDiv);
@@ -2959,11 +2953,11 @@ class PrinterService {
     async testPrint() {
         console.log('🧪 Test print...');
         const result = await this.printPDFLabel('TEST123456', 'Test Label');
-        if (result) this.showAlert('✅ Test print successful!', 'success');
-        else this.showAlert('❌ Test print failed!', 'error');
+        this.showAlert(result ? '✅ Test print successful!' : '❌ Test print failed!', result ? 'success' : 'error');
         return result;
     }
 
+    // ----------------- PDF Printing -----------------
     async printPDFLabel(barcode, labelText) {
         if (!this.isConnected) {
             this.showAlert('Printer server is not connected', 'error');
@@ -2973,35 +2967,49 @@ class PrinterService {
         try {
             const { jsPDF } = window.jspdf;
 
-            // Create PDF 50x75 mm
-            const doc = new jsPDF({ unit: 'mm', format: [50, 75] });
+            // 10 cm x 8 cm label
+            const doc = new jsPDF({
+                unit: 'mm',
+                format: [100, 80] // width=100mm, height=80mm
+            });
 
-            // Add texts
-            doc.setFontSize(10);
+            // Thicker, larger fonts
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+
             doc.text('ProClean', 5, 10);
-            doc.text(labelText, 5, 20);
+            doc.setFontSize(14);
+            doc.text(labelText, 5, 25);
 
-            // Generate barcode
+            // Generate barcode as canvas image
             const canvas = document.createElement('canvas');
-            JsBarcode(canvas, barcode, { format: 'CODE128', displayValue: true, fontSize: 12, height: 20 });
+            JsBarcode(canvas, barcode, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 3,       // thicker lines
+                height: 40,
+                displayValue: true,
+                fontSize: 12,
+                margin: 5
+            });
             const barcodeDataUrl = canvas.toDataURL('image/png');
-            doc.addImage(barcodeDataUrl, 'PNG', 5, 30, 40, 15);
+            doc.addImage(barcodeDataUrl, 'PNG', 5, 35, 90, 30); // scale to fit page
 
-            // Send PDF to Node.js service
             const pdfBase64 = doc.output('datauristring');
-            const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
+
+            const res = await fetch(`${this.serverUrl}/api/print/pdf`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pdfData: pdfBase64, copies: 1 })
             });
 
-            const result = await response.json();
+            const result = await res.json();
             if (result.success) return true;
             else throw new Error(result.error || 'Unknown PDF print error');
 
-        } catch (err) {
-            console.error('❌ PDF print failed:', err);
-            this.showAlert(`❌ PDF print failed: ${err.message}`, 'error');
+        } catch (e) {
+            console.error('❌ PDF print failed:', e);
+            this.showAlert(`❌ PDF print failed: ${e.message}`, 'error');
             return false;
         }
     }
@@ -3010,12 +3018,12 @@ class PrinterService {
 // ================== Barcode Generator ==================
 function generateBarcode(text) {
     try {
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        JsBarcode(svg, text, { format: 'CODE128', lineColor: '#000', width: 2, height: 50, displayValue: true, fontSize: 10 });
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        JsBarcode(svg, text, { format: "CODE128", lineColor: "#000", width: 4, height: 30, displayValue: true, fontSize: 12, margin: 10 });
         return svg.outerHTML;
     } catch (err) {
-        console.error(err);
-        return `<div style="color:red;">Barkod oluşturulamadı: ${text}</div>`;
+        console.error('Barcode error:', err);
+        return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
     }
 }
 
@@ -3058,7 +3066,7 @@ async function printAllLabels() {
         const result = await printer.printPDFLabel(barcode, labelText);
         if (result) successCount++; else errorCount++;
 
-        if (i < checkboxes.length - 1) await new Promise(res => setTimeout(res, 1000));
+        if (i < checkboxes.length - 1) await new Promise(res => setTimeout(res, 500));
     }
 
     if (successCount > 0 && errorCount === 0) printer.showAlert(`✅ ${successCount} etiket başarıyla yazdırıldı!`, 'success');
