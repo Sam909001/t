@@ -2958,60 +2958,60 @@ class PrinterService {
     }
 
     // ----------------- PDF Printing -----------------
-    async printPDFLabel(barcode, labelText) {
-        if (!this.isConnected) {
-            this.showAlert('Printer server is not connected', 'error');
-            return false;
-        }
+   async printPDFLabel(pkg) {
+    if (!this.isConnected) {
+        this.showAlert('Printer server is not connected', 'error');
+        return false;
+    }
 
-        try {
-            const { jsPDF } = window.jspdf;
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: [100, 80] }); // 10x8 cm
 
-            // 10 cm x 8 cm label
-            const doc = new jsPDF({
-                unit: 'mm',
-                format: [100, 80] // width=100mm, height=80mm
-            });
+        // Thicker fonts
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(16);
+        doc.text('ProClean', 5, 10);
 
-            // Thicker, larger fonts
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
+        // Package info
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
 
-            doc.text('ProClean', 5, 10);
-            doc.setFontSize(14);
-            doc.text(labelText, 5, 25);
+        let y = 20;
+        doc.text(`Package No: ${pkg.package_no}`, 5, y); y += 6;
+        doc.text(`Customer: ${pkg.customer_name}`, 5, y); y += 6;
+        doc.text(`Product: ${pkg.product}`, 5, y); y += 6;
+        doc.text(`Date: ${pkg.created_at}`, 5, y); y += 10;
 
-            // Generate barcode as canvas image
-            const canvas = document.createElement('canvas');
-            JsBarcode(canvas, barcode, {
-                format: "CODE128",
-                lineColor: "#000",
-                width: 3,       // thicker lines
-                height: 40,
-                displayValue: true,
-                fontSize: 12,
-                margin: 5
-            });
-            const barcodeDataUrl = canvas.toDataURL('image/png');
-            doc.addImage(barcodeDataUrl, 'PNG', 5, 35, 90, 30); // scale to fit page
+        // Barcode
+        const canvas = document.createElement('canvas');
+        JsBarcode(canvas, pkg.package_no, {
+            format: "CODE128",
+            lineColor: "#000",
+            width: 3,
+            height: 25,
+            displayValue: true,
+            fontSize: 10,
+            margin: 0
+        });
+        const barcodeDataUrl = canvas.toDataURL('image/png');
+        doc.addImage(barcodeDataUrl, 'PNG', 5, y, 90, 25); // fit in page
 
-            const pdfBase64 = doc.output('datauristring');
+        const pdfBase64 = doc.output('datauristring');
+        const res = await fetch(`${this.serverUrl}/api/print/pdf`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdfData: pdfBase64, copies: 1 })
+        });
 
-            const res = await fetch(`${this.serverUrl}/api/print/pdf`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pdfData: pdfBase64, copies: 1 })
-            });
+        const result = await res.json();
+        if (result.success) return true;
+        else throw new Error(result.error || 'Unknown PDF print error');
 
-            const result = await res.json();
-            if (result.success) return true;
-            else throw new Error(result.error || 'Unknown PDF print error');
-
-        } catch (e) {
-            console.error('❌ PDF print failed:', e);
-            this.showAlert(`❌ PDF print failed: ${e.message}`, 'error');
-            return false;
-        }
+    } catch (e) {
+        console.error('❌ PDF print failed:', e);
+        this.showAlert(`❌ PDF print failed: ${e.message}`, 'error');
+        return false;
     }
 }
 
