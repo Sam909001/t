@@ -718,7 +718,17 @@ input:checked + .toggle-slider:before {
             <div class="user-info">
                 <span id="userRole">Operatör: Yükleniyor...</span>
 
-                <div class="printer-status-section">
+            
+   <button id="settingsBtn" class="btn btn-secondary flex items-center space-x-2">
+                    <i class="fas fa-cog"></i>
+                    <span>Ayarlar</span>
+                </button>
+
+                
+                <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
+            </div>
+        </div>
+                       <div class="printer-status-section">
     <div id="printer-status" class="printer-status">
         <span id="printer-indicator">🔴</span>
         <span id="printer-text">Checking printer...</span>
@@ -726,16 +736,6 @@ input:checked + .toggle-slider:before {
         <button onclick="checkPrinterStatus()">Check Status</button>
     </div>
 </div>
-
-            
-   <button id="settingsBtn" class="btn btn-secondary flex items-center space-x-2">
-                    <i class="fas fa-cog"></i>
-                    <span>Ayarlar</span>
-                </button>
-                
-                <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
-            </div>
-        </div>
 
         <div class="tabs" role="tablist" aria-label="Ana Sekmeler">
             <div class="tab active" data-tab="packaging" role="tab">Paketleme</div>
