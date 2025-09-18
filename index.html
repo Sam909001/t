@@ -552,6 +552,34 @@ input.invalid, select.invalid {
 .status-sevk-edildi { background-color: #2ecc71; color: white; }
 .status-hazirlaniyor { background-color: #3498db; color: white; }
 
+        /* New styles for settings modal */
+.settings-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+.settings-section h3 {
+    color: var(--primary);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+.settings-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.settings-option:last-child {
+    border-bottom: none;
+}
+.settings-option label {
+    font-weight: 500;
+}
+.settings-option .btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+}
     </style>
     </head>
 <body>
@@ -986,6 +1014,38 @@ input.invalid, select.invalid {
             </div>
         </div>
     </div>
+
+    <!-- Ayarlar Modalı -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ayarlar</h2>
+                <button type="button" class="modal-close" id="closeSettingsModalBtn">&times;</button>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Genel Ayarlar</h3>
+                <div class="settings-option">
+                    <label>Tema</label>
+                    <button class="btn btn-primary">Açık/Koyu Mod</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Veri Yönetimi</h3>
+                <div class="settings-option">
+                    <label>Supabase API Anahtarını Değiştir</label>
+                    <button class="btn btn-warning" onclick="showApiKeyModal()">Değiştir</button>
+                </div>
+                <div class="settings-option">
+                    <label>Verileri İndir (JSON)</label>
+                    <button class="btn btn-primary">İndir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
 
     <!-- Print Label Container (hidden) -->
     <div id="printContainer" style="display:none;"></div>
