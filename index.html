@@ -3009,6 +3009,59 @@ class PrinterService {
     }
 }
 
+
+
+        class PrinterService {
+    constructor(serverUrl = 'http://localhost:3001') {
+        // ...
+    }
+
+    async checkConnection() {
+        // ...
+    }
+
+    updateStatus(status, message) {
+        // ...
+    }
+
+    showAlert(message, type = 'info', duration = 5000) {
+        // ...
+    }
+
+    async testPrint() {
+        // ...
+    }
+
+    async printBarcode(barcode, text = '') {
+        // ...
+    }
+
+    // <-- Add it here, after printBarcode()
+    async printPDFLabel(doc) {
+        if (!this.isConnected) {
+            this.showAlert('Printer server is not connected', 'error');
+            return false;
+        }
+        try {
+            const pdfBase64 = doc.output('datauristring');
+            const res = await fetch(`${this.serverUrl}/api/print/pdf`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pdfData: pdfBase64, copies: 1 })
+            });
+            const result = await res.json();
+            if (result.success) return true;
+            else throw new Error(result.error || 'Unknown PDF print error');
+        } catch (e) {
+            this.showAlert(`❌ PDF print failed: ${e.message}`, 'error');
+            return false;
+        }
+    }
+}
+
+
+        
+
 // ================== Barcode Generator ==================
 function generateBarcode(text) {
     try {
