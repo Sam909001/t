@@ -719,7 +719,7 @@ input:checked + .toggle-slider:before {
                 <span id="userRole">Operatör: Yükleniyor...</span>
 
             
-   <button id="settingsBtn" class="btn btn-secondary flex items-center space-x-2">
+   <button id="settingsBtn" class="btn btn-secondary" onclick="showSettingsModal()">
     <i class="fas fa-cog"></i>
     <span>Ayarlar</span>
 </button>
@@ -4559,6 +4559,24 @@ async function initializeApp() {
 
 // Uygulama yüklendiğinde storage'ı kontrol et
     document.addEventListener('DOMContentLoaded', function() {
+            // Settings button - add this FIRST, before other initializations
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', function() {
+            console.log('Settings button clicked'); // Debug log
+            showSettingsModal();
+        });
+        console.log('Settings button listener added successfully');
+    } else {
+        console.error('Settings button not found in DOM');
+    }
+
+    // Close settings modal
+    const closeBtn = document.getElementById('closeSettingsModalBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeSettingsModal);
+    }
+
     try {
         console.log('Initializing ProClean application...');
         
