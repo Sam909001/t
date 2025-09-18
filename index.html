@@ -2884,9 +2884,9 @@ class PrinterService {
         }
 
         try {
-            // 4x3.2 inches in mm
-            const labelWidth = 4 * 25.4;   // 101.6 mm
-            const labelHeight = 3.2 * 25.4; // 81.28 mm
+            // Label size: 4 x 3.2 in → 101.6 x 81.28 mm
+            const labelWidth = 4 * 25.4;
+            const labelHeight = 3.2 * 25.4;
             const { jsPDF } = window.jspdf;
 
             const doc = new jsPDF({
@@ -2895,36 +2895,40 @@ class PrinterService {
                 format: [labelWidth, labelHeight]
             });
 
-            // Generate barcode on hidden canvas
+            // Title
+            doc.setFontSize(20);
+            doc.text(pkg.customers.name, 10, 15);
+
+            // Package details
+            doc.setFontSize(14);
+            doc.text("Paket No: " + pkg.package_no, 10, 25);
+            doc.text("Qty: " + pkg.total_quantity, 10, 33);
+            doc.text("Date: " + pkg.created_at, 10, 41);
+
+            // Barcode on canvas
             const canvas = document.createElement("canvas");
             JsBarcode(canvas, pkg.package_no, {
                 format: "CODE128",
                 lineColor: "#000",
-                width: 2,
-                height: 40,
+                width: 4,            // professional thickness
+                height: 60,          // tall for scanners
                 displayValue: true,
                 fontSize: 26,
                 margin: 0
             });
             const barcodeImage = canvas.toDataURL("image/png");
 
-            // Add content
-            doc.setFontSize(20);
-            doc.text(pkg.customers.name, 10, 20);
-            doc.text("Qty: " + pkg.total_quantity, 10, 30);
-            doc.text("Date: " + pkg.created_at, 10, 40);
+            // Add barcode to PDF
+            doc.addImage(barcodeImage, "PNG", 10, 48, labelWidth - 20, 30);
 
-            // Add barcode image
-            doc.addImage(barcodeImage, "PNG", 10, 45, labelWidth - 20, 30);
-
-            // Export PDF as base64
-            const pdfData = doc.output("datauristring");
+            // Export PDF as pure base64
+            const pdfBase64 = doc.output("datauristring").split(",")[1];
 
             // Send to server
             const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pdf: pdfData })
+                body: JSON.stringify({ pdf: pdfBase64 })
             });
 
             const result = await response.json();
@@ -2949,9 +2953,9 @@ function getSelectedPackage(row) {
     return {
         id: packageId,
         package_no: row.cells[1].textContent.trim(),
-        customers: { name: row.cells[2].textContent },
+        customers: { name: row.cells[2].textContent.trim() },
         total_quantity: row.cells[3].textContent.trim(),
-        created_at: row.cells[4].textContent
+        created_at: row.cells[4].textContent.trim()
     };
 }
 
@@ -3000,7 +3004,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (printBtn) printBtn.addEventListener('click', printAllLabels);
 });
-        
         
         async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
