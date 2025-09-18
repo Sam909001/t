@@ -2903,11 +2903,6 @@ function getSelectedPackage() {
         
 let printer = null;
 
-
-
-     
-
-
 // ================== Printer Service Class ==================
 class PrinterService {
     constructor(serverUrl = 'http://localhost:3001') {
@@ -2921,8 +2916,15 @@ class PrinterService {
     async checkConnection() {
         try {
             const response = await fetch(`${this.serverUrl}/api/test`);
-            const data = await response.json();
-            if (response.ok) {
+            let data = null;
+
+            try {
+                data = await response.json();
+            } catch {
+                data = { success: false, error: "Server did not return JSON" };
+            }
+
+            if (response.ok && data.success !== false) {
                 this.isConnected = true;
                 this.updateStatus('connected', '✅ Printer server connected');
                 console.log('✅ Printer server connected:', data);
@@ -2953,7 +2955,7 @@ class PrinterService {
             position: fixed; top: 20px; right: 20px; padding: 15px 20px;
             border-radius: 5px; color: white; z-index: 10000; font-weight: 500;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px;
-            background: ${type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : '#3498db'};
+            background: ${type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : type === 'warning' ? '#f39c12' : '#3498db'};
         `;
         alertDiv.textContent = message;
         document.body.appendChild(alertDiv);
@@ -2984,7 +2986,12 @@ class PrinterService {
                 body: JSON.stringify({ barcode, text, copies: 1 })
             });
 
-            const result = await response.json();
+            let result = null;
+            try {
+                result = await response.json();
+            } catch {
+                throw new Error("Server did not return JSON (maybe HTML error)");
+            }
 
             if (result.success) {
                 console.log(`✅ Print successful: ${barcode}`);
@@ -3008,13 +3015,13 @@ function generateBarcode(text) {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 
         JsBarcode(svg, text, {
-            format: "CODE128",      // scannable format
-            lineColor: "#000",       // black bars
-            width: 4,                // width of a single bar
-            height: 307,             // 3.2 inches in pixels
-            displayValue: true,      // show human-readable text
-            fontSize: 26,            // font size for text
-            margin: 10               // padding around barcode
+            format: "CODE128",
+            lineColor: "#000",
+            width: 4,
+            height: 307,
+            displayValue: true,
+            fontSize: 26,
+            margin: 10
         });
 
         return svg.outerHTML;
@@ -3024,8 +3031,6 @@ function generateBarcode(text) {
         return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
     }
 }
-
-
 
 // ================== Table Package Selection ==================
 function getSelectedPackage(row) {
