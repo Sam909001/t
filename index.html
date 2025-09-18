@@ -580,6 +580,77 @@ input.invalid, select.invalid {
     padding: 0.6rem 1rem;
     font-size: 0.9rem;
 }
+        /* Settings specific styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--secondary);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
+
+.system-info {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.status-indicator {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.status-indicator.connected {
+    background-color: var(--success);
+    color: white;
+}
+
+.status-indicator.disconnected {
+    background-color: var(--accent);
+    color: white;
+}
+
+.status-indicator.checking {
+    background-color: var(--warning);
+    color: white;
+}
     </style>
     </head>
 <body>
@@ -1015,35 +1086,148 @@ input.invalid, select.invalid {
         </div>
     </div>
 
-    <!-- Ayarlar Modalı -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Ayarlar</h2>
-                <button type="button" class="modal-close" id="closeSettingsModalBtn">&times;</button>
+   <!-- Ayarlar Modalı -->
+<div class="modal" id="settingsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Ayarlar</h2>
+            <button type="button" class="modal-close" id="closeSettingsModalBtn">&times;</button>
+        </div>
+        
+        <!-- Genel Ayarlar -->
+        <div class="settings-section">
+            <h3>Genel Ayarlar</h3>
+            
+            <div class="settings-option">
+                <label for="themeToggle">Tema Modu</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                    <label for="themeToggle" class="toggle-slider"></label>
+                    <span id="themeStatus">Açık</span>
+                </div>
             </div>
             
-            <div class="settings-section">
-                <h3>Genel Ayarlar</h3>
-                <div class="settings-option">
-                    <label>Tema</label>
-                    <button class="btn btn-primary">Açık/Koyu Mod</button>
-                </div>
+            <div class="settings-option">
+                <label for="languageSelect">Dil</label>
+                <select id="languageSelect" onchange="changeLanguage()">
+                    <option value="tr">Türkçe</option>
+                    <option value="en">English</option>
+                </select>
             </div>
-
-            <div class="settings-section">
-                <h3>Veri Yönetimi</h3>
-                <div class="settings-option">
-                    <label>Supabase API Anahtarını Değiştir</label>
-                    <button class="btn btn-warning" onclick="showApiKeyModal()">Değiştir</button>
-                </div>
-                <div class="settings-option">
-                    <label>Verileri İndir (JSON)</label>
-                    <button class="btn btn-primary">İndir</button>
+            
+            <div class="settings-option">
+                <label for="autoSaveToggle">Otomatik Kaydet</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="autoSaveToggle" checked onchange="toggleAutoSave()">
+                    <label for="autoSaveToggle" class="toggle-slider"></label>
+                    <span>5 saniyede bir</span>
                 </div>
             </div>
         </div>
+
+        <!-- Yazıcı Ayarları -->
+        <div class="settings-section">
+            <h3>Yazıcı Ayarları</h3>
+            
+            <div class="settings-option">
+                <label for="printerScaling">Etiket Boyutu</label>
+                <select id="printerScaling" onchange="savePrinterSettings()">
+                    <option value="100%">Küçük (100%)</option>
+                    <option value="150%">Orta (150%)</option>
+                    <option value="200%">Büyük (200%)</option>
+                    <option value="fit">Otomatik Sığdır</option>
+                </select>
+            </div>
+            
+            <div class="settings-option">
+                <label for="copiesNumber">Kopya Sayısı</label>
+                <input type="number" id="copiesNumber" min="1" max="10" value="1" 
+                       onchange="savePrinterSettings()" style="width: 60px;">
+            </div>
+            
+            <div class="settings-option">
+                <label>Yazıcı Testi</label>
+                <button class="btn btn-primary" onclick="testPrinter()">Test Yazdır</button>
+            </div>
+        </div>
+
+        <!-- Veri Yönetimi -->
+        <div class="settings-section">
+            <h3>Veri Yönetimi</h3>
+            
+            <div class="settings-option">
+                <label>Supabase API Anahtarı</label>
+                <button class="btn btn-warning" onclick="showApiKeyModal()">API Anahtarını Değiştir</button>
+            </div>
+            
+            <div class="settings-option">
+                <label>Veri Yedekleme</label>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="exportData('json')">JSON İndir</button>
+                    <button class="btn btn-primary" onclick="exportData('excel')">Excel İndir</button>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label>Verileri Temizle</label>
+                <button class="btn btn-danger" onclick="clearLocalData()">Yerel Verileri Temizle</button>
+            </div>
+        </div>
+
+        <!-- Sistem Bilgileri -->
+        <div class="settings-section">
+            <h3>Sistem Bilgileri</h3>
+            
+            <div class="settings-option">
+                <label>Uygulama Versiyonu</label>
+                <span class="system-info">v2.0.0</span>
+            </div>
+            
+            <div class="settings-option">
+                <label>Son Güncelleme</label>
+                <span class="system-info" id="lastUpdateDate">-</span>
+            </div>
+            
+            <div class="settings-option">
+                <label>Veritabanı Bağlantısı</label>
+                <span id="dbConnectionStatus" class="status-indicator">Kontrol ediliyor...</span>
+            </div>
+            
+            <div class="settings-option">
+                <label>Yazıcı Durumu</label>
+                <span id="printerConnectionStatus" class="status-indicator">Kontrol ediliyor...</span>
+            </div>
+        </div>
+
+        <!-- Geliştirici Seçenekleri (Admin only) -->
+        <div class="settings-section admin-only">
+            <h3>Geliştirici Seçenekleri</h3>
+            
+            <div class="settings-option">
+                <label>Hata Ayıklama Modu</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="debugModeToggle" onchange="toggleDebugMode()">
+                    <label for="debugModeToggle" class="toggle-slider"></label>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label>Konsol Logları</label>
+                <button class="btn btn-secondary" onclick="showConsoleLogs()">Logları Görüntüle</button>
+            </div>
+            
+            <div class="settings-option">
+                <label>Performans Testi</label>
+                <button class="btn btn-secondary" onclick="runPerformanceTest()">Test Çalıştır</button>
+            </div>
+        </div>
+
+        <div class="modal-buttons" style="margin-top: 20px;">
+            <button type="button" class="btn btn-success" onclick="saveAllSettings()">Tüm Ayarları Kaydet</button>
+            <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">Kapat</button>
+        </div>
     </div>
+</div>
 
     
 
@@ -2747,15 +2931,121 @@ function initializeElements() {
 
 
 
-        // New additions for the settings modal
-            function showSettingsModal() {
-                elements.settingsModal.style.display = 'flex';
-            }
+        // Settings functions
+function showSettingsModal() {
+    loadSettings(); // Load current settings
+    checkSystemStatus(); // Update status indicators
+    document.getElementById('settingsModal').style.display = 'flex';
+}
 
-            function closeSettingsModal() {
-                elements.settingsModal.style.display = 'none';
-            }
+function closeSettingsModal() {
+    document.getElementById('settingsModal').style.display = 'none';
+}
 
+function loadSettings() {
+    // Load saved settings from localStorage
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    
+    // Theme
+    if (settings.theme === 'dark') {
+        document.getElementById('themeToggle').checked = true;
+        document.body.classList.add('dark-mode');
+    }
+    
+    // Printer settings
+    if (settings.printerScaling) {
+        document.getElementById('printerScaling').value = settings.printerScaling;
+    }
+    
+    if (settings.copies) {
+        document.getElementById('copiesNumber').value = settings.copies;
+    }
+    
+    // Language
+    if (settings.language) {
+        document.getElementById('languageSelect').value = settings.language;
+    }
+    
+    // Auto-save
+    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+}
+
+function saveAllSettings() {
+    const settings = {
+        theme: document.getElementById('themeToggle').checked ? 'dark' : 'light',
+        printerScaling: document.getElementById('printerScaling').value,
+        copies: parseInt(document.getElementById('copiesNumber').value),
+        language: document.getElementById('languageSelect').value,
+        autoSave: document.getElementById('autoSaveToggle').checked
+    };
+    
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
+    applySettings(settings);
+    showAlert('Ayarlar kaydedildi', 'success');
+}
+
+function applySettings(settings) {
+    // Apply theme
+    if (settings.theme === 'dark') {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+    
+    // Apply language (you'll need to implement language files)
+    if (settings.language) {
+        changeLanguage(settings.language);
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.getElementById('themeToggle').checked;
+    document.body.classList.toggle('dark-mode', isDark);
+    document.getElementById('themeStatus').textContent = isDark ? 'Koyu' : 'Açık';
+}
+
+function checkSystemStatus() {
+    // Check database connection
+    const dbStatus = document.getElementById('dbConnectionStatus');
+    if (supabase) {
+        dbStatus.textContent = 'Bağlı';
+        dbStatus.className = 'status-indicator connected';
+    } else {
+        dbStatus.textContent = 'Bağlantı Yok';
+        dbStatus.className = 'status-indicator disconnected';
+    }
+    
+    // Check printer connection
+    const printerStatus = document.getElementById('printerConnectionStatus');
+    if (printer && printer.isConnected) {
+        printerStatus.textContent = 'Bağlı';
+        printerStatus.className = 'status-indicator connected';
+    } else {
+        printerStatus.textContent = 'Bağlantı Yok';
+        printerStatus.className = 'status-indicator disconnected';
+    }
+}
+
+function exportData(format) {
+    // Implementation for data export
+    showAlert(`${format.toUpperCase()} formatında veri indirme hazırlanıyor...`, 'info');
+    // Add your export logic here
+}
+
+function clearLocalData() {
+    if (confirm('Tüm yerel veriler silinecek. Emin misiniz?')) {
+        localStorage.removeItem('procleanState');
+        localStorage.removeItem('procleanOfflineData');
+        localStorage.removeItem('procleanSettings');
+        showAlert('Yerel veriler temizlendi', 'success');
+    }
+}
+
+// Initialize settings on app load
+function initializeSettings() {
+    const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    applySettings(savedSettings);
+}
 
 
         
@@ -4275,32 +4565,19 @@ async function initializeApp() {
             showApiKeyModal();
         }
 
-        // New event listener for settings button
-                if (elements.settingsBtn) {
-                    elements.settingsBtn.addEventListener('click', showSettingsModal);
-                }
-                
-                if (elements.closeSettingsModalBtn) {
-                    elements.closeSettingsModalBtn.addEventListener('click', closeSettingsModal);
-                }
+       // Initialize settings when app loads
+initializeSettings();
 
-                // New event listeners for settings modal buttons
-                if (elements.toggleThemeBtn) {
-                    elements.toggleThemeBtn.addEventListener('click', toggleDarkMode);
-                }
-                if (elements.downloadDataBtn) {
-                    elements.downloadDataBtn.addEventListener('click', downloadDataAsJson);
-                }
-                if (elements.changeApiKeyBtn) {
-                    elements.changeApiKeyBtn.addEventListener('click', showApiKeyModal);
-                }
-                
-                // Close modal on outside click
-                window.onclick = function(event) {
-                    if (event.target == elements.settingsModal) {
-                        closeSettingsModal();
-                    }
-                }
+// Add settings button event listener
+document.getElementById('settingsBtn').addEventListener('click', showSettingsModal);
+document.getElementById('closeSettingsModalBtn').addEventListener('click', closeSettingsModal);
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    if (event.target === document.getElementById('settingsModal')) {
+        closeSettingsModal();
+    }
+});
         
         
         // Set initial display states
