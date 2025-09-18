@@ -3015,18 +3015,28 @@ class PrinterService {
     }
 }
 
+    
 // ================== Barcode Generator ==================
 function generateBarcode(text) {
     try {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        JsBarcode(svg, text, { format: "CODE128", lineColor: "#000", width: 4, height: 30, displayValue: true, fontSize: 12, margin: 10 });
+        JsBarcode(svg, text, {
+            format: "CODE128",
+            lineColor: "#000",
+            width: 3,
+            height: 25,
+            displayValue: true,
+            fontSize: 10,
+            margin: 0
+        });
         return svg.outerHTML;
-    } catch (err) {
-        console.error('Barcode error:', err);
+    } catch (error) {
+        console.error('Barkod oluşturma hatası:', error);
         return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
     }
 }
 
+    
 // ================== Table Package Selection ==================
 function getSelectedPackage(row) {
     return {
