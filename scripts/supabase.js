@@ -19,7 +19,12 @@ let selectedPackageForPrinting = null;
 // EmailJS initialization
 (function() {
     // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
-    emailjs.init("jH-KlJ2ffs_lGwfsp");
+    try {
+        emailjs.init("jH-KlJ2ffs_lGwfsp");
+        console.log('EmailJS initialized successfully');
+    } catch (error) {
+        console.warn('EmailJS initialization failed:', error);
+    }
 })();
 
 // Elementleri bir defa tanımla
@@ -63,6 +68,7 @@ function initializeElementsObject() {
         toggleThemeBtn: 'toggleThemeBtn',
         downloadDataBtn: 'downloadDataBtn',
         changeApiKeyBtn: 'changeApiKeyBtn',
+        userRole: 'userRole' // ← ADDED THIS MISSING ELEMENT
     };
     
     Object.keys(elementMap).forEach(key => {
@@ -95,6 +101,10 @@ function initializeSupabase() {
         // Global supabase değişkenine ata
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized successfully');
+        
+        // Set up auth listener after successful initialization
+        setupAuthListener();
+        
         return supabase;
     } catch (error) {
         console.error('Supabase initialization error:', error);
@@ -126,6 +136,8 @@ function saveApiKey() {
         document.getElementById('apiKeyModal').style.display = 'none';
         showAlert('API anahtarı kaydedildi', 'success');
         testConnection();
+    } else {
+        showAlert('API anahtarı geçersiz. Lütfen kontrol edin.', 'error');
     }
 }
 
@@ -138,48 +150,7 @@ function showApiKeyModal() {
     }
 }
 
-// API anahtarı yardımı göster
-function showApiKeyHelp() {
-    const helpWindow = window.open('', '_blank');
-    helpWindow.document.write(`
-        <html>
-        <head>
-            <title>Supabase API Anahtarı Alma Rehberi</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
-                h1 { color: #2c3e50; }
-                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
-            </style>
-        </head>
-        <body>
-            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
-            <div class="step">
-                <h3>1. Supabase hesabınıza giriş yapın</h3>
-                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
-            </div>
-            <div class="step">
-                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
-            </div>
-            <div class="step">
-                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
-            </div>
-            <div class="step">
-                <h3>4. API sekmesine gidin</h3>
-            </div>
-            <div class="step">
-                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
-                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
-            </div>
-            <div class="step">
-                <h3>Önemli Not:</h3>
-                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
-            </div>
-        </body>
-        </html>
-    `);
-}
-
-// FIXED: Supabase bağlantısını test et
+// Test connection with better error handling
 async function testConnection() {
     if (!supabase) {
         console.warn('Supabase client not initialized for connection test');
@@ -189,14 +160,27 @@ async function testConnection() {
     
     try {
         const { data, error } = await supabase.from('customers').select('*').limit(1);
-        if (error) throw error;
+        
+        if (error) {
+            console.error('Supabase connection test failed:', error);
+            
+            if (error.code === 'PGRST301' || error.message.includes('JWT')) {
+                showAlert('API anahtarı geçersiz. Lütfen yeni bir anahtar girin.', 'error');
+                showApiKeyModal();
+            } else {
+                showAlert('Veritabanına bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.', 'error');
+            }
+            
+            return false;
+        }
         
         console.log('Supabase connection test successful:', data);
         showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
         return true;
+        
     } catch (e) {
         console.error('Supabase connection test failed:', e.message);
-        showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+        showAlert('Veritabanına bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.', 'error');
         return false;
     }
 }
@@ -213,12 +197,70 @@ function isSupabaseReady() {
     return supabase !== null && SUPABASE_ANON_KEY !== null;
 }
 
-// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle ve uygulamayı başlat
 document.addEventListener('DOMContentLoaded', () => {
+    // Önce elementleri initialize et
+    initializeElementsObject();
+    
     const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
         SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
         console.log('API key loaded from localStorage');
+        
+        // Supabase'i başlat ve auth listener'ı kur
+        const client = initializeSupabase();
+        
+        if (client) {
+            // Bağlantı testi yap
+            setTimeout(() => {
+                testConnection().then(isConnected => {
+                    if (!isConnected) {
+                        // Eğer bağlantı başarısızsa API key modalını göster
+                        showApiKeyModal();
+                    }
+                });
+            }, 1000);
+        }
+    } else {
+        // API key yoksa modalı göster
+        setTimeout(() => {
+            showApiKeyModal();
+        }, 500);
     }
+    
+    // Event listener'ları kur
+    setupEventListeners();
 });
+
+// Event listener'ları kur
+function setupEventListeners() {
+    // Login butonu
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', login);
+    }
+    
+    // Email ve password inputları için enter key
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    
+    if (emailInput) {
+        emailInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+    }
+    
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+    }
+    
+    // API key modalı için event listener'lar
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    if (apiKeyInput) {
+        apiKeyInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') saveApiKey();
+        });
+    }
+}
