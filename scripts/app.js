@@ -38,33 +38,52 @@ async function safeSetElementDisplay(elementId, displayValue, maxRetries = 5) {
 }
 
 // Initialize application
+// scripts/app.js
+
 async function initApp() {
     console.log('Initializing ProClean application...');
     
     try {
-        // Önce kritik elementlerin yüklenmesini bekle
-        await waitForElement('currentDate', 100, 50); // More attempts for critical elements
+        // First initialize elements (will show warnings for missing ones)
+        initializeElementsObject();
         
-        // Tarihi güncelle
+        // Wait for components to load and retry missing elements
+        const success = await retryMissingElements(15, 500); // 15 attempts, 500ms interval
+        
+        if (!success) {
+            console.warn('Some elements still missing, but continuing initialization');
+        }
+        
+        // Now it's safe to work with elements
         await safeSetElementText('currentDate', new Date().toLocaleDateString('tr-TR'));
         
-        // Dropdown'ları doldur (elementlerin yüklenmesini bekle)
-        await populateCustomers();
-        await populatePersonnel();
+        // Only try to populate if elements exist
+        if (elements.customerSelect) {
+            await populateCustomers();
+        }
         
-        // Kayıtlı durumu yükle
+        if (elements.personnelSelect) {
+            await populatePersonnel();
+        }
+        
+        // Load saved state
         loadAppState();
         
-        // Verileri yükle
-        await populatePackagesTable();
-        await populateStockTable();
-        await populateShippingTable();
+        // Load data tables if elements exist
+        if (elements.packagesTableBody) {
+            await populatePackagesTable();
+        }
         
-        // Bağlantı testi
+        if (elements.stockTableBody) {
+            await populateStockTable();
+        }
+        
+        if (elements.shippingFolders) {
+            await populateShippingTable();
+        }
+        
+        // Test connection
         await testConnection();
-        
-        // Event listener'ları kur
-        setupEventListeners();
         
         console.log('ProClean application initialized successfully');
         
@@ -73,6 +92,7 @@ async function initApp() {
         showAlert('Uygulama başlatılırken hata oluştu. Sayfayı yenileyin.', 'error');
     }
 }
+
 
 
 
