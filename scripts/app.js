@@ -43,17 +43,12 @@ async function initApp() {
     
     try {
         // Önce kritik elementlerin yüklenmesini bekle
-        await waitForElement('currentDate');
-        await waitForElement('customerSelect');
-        await waitForElement('personnelSelect');
+        await waitForElement('currentDate', 100, 50); // More attempts for critical elements
         
         // Tarihi güncelle
-        const currentDateElement = document.getElementById('currentDate');
-        if (currentDateElement) {
-            currentDateElement.textContent = new Date().toLocaleDateString('tr-TR');
-        }
+        await safeSetElementText('currentDate', new Date().toLocaleDateString('tr-TR'));
         
-        // Dropdown'ları doldur
+        // Dropdown'ları doldur (elementlerin yüklenmesini bekle)
         await populateCustomers();
         await populatePersonnel();
         
@@ -78,6 +73,8 @@ async function initApp() {
         showAlert('Uygulama başlatılırken hata oluştu. Sayfayı yenileyin.', 'error');
     }
 }
+
+
 
 // Event listener'ları kur
 function setupEventListeners() {
