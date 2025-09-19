@@ -19,8 +19,43 @@
     <!-- Local styles -->
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/modals.css">
+
+    <!-- Critical CSS to prevent white screen -->
+    <style>
+        .login-container { 
+            display: flex; /* Ensure login screen is visible initially */
+        }
+        .app-container {
+            display: none; /* Hide app container initially */
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-family: Arial, sans-serif;
+        }
+    </style>
 </head>
 <body>
+    <!-- Loading overlay to prevent white screen -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 20px; color: #2c3e50;">
+                ProClean Yükleniyor...
+            </div>
+            <div style="color: #7f8c8d;">
+                Lütfen bekleyin
+            </div>
+        </div>
+    </div>
+
     <!-- API Key Giriş Modalı -->
     <div class="api-key-modal" id="apiKeyModal">
         <div class="api-key-content">
@@ -57,7 +92,7 @@
         </div>
     </div>
 
-    <!-- Main app container (loaded from components) -->
+    <!-- Main app container (will be populated by JavaScript) -->
     <div id="app-container-placeholder"></div>
 
     <!-- Alert container -->
@@ -70,45 +105,136 @@
     <!-- Print Label Container (hidden) -->
     <div id="printContainer" style="display:none;"></div>
 
-    <!-- Load components -->
-    <script src="components/modals.html" type="text/html" id="modals-template"></script>
-    <script src="components/tabs.html" type="text/html" id="tabs-template"></script>
-    
-    <!-- Load scripts -->
+    <!-- Load scripts in CORRECT ORDER -->
+    <script src="scripts/domUtils.js"></script>
+    <script src="scripts/debug.js"></script>
+    <script src="scripts/fallback.js"></script>
     <script src="scripts/supabase.js"></script>
     <script src="scripts/auth.js"></script>
-    <script src="scripts/main.js"></script>
+    <script src="scripts/app.js"></script>
     <script src="scripts/barcode.js"></script>
     <script src="scripts/printing.js"></script>
     <script src="scripts/inventory.js"></script>
     <script src="scripts/reports.js"></script>
-    <script src="src/scripts/app.js"></script>
-    <script src="src/scripts/reports.js"></script>
-    <script src="src/scripts/domUtils.js"></script>
-    <script src="src/scripts/debug.js"></script>
-    <script src="src/scripts/fallback.js"></script>
 
-
-    
     <!-- Initialize app -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Load components
-            loadComponents();
-            
-            // Initialize the application
-            initApp();
-        });
-        
-        function loadComponents() {
-            // Load app container
-            const appContainerTemplate = document.getElementById('tabs-template').textContent;
-            document.getElementById('app-container-placeholder').innerHTML = appContainerTemplate;
-            
-            // Load modals
-            const modalsTemplate = document.getElementById('modals-template').textContent;
-            document.body.innerHTML += modalsTemplate;
+        // Function to load HTML components properly
+        async function loadHTMLComponent(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Failed to load ${url}: ${response.status}`);
+                }
+                const html = await response.text();
+                
+                // Extract content from script tag if it's wrapped
+                const template = document.createElement('template');
+                template.innerHTML = html;
+                
+                // Check if it's wrapped in a script tag
+                const scriptTag = template.content.querySelector('script[type="text/html"]');
+                if (scriptTag) {
+                    return scriptTag.textContent;
+                }
+                return html;
+            } catch (error) {
+                console.error('Error loading component:', error);
+                showAlert(`Bileşen yüklenirken hata oluştu: ${url}`, 'error');
+                return null;
+            }
         }
+
+        async function loadComponents() {
+            console.log('Loading components...');
+            
+            try {
+                // Load tabs component
+                const tabsHTML = await loadHTMLComponent('components/tabs.html');
+                if (tabsHTML) {
+                    document.getElementById('app-container-placeholder').innerHTML = tabsHTML;
+                    console.log('Tabs component loaded');
+                }
+                
+                // Load modals component
+                const modalsHTML = await loadHTMLComponent('components/modals.html');
+                if (modalsHTML) {
+                    // Create a container for modals if it doesn't exist
+                    let modalsContainer = document.getElementById('modals-container');
+                    if (!modalsContainer) {
+                        modalsContainer = document.createElement('div');
+                        modalsContainer.id = 'modals-container';
+                        document.body.appendChild(modalsContainer);
+                    }
+                    modalsContainer.innerHTML = modalsHTML;
+                    console.log('Modals component loaded');
+                }
+                
+            } catch (error) {
+                console.error('Failed to load components:', error);
+                showAlert('Uygulama bileşenleri yüklenirken hata oluştu', 'error');
+            }
+        }
+
+        async function initializeApplication() {
+            console.log('Initializing application...');
+            
+            // Show loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+            }
+            
+            try {
+                // Load components first
+                await loadComponents();
+                
+                // Initialize Supabase
+                if (typeof initializeSupabase === 'function') {
+                    const supabaseClient = initializeSupabase();
+                    if (!supabaseClient) {
+                        showApiKeyModal();
+                    }
+                }
+                
+                // Set up auth listener
+                if (typeof setupAuthListener === 'function') {
+                    setupAuthListener();
+                }
+                
+                // Set up event listeners
+                if (typeof setupEventListeners === 'function') {
+                    setupEventListeners();
+                }
+                
+                // Hide loading overlay
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'none';
+                }
+                
+                console.log('Application initialized successfully');
+                
+            } catch (error) {
+                console.error('Application initialization failed:', error);
+                
+                // Hide loading overlay
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'none';
+                }
+                
+                showAlert('Uygulama başlatılırken hata oluştu. Sayfayı yenileyin.', 'error');
+                
+                // Show fallback
+                if (typeof showFallbackLoader === 'function') {
+                    showFallbackLoader();
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM fully loaded, starting application...');
+            initializeApplication();
+        });
     </script>
 </body>
 </html>
