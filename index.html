@@ -145,37 +145,44 @@
             }
         }
 
-        async function loadComponents() {
-            console.log('Loading components...');
-            
-            try {
-                // Load tabs component
-                const tabsHTML = await loadHTMLComponent('components/tabs.html');
-                if (tabsHTML) {
-                    document.getElementById('app-container-placeholder').innerHTML = tabsHTML;
-                    console.log('Tabs component loaded');
-                }
-                
-                // Load modals component
-                const modalsHTML = await loadHTMLComponent('components/modals.html');
-                if (modalsHTML) {
-                    // Create a container for modals if it doesn't exist
-                    let modalsContainer = document.getElementById('modals-container');
-                    if (!modalsContainer) {
-                        modalsContainer = document.createElement('div');
-                        modalsContainer.id = 'modals-container';
-                        document.body.appendChild(modalsContainer);
-                    }
-                    modalsContainer.innerHTML = modalsHTML;
-                    console.log('Modals component loaded');
-                }
-                
-            } catch (error) {
-                console.error('Failed to load components:', error);
-                showAlert('Uygulama bileşenleri yüklenirken hata oluştu', 'error');
-            }
-        }
+        // In your HTML file, update the loadComponents function:
 
+async function loadComponents() {
+    console.log('Loading components...');
+    
+    try {
+        // Load tabs component
+        const tabsHTML = await loadHTMLComponent('components/tabs.html');
+        if (tabsHTML) {
+            document.getElementById('app-container-placeholder').innerHTML = tabsHTML;
+            console.log('Tabs component loaded');
+            
+            // After loading tabs, retry finding elements
+            setTimeout(() => {
+                retryMissingElements();
+            }, 100);
+        }
+        
+        // Load modals component
+        const modalsHTML = await loadHTMLComponent('components/modals.html');
+        if (modalsHTML) {
+            let modalsContainer = document.getElementById('modals-container');
+            if (!modalsContainer) {
+                modalsContainer = document.createElement('div');
+                modalsContainer.id = 'modals-container';
+                document.body.appendChild(modalsContainer);
+            }
+            modalsContainer.innerHTML = modalsHTML;
+            console.log('Modals component loaded');
+        }
+        
+    } catch (error) {
+        console.error('Failed to load components:', error);
+    }
+}
+
+
+        
         async function initializeApplication() {
             console.log('Initializing application...');
             
