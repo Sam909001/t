@@ -1,3 +1,53 @@
+// Profesyonel alert sistemi
+function showAlert(message, type = 'info', duration = 5000) {
+    if (!elements.alertContainer) {
+        console.error('Alert container not found, using console instead');
+        console.log(`${type.toUpperCase()}: ${message}`);
+        return;
+    }
+    
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    
+    const span = document.createElement('span');
+    span.textContent = message; // Use textContent for XSS protection
+    
+    const button = document.createElement('button');
+    button.className = 'alert-close';
+    button.textContent = '×';
+    
+    alert.appendChild(span);
+    alert.appendChild(button);
+    
+    elements.alertContainer.appendChild(alert);
+    
+    // Close button event
+    button.addEventListener('click', () => {
+        alert.classList.add('hide');
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 300);
+    });
+    
+    // Auto close
+    if (duration > 0) {
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.classList.add('hide');
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.remove();
+                    }
+                }, 300);
+            }
+        }, duration);
+    }
+    
+    return alert;
+}
+
 // Initialize application
 async function initApp() {
     initializeElementsObject();
@@ -363,55 +413,7 @@ function isValidEmail(email) {
     return re.test(String(email).toLowerCase());
 }
 
-// Profesyonel alert sistemi
-function showAlert(message, type = 'info', duration = 5000) {
-    if (!elements.alertContainer) {
-        console.error('Alert container not found, using console instead');
-        console.log(`${type.toUpperCase()}: ${message}`);
-        return;
-    }
-    
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type}`;
-    
-    const span = document.createElement('span');
-    span.textContent = message; // Use textContent for XSS protection
-    
-    const button = document.createElement('button');
-    button.className = 'alert-close';
-    button.textContent = '×';
-    
-    alert.appendChild(span);
-    alert.appendChild(button);
-    
-    elements.alertContainer.appendChild(alert);
-    
-    // Close button event
-    button.addEventListener('click', () => {
-        alert.classList.add('hide');
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.remove();
-            }
-        }, 300);
-    });
-    
-    // Auto close
-    if (duration > 0) {
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.classList.add('hide');
-                setTimeout(() => {
-                    if (alert.parentNode) {
-                        alert.remove();
-                    }
-                }, 300);
-            }
-        }, duration);
-    }
-    
-    return alert;
-}
+
 
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
