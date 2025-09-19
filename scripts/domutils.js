@@ -66,3 +66,62 @@ function safeQuerySelector(selector, parent = document) {
         return null;
     }
 }
+
+// scripts/domUtils.js
+
+// Safe element access with retry
+function getElementSafe(id, maxAttempts = 5, interval = 200) {
+    return new Promise((resolve) => {
+        // First try immediately
+        const immediateElement = document.getElementById(id);
+        if (immediateElement) {
+            resolve(immediateElement);
+            return;
+        }
+        
+        // If not found, retry
+        let attempts = 0;
+        const intervalId = setInterval(() => {
+            attempts++;
+            const element = document.getElementById(id);
+            
+            if (element) {
+                clearInterval(intervalId);
+                resolve(element);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(intervalId);
+                resolve(null);
+            }
+        }, interval);
+    });
+}
+
+// Safe version of initializeElementsObject for individual elements
+async function getElement(key) {
+    const elementMap = {
+        appContainer: 'appContainer',
+        customerSelect: 'customerSelect',
+        personnelSelect: 'personnelSelect',
+        currentDate: 'currentDate',
+        userRole: 'userRole'
+        // ... add other elements as needed
+    };
+    
+    if (elements[key]) {
+        return elements[key];
+    }
+    
+    const elementId = elementMap[key];
+    if (!elementId) {
+        console.warn(`Unknown element key: ${key}`);
+        return null;
+    }
+    
+    const element = await getElementSafe(elementId);
+    if (element) {
+        elements[key] = element;
+    }
+    
+    return element;
+}
+
