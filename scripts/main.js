@@ -218,45 +218,47 @@ async function populateCustomers() {
 }
 
 async function populatePersonnel() {
-    try {
-        // Dropdown'u temizle
-        elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
-        
-        const { data: personnel, error } = await supabase
-            .from('personnel')
-            .select('*')
-            .order('name');
+            try {
+                // Dropdown'u temizle
+                elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+                
+                const { data: personnel, error } = await supabase
+                    .from('personnel')
+                    .select('*')
+                    .order('name');
 
-        if (error) {
-            console.error('Error loading personnel:', error);
-            // Add default current user
-            const option = document.createElement('option');
-            option.value = currentUser?.uid || 'default';
-            option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
-            option.selected = true;
-            elements.personnelSelect.appendChild(option);
-            return;
-        }
+                if (error) {
+                    console.error('Error loading personnel:', error);
+                    // Add default current user
+                    const option = document.createElement('option');
+                    option.value = currentUser?.uid || 'default';
+                    option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+                    option.selected = true;
+                    elements.personnelSelect.appendChild(option);
+                    return;
+                }
 
-        if (personnel && personnel.length > 0) {
-            personnel.forEach(person => {
+                if (personnel && personnel.length > 0) {
+                    personnel.forEach(person => {
+                        const option = document.createElement('option');
+                        option.value = person.id;
+                        option.textContent = person.name;
+                        elements.personnelSelect.appendChild(option);
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error in populatePersonnel:', error);
+                // Add default current user
                 const option = document.createElement('option');
-                option.value = person.id;
-                option.textContent = person.name;
+                option.value = currentUser?.uid || 'default';
+                option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+                option.selected = true;
                 elements.personnelSelect.appendChild(option);
-            });
+            }
         }
-        
-    } catch (error) {
-        console.error('Error in populatePersonnel:', error);
-        // Add default current user
-        const option = document.createElement('option');
-        option.value = currentUser?.uid || 'default';
-        option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
-        option.selected = true;
-        elements.personnelSelect.appendChild(option);
-    }
-}
+
+
 
 // Tab click events
 function switchTab(tabName) {
