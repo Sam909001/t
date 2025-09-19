@@ -44,36 +44,43 @@ async function login() {
                 .eq('email', data.user.email)
                 .single();
 
-            if (!userError && userData) {
+            if (userError) {
+                console.warn('Kullanıcı detayları alınamadı:', userError);
+                // Devam et, varsayılan değerlerle kullan
+                currentUser = {
+                    email: data.user.email,
+                    uid: data.user.id,
+                    name: data.user.email.split('@')[0],
+                    role: 'operator'
+                };
+            } else if (userData) {
                 currentUser = {
                     email: data.user.email,
                     uid: data.user.id,
                     name: userData.name || data.user.email.split('@')[0],
-                    role: userData.role
+                    role: userData.role || 'operator'
                 };
             } else {
                 currentUser = {
                     email: data.user.email,
                     uid: data.user.id,
                     name: data.user.email.split('@')[0],
-                    role: 'operator' // Varsayılan rol
+                    role: 'operator'
                 };
             }
 
-            const userRoleElement = document.getElementById('userRole');
-            if (userRoleElement) {
-                userRoleElement.textContent = 
-                    `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
-            }
+            // DOM elementlerini güvenli şekilde güncelle
+            safeSetElementText('userRole', 
+                `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`);
             
-            // Rol bazlı yetkilendirme (eğer fonksiyon mevcutsa)
-            if (typeof applyRoleBasedPermissions === 'function') {
-                applyRoleBasedPermissions(currentUser.role);
-            }
+            // Rol bazlı yetkilendirme
+            applyRoleBasedPermissions(currentUser.role);
             
             showAlert('Giriş başarılı!', 'success');
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
+            
+            // UI elementlerini güvenli şekilde güncelle
+            safeSetElementDisplay('loginScreen', 'none');
+            safeSetElementDisplay('appContainer', 'flex');
             
             // Bağlantı testini arka planda yap
             testConnection();
@@ -90,13 +97,41 @@ async function login() {
     }
 }
 
+// Yardımcı fonksiyon: DOM elementi güvenli şekilde güncelle
+function safeSetElementText(elementId, text) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = text;
+    } else {
+        console.warn(`Element with ID '${elementId}' not found`);
+        // Element bulunamazsa, biraz bekleyip tekrar dene
+        setTimeout(() => safeSetElementText(elementId, text), 100);
+    }
+}
+
+// Yardımcı fonksiyon: DOM elementi güvenli şekilde gizle/göster
+function safeSetElementDisplay(elementId, displayValue) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.style.display = displayValue;
+    } else {
+        console.warn(`Element with ID '${elementId}' not found`);
+        // Element bulunamazsa, biraz bekleyip tekrar dene
+        setTimeout(() => safeSetElementDisplay(elementId, displayValue), 100);
+    }
+}
+
 function applyRoleBasedPermissions(role) {
     const adminOnlyElements = document.querySelectorAll('.admin-only');
     
     if (role === 'admin') {
-        adminOnlyElements.forEach(el => el.style.display = 'block');
+        adminOnlyElements.forEach(el => {
+            if (el) el.style.display = 'block';
+        });
     } else {
-        adminOnlyElements.forEach(el => el.style.display = 'none');
+        adminOnlyElements.forEach(el => {
+            if (el) el.style.display = 'none';
+        });
     }
 }
 
@@ -106,10 +141,13 @@ function logout() {
     
     supabase.auth.signOut().then(() => {
         showAlert('Başarıyla çıkış yapıldı.', 'success');
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('appContainer').style.display = 'none';
-        document.getElementById('email').value = '';
-        document.getElementById('password').value = '';
+        safeSetElementDisplay('loginScreen', 'flex');
+        safeSetElementDisplay('appContainer', 'none');
+        
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        if (emailInput) emailInput.value = '';
+        if (passwordInput) passwordInput.value = '';
     }).catch(e => {
         console.error('Çıkış yapılırken bir hata oluştu:', e);
         showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
@@ -130,14 +168,14 @@ function setupAuthListener() {
                 name: session.user.email.split('@')[0]
             };
             
-            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
-            document.getElementById('loginScreen').style.display = "none";
-            document.getElementById('appContainer').style.display = "flex";
+            safeSetElementText('userRole', `Operatör: ${currentUser.name}`);
+            safeSetElementDisplay('loginScreen', "none");
+            safeSetElementDisplay('appContainer', "flex");
             
             initApp();
         } else {
-            document.getElementById('loginScreen').style.display = "flex";
-            document.getElementById('appContainer').style.display = "none";
+            safeSetElementDisplay('loginScreen', "flex");
+            safeSetElementDisplay('appContainer', "none");
         }
     });
 }
