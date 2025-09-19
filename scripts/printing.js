@@ -42,6 +42,7 @@ class PrinterService {
     async printBarcode(barcode, text = '') {
         if (!this.isConnected) {
             console.error('❌ Printer not connected');
+            // Check if showAlert function exists globally before calling it
             if (typeof showAlert === 'function') {
                 showAlert('Printer server is not connected. Please check if the Node.js server is running.', 'error');
             }
@@ -85,82 +86,87 @@ class PrinterService {
         }
     }
 
-   // Add testPrint method to PrinterService class
-async testPrint() {
-    const testBarcode = '123456789';
-    const testText = `Test - ${new Date().toLocaleTimeString()}`;
-    console.log('🧪 Testing printer...');
-    const result = await this.printBarcode(testBarcode, testText);
-    
-    if (typeof showAlert === 'function') {
-        if (result) {
-            showAlert('✅ Test print successful!', 'success');
-        } else {
-            showAlert('❌ Test print failed!', 'error');
+    // Add testPrint method to PrinterService class
+    async testPrint() {
+        const testBarcode = '123456789';
+        const testText = `Test - ${new Date().toLocaleTimeString()}`;
+        console.log('🧪 Testing printer...');
+        const result = await this.printBarcode(testBarcode, testText);
+        
+        if (typeof showAlert === 'function') {
+            if (result) {
+                showAlert('✅ Test print successful!', 'success');
+            } else {
+                showAlert('❌ Test print failed!', 'error');
+            }
+        }
+        
+        return result;
+    }
+
+    // ----------------- PDF Printing -----------------
+    async printPDFLabel(pkg) {
+        if (!this.isConnected) {
+            // FIX: The original code used `this.showAlert`, which is not a method of this class.
+            // It should call the global `showAlert` function.
+            if (typeof showAlert === 'function') {
+                showAlert('Printer server is not connected', 'error');
+            }
+            return false;
+        }
+
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: [100, 80] }); // 10x8 cm
+
+            // Thicker fonts
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(16);
+            doc.text('ProClean', 5, 10);
+
+            // Package info
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+
+            let y = 20;
+            doc.text(`Package No: ${pkg.package_no}`, 5, y); y += 6;
+            doc.text(`Customer: ${pkg.customer_name}`, 5, y); y += 6;
+            doc.text(`Product: ${pkg.product}`, 5, y); y += 6;
+            doc.text(`Date: ${pkg.created_at}`, 5, y); y += 10;
+
+            // Barcode
+            const canvas = document.createElement('canvas');
+            JsBarcode(canvas, pkg.package_no, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 3,
+                height: 25,
+                displayValue: true,
+                fontSize: 10,
+                margin: 0
+            });
+            const barcodeDataUrl = canvas.toDataURL('image/png');
+            doc.addImage(barcodeDataUrl, 'PNG', 5, y, 90, 25); // fit in page
+
+            const pdfBase64 = doc.output('datauristring');
+            const res = await fetch(`${this.serverUrl}/api/print/pdf`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pdfData: pdfBase64, copies: 1 })
+            });
+
+            const result = await res.json();
+            if (result.success) return true;
+            else throw new Error(result.error || 'Unknown PDF print error');
+
+        } catch (e) {
+            console.error('❌ PDF print failed:', e);
+            if (typeof showAlert === 'function') {
+                showAlert(`❌ PDF print failed: ${e.message}`, 'error');
+            }
+            return false;
         }
     }
-    
-    return result;
-}
-
-        
-    // ----------------- PDF Printing -----------------
-   async printPDFLabel(pkg) {
-    if (!this.isConnected) {
-        this.showAlert('Printer server is not connected', 'error');
-        return false;
-    }
-
-    try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ unit: 'mm', format: [100, 80] }); // 10x8 cm
-
-        // Thicker fonts
-        doc.setFont(undefined, 'bold');
-        doc.setFontSize(16);
-        doc.text('ProClean', 5, 10);
-
-        // Package info
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'normal');
-
-        let y = 20;
-        doc.text(`Package No: ${pkg.package_no}`, 5, y); y += 6;
-        doc.text(`Customer: ${pkg.customer_name}`, 5, y); y += 6;
-        doc.text(`Product: ${pkg.product}`, 5, y); y += 6;
-        doc.text(`Date: ${pkg.created_at}`, 5, y); y += 10;
-
-        // Barcode
-        const canvas = document.createElement('canvas');
-        JsBarcode(canvas, pkg.package_no, {
-            format: "CODE128",
-            lineColor: "#000",
-            width: 3,
-            height: 25,
-            displayValue: true,
-            fontSize: 10,
-            margin: 0
-        });
-        const barcodeDataUrl = canvas.toDataURL('image/png');
-        doc.addImage(barcodeDataUrl, 'PNG', 5, y, 90, 25); // fit in page
-
-        const pdfBase64 = doc.output('datauristring');
-        const res = await fetch(`${this.serverUrl}/api/print/pdf`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pdfData: pdfBase64, copies: 1 })
-        });
-
-        const result = await res.json();
-        if (result.success) return true;
-        else throw new Error(result.error || 'Unknown PDF print error');
-
-    } catch (e) {
-        console.error('❌ PDF print failed:', e);
-        this.showAlert(`❌ PDF print failed: ${e.message}`, 'error');
-        return false;
-    }
-  }
 }
 
 // Initialize printer service
