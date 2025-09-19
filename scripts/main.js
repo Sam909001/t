@@ -533,3 +533,55 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('ProClean application initialized with Supabase authentication');
 });
+
+// scripts/main.js
+
+// Add this function to check if elements exist before accessing them
+function ensureElementLoaded(id, callback, maxAttempts = 50, interval = 100) {
+    let attempts = 0;
+    const checkExist = setInterval(function() {
+        attempts++;
+        const element = document.getElementById(id);
+        if (element) {
+            clearInterval(checkExist);
+            callback(element);
+        } else if (attempts >= maxAttempts) {
+            clearInterval(checkExist);
+            console.error(`Element with ID '${id}' not found after ${maxAttempts} attempts`);
+        }
+    }, interval);
+}
+
+// Modify your initApp function
+async function initApp() {
+    initializeElementsObject();
+    
+    // Wait for elements to be loaded before accessing them
+    ensureElementLoaded('currentDate', (element) => {
+        element.textContent = new Date().toLocaleDateString('tr-TR');
+    });
+    
+    // Populate dropdowns
+    await populateCustomers();
+    await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
+    
+    // Load data
+    await populatePackagesTable();
+    await populateStockTable();
+    await populateShippingTable();
+    
+    // Test connection
+    await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000);
+    
+    // Set up offline support
+    setupOfflineSupport();
+    
+    // Set up barcode scanner listener
+    setupBarcodeScanner();
+}
