@@ -1,4 +1,4 @@
-// scripts/auth.js
+/// scripts/auth.js
 
 async function login() {
     console.log('Login function called');
