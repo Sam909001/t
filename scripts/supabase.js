@@ -28,8 +28,12 @@ let selectedPackageForPrinting = null;
 })();
 
 // Elementleri bir defa tanımla
+// scripts/supabase.js
+
+// Global elements cache
 const elements = {};
 
+// Modified initializeElementsObject to handle async loading
 function initializeElementsObject() {
     const elementMap = {
         loginScreen: 'loginScreen',
@@ -63,26 +67,99 @@ function initializeElementsObject() {
         alertContainer: 'alertContainer',
         scannerToggle: 'scannerToggle',
         containerSearch: 'containerSearch',
-        settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn',
-        toggleThemeBtn: 'toggleThemeBtn',
-        downloadDataBtn: 'downloadDataBtn',
-        changeApiKeyBtn: 'changeApiKeyBtn',
-        userRole: 'userRole' // ← ADDED THIS MISSING ELEMENT
+        userRole: 'userRole'
     };
+    
+    let foundCount = 0;
+    let missingCount = 0;
     
     Object.keys(elementMap).forEach(key => {
         const element = document.getElementById(elementMap[key]);
         if (element) {
             elements[key] = element;
+            foundCount++;
         } else {
-            console.warn(`Element ${elementMap[key]} not found`);
+            console.warn(`Element ${elementMap[key]} not found (will retry later)`);
             elements[key] = null;
+            missingCount++;
         }
     });
     
+    console.log(`Elements initialized: ${foundCount} found, ${missingCount} missing`);
     return elements;
 }
+
+// New function to retry finding missing elements
+async function retryMissingElements(maxAttempts = 10, interval = 300) {
+    const elementMap = {
+        // Same mapping as above
+        appContainer: 'appContainer',
+        customerSelect: 'customerSelect',
+        personnelSelect: 'personnelSelect',
+        currentDate: 'currentDate',
+        barcodeInput: 'barcodeInput',
+        packagesTableBody: 'packagesTableBody',
+        packageDetailContent: 'packageDetailContent',
+        shippingFolders: 'shippingFolders',
+        stockTableBody: 'stockTableBody',
+        customerList: 'customerList',
+        allCustomersList: 'allCustomersList',
+        containerNumber: 'containerNumber',
+        totalPackages: 'totalPackages',
+        shippingFilter: 'shippingFilter',
+        stockSearch: 'stockSearch',
+        selectAllPackages: 'selectAllPackages',
+        quantityInput: 'quantityInput',
+        quantityModal: 'quantityModal',
+        quantityModalTitle: 'quantityModalTitle',
+        scannedBarcodes: 'scannedBarcodes',
+        connectionStatus: 'connectionStatus',
+        scannerToggle: 'scannerToggle',
+        containerSearch: 'containerSearch',
+        userRole: 'userRole'
+    };
+    
+    let attempts = 0;
+    const missingElements = Object.keys(elementMap).filter(key => !elements[key]);
+    
+    if (missingElements.length === 0) {
+        console.log('All elements found, no retry needed');
+        return true;
+    }
+    
+    console.log(`Retrying ${missingElements.length} missing elements...`);
+    
+    return new Promise((resolve) => {
+        const intervalId = setInterval(() => {
+            attempts++;
+            let foundNew = false;
+            
+            missingElements.forEach(key => {
+                if (!elements[key]) {
+                    const element = document.getElementById(elementMap[key]);
+                    if (element) {
+                        elements[key] = element;
+                        console.log(`Found element: ${elementMap[key]}`);
+                        foundNew = true;
+                    }
+                }
+            });
+            
+            if (missingElements.every(key => elements[key])) {
+                clearInterval(intervalId);
+                console.log('All missing elements found!');
+                resolve(true);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(intervalId);
+                console.warn(`Could not find all elements after ${maxAttempts} attempts`);
+                resolve(false);
+            }
+        }, interval);
+    });
+}
+
+
+
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
