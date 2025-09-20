@@ -335,3 +335,31 @@ async function generatePDFReportSafe(reportData) {
     return await generatePDFReport(reportData);
 }
 
+
+async function previewReport() {
+    if (!currentReportData) {
+        showAlert('Önce rapor oluşturmalısınız', 'error');
+        return;
+    }
+    
+    try {
+        // Generate PDF
+        const pdfBlob = await generatePDFReport(currentReportData);
+        
+        // Create object URL for the PDF
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        
+        // Open PDF in a new window
+        const reportWindow = window.open(pdfUrl, '_blank');
+        
+        // Clean up the URL when window is closed
+        if (reportWindow) {
+            reportWindow.onbeforeunload = function() {
+                URL.revokeObjectURL(pdfUrl);
+            };
+        }
+    } catch (error) {
+        console.error('Rapor önizleme hatası:', error);
+        showAlert('Rapor önizlenemedi', 'error');
+    }
+}
