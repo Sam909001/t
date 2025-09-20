@@ -940,5 +940,218 @@ async function deleteCustomer(customerId) {
 
 
 
+async function completePackage() {
+            if (!selectedCustomer) {
+                showAlert('Önce müşteri seçin', 'error');
+                return;
+            }
+
+            if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+                showAlert('Pakete ürün ekleyin', 'error');
+                return;
+            }
+
+            try {
+                const packageNo = `PKG-${Date.now()}`;
+                const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+                const selectedPersonnel = elements.personnelSelect.value;
+
+                const packageData = {
+                    package_no: packageNo,
+                    customer_id: selectedCustomer.id,
+                    items: currentPackage.items,
+                    total_quantity: totalQuantity,
+                    status: 'beklemede',
+                    packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+                    created_at: new Date().toISOString()
+                };
+
+                if (!navigator.onLine) {
+                    // Çevrimdışı mod
+                    saveOfflineData('packages', packageData);
+                    showAlert(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
+                } else {
+                    // Çevrimiçi mod
+                    const { data, error } = await supabase
+                        .from('packages')
+                        .insert([packageData])
+                        .select();
+
+                    if (error) {
+                        console.error('Error creating package:', error);
+                        showAlert('Paket oluşturulurken hata: ' + error.message, 'error');
+                        return;
+                    }
+
+                    showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+                }
+
+                // Reset current package and quantities
+                currentPackage = {};
+                document.querySelectorAll('.quantity-badge').forEach(badge => {
+                    badge.textContent = '0';
+                });
+                
+                // Taranan barkodları işlendi olarak işaretle
+                if (scannedBarcodes.length > 0 && navigator.onLine) {
+                    const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
+                    if (barcodeIds.length > 0) {
+                        await supabase
+                            .from('barcodes')
+                            .update({ processed: true })
+                            .in('id', barcodeIds);
+                    }
+                    scannedBarcodes = [];
+                    displayScannedBarcodes();
+                }
+                
+                // Refresh packages table
+                await populatePackagesTable();
+                
+            } catch (error) {
+                console.error('Error in completePackage:', error);
+                showAlert('Paket oluşturma hatası', 'error');
+            }
+        }
+
+
+
+
+ async function deleteSelectedPackages() {
+            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+            if (checkboxes.length === 0) {
+                showAlert('Silinecek paket seçin', 'error');
+                return;
+            }
+
+            if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+            try {
+                const packageIds = Array.from(checkboxes).map(cb => cb.value);
+                
+                const { error } = await supabase
+                    .from('packages')
+                    .delete()
+                    .in('id', packageIds);
+
+                if (error) {
+                    console.error('Error deleting packages:', error);
+                    showAlert('Paketler silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showAlert(`${packageIds.length} paket silindi`, 'success');
+                await populatePackagesTable();
+                
+            } catch (error) {
+                console.error('Error in deleteSelectedPackages:', error);
+                showAlert('Paket silme hatası', 'error');
+            }
+        }
+
+
+
+
+ // Shipping operations
+        async function sendToRamp(containerNo = null) {
+            try {
+                const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
+                    .map(cb => cb.value);
+                
+                if (selectedPackages.length === 0) {
+                    showAlert('Rampaya göndermek için paket seçin', 'error');
+                    return;
+                }
+
+                // Use existing container or create a new one
+                let containerId;
+                if (containerNo && currentContainer) {
+                    containerId = currentContainer;
+                } else {
+                    const timestamp = new Date().getTime();
+                    containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+                    
+                    const { data: newContainer, error } = await supabase
+                        .from('containers')
+                        .insert([{
+                            container_no: containerNo,
+                            customer: selectedCustomer?.name || '',
+                            package_count: selectedPackages.length,
+                            total_quantity: await calculateTotalQuantity(selectedPackages),
+                            status: 'beklemede',
+                            created_at: new Date().toISOString()
+                        }])
+                        .select();
+
+                    if (error) throw error;
+                    
+                    containerId = newContainer[0].id;
+                    currentContainer = containerNo;
+                    elements.containerNumber.textContent = containerNo;
+                    saveAppState();
+                }
+
+                // Update packages with container reference
+                const { error: updateError } = await supabase
+                    .from('packages')
+                    .update({ 
+                        container_id: containerId,
+                        status: 'sevk-edildi'
+                    })
+                    .in('id', selectedPackages);
+
+                if (updateError) throw updateError;
+
+                showAlert(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
+                
+                // Refresh tables
+                await populatePackagesTable();
+                await populateShippingTable();
+                
+            } catch (error) {
+                console.error('Error sending to ramp:', error);
+                showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
+            }
+        }
+
+
+
+        
+        async function shipContainer(containerNo) {
+            try {
+                // First get the container ID
+                const { data: container, error: fetchError } = await supabase
+                    .from('containers')
+                    .select('id')
+                    .eq('container_no', containerNo)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                // Update container status
+                const { error: updateError } = await supabase
+                    .from('containers')
+                    .update({ status: 'sevk-edildi' })
+                    .eq('id', container.id);
+
+                if (updateError) throw updateError;
+
+                showAlert(`Konteyner ${containerNo} sevk edildi`, 'success');
+                await populateShippingTable();
+                
+            } catch (error) {
+                console.error('Error shipping container:', error);
+                showAlert('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
+            }
+        }
+
+
+        
+
+        function filterShipping() {
+            populateShippingTable();
+        }
+
+
 
 
