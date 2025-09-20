@@ -32,7 +32,6 @@ class TableManager {
         document.addEventListener('change', (e) => {
             if (e.target.type === 'checkbox' && e.target.closest('table')) {
                 const table = e.target.closest('table');
-                const tableId = table.id;
                 
                 if (e.target.id === 'selectAllPackages') {
                     this.handleSelectAll(table, e.target.checked);
@@ -88,7 +87,9 @@ class TableManager {
         
         // Get table body and rows
         const tbody = table.querySelector('tbody');
-        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const rows = Array.from(tbody.querySelectorAll('tr:not(.empty-state-row)'));
+        
+        if (rows.length === 0) return;
         
         // Find column index
         const headers = table.querySelectorAll('th');
@@ -120,10 +121,12 @@ class TableManager {
 
     // Get cell value for sorting
     getCellValue(cell) {
+        if (!cell) return '';
+        
         const text = cell.textContent.trim();
         
         // Try to parse as number
-        const number = parseFloat(text);
+        const number = parseFloat(text.replace(/[^\d.-]/g, ''));
         if (!isNaN(number)) return number;
         
         // Try to parse as date
@@ -154,7 +157,7 @@ class TableManager {
     // Filter table rows
     filterTable(table, filterFn) {
         const tbody = table.querySelector('tbody');
-        const rows = tbody.querySelectorAll('tr');
+        const rows = tbody.querySelectorAll('tr:not(.empty-state-row)');
         
         let visibleCount = 0;
         rows.forEach(row => {
@@ -179,11 +182,13 @@ class TableManager {
                 const columnCount = table.querySelectorAll('thead th').length;
                 emptyRow = document.createElement('tr');
                 emptyRow.className = 'empty-state-row';
-                emptyRow.innerHTML = `
-                    <td colspan="${columnCount}" style="text-align: center; color: #666; padding: 2rem;">
-                        Gösterilecek veri bulunamadı
-                    </td>
-                `;
+                const td = document.createElement('td');
+                td.colSpan = columnCount;
+                td.style.textAlign = 'center';
+                td.style.color = '#666';
+                td.style.padding = '2rem';
+                td.textContent = 'Gösterilecek veri bulunamadı';
+                emptyRow.appendChild(td);
                 tbody.appendChild(emptyRow);
             }
             emptyRow.style.display = '';
@@ -197,15 +202,15 @@ class TableManager {
         const headers = Array.from(table.querySelectorAll('thead th'))
             .map(th => th.textContent.trim());
         
-        const visibleRows = Array.from(table.querySelectorAll('tbody tr'))
-            .filter(row => row.style.display !== 'none' && !row.classList.contains('empty-state-row'));
+        const visibleRows = Array.from(table.querySelectorAll('tbody tr:not(.empty-state-row)'))
+            .filter(row => row.style.display !== 'none');
         
         const data = visibleRows.map(row => {
             return Array.from(row.cells).map(cell => {
                 // Clean cell text (remove buttons, badges, etc.)
                 const clone = cell.cloneNode(true);
-                clone.querySelectorAll('button, .btn').forEach(btn => btn.remove());
-                return clone.textContent.trim();
+                clone.querySelectorAll('button, .btn, .badge').forEach(el => el.remove());
+                return clone.textContent.trim().replace(/"/g, '""');
             });
         });
         
@@ -213,7 +218,21 @@ class TableManager {
             .map(row => row.map(cell => `"${cell}"`).join(','))
             .join('\n');
         
-        Helpers.downloadFile(csvContent, filename, 'text/csv');
+        this.downloadFile(csvContent, filename, 'text/csv');
+    }
+
+    // Download file utility
+    downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     }
 
     // Get selected rows from table
@@ -236,6 +255,13 @@ class TableManager {
                 checkbox.closest('tr').classList.remove('selected');
             }
         });
+        
+        // Also clear select all checkbox
+        const selectAllCheckbox = table.querySelector('#selectAllPackages');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
     }
 
     // Highlight table row temporarily
@@ -267,7 +293,12 @@ class TableManager {
             if (typeof content === 'string') {
                 cell.textContent = content;
             } else {
-                cell.innerHTML = content;
+                cell.innerHTML = '';
+                if (typeof content === 'object' && content.nodeType === 1) {
+                    cell.appendChild(content);
+                } else {
+                    cell.innerHTML = content;
+                }
             }
         }
     }
@@ -289,6 +320,8 @@ class TableManager {
             const cell = document.createElement('td');
             if (typeof cellContent === 'string') {
                 cell.textContent = cellContent;
+            } else if (typeof cellContent === 'object' && cellContent.nodeType === 1) {
+                cell.appendChild(cellContent);
             } else {
                 cell.innerHTML = cellContent;
             }
@@ -324,19 +357,17 @@ class TableManager {
         const tbody = table.querySelector('tbody');
         const allRows = Array.from(tbody.querySelectorAll('tr:not(.empty-state-row)'));
         
+        if (allRows.length <= rowsPerPage) {
+            // No need for pagination
+            return;
+        }
+        
         let currentPage = 1;
         const totalPages = Math.ceil(allRows.length / rowsPerPage);
         
         // Create pagination controls
         const paginationContainer = document.createElement('div');
         paginationContainer.className = 'table-pagination';
-        paginationContainer.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 1rem;
-            padding: 1rem 0;
-        `;
         
         table.parentNode.insertBefore(paginationContainer, table.nextSibling);
         
@@ -361,27 +392,27 @@ class TableManager {
                     ${startRow}-${endRow} / ${allRows.length} kayıt gösteriliyor
                 </div>
                 <div class="pagination-controls">
-                    <button class="btn btn-sm btn-secondary" ${currentPage === 1 ? 'disabled' : ''} onclick="this.previousPage()">
+                    <button class="btn btn-sm btn-secondary prev-btn" ${currentPage === 1 ? 'disabled' : ''}>
                         <i class="fas fa-chevron-left"></i> Önceki
                     </button>
                     <span style="margin: 0 1rem;">Sayfa ${currentPage} / ${totalPages}</span>
-                    <button class="btn btn-sm btn-secondary" ${currentPage === totalPages ? 'disabled' : ''} onclick="this.nextPage()">
+                    <button class="btn btn-sm btn-secondary next-btn" ${currentPage === totalPages ? 'disabled' : ''}>
                         Sonraki <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             `;
             
             // Add event handlers
-            const prevBtn = paginationContainer.querySelector('button:first-of-type');
-            const nextBtn = paginationContainer.querySelector('button:last-of-type');
+            const prevBtn = paginationContainer.querySelector('.prev-btn');
+            const nextBtn = paginationContainer.querySelector('.next-btn');
             
-            prevBtn.onclick = () => {
+            prevBtn.addEventListener('click', () => {
                 if (currentPage > 1) showPage(currentPage - 1);
-            };
+            });
             
-            nextBtn.onclick = () => {
+            nextBtn.addEventListener('click', () => {
                 if (currentPage < totalPages) showPage(currentPage + 1);
-            };
+            });
         };
         
         // Show first page
@@ -414,7 +445,26 @@ class TableManager {
             header.classList.remove('sorted-asc', 'sorted-desc');
         });
         
+        // Show all rows
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            row.style.display = '';
+        });
+        
+        // Update empty state
+        this.updateEmptyState(table, rows.length === 0);
+        
         console.log(`Table ${tableId} refreshed`);
+    }
+
+    // Get visible rows count
+    getVisibleRowCount(table) {
+        return table.querySelectorAll('tbody tr:not(.empty-state-row):not([style*="display: none"])').length;
+    }
+
+    // Get all rows count
+    getAllRowCount(table) {
+        return table.querySelectorAll('tbody tr:not(.empty-state-row)').length;
     }
 }
 
