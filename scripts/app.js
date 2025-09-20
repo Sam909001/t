@@ -41,9 +41,6 @@ async function initApp() {
             await populateShippingTable();
         }
         
-        // Test connection
-        await testConnection();
-        
         console.log('ProClean application initialized successfully');
         
     } catch (error) {
@@ -52,65 +49,23 @@ async function initApp() {
     }
 }
 
-// API anahtarı modalını göster
-function showApiKeyModal() {
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    if (apiKeyInput) {
-        apiKeyInput.value = SUPABASE_ANON_KEY || '';
-        document.getElementById('apiKeyModal').style.display = 'flex';
-    }
-}
-
-// API anahtarı yardımı göster
-function showApiKeyHelp() {
-    const helpWindow = window.open('', '_blank');
-    helpWindow.document.write(`
-        <html>
-        <head>
-            <title>Supabase API Anahtarı Alma Rehberi</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
-                h1 { color: #2c3e50; }
-                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
-            </style>
-        </head>
-        <body>
-            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
-            <div class="step">
-                <h3>1. Supabase hesabınıza giriş yapın</h3>
-                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
-            </div>
-            <div class="step">
-                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
-            </div>
-            <div class="step">
-                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
-            </div>
-            <div class="step">
-                <h3>4. API sekmesine gidin</h3>
-            </div>
-            <div class="step">
-                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
-                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
-            </div>
-            <div class="step">
-                <h3>Önemli Note:</h3>
-                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
-            </div>
-        </body>
-        </html>
-    `);
-}
-
 // Settings functions
 function showSettingsModal() {
     loadSettings(); // Load current settings
     checkSystemStatus(); // Update status indicators
-    document.getElementById('settingsModal').style.display = 'flex';
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    } else {
+        console.error('Settings modal not found');
+    }
 }
 
 function closeSettingsModal() {
-    document.getElementById('settingsModal').style.display = 'none';
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 function loadSettings() {
@@ -118,36 +73,49 @@ function loadSettings() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     
     // Theme
-    if (settings.theme === 'dark') {
-        document.getElementById('themeToggle').checked = true;
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle && settings.theme === 'dark') {
+        themeToggle.checked = true;
         document.body.classList.add('dark-mode');
     }
     
     // Printer settings
-    if (settings.printerScaling) {
-        document.getElementById('printerScaling').value = settings.printerScaling;
+    const printerScaling = document.getElementById('printerScaling');
+    if (printerScaling && settings.printerScaling) {
+        printerScaling.value = settings.printerScaling;
     }
     
-    if (settings.copies) {
-        document.getElementById('copiesNumber').value = settings.copies;
+    const copiesNumber = document.getElementById('copiesNumber');
+    if (copiesNumber && settings.copies) {
+        copiesNumber.value = settings.copies;
     }
     
     // Language
-    if (settings.language) {
-        document.getElementById('languageSelect').value = settings.language;
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect && settings.language) {
+        languageSelect.value = settings.language;
     }
     
     // Auto-save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+    const autoSaveToggle = document.getElementById('autoSaveToggle');
+    if (autoSaveToggle) {
+        autoSaveToggle.checked = settings.autoSave !== false;
+    }
 }
 
 function saveAllSettings() {
+    const themeToggle = document.getElementById('themeToggle');
+    const printerScaling = document.getElementById('printerScaling');
+    const copiesNumber = document.getElementById('copiesNumber');
+    const languageSelect = document.getElementById('languageSelect');
+    const autoSaveToggle = document.getElementById('autoSaveToggle');
+    
     const settings = {
-        theme: document.getElementById('themeToggle').checked ? 'dark' : 'light',
-        printerScaling: document.getElementById('printerScaling').value,
-        copies: parseInt(document.getElementById('copiesNumber').value),
-        language: document.getElementById('languageSelect').value,
-        autoSave: document.getElementById('autoSaveToggle').checked
+        theme: themeToggle?.checked ? 'dark' : 'light',
+        printerScaling: printerScaling?.value || '100%',
+        copies: parseInt(copiesNumber?.value || '1'),
+        language: languageSelect?.value || 'tr',
+        autoSave: autoSaveToggle?.checked !== false
     };
     
     localStorage.setItem('procleanSettings', JSON.stringify(settings));
@@ -164,36 +132,47 @@ function applySettings(settings) {
     }
     
     // Apply language (you'll need to implement language files)
-    if (settings.language) {
+    if (settings.language && typeof changeLanguage === 'function') {
         changeLanguage(settings.language);
     }
 }
 
 function toggleTheme() {
-    const isDark = document.getElementById('themeToggle').checked;
-    document.body.classList.toggle('dark-mode', isDark);
-    document.getElementById('themeStatus').textContent = isDark ? 'Koyu' : 'Açık';
+    const themeToggle = document.getElementById('themeToggle');
+    const themeStatus = document.getElementById('themeStatus');
+    
+    if (themeToggle) {
+        const isDark = themeToggle.checked;
+        document.body.classList.toggle('dark-mode', isDark);
+        if (themeStatus) {
+            themeStatus.textContent = isDark ? 'Koyu' : 'Açık';
+        }
+    }
 }
 
 function checkSystemStatus() {
     // Check database connection
     const dbStatus = document.getElementById('dbConnectionStatus');
-    if (supabase) {
-        dbStatus.textContent = 'Bağlı';
-        dbStatus.className = 'status-indicator connected';
-    } else {
-        dbStatus.textContent = 'Bağlantı Yok';
-        dbStatus.className = 'status-indicator disconnected';
+    if (dbStatus) {
+        if (supabase) {
+            dbStatus.textContent = 'Bağlı';
+            dbStatus.className = 'status-indicator connected';
+        } else {
+            dbStatus.textContent = 'Bağlantı Yok';
+            dbStatus.className = 'status-indicator disconnected';
+        }
     }
     
     // Check printer connection
     const printerStatus = document.getElementById('printerConnectionStatus');
-    if (printer && printer.isConnected) {
-        printerStatus.textContent = 'Bağlı';
-        printerStatus.className = 'status-indicator connected';
-    } else {
-        printerStatus.textContent = 'Bağlantı Yok';
-        printerStatus.className = 'status-indicator disconnected';
+    if (printerStatus) {
+        if (typeof printer !== 'undefined' && printer && printer.isConnected) {
+            printerStatus.textContent = 'Bağlı';
+            printerStatus.className = 'status-indicator connected';
+        } else {
+            printerStatus.textContent = 'Bağlantı Yok';
+            printerStatus.className = 'status-indicator disconnected';
+        }
     }
 }
 
@@ -208,6 +187,7 @@ function clearLocalData() {
         localStorage.removeItem('procleanState');
         localStorage.removeItem('procleanOfflineData');
         localStorage.removeItem('procleanSettings');
+        localStorage.removeItem('procleanApiKey');
         showAlert('Yerel veriler temizlendi', 'success');
     }
 }
@@ -222,65 +202,96 @@ function initializeSettings() {
 function setupEventListeners() {
     console.log('Setting up event listeners...');
     
-    // Tab click events
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            if (tabName) {
-                switchTab(tabName);
+    try {
+        // Tab click events
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+                if (tabName) {
+                    switchTab(tabName);
+                }
+            });
+        });
+        
+        // Logout button
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+            console.log('Logout button listener added');
+        }
+        
+        // Settings button
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', showSettingsModal);
+            console.log('Settings button listener added');
+        }
+        
+        // Close settings modal
+        const closeSettingsBtn = document.getElementById('closeSettingsModalBtn');
+        if (closeSettingsBtn) {
+            closeSettingsBtn.addEventListener('click', closeSettingsModal);
+        }
+        
+        // Quantity modal enter key
+        const quantityInput = document.getElementById('quantityInput');
+        if (quantityInput) {
+            quantityInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (typeof confirmQuantity === 'function') {
+                        confirmQuantity();
+                    }
+                }
+            });
+        }
+        
+        // Barcode input enter key
+        const barcodeInput = document.getElementById('barcodeInput');
+        if (barcodeInput) {
+            barcodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (typeof processBarcode === 'function') {
+                        processBarcode();
+                    }
+                }
+            });
+        }
+        
+        // Customer select change
+        const customerSelect = document.getElementById('customerSelect');
+        if (customerSelect) {
+            customerSelect.addEventListener('change', function() {
+                const customerId = this.value;
+                if (customerId) {
+                    const selectedOption = this.options[this.selectedIndex];
+                    selectedCustomer = {
+                        id: customerId,
+                        name: selectedOption.textContent.split(' (')[0],
+                        code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                    };
+                    showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+                } else {
+                    selectedCustomer = null;
+                }
+            });
+        }
+        
+        // Modal close on outside click
+        window.addEventListener('click', function(event) {
+            const settingsModal = document.getElementById('settingsModal');
+            if (event.target === settingsModal) {
+                closeSettingsModal();
             }
         });
-    });
-    
-    // Logout button
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
+        
+        console.log('Event listeners setup completed');
+        
+    } catch (error) {
+        console.error('Error setting up event listeners:', error);
     }
-    
-    // Settings button
-    const settingsBtn = document.getElementById('settingsBtn');
-    if (settingsBtn) {
-        settingsBtn.addEventListener('click', showSettingsModal);
-    }
-    
-    // Quantity modal enter key
-    const quantityInput = document.getElementById('quantityInput');
-    if (quantityInput) {
-        quantityInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') confirmQuantity();
-        });
-    }
-    
-    // Barcode input enter key
-    const barcodeInput = document.getElementById('barcodeInput');
-    if (barcodeInput) {
-        barcodeInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') processBarcode();
-        });
-    }
-    
-    // Customer select change
-    const customerSelect = document.getElementById('customerSelect');
-    if (customerSelect) {
-        customerSelect.addEventListener('change', function() {
-            const customerId = this.value;
-            if (customerId) {
-                const selectedOption = this.options[this.selectedIndex];
-                selectedCustomer = {
-                    id: customerId,
-                    name: selectedOption.textContent.split(' (')[0],
-                    code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                };
-                showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
-            } else {
-                selectedCustomer = null;
-            }
-        });
-    }
-    
-    console.log('Event listeners setup completed');
 }
 
 // Tab değiştirme fonksiyonu
@@ -302,14 +313,18 @@ function switchTab(tabName) {
     if (selectedTab && selectedPane) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
+    } else {
+        console.warn(`Tab or pane not found: ${tabName}`);
     }
 }
 
 // State management functions
 function saveAppState() {
+    const personnelSelect = document.getElementById('personnelSelect');
+    
     const state = {
         selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
-        selectedPersonnelId: document.getElementById('personnelSelect')?.value,
+        selectedPersonnelId: personnelSelect?.value,
         currentContainer: currentContainer,
     };
     localStorage.setItem('procleanState', JSON.stringify(state));
@@ -317,7 +332,9 @@ function saveAppState() {
 
 function loadAppState() {
     const savedState = localStorage.getItem('procleanState');
-    if (savedState) {
+    if (!savedState) return;
+    
+    try {
         const state = JSON.parse(savedState);
         
         // Müşteri seçimini geri yükle
@@ -352,6 +369,8 @@ function loadAppState() {
                 containerNumber.textContent = currentContainer;
             }
         }
+    } catch (error) {
+        console.error('Error loading app state:', error);
     }
 }
 
@@ -390,6 +409,8 @@ function setupOfflineSupport() {
 
 // Çevrimdışı verileri senkronize et
 async function syncOfflineData() {
+    if (!supabase) return;
+    
     const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
     
     if (Object.keys(offlineData).length === 0) return;
@@ -458,7 +479,6 @@ async function populateCustomers() {
     try {
         if (!elements.customerSelect) {
             console.error('Customer select element not found');
-            showAlert('Müşteri seçim alanı bulunamadı', 'error');
             return;
         }
         
@@ -475,7 +495,8 @@ async function populateCustomers() {
             .order('name');
 
         if (error) {
-            handleSupabaseError(error, 'Müşteri yükleme');
+            console.error('Error loading customers:', error);
+            showAlert('Müşteri verileri yüklenemedi: ' + error.message, 'error');
             return;
         }
 
@@ -496,8 +517,17 @@ async function populateCustomers() {
 
 async function populatePersonnel() {
     try {
+        if (!elements.personnelSelect) {
+            console.error('Personnel select element not found');
+            return;
+        }
+        
         // Dropdown'u temizle
         elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+        
+        if (!supabase) {
+            throw new Error('Supabase client not initialized');
+        }
         
         const { data: personnel, error } = await supabase
             .from('personnel')
@@ -527,12 +557,27 @@ async function populatePersonnel() {
     } catch (error) {
         console.error('Error in populatePersonnel:', error);
         // Add default current user
-        const option = document.createElement('option');
-        option.value = currentUser?.uid || 'default';
-        option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
-        option.selected = true;
-        elements.personnelSelect.appendChild(option);
+        if (elements.personnelSelect) {
+            const option = document.createElement('option');
+            option.value = currentUser?.uid || 'default';
+            option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+            option.selected = true;
+            elements.personnelSelect.appendChild(option);
+        }
     }
+}
+
+// Placeholder functions for missing table population functions
+async function populatePackagesTable() {
+    console.log('populatePackagesTable called - implement this function');
+}
+
+async function populateStockTable() {
+    console.log('populateStockTable called - implement this function');
+}
+
+async function populateShippingTable() {
+    console.log('populateShippingTable called - implement this function');
 }
 
 // Yardımcı fonksiyonlar
@@ -564,45 +609,56 @@ window.addEventListener('error', function(e) {
     showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
 });
 
-// Sayfa yüklendiğinde çalışacak ana fonksiyon
+// Main initialization when DOM is loaded
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('DOM fully loaded, starting application setup...');
     
-    // Wait a bit for all elements to be available
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Initialize elements
-    if (typeof initializeElementsObject === 'function') {
-        initializeElementsObject();
-    }
-    
-    // Retry missing elements with more attempts
-    await retryMissingElements(20, 300);
-    
-    // Load API key and initialize Supabase
-    if (typeof loadApiKey === 'function') {
-        loadApiKey();
-    }
-    
-    if (typeof initializeSupabase === 'function') {
-        initializeSupabase();
-    }
-    
-    // Setup auth listener
-    if (typeof setupAuthListener === 'function') {
-        setupAuthListener();
-    }
-    
-    // Setup offline support
-    setupOfflineSupport();
-    
-    // Setup event listeners
-    if (typeof setupEventListeners === 'function') {
+    try {
+        // Wait a bit for all elements to be available
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Initialize elements
+        if (typeof initializeElementsObject === 'function') {
+            initializeElementsObject();
+        }
+        
+        // Retry missing elements with more attempts
+        if (typeof retryMissingElements === 'function') {
+            await retryMissingElements(20, 300);
+        }
+        
+        // Load API key and initialize Supabase
+        if (typeof loadApiKey === 'function') {
+            loadApiKey();
+        }
+        
+        if (typeof initializeSupabase === 'function') {
+            initializeSupabase();
+        }
+        
+        // Setup auth listener
+        if (typeof setupAuthListener === 'function') {
+            setupAuthListener();
+        }
+        
+        // Setup offline support
+        setupOfflineSupport();
+        
+        // Setup event listeners
         setupEventListeners();
-    }
-    
-    // Check if user is already logged in
-    if (supabase && currentUser) {
-        await initApp();
+        
+        // Initialize settings
+        initializeSettings();
+        
+        // Check if user is already logged in
+        if (supabase && currentUser) {
+            await initApp();
+        }
+        
+        console.log('Application setup completed successfully');
+        
+    } catch (error) {
+        console.error('Critical error during application setup:', error);
+        showAlert('Uygulama başlatılırken kritik hata: ' + error.message, 'error');
     }
 });
