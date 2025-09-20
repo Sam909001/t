@@ -152,6 +152,7 @@ async function printAllLabels() {
 
 
 // ================== Printer Service Class ==================
+// ================== Printer Service Class ==================
 class PrinterService {
     constructor(serverUrl = 'http://localhost:3001') {
         this.serverUrl = serverUrl;
@@ -162,7 +163,16 @@ class PrinterService {
     
     async checkConnection() {
         try {
-            const response = await fetch(`${this.serverUrl}/api/test`);
+            const response = await fetch(`${this.serverUrl}/api/test`, {
+                signal: AbortSignal.timeout(5000) // 5 second timeout
+            });
+            
+            // Check if response is HTML instead of JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                throw new Error('Server returned HTML instead of JSON. Check server URL.');
+            }
+            
             const data = await response.json();
             
             if (response.ok) {
@@ -175,7 +185,10 @@ class PrinterService {
             }
         } catch (error) {
             this.isConnected = false;
-            this.updateStatus('error', '❌ Printer server not found');
+            const errorMsg = error.name === 'AbortError' 
+                ? 'Connection timeout. Server not responding.' 
+                : error.message;
+            this.updateStatus('error', `❌ Printer server error: ${errorMsg}`);
             console.error('❌ Printer server error:', error);
         }
     }
@@ -213,8 +226,17 @@ class PrinterService {
                     barcode: barcode,
                     text: text,
                     copies: 1
-                })
+                }),
+                signal: AbortSignal.timeout(10000) // 10 second timeout
             });
+            
+            // Check if response is HTML instead of JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                const htmlResponse = await response.text();
+                console.error('Server returned HTML:', htmlResponse.substring(0, 200));
+                throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
+            }
             
             const result = await response.json();
             
@@ -232,29 +254,38 @@ class PrinterService {
         } catch (error) {
             console.error(`❌ Print error:`, error);
             if (typeof showAlert === 'function') {
-                showAlert(`❌ Print error: ${error.message}`, 'error');
+                let userMessage = 'Print error: ';
+                if (error.name === 'AbortError') {
+                    userMessage += 'Request timeout. Server not responding.';
+                } else if (error.message.includes('HTML')) {
+                    userMessage += 'Server configuration error. Check if the printer server is running correctly.';
+                } else {
+                    userMessage += error.message;
+                }
+                showAlert(userMessage, 'error');
             }
             return false;
         }
     }
 
-   // Add testPrint method to PrinterService class
-async testPrint() {
-    const testBarcode = '123456789';
-    const testText = `Test - ${new Date().toLocaleTimeString()}`;
-    console.log('🧪 Testing printer...');
-    const result = await this.printBarcode(testBarcode, testText);
-    
-    if (typeof showAlert === 'function') {
-        if (result) {
-            showAlert('✅ Test print successful!', 'success');
-        } else {
-            showAlert('❌ Test print failed!', 'error');
+    async testPrint() {
+        const testBarcode = '123456789';
+        const testText = `Test - ${new Date().toLocaleTimeString()}`;
+        console.log('🧪 Testing printer...');
+        const result = await this.printBarcode(testBarcode, testText);
+        
+        if (typeof showAlert === 'function') {
+            if (result) {
+                showAlert('✅ Test print successful!', 'success');
+            } else {
+                showAlert('❌ Test print failed!', 'error');
+            }
         }
+        
+        return result;
     }
-    
-    return result;
 }
+
 
 
         
