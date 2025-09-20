@@ -121,3 +121,98 @@ function getSupabaseClient() {
 function isSupabaseReady() {
     return supabase !== null && SUPABASE_ANON_KEY !== null;
 }
+
+
+
+ // Çevrimdışı destek
+        function setupOfflineSupport() {
+            window.addEventListener('online', () => {
+                document.getElementById('offlineIndicator').style.display = 'none';
+                elements.connectionStatus.textContent = 'Çevrimiçi';
+                showAlert('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
+                syncOfflineData();
+            });
+
+            window.addEventListener('offline', () => {
+                document.getElementById('offlineIndicator').style.display = 'block';
+                elements.connectionStatus.textContent = 'Çevrimdışı';
+                showAlert('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
+            });
+
+            // Başlangıçta çevrimiçi durumu kontrol et
+            if (!navigator.onLine) {
+                document.getElementById('offlineIndicator').style.display = 'block';
+                elements.connectionStatus.textContent = 'Çevrimdışı';
+            }
+        }
+
+        // Çevrimdışı verileri senkronize et
+        async function syncOfflineData() {
+            const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+            
+            if (Object.keys(offlineData).length === 0) return;
+            
+            showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
+            
+            try {
+                // Paketleri senkronize et
+                if (offlineData.packages && offlineData.packages.length > 0) {
+                    for (const pkg of offlineData.packages) {
+                        const { error } = await supabase
+                            .from('packages')
+                            .insert([pkg]);
+                        
+                        if (error) console.error('Paket senkronizasyon hatası:', error);
+                    }
+                }
+                
+                // Barkodları senkronize et
+                if (offlineData.barcodes && offlineData.barcodes.length > 0) {
+                    for (const barcode of offlineData.barcodes) {
+                        const { error } = await supabase
+                            .from('barcodes')
+                            .insert([barcode]);
+                        
+                        if (error) console.error('Barkod senkronizasyon hatası:', error);
+                    }
+                }
+                
+                // Stok güncellemelerini senkronize et
+                if (offlineData.stockUpdates && offlineData.stockUpdates.length > 0) {
+                    for (const update of offlineData.stockUpdates) {
+                        const { error } = await supabase
+                            .from('stock_items')
+                            .update({ quantity: update.quantity })
+                            .eq('code', update.code);
+                        
+                        if (error) console.error('Stok senkronizasyon hatası:', error);
+                    }
+                }
+                
+                // Başarılı senkronizasyondan sonra çevrimdışı verileri temizle
+                localStorage.removeItem('procleanOfflineData');
+                showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
+                
+            } catch (error) {
+                console.error('Senkronizasyon hatası:', error);
+                showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
+            }
+        }
+
+        // Çevrimdışı veri kaydetme
+        function saveOfflineData(type, data) {
+            const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+            
+            if (!offlineData[type]) {
+                offlineData[type] = [];
+            }
+            
+            offlineData[type].push(data);
+            localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
+        }
+
+
+
+
+
+
