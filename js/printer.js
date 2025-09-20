@@ -64,66 +64,7 @@ class PrinterService {
         console.log(`Printer status: ${status} - ${message}`);
     }
     
-    async printBarcode(barcode, text = '') {
-        if (!this.isConnected) {
-            console.error('❌ Printer not connected');
-            showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
-            return false;
-        }
-        
-        try {
-            console.log(`🖨️ Printing: ${barcode} - ${text}`);
-            
-            const response = await fetch(`${this.serverUrl}/api/print/barcode`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    barcode: barcode,
-                    text: text,
-                    copies: 1
-                }),
-                signal: AbortSignal.timeout(10000)
-            });
-            
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('text/html')) {
-                const htmlResponse = await response.text();
-                console.error('Server returned HTML:', htmlResponse.substring(0, 500));
-                
-                if (htmlResponse.includes('Cannot POST') || htmlResponse.includes('404')) {
-                    throw new Error('Endpoint not found. Check if /api/print/barcode exists on server.');
-                } else if (htmlResponse.includes('Cannot GET')) {
-                    throw new Error('Wrong endpoint. Server might be expecting GET instead of POST.');
-                } else {
-                    throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
-                }
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log(`✅ Print successful: ${barcode}`);
-                return true;
-            } else {
-                console.error(`❌ Print failed: ${result.error}`);
-                showAlert(`❌ Yazdırma hatası: ${result.error}`, 'error');
-                return false;
-            }
-            
-        } catch (error) {
-            console.error(`❌ Print error:`, error);
-            let userMessage = 'Yazdırma hatası: ';
-            if (error.name === 'AbortError') {
-                userMessage += 'İstek zaman aşımı. Sunucu yanıt vermiyor.';
-            } else {
-                userMessage += error.message;
-            }
-            showAlert(userMessage, 'error');
-            return false;
-        }
-    }
+   async printBarcode(barcode
 
     async testPrint() {
         const testBarcode = '123456789';
@@ -195,6 +136,8 @@ class PrinterService {
     }
 }
 
+
+
 // ================== PRINTER FUNCTIONS ==================
 function initializePrinter() {
     if (!printer) {
@@ -263,11 +206,6 @@ async function printAllLabels() {
         return;
     }
     
-    if (!printerInstance.isConnected) {
-        showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
-        return;
-    }
-    
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     console.log(`📦 Found ${checkboxes.length} selected packages`);
     
@@ -301,10 +239,8 @@ async function printAllLabels() {
 
             console.log(`📦 Processing package ${i + 1}:`, pkg);
 
-            const labelText = `${pkg.customer_name} - ${pkg.product}`;
-            const barcode = pkg.package_no;
-
-            const printResult = await printerInstance.printBarcode(barcode, labelText);
+            // Use PDF printing instead of barcode printing
+            const printResult = await printerInstance.printPDFLabel(pkg);
 
             if (printResult) {
                 successCount++;
@@ -332,9 +268,9 @@ async function printAllLabels() {
     } else {
         showAlert(`❌ Hiçbir etiket yazdırılamadı. ${errorCount} hata oluştu.`, 'error');
     }
-
-    console.log(`Print job completed: ${successCount} success, ${errorCount} errors`);
 }
+
+
 
 // ================== INITIALIZATION ==================
 function initializePrinterService() {
