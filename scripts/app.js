@@ -1,45 +1,4 @@
-// scripts/app.js
-
-// Retry mechanism for DOM elements (also add this to auth.js if not already there)
-function waitForElement(id, maxAttempts = 50, interval = 100) {
-    return new Promise((resolve, reject) => {
-        let attempts = 0;
-        const checkElement = setInterval(() => {
-            attempts++;
-            const element = document.getElementById(id);
-            if (element) {
-                clearInterval(checkElement);
-                resolve(element);
-            } else if (attempts >= maxAttempts) {
-                clearInterval(checkElement);
-                reject(new Error(`Element with ID '${id}' not found after ${maxAttempts} attempts`));
-            }
-        }, interval);
-    });
-}
-
-// Safe element operations
-async function safeSetElementText(elementId, text, maxRetries = 5) {
-    try {
-        const element = await waitForElement(elementId, maxRetries * 10, 100);
-        element.textContent = text;
-    } catch (error) {
-        console.warn(error.message);
-    }
-}
-
-async function safeSetElementDisplay(elementId, displayValue, maxRetries = 5) {
-    try {
-        const element = await waitForElement(elementId, maxRetries * 10, 100);
-        element.style.display = displayValue;
-    } catch (error) {
-        console.warn(error.message);
-    }
-}
-
 // Initialize application
-// scripts/app.js
-
 async function initApp() {
     console.log('Initializing ProClean application...');
     
@@ -93,7 +52,6 @@ async function initApp() {
     }
 }
 
-
 // API anahtarı modalını göster
 function showApiKeyModal() {
     const apiKeyInput = document.getElementById('apiKeyInput');
@@ -103,9 +61,6 @@ function showApiKeyModal() {
     }
 }
 
-
-
-        
 // API anahtarı yardımı göster
 function showApiKeyHelp() {
     const helpWindow = window.open('', '_blank');
@@ -139,7 +94,7 @@ function showApiKeyHelp() {
                 <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
             </div>
             <div class="step">
-                <h3>Önemli Not:</h3>
+                <h3>Önemli Note:</h3>
                 <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
             </div>
         </body>
@@ -147,8 +102,7 @@ function showApiKeyHelp() {
     `);
 }
 
-
-        // Settings functions
+// Settings functions
 function showSettingsModal() {
     loadSettings(); // Load current settings
     checkSystemStatus(); // Update status indicators
@@ -263,10 +217,6 @@ function initializeSettings() {
     const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     applySettings(savedSettings);
 }
-
-
-
-
 
 // Event listener'ları kur
 function setupEventListeners() {
@@ -438,6 +388,153 @@ function setupOfflineSupport() {
     }
 }
 
+// Çevrimdışı verileri senkronize et
+async function syncOfflineData() {
+    const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+    
+    if (Object.keys(offlineData).length === 0) return;
+    
+    showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
+    
+    try {
+        // Paketleri senkronize et
+        if (offlineData.packages && offlineData.packages.length > 0) {
+            for (const pkg of offlineData.packages) {
+                const { error } = await supabase
+                    .from('packages')
+                    .insert([pkg]);
+                
+                if (error) console.error('Paket senkronizasyon hatası:', error);
+            }
+        }
+        
+        // Barkodları senkronize et
+        if (offlineData.barcodes && offlineData.barcodes.length > 0) {
+            for (const barcode of offlineData.barcodes) {
+                const { error } = await supabase
+                    .from('barcodes')
+                    .insert([barcode]);
+                
+                if (error) console.error('Barkod senkronizasyon hatası:', error);
+            }
+        }
+        
+        // Stok güncellemelerini senkronize et
+        if (offlineData.stockUpdates && offlineData.stockUpdates.length > 0) {
+            for (const update of offlineData.stockUpdates) {
+                const { error } = await supabase
+                    .from('stock_items')
+                    .update({ quantity: update.quantity })
+                    .eq('code', update.code);
+                
+                if (error) console.error('Stok senkronizasyon hatası:', error);
+            }
+        }
+        
+        // Başarılı senkronizasyondan sonra çevrimdışı verileri temizle
+        localStorage.removeItem('procleanOfflineData');
+        showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
+        
+    } catch (error) {
+        console.error('Senkronizasyon hatası:', error);
+        showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
+    }
+}
+
+// Çevrimdışı veri kaydetme
+function saveOfflineData(type, data) {
+    const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
+    
+    if (!offlineData[type]) {
+        offlineData[type] = [];
+    }
+    
+    offlineData[type].push(data);
+    localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
+}
+
+// Data loading functions
+async function populateCustomers() {
+    try {
+        if (!elements.customerSelect) {
+            console.error('Customer select element not found');
+            showAlert('Müşteri seçim alanı bulunamadı', 'error');
+            return;
+        }
+        
+        // Clear dropdown
+        elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
+        
+        if (!supabase) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        const { data: customers, error } = await supabase
+            .from('customers')
+            .select('*')
+            .order('name');
+
+        if (error) {
+            handleSupabaseError(error, 'Müşteri yükleme');
+            return;
+        }
+
+        if (customers && customers.length > 0) {
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = `${customer.name} (${customer.code})`;
+                elements.customerSelect.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error in populateCustomers:', error);
+        showAlert('Müşteri yükleme hatası: ' + error.message, 'error');
+    }
+}
+
+async function populatePersonnel() {
+    try {
+        // Dropdown'u temizle
+        elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+        
+        const { data: personnel, error } = await supabase
+            .from('personnel')
+            .select('*')
+            .order('name');
+
+        if (error) {
+            console.error('Error loading personnel:', error);
+            // Add default current user
+            const option = document.createElement('option');
+            option.value = currentUser?.uid || 'default';
+            option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+            option.selected = true;
+            elements.personnelSelect.appendChild(option);
+            return;
+        }
+
+        if (personnel && personnel.length > 0) {
+            personnel.forEach(person => {
+                const option = document.createElement('option');
+                option.value = person.id;
+                option.textContent = person.name;
+                elements.personnelSelect.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error in populatePersonnel:', error);
+        // Add default current user
+        const option = document.createElement('option');
+        option.value = currentUser?.uid || 'default';
+        option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
+        option.selected = true;
+        elements.personnelSelect.appendChild(option);
+    }
+}
+
 // Yardımcı fonksiyonlar
 function closeAllModals() {
     const modals = [
@@ -461,30 +558,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-
-function showAlert(message, type = 'info', duration = 3000) {
-    console.log(`${type.toUpperCase()}: ${message}`);
-    
-    // Try to use existing alert system if available
-    const alertContainer = document.getElementById('alertContainer');
-    if (alertContainer) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type}`;
-        alertDiv.textContent = message;
-        alertContainer.appendChild(alertDiv);
-        
-        setTimeout(() => {
-            alertDiv.remove();
-        }, duration);
-    } else {
-        // Fallback to browser alert
-        alert(`${type.toUpperCase()}: ${message}`);
-    }
-}
-
-
-
-
 // Global error handler
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
@@ -492,7 +565,6 @@ window.addEventListener('error', function(e) {
 });
 
 // Sayfa yüklendiğinde çalışacak ana fonksiyon
-// Replace the DOMContentLoaded event listener in app.js
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('DOM fully loaded, starting application setup...');
     
