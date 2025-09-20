@@ -563,23 +563,31 @@ async function initializeApp() {
             });
         });
 
-         function applySavedTheme() {
-                const savedTheme = localStorage.getItem('procleanTheme');
-                if (savedTheme === 'dark') {
-                    document.body.classList.add('dark-mode');
-                }
-            }
+        function applySavedTheme() {
+    const savedTheme = localStorage.getItem('procleanTheme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+}
 
-            function toggleDarkMode() {
-                document.body.classList.toggle('dark-mode');
-                if (document.body.classList.contains('dark-mode')) {
-                    localStorage.setItem('procleanTheme', 'dark');
-                    showAlert('Koyu tema etkinleştirildi.', 'info');
-                } else {
-                    localStorage.setItem('procleanTheme', 'light');
-                    showAlert('Açık tema etkinleştirildi.', 'info');
-                }
-            }
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    if (document.body.classList.contains('dark-mode')) {
+        localStorage.setItem('procleanTheme', 'dark');
+        showAlert('Koyu tema etkinleştirildi.', 'info');
+    } else {
+        localStorage.setItem('procleanTheme', 'light');
+        showAlert('Açık tema etkinleştirildi.', 'info');
+    }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', applySavedTheme);
+
+
+     
         
         // API key initialization
         if (loadApiKey()) {
