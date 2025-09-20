@@ -367,16 +367,25 @@ let app = null;
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Initialize NotificationManager explicitly
-        window.NotificationManager.init();
-        window.OfflineManager.init();
+        console.log('DOM loaded, initializing managers...');
 
+        // Ensure managers exist before calling init
+        if (window.NotificationManager && typeof window.NotificationManager.init === 'function') {
+            window.NotificationManager.init();
+        } else {
+            console.warn('NotificationManager is not ready yet.');
+        }
 
-        // Initialize OfflineManager (if you have it)
-        if (window.OfflineManager) window.OfflineManager.init?.();
+        if (window.OfflineManager && typeof window.OfflineManager.init === 'function') {
+            window.OfflineManager.init();
+        } else {
+            console.warn('OfflineManager is not ready yet.');
+        }
 
-        // Create app instance and initialize
-        const app = new ProCleanApp();
+        // Create ProCleanApp instance
+        app = new ProCleanApp();
+
+        // Initialize the app
         await app.init();
 
         // Expose globally
@@ -384,6 +393,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (error) {
         console.error('Failed to initialize application:', error);
+
+        // Fallback UI if app fails
         document.body.innerHTML = `
             <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f5f5f5;">
                 <div style="text-align:center;padding:2rem;background:white;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
