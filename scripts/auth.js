@@ -219,6 +219,7 @@ async function login() {
 }
 
 // Separate function to handle UI updates after successful login
+// Add this to the updateUIAfterLogin function in auth.js
 async function updateUIAfterLogin() {
     try {
         // Update user role display
@@ -229,15 +230,26 @@ async function updateUIAfterLogin() {
         const loginHidden = await safeSetElementDisplay('loginScreen', 'none');
         const appShown = await safeSetElementDisplay('appContainer', 'flex');
 
+        // IMPORTANT: After showing app container, retry finding missing elements
+        setTimeout(() => {
+            if (typeof initializeAppElements === 'function') {
+                initializeAppElements();
+            }
+        }, 100);
+
         if (!loginHidden || !appShown) {
             console.warn('UI update may have failed, using fallback method');
-            // Fallback method
             setTimeout(() => {
                 const loginScreen = document.getElementById('loginScreen');
                 const appContainer = document.getElementById('appContainer');
                 
                 if (loginScreen) loginScreen.style.display = 'none';
                 if (appContainer) appContainer.style.display = 'flex';
+                
+                // Retry elements after showing container
+                if (typeof initializeAppElements === 'function') {
+                    initializeAppElements();
+                }
             }, 500);
         }
 
@@ -256,6 +268,9 @@ async function updateUIAfterLogin() {
         showAlert('Arayüz güncellenirken hata oluştu', 'error');
     }
 }
+
+
+
 
 // Apply role-based permissions with better error handling
 function applyRoleBasedPermissions(role) {
