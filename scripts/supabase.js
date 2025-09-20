@@ -16,6 +16,9 @@ let currentContainerDetails = null;
 let currentReportData = null;
 let selectedPackageForPrinting = null;
 
+// Global elements cache
+const elements = {};
+
 // EmailJS initialization
 (function() {
     // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
@@ -26,12 +29,6 @@ let selectedPackageForPrinting = null;
         console.warn('EmailJS initialization failed:', error);
     }
 })();
-
-// Elementleri bir defa tanımla
-// scripts/supabase.js
-
-// Global elements cache
-const elements = {};
 
 // Modified initializeElementsObject to handle async loading
 function initializeElementsObject() {
@@ -72,20 +69,26 @@ function initializeElementsObject() {
         toggleThemeBtn: 'toggleThemeBtn',
         downloadDataBtn: 'downloadDataBtn',
         changeApiKeyBtn: 'changeApiKeyBtn',
+        userRole: 'userRole',
+        logoutBtn: 'logoutBtn',
+        settingsBtn: 'settingsBtn',
+        offlineIndicator: 'offlineIndicator'
     };
+    
+    let foundCount = 0;
+    let missingCount = 0;
     
     Object.keys(elementMap).forEach(key => {
         const element = document.getElementById(elementMap[key]);
         if (element) {
             elements[key] = element;
+            foundCount++;
         } else {
             console.warn(`Element ${elementMap[key]} not found`);
             elements[key] = null;
+            missingCount++;
         }
     });
-    
-    return elements;
-}
     
     console.log(`Elements initialized: ${foundCount} found, ${missingCount} missing`);
     return elements;
@@ -94,7 +97,6 @@ function initializeElementsObject() {
 // New function to retry finding missing elements
 async function retryMissingElements(maxAttempts = 10, interval = 300) {
     const elementMap = {
-        // Same mapping as above
         appContainer: 'appContainer',
         customerSelect: 'customerSelect',
         personnelSelect: 'personnelSelect',
@@ -160,11 +162,7 @@ async function retryMissingElements(maxAttempts = 10, interval = 300) {
     });
 }
 
-
-
-
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
-// Modify the initializeSupabase function
 function initializeSupabase() {
     if (!SUPABASE_ANON_KEY) {
         console.warn('Supabase API key not set');
@@ -189,8 +187,6 @@ function initializeSupabase() {
         return null;
     }
 }
-
-
 
 // FIXED: API anahtarını kaydet ve istemciyi başlat
 function saveApiKey() {
@@ -232,9 +228,7 @@ function showApiKeyModal() {
 async function testConnection() {
     if (!supabase) {
         console.warn('Supabase client not initialized for connection test');
-        if (typeof showAlert === 'function') {
-            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
-        }
+        showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
         return false;
     }
     
@@ -243,20 +237,14 @@ async function testConnection() {
         if (error) throw error;
         
         console.log('Supabase connection test successful:', data);
-        if (typeof showAlert === 'function') {
-            showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
-        }
+        showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
         return true;
     } catch (e) {
         console.error('Supabase connection test failed:', e.message);
-        if (typeof showAlert === 'function') {
-            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
-        }
+        showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
         return false;
     }
 }
-
-
 
 // Helper functions
 function getSupabaseClient() {
@@ -338,7 +326,6 @@ function setupEventListeners() {
     }
 }
 
-// Add this function to supabase.js
 function showAlert(message, type = 'info', duration = 3000) {
     console.log(`${type.toUpperCase()}: ${message}`);
     
