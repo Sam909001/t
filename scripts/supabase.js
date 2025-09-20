@@ -336,3 +336,24 @@ function setupEventListeners() {
         });
     }
 }
+
+// Add this function to supabase.js
+function showAlert(message, type = 'info', duration = 3000) {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    // Try to use existing alert system if available
+    const alertContainer = document.getElementById('alertContainer');
+    if (alertContainer) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.textContent = message;
+        alertContainer.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, duration);
+    } else {
+        // Fallback to browser alert
+        alert(`${type.toUpperCase()}: ${message}`);
+    }
+}
