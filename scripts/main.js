@@ -51,7 +51,11 @@ function showAlert(message, type = 'info', duration = 5000) {
 // Initialize application
 async function initApp() {
     initializeElementsObject();
-    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    
+    // Wait for elements to be loaded before accessing them
+    ensureElementLoaded('currentDate', (element) => {
+        element.textContent = new Date().toLocaleDateString('tr-TR');
+    });
     
     // Populate dropdowns
     await populateCustomers();
@@ -69,13 +73,29 @@ async function initApp() {
     await testConnection();
     
     // Set up auto-save
-    setInterval(saveAppState, 5000); // Save every 5 seconds
+    setInterval(saveAppState, 5000);
     
     // Set up offline support
     setupOfflineSupport();
     
     // Set up barcode scanner listener
     setupBarcodeScanner();
+}
+
+// Add this function to check if elements exist before accessing them
+function ensureElementLoaded(id, callback, maxAttempts = 50, interval = 100) {
+    let attempts = 0;
+    const checkExist = setInterval(function() {
+        attempts++;
+        const element = document.getElementById(id);
+        if (element) {
+            clearInterval(checkExist);
+            callback(element);
+        } else if (attempts >= maxAttempts) {
+            clearInterval(checkExist);
+            console.error(`Element with ID '${id}' not found after ${maxAttempts} attempts`);
+        }
+    }, interval);
 }
 
 // State management functions
@@ -139,199 +159,6 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
-// Çevrimdışı destek
-function setupOfflineSupport() {
-    window.addEventListener('online', () => {
-        document.getElementById('offlineIndicator').style.display = 'none';
-        elements.connectionStatus.textContent = 'Çevrimiçi';
-        showAlert('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
-        syncOfflineData();
-    });
-
-    window.addEventListener('offline', () => {
-        document.getElementById('offlineIndicator').style.display = 'block';
-        elements.connectionStatus.textContent = 'Çevrimdışı';
-        showAlert('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
-    });
-
-    // Başlangıçta çevrimiçi durumu kontrol et
-    if (!navigator.onLine) {
-        document.getElementById('offlineIndicator').style.display = 'block';
-        elements.connectionStatus.textContent = 'Çevrimdışı';
-    }
-}
-
-// Çevrimdışı verileri senkronize et
-async function syncOfflineData() {
-    const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
-    
-    if (Object.keys(offlineData).length === 0) return;
-    
-    showAlert('Çevrimdışı veriler senkronize ediliyor...', 'warning');
-    
-    try {
-        // Paketleri senkronize et
-        if (offlineData.packages && offlineData.packages.length > 0) {
-            for (const pkg of offlineData.packages) {
-                const { error } = await supabase
-                    .from('packages')
-                    .insert([pkg]);
-                
-                if (error) console.error('Paket senkronizasyon hatası:', error);
-            }
-        }
-        
-        // Barkodları senkronize et
-        if (offlineData.barcodes && offlineData.barcodes.length > 0) {
-            for (const barcode of offlineData.barcodes) {
-                const { error } = await supabase
-                    .from('barcodes')
-                    .insert([barcode]);
-                
-                if (error) console.error('Barkod senkronizasyon hatası:', error);
-            }
-        }
-        
-        // Stok güncellemelerini senkronize et
-        if (offlineData.stockUpdates && offlineData.stockUpdates.length > 0) {
-            for (const update of offlineData.stockUpdates) {
-                const { error } = await supabase
-                    .from('stock_items')
-                    .update({ quantity: update.quantity })
-                    .eq('code', update.code);
-                
-                if (error) console.error('Stok senkronizasyon hatası:', error);
-            }
-        }
-        
-        // Başarılı senkronizasyondan sonra çevrimdışı verileri temizle
-        localStorage.removeItem('procleanOfflineData');
-        showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
-        
-    } catch (error) {
-        console.error('Senkronizasyon hatası:', error);
-        showAlert('Veri senkronizasyonu sırasında hata oluştu', 'error');
-    }
-}
-
-// Çevrimdışı veri kaydetme
-function saveOfflineData(type, data) {
-    const offlineData = JSON.parse(localStorage.getItem('procleanOfflineData') || '{}');
-    
-    if (!offlineData[type]) {
-        offlineData[type] = [];
-    }
-    
-    offlineData[type].push(data);
-    localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
-}
-
-// Data loading functions
-async function populateCustomers() {
-    try {
-        if (!elements.customerSelect) {
-            console.error('Customer select element not found');
-            showAlert('Müşteri seçim alanı bulunamadı', 'error');
-            return;
-        }
-        
-        // Clear dropdown
-        elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
-        
-        if (!supabase) {
-            throw new Error('Supabase client not initialized');
-        }
-        
-        const { data: customers, error } = await supabase
-            .from('customers')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            handleSupabaseError(error, 'Müşteri yükleme');
-            return;
-        }
-
-        if (customers && customers.length > 0) {
-            customers.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = `${customer.name} (${customer.code})`;
-                elements.customerSelect.appendChild(option);
-            });
-        }
-        
-    } catch (error) {
-        console.error('Error in populateCustomers:', error);
-        showAlert('Müşteri yükleme hatası: ' + error.message, 'error');
-    }
-}
-
-async function populatePersonnel() {
-            try {
-                // Dropdown'u temizle
-                elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
-                
-                const { data: personnel, error } = await supabase
-                    .from('personnel')
-                    .select('*')
-                    .order('name');
-
-                if (error) {
-                    console.error('Error loading personnel:', error);
-                    // Add default current user
-                    const option = document.createElement('option');
-                    option.value = currentUser?.uid || 'default';
-                    option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
-                    option.selected = true;
-                    elements.personnelSelect.appendChild(option);
-                    return;
-                }
-
-                if (personnel && personnel.length > 0) {
-                    personnel.forEach(person => {
-                        const option = document.createElement('option');
-                        option.value = person.id;
-                        option.textContent = person.name;
-                        elements.personnelSelect.appendChild(option);
-                    });
-                }
-                
-            } catch (error) {
-                console.error('Error in populatePersonnel:', error);
-                // Add default current user
-                const option = document.createElement('option');
-                option.value = currentUser?.uid || 'default';
-                option.textContent = currentUser?.name || 'Mevcut Kullanıcı';
-                option.selected = true;
-                elements.personnelSelect.appendChild(option);
-            }
-        }
-
-
-
-// Tab click events
-function switchTab(tabName) {
-    // Hide all tab panes
-    document.querySelectorAll('.tab-pane').forEach(pane => {
-        pane.classList.remove('active');
-    });
-    
-    // Deactivate all tabs
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Activate selected tab
-    const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
-    const selectedPane = document.getElementById(`${tabName}Tab`);
-    
-    if (selectedTab && selectedPane) {
-        selectedTab.classList.add('active');
-        selectedPane.classList.add('active');
-    }
-}
-
 // Utility functions
 function closeAllModals() {
     document.getElementById('customerModal').style.display = 'none';
@@ -366,54 +193,6 @@ function closeEmailModal() {
         console.warn('Email modal not found');
     }
 }
-
-function escapeHtml(text) {
-    if (typeof text !== 'string') {
-        return String(text);
-    }
-    
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Form doğrulama fonksiyonu
-function validateForm(inputs) {
-    let isValid = true;
-    
-    inputs.forEach(input => {
-        const element = document.getElementById(input.id);
-        const errorElement = document.getElementById(input.errorId);
-        
-        if (input.required && !element.value.trim()) {
-            element.classList.add('invalid');
-            errorElement.style.display = 'block';
-            isValid = false;
-        } else if (input.type === 'email' && element.value.trim() && !isValidEmail(element.value)) {
-            element.classList.add('invalid');
-            errorError.style.display = 'block';
-            errorElement.textContent = 'Geçerli bir e-posta adresi girin';
-            isValid = false;
-        } else if (input.type === 'number' && element.value && (!Number.isInteger(Number(element.value)) || Number(element.value) < 1)) {
-            element.classList.add('invalid');
-            errorElement.style.display = 'block';
-            errorElement.textContent = 'Geçerli bir sayı girin';
-            isValid = false;
-        } else {
-            element.classList.remove('invalid');
-            errorElement.style.display = 'none';
-        }
-    });
-    
-    return isValid;
-}
-
-function isValidEmail(email) {
-    const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    return re.test(String(email).toLowerCase());
-}
-
-
 
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
@@ -457,12 +236,6 @@ function handleSupabaseError(error, context) {
         document.getElementById('offlineIndicator')?.style.setProperty('display', 'block');
     }
 }
-
-// Global error handler
-window.addEventListener('error', function(e) {
-    console.error('Global error:', e.error);
-    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
-});
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
@@ -537,55 +310,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('ProClean application initialized with Supabase authentication');
 });
-
-// scripts/main.js
-
-// Add this function to check if elements exist before accessing them
-function ensureElementLoaded(id, callback, maxAttempts = 50, interval = 100) {
-    let attempts = 0;
-    const checkExist = setInterval(function() {
-        attempts++;
-        const element = document.getElementById(id);
-        if (element) {
-            clearInterval(checkExist);
-            callback(element);
-        } else if (attempts >= maxAttempts) {
-            clearInterval(checkExist);
-            console.error(`Element with ID '${id}' not found after ${maxAttempts} attempts`);
-        }
-    }, interval);
-}
-
-// Modify your initApp function
-async function initApp() {
-    initializeElementsObject();
-    
-    // Wait for elements to be loaded before accessing them
-    ensureElementLoaded('currentDate', (element) => {
-        element.textContent = new Date().toLocaleDateString('tr-TR');
-    });
-    
-    // Populate dropdowns
-    await populateCustomers();
-    await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
-    
-    // Load data
-    await populatePackagesTable();
-    await populateStockTable();
-    await populateShippingTable();
-    
-    // Test connection
-    await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000);
-    
-    // Set up offline support
-    setupOfflineSupport();
-    
-    // Set up barcode scanner listener
-    setupBarcodeScanner();
-}
