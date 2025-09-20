@@ -1,3 +1,19 @@
+// Add this to the beginning of supabase.js as a safety net
+if (typeof showAlert === 'undefined') {
+    window.showAlert = function(message, type = 'info') {
+        console.log(`${type}: ${message}`);
+        alert(`${type}: ${message}`);
+    };
+}
+
+if (typeof validateForm === 'undefined') {
+    window.validateForm = function() {
+        console.warn('validateForm function not found');
+        return true; // Allow form submission by default
+    };
+}
+
+
 // Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
@@ -162,34 +178,33 @@ async function retryMissingElements(maxAttempts = 10, interval = 300) {
 
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
+// Modify the initializeSupabase function
 function initializeSupabase() {
-    // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
-    if (supabase && SUPABASE_ANON_KEY) {
-        return supabase;
-    }
-    
     if (!SUPABASE_ANON_KEY) {
-        console.warn('Supabase API key not set, showing modal');
-        showApiKeyModal();
+        console.warn('Supabase API key not set');
         return null;
     }
     
     try {
-        // Global supabase değişkenine ata
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized successfully');
         
-        // Set up auth listener after successful initialization
+        // Set up auth listener
         setupAuthListener();
+        
+        // Test connection
+        setTimeout(() => {
+            testConnection();
+        }, 1000);
         
         return supabase;
     } catch (error) {
         console.error('Supabase initialization error:', error);
-        showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
-        showApiKeyModal();
         return null;
     }
 }
+
+
 
 // FIXED: API anahtarını kaydet ve istemciyi başlat
 function saveApiKey() {
