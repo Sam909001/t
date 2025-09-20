@@ -91,8 +91,8 @@ function showAlert(message, type = 'info', duration = 3000) {
 
 
 // Modified initializeElementsObject - only check for elements that should exist on page load
-function initializeElementsObject() {
-    // Only check for elements that exist on initial page load
+// Modified initializeElementsObject with retry
+function initializeElementsObject(retryCount = 0) {
     const pageLoadElements = {
         loginScreen: 'loginScreen',
         loginButton: 'loginBtn',
@@ -107,48 +107,37 @@ function initializeElementsObject() {
         userRole: 'userRole',
         offlineIndicator: 'offlineIndicator'
     };
-    
+
     let foundCount = 0;
-    let missingCount = 0;
-    
-    // Initialize all element slots as null first
-    const allElements = [
-        'loginScreen', 'appContainer', 'loginButton', 'emailInput', 'passwordInput',
-        'customerSelect', 'personnelSelect', 'currentDate', 'barcodeInput',
-        'packagesTableBody', 'packageDetailContent', 'shippingFolders',
-        'stockTableBody', 'customerList', 'allCustomersList', 'toast',
-        'containerNumber', 'totalPackages', 'shippingFilter', 'stockSearch',
-        'selectAllPackages', 'apiKeyModal', 'apiKeyInput', 'quantityInput',
-        'quantityModal', 'quantityModalTitle', 'scannedBarcodes',
-        'connectionStatus', 'alertContainer', 'scannerToggle', 'containerSearch',
-        'settingsModal', 'closeSettingsModalBtn', 'userRole', 'logoutBtn',
-        'settingsBtn', 'offlineIndicator'
-    ];
-    
-    // Initialize all as null
-    allElements.forEach(key => {
-        elements[key] = null;
-    });
-    
-    // Only check and warn about page load elements
+    let missingKeys = [];
+
+    // Initialize all as null first
     Object.keys(pageLoadElements).forEach(key => {
-        const element = document.getElementById(pageLoadElements[key]);
-        if (element) {
-            elements[key] = element;
+        elements[key] = document.getElementById(pageLoadElements[key]) || null;
+        if (elements[key]) {
             foundCount++;
         } else {
-            console.warn(`Page load element ${pageLoadElements[key]} not found`);
-            missingCount++;
+            missingKeys.push(pageLoadElements[key]);
         }
     });
-    
-    console.log(`Page elements initialized: ${foundCount} found, ${missingCount} missing`);
+
+    if (missingKeys.length > 0) {
+        console.warn(
+            `Missing elements: ${missingKeys.join(", ")} (try ${retryCount})`
+        );
+        // retry up to 5 times, waiting 500ms between tries
+        if (retryCount < 5) {
+            setTimeout(() => initializeElementsObject(retryCount + 1), 500);
+        }
+    }
+
+    console.log(`Page elements initialized: ${foundCount} found`);
     return elements;
 }
 
 
 
-// Call this function after successful login to find app elements
+
 // Call this after login to initialize app elements
 function initializeAppElements() {
     const appElements = {
