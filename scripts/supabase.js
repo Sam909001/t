@@ -1,19 +1,3 @@
-// Add this to the beginning of supabase.js as a safety net
-if (typeof showAlert === 'undefined') {
-    window.showAlert = function(message, type = 'info') {
-        console.log(`${type}: ${message}`);
-        alert(`${type}: ${message}`);
-    };
-}
-
-if (typeof validateForm === 'undefined') {
-    window.validateForm = function() {
-        console.warn('validateForm function not found');
-        return true; // Allow form submission by default
-    };
-}
-
-
 // Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
