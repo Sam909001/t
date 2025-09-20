@@ -1,5 +1,3 @@
-// scripts/auth.js
-
 // Retry mechanism for DOM elements
 function waitForElement(id, maxAttempts = 50, interval = 100) {
     return new Promise((resolve, reject) => {
@@ -39,8 +37,6 @@ async function safeSetElementDisplay(elementId, displayValue, maxRetries = 5) {
 }
 
 // FIXED: Kullanıcı girişi
-// scripts/auth.js
-
 async function login() {
     console.log('Login function called');
     
@@ -197,7 +193,6 @@ async function login() {
     }
 }
 
-
 function applyRoleBasedPermissions(role) {
     // Bu fonksiyonun çalışması için elementlerin yüklenmesini bekle
     setTimeout(() => {
@@ -272,7 +267,6 @@ function loadApiKey() {
     return false;
 }
 
-
 // Add this function to auth.js
 function validateForm(fields) {
     let isValid = true;
@@ -311,6 +305,3 @@ function validateForm(fields) {
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
-
-
-
