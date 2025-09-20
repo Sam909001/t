@@ -152,13 +152,13 @@ class PrinterManager {
                         <div class="small-text">Profesyonel Çamaşırhane</div>
                     </div>
                     
-                    <div class="info-section">
+                                       <div class="info-section">
                         <div class="info-row">
                             <strong>Müşteri:</strong>
                             <span>${customer.name}</span>
                         </div>
                         <div class="info-row">
-                            <strong>Kod:</strong>
+                            <strong>Müşteri Kodu:</strong>
                             <span>${customer.code}</span>
                         </div>
                         <div class="info-row">
@@ -173,17 +173,34 @@ class PrinterManager {
                             <strong>Tarih:</strong>
                             <span>${Helpers.formatDate(now)}</span>
                         </div>
+                        <div class="info-row">
+                            <strong>Saat:</strong>
+                            <span>${Helpers.formatTime(now)}</span>
+                        </div>
                     </div>
                     
                     <div class="barcode-section">
                         <div class="small-text">Barkod</div>
-                        <div class="barcode" id="barcode-display">${barcodeData}</div>
+                        <div class="barcode">${barcodeData}</div>
+                        <canvas id="barcode-canvas" style="margin-top: 0.2cm;"></canvas>
                     </div>
                 </div>
                 
+                <script src="libs/JsBarcode.all.min.js"></script>
                 <script>
-                    // Auto-print when loaded
                     window.onload = function() {
+                        try {
+                            JsBarcode("#barcode-canvas", "${barcodeData}", {
+                                format: "CODE128",
+                                width: 1.5,
+                                height: 30,
+                                displayValue: false
+                            });
+                        } catch (error) {
+                            console.error('Barcode generation error:', error);
+                        }
+                        
+                        // Auto print after short delay
                         setTimeout(function() {
                             window.print();
                             window.close();
@@ -202,7 +219,7 @@ class PrinterManager {
         printWindow.document.close();
     }
 
-    // Print multiple labels
+    // Print multiple package labels
     async printMultipleLabels(packages) {
         try {
             if (!this.checkConnection()) {
@@ -215,144 +232,23 @@ class PrinterManager {
                 return false;
             }
 
-            const loading = NotificationManager.showLoading(`${packages.length} etiket hazırlanıyor...`);
-
-            // Generate all labels HTML
-            let allLabelsHTML = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Toplu Etiket Yazdırma</title>
-                    <style>
-                        @page {
-                            size: A4;
-                            margin: 1cm;
-                        }
-                        body {
-                            font-family: Arial, sans-serif;
-                            margin: 0;
-                            padding: 0;
-                        }
-                        .page-break {
-                            page-break-after: always;
-                        }
-                        .label {
-                            width: 8cm;
-                            height: 6cm;
-                            border: 2px solid #000;
-                            padding: 0.3cm;
-                            margin: 0.5cm;
-                            display: inline-block;
-                            vertical-align: top;
-                            box-sizing: border-box;
-                            font-size: 11px;
-                            line-height: 1.2;
-                        }
-                        .header {
-                            text-align: center;
-                            border-bottom: 1px solid #000;
-                            padding-bottom: 0.2cm;
-                            margin-bottom: 0.2cm;
-                        }
-                        .company-name {
-                            font-size: 14px;
-                            font-weight: bold;
-                        }
-                        .info-row {
-                            display: flex;
-                            justify-content: space-between;
-                            margin-bottom: 0.1cm;
-                        }
-                        .barcode-section {
-                            text-align: center;
-                            margin-top: 0.3cm;
-                            padding-top: 0.2cm;
-                            border-top: 1px solid #000;
-                        }
-                        .barcode {
-                            font-family: 'Courier New', monospace;
-                            font-size: 12px;
-                            font-weight: bold;
-                            letter-spacing: 1px;
-                        }
-                        .small-text {
-                            font-size: 9px;
-                            color: #666;
-                        }
-                    </style>
-                </head>
-                <body>
-            `;
-
-            for (let i = 0; i < packages.length; i++) {
-                const pkg = packages[i];
+            let allLabelsHTML = '';
+            
+            for (const pkg of packages) {
                 const customer = await CustomerManager.getCustomer(pkg.customer_id);
-                
                 if (customer) {
-                    allLabelsHTML += `
-                        <div class="label">
-                            <div class="header">
-                                <div class="company-name">ProClean</div>
-                                <div class="small-text">Profesyonel Çamaşırhane</div>
-                            </div>
-                            
-                            <div class="info-row">
-                                <strong>Müşteri:</strong>
-                                <span>${customer.name}</span>
-                            </div>
-                            <div class="info-row">
-                                <strong>Kod:</strong>
-                                <span>${customer.code}</span>
-                            </div>
-                            <div class="info-row">
-                                <strong>Ürün:</strong>
-                                <span>${pkg.product_name}</span>
-                            </div>
-                            <div class="info-row">
-                                <strong>Adet:</strong>
-                                <span>${pkg.quantity}</span>
-                            </div>
-                            <div class="info-row">
-                                <strong>Tarih:</strong>
-                                <span>${Helpers.formatDate(new Date())}</span>
-                            </div>
-                            
-                            <div class="barcode-section">
-                                <div class="small-text">Barkod</div>
-                                <div class="barcode">${pkg.barcode}</div>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                // Add page break every 6 labels
-                if ((i + 1) % 6 === 0 && i < packages.length - 1) {
-                    allLabelsHTML += '<div class="page-break"></div>';
+                    const labelHTML = this.generateLabelHTML(pkg, customer);
+                    allLabelsHTML += labelHTML + '<div style="page-break-after: always;"></div>';
                 }
             }
 
-            allLabelsHTML += `
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.close();
-                            }, 1000);
-                        };
-                    </script>
-                </body>
-                </html>
-            `;
-
-            NotificationManager.hideLoading();
             this.printHTML(allLabelsHTML);
             
-            NotificationManager.showAlert(`${packages.length} etiket yazdırılıyor...`, 'success');
+            NotificationManager.showAlert(`${packages.length} etiket yazdırılıyor...`, 'info');
             return true;
         } catch (error) {
-            NotificationManager.hideLoading();
             console.error('Error printing multiple labels:', error);
-            NotificationManager.showAlert('Toplu etiket yazdırma hatası: ' + error.message, 'error');
+            NotificationManager.showAlert('Etiketler yazdırılamadı: ' + error.message, 'error');
             return false;
         }
     }
@@ -373,18 +269,8 @@ class PrinterManager {
 
             // Group packages by customer
             const packagesByCustomer = Helpers.groupBy(packages, 'customer_id');
-            const customerSummaries = await Promise.all(
-                Object.entries(packagesByCustomer).map(async ([customerId, customerPackages]) => {
-                    const customer = await CustomerManager.getCustomer(customerId);
-                    return {
-                        customer: customer || { name: 'Bilinmeyen', code: '-' },
-                        packages: customerPackages,
-                        totalQuantity: customerPackages.reduce((sum, pkg) => sum + pkg.quantity, 0)
-                    };
-                })
-            );
-
-            const summaryHTML = this.generateContainerSummaryHTML(container, customerSummaries);
+            
+            let summaryHTML = this.generateContainerSummaryHTML(container, packagesByCustomer);
             this.printHTML(summaryHTML);
             
             NotificationManager.showAlert('Konteyner özeti yazdırılıyor...', 'info');
@@ -397,9 +283,9 @@ class PrinterManager {
     }
 
     // Generate container summary HTML
-    generateContainerSummaryHTML(container, customerSummaries) {
-        const totalPackages = customerSummaries.reduce((sum, cs) => sum + cs.packages.length, 0);
-        const totalQuantity = customerSummaries.reduce((sum, cs) => sum + cs.totalQuantity, 0);
+    generateContainerSummaryHTML(container, packagesByCustomer) {
+        const now = new Date();
+        const totalPackages = Object.values(packagesByCustomer).flat().length;
 
         return `
             <!DOCTYPE html>
@@ -415,64 +301,76 @@ class PrinterManager {
                         font-family: Arial, sans-serif;
                         font-size: 12px;
                         line-height: 1.4;
-                        color: #333;
                     }
                     .header {
                         text-align: center;
-                        border-bottom: 3px solid #000;
-                        padding-bottom: 1cm;
-                        margin-bottom: 1cm;
+                        border-bottom: 2px solid #000;
+                        padding-bottom: 1rem;
+                        margin-bottom: 2rem;
                     }
                     .company-name {
                         font-size: 24px;
                         font-weight: bold;
-                        margin-bottom: 0.5cm;
+                        margin-bottom: 0.5rem;
                     }
                     .document-title {
                         font-size: 18px;
                         font-weight: bold;
-                        margin-bottom: 0.3cm;
+                        margin-bottom: 0.5rem;
                     }
-                    .container-info {
-                        background: #f5f5f5;
-                        padding: 1cm;
-                        margin-bottom: 1cm;
-                        border-radius: 5px;
-                    }
-                    .info-grid {
+                    .info-section {
                         display: grid;
                         grid-template-columns: 1fr 1fr;
-                        gap: 0.5cm;
+                        gap: 2rem;
+                        margin-bottom: 2rem;
+                        padding: 1rem;
+                        background: #f8f9fa;
+                        border-radius: 5px;
                     }
-                    .summary-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-bottom: 1cm;
+                    .info-item {
+                        margin-bottom: 0.5rem;
                     }
-                    .summary-table th,
-                    .summary-table td {
+                    .customer-section {
+                        margin-bottom: 1.5rem;
                         border: 1px solid #ddd;
-                        padding: 0.3cm;
-                        text-align: left;
+                        border-radius: 5px;
+                        padding: 1rem;
                     }
-                    .summary-table th {
-                        background: #f0f0f0;
+                    .customer-header {
                         font-weight: bold;
+                        font-size: 14px;
+                        color: #2c3e50;
+                        border-bottom: 1px solid #ddd;
+                        padding-bottom: 0.5rem;
+                        margin-bottom: 0.5rem;
                     }
-                    .total-row {
+                    .package-item {
+                        display: grid;
+                        grid-template-columns: 2fr 1fr 1fr;
+                        gap: 1rem;
+                        padding: 0.3rem 0;
+                        border-bottom: 1px solid #eee;
+                    }
+                    .package-header {
+                        display: grid;
+                        grid-template-columns: 2fr 1fr 1fr;
+                        gap: 1rem;
                         font-weight: bold;
-                        background: #e8f4fd;
+                        padding: 0.5rem 0;
+                        border-bottom: 2px solid #333;
+                        margin-bottom: 0.5rem;
                     }
-                    .footer {
-                        position: fixed;
-                        bottom: 2cm;
-                        left: 2cm;
-                        right: 2cm;
+                    .summary-section {
+                        margin-top: 2rem;
+                        padding: 1rem;
+                        background: #e9ecef;
+                        border-radius: 5px;
                         text-align: center;
-                        border-top: 1px solid #ccc;
-                        padding-top: 0.5cm;
-                        font-size: 10px;
-                        color: #666;
+                    }
+                    .summary-number {
+                        font-size: 36px;
+                        font-weight: bold;
+                        color: #2c3e50;
                     }
                 </style>
             </head>
@@ -480,52 +378,50 @@ class PrinterManager {
                 <div class="header">
                     <div class="company-name">ProClean</div>
                     <div>Profesyonel Çamaşırhane Yönetim Sistemi</div>
-                    <div class="document-title">Konteyner Sevkiyat Özeti</div>
+                    <div class="document-title">KONTEYNER ÖZETİ</div>
                 </div>
-
-                <div class="container-info">
-                    <div class="info-grid">
-                        <div>
-                            <strong>Konteyner No:</strong> ${container.container_number}<br>
-                            <strong>Oluşturulma:</strong> ${Helpers.formatDateTime(container.created_at)}<br>
-                            <strong>Kapanma:</strong> ${Helpers.formatDateTime(container.closed_at || new Date())}
-                        </div>
-                        <div>
-                            <strong>Toplam Paket:</strong> ${totalPackages}<br>
-                            <strong>Toplam Adet:</strong> ${totalQuantity}<br>
-                            <strong>Müşteri Sayısı:</strong> ${customerSummaries.length}
-                        </div>
+                
+                <div class="info-section">
+                    <div>
+                        <div class="info-item"><strong>Konteyner No:</strong> ${container.container_number}</div>
+                        <div class="info-item"><strong>Durum:</strong> ${container.status}</div>
+                        <div class="info-item"><strong>Oluşturulma:</strong> ${Helpers.formatDateTime(container.created_at)}</div>
+                    </div>
+                    <div>
+                        <div class="info-item"><strong>Yazdırma Tarihi:</strong> ${Helpers.formatDateTime(now)}</div>
+                        <div class="info-item"><strong>Toplam Paket:</strong> ${totalPackages}</div>
+                        <div class="info-item"><strong>Müşteri Sayısı:</strong> ${Object.keys(packagesByCustomer).length}</div>
                     </div>
                 </div>
 
-                <table class="summary-table">
-                    <thead>
-                        <tr>
-                            <th>Müşteri</th>
-                            <th>Müşteri Kodu</th>
-                            <th>Paket Sayısı</th>
-                            <th>Toplam Adet</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${customerSummaries.map(cs => `
-                            <tr>
-                                <td>${cs.customer.name}</td>
-                                <td>${cs.customer.code}</td>
-                                <td>${cs.packages.length}</td>
-                                <td>${cs.totalQuantity}</td>
-                            </tr>
-                        `).join('')}
-                        <tr class="total-row">
-                            <td colspan="2"><strong>TOPLAM</strong></td>
-                            <td><strong>${totalPackages}</strong></td>
-                            <td><strong>${totalQuantity}</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
+                ${Object.entries(packagesByCustomer).map(([customerId, customerPackages]) => {
+                    const customer = customerPackages[0].customers;
+                    const customerTotal = customerPackages.reduce((sum, pkg) => sum + pkg.quantity, 0);
+                    
+                    return `
+                        <div class="customer-section">
+                            <div class="customer-header">
+                                ${customer?.name || 'Bilinmeyen Müşteri'} (${customer?.code || '-'}) - Toplam: ${customerTotal} adet
+                            </div>
+                            <div class="package-header">
+                                <div>Ürün Adı</div>
+                                <div>Adet</div>
+                                <div>Barkod</div>
+                            </div>
+                            ${customerPackages.map(pkg => `
+                                <div class="package-item">
+                                    <div>${pkg.product_name}</div>
+                                    <div>${pkg.quantity}</div>
+                                    <div style="font-family: monospace; font-size: 10px;">${pkg.barcode}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }).join('')}
 
-                <div class="footer">
-                    ProClean © ${new Date().getFullYear()} | Yazdırılma: ${Helpers.formatDateTime(new Date())}
+                <div class="summary-section">
+                    <div>TOPLAM PAKET SAYISI</div>
+                    <div class="summary-number">${totalPackages}</div>
                 </div>
 
                 <script>
@@ -533,7 +429,217 @@ class PrinterManager {
                         setTimeout(function() {
                             window.print();
                             window.close();
-                        }, 1000);
+                        }, 500);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+    }
+
+    // Print stock report
+    async printStockReport() {
+        try {
+            if (!this.checkConnection()) {
+                NotificationManager.showAlert('Yazıcı bağlantısı bulunamadı', 'error');
+                return false;
+            }
+
+            const stock = StockManager.getAllStock();
+            if (!stock || stock.length === 0) {
+                NotificationManager.showAlert('Stok verisi bulunamadı', 'warning');
+                return false;
+            }
+
+            const reportHTML = this.generateStockReportHTML(stock);
+            this.printHTML(reportHTML);
+            
+            NotificationManager.showAlert('Stok raporu yazdırılıyor...', 'info');
+            return true;
+        } catch (error) {
+            console.error('Error printing stock report:', error);
+            NotificationManager.showAlert('Stok raporu yazdırılamadı: ' + error.message, 'error');
+            return false;
+        }
+    }
+
+    // Generate stock report HTML
+    generateStockReportHTML(stock) {
+        const now = new Date();
+        const lowStock = stock.filter(item => {
+            const minQuantity = item.min_quantity || 10;
+            return item.quantity <= minQuantity;
+        });
+
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Stok Raporu</title>
+                <style>
+                    @page {
+                        size: A4;
+                        margin: 2cm;
+                    }
+                    body {
+                        font-family: Arial, sans-serif;
+                        font-size: 11px;
+                        line-height: 1.4;
+                    }
+                    .header {
+                        text-align: center;
+                        border-bottom: 2px solid #000;
+                        padding-bottom: 1rem;
+                        margin-bottom: 2rem;
+                    }
+                    .company-name {
+                        font-size: 24px;
+                        font-weight: bold;
+                        margin-bottom: 0.5rem;
+                    }
+                    .document-title {
+                        font-size: 18px;
+                        font-weight: bold;
+                        margin-bottom: 0.5rem;
+                    }
+                    .summary-grid {
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: 1rem;
+                        margin-bottom: 2rem;
+                    }
+                    .summary-card {
+                        text-align: center;
+                        padding: 1rem;
+                        border: 1px solid #ddd;
+                        border-radius: 5px;
+                    }
+                    .summary-number {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #2c3e50;
+                    }
+                    .stock-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 2rem;
+                    }
+                    .stock-table th,
+                    .stock-table td {
+                        padding: 0.5rem;
+                        text-align: left;
+                        border-bottom: 1px solid #ddd;
+                    }
+                    .stock-table th {
+                        background: #f8f9fa;
+                        font-weight: bold;
+                        border-bottom: 2px solid #333;
+                    }
+                    .status-kritik {
+                        background: #e74c3c;
+                        color: white;
+                        padding: 2px 6px;
+                        border-radius: 3px;
+                        font-size: 10px;
+                    }
+                    .status-az-stok {
+                        background: #f39c12;
+                        color: white;
+                        padding: 2px 6px;
+                        border-radius: 3px;
+                        font-size: 10px;
+                    }
+                    .status-stokta {
+                        background: #2ecc71;
+                        color: white;
+                        padding: 2px 6px;
+                        border-radius: 3px;
+                        font-size: 10px;
+                    }
+                    .low-stock-section {
+                        margin-top: 2rem;
+                        padding: 1rem;
+                        background: #fff3cd;
+                        border: 1px solid #ffeaa7;
+                        border-radius: 5px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="company-name">ProClean</div>
+                    <div>Profesyonel Çamaşırhane Yönetim Sistemi</div>
+                    <div class="document-title">STOK RAPORU</div>
+                    <div>Rapor Tarihi: ${Helpers.formatDateTime(now)}</div>
+                </div>
+                
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-number">${stock.length}</div>
+                        <div>Toplam Ürün</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-number">${stock.reduce((sum, item) => sum + item.quantity, 0)}</div>
+                        <div>Toplam Adet</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-number">${lowStock.length}</div>
+                        <div>Az Stok</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-number">${stock.filter(item => item.quantity <= 5).length}</div>
+                        <div>Kritik Stok</div>
+                    </div>
+                </div>
+
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th>Ürün Kodu</th>
+                            <th>Ürün Adı</th>
+                            <th>Miktar</th>
+                            <th>Min. Miktar</th>
+                            <th>Durum</th>
+                            <th>Son Güncelleme</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${stock.map(item => {
+                            const status = StockManager.getStockStatus(item);
+                            const statusClass = StockManager.getStockStatusClass(status);
+                            
+                            return `
+                                <tr>
+                                    <td>${item.product_code || '-'}</td>
+                                    <td>${item.product_name}</td>
+                                    <td style="text-align: center;">${item.quantity}</td>
+                                    <td style="text-align: center;">${item.min_quantity || '-'}</td>
+                                    <td><span class="${statusClass}">${status}</span></td>
+                                    <td>${Helpers.formatDate(item.updated_at || item.created_at)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+
+                ${lowStock.length > 0 ? `
+                    <div class="low-stock-section">
+                        <h3>⚠️ DİKKAT: Az Stok Uyarısı</h3>
+                        <p>Aşağıdaki ürünlerin stok seviyeleri minimum seviyenin altında veya kritik seviyede:</p>
+                        <ul>
+                            ${lowStock.map(item => `
+                                <li><strong>${item.product_name}</strong> - Mevcut: ${item.quantity}, Minimum: ${item.min_quantity || 10}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 500);
                     };
                 </script>
             </body>
@@ -546,7 +652,13 @@ class PrinterManager {
         this.printerSettings = { ...this.printerSettings, ...newSettings };
         this.saveSettings();
         
-        NotificationManager.showAlert('Yazıcı ayarları güncellendi', 'success');
+        const printerScaling = document.getElementById('printerScaling');
+        const copiesNumber = document.getElementById('copiesNumber');
+        
+        if (printerScaling) printerScaling.value = this.printerSettings.scaling;
+        if (copiesNumber) copiesNumber.value = this.printerSettings.copies;
+        
+        console.log('Printer settings updated:', this.printerSettings);
     }
 
     // Get printer settings
