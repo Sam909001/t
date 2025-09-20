@@ -271,3 +271,46 @@ function loadApiKey() {
     }
     return false;
 }
+
+
+// Add this function to auth.js
+function validateForm(fields) {
+    let isValid = true;
+    
+    fields.forEach(field => {
+        const input = document.getElementById(field.id);
+        const errorElement = document.getElementById(field.errorId);
+        
+        if (!input) return;
+        
+        if (field.required && !input.value.trim()) {
+            isValid = false;
+            if (errorElement) {
+                errorElement.textContent = 'Bu alan zorunludur';
+                errorElement.style.display = 'block';
+            }
+            input.classList.add('error');
+        } else if (field.type === 'email' && input.value.trim() && !isValidEmail(input.value)) {
+            isValid = false;
+            if (errorElement) {
+                errorElement.textContent = 'Geçerli bir email adresi girin';
+                errorElement.style.display = 'block';
+            }
+            input.classList.add('error');
+        } else {
+            if (errorElement) {
+                errorElement.style.display = 'none';
+            }
+            input.classList.remove('error');
+        }
+    });
+    
+    return isValid;
+}
+
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+
+
