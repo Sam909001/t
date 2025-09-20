@@ -1,50 +1,4 @@
-// ====================
-// Simple showAlert function
-// ====================
-function showAlert(message, type = 'info', duration = 3000) {
-    // Create alert container if it doesn't exist
-    let alertContainer = document.getElementById('alertContainer');
-    if (!alertContainer) {
-        alertContainer = document.createElement('div');
-        alertContainer.id = 'alertContainer';
-        alertContainer.style.position = 'fixed';
-        alertContainer.style.top = '20px';
-        alertContainer.style.right = '20px';
-        alertContainer.style.zIndex = '9999';
-        document.body.appendChild(alertContainer);
-    }
-
-    // Create the alert element
-    const alert = document.createElement('div');
-    alert.textContent = message;
-    alert.style.padding = '10px 20px';
-    alert.style.marginTop = '10px';
-    alert.style.borderRadius = '5px';
-    alert.style.color = '#fff';
-    alert.style.fontFamily = 'Arial, sans-serif';
-    alert.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
-    alert.style.transition = 'opacity 0.3s ease';
-
-    // Color based on type
-    switch(type) {
-        case 'success': alert.style.backgroundColor = '#28a745'; break;
-        case 'error': alert.style.backgroundColor = '#dc3545'; break;
-        case 'warning': alert.style.backgroundColor = '#ffc107'; alert.style.color = '#000'; break;
-        default: alert.style.backgroundColor = '#17a2b8';
-    }
-
-    alertContainer.appendChild(alert);
-
-    // Remove after duration
-    setTimeout(() => {
-        alert.style.opacity = '0';
-        setTimeout(() => alert.remove(), 300);
-    }, duration);
-}
-
-
-
-// Supabase initialization - Varsayılan değerler
+ // Supabase initialization - Varsayılan değerler
         const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
@@ -71,28 +25,171 @@ let selectedPackageForPrinting = null;
 // Elementleri bir defa tanımla
 const elements = {};
 
+function initializeElementsObject() {
+    const elementMap = {
+        loginScreen: 'loginScreen',
+        appContainer: 'appContainer',
+        loginButton: 'loginBtn',
+        emailInput: 'email',
+        passwordInput: 'password',
+        customerSelect: 'customerSelect',
+        personnelSelect: 'personnelSelect',
+        currentDate: 'currentDate',
+        barcodeInput: 'barcodeInput',
+        packagesTableBody: 'packagesTableBody',
+        packageDetailContent: 'packageDetailContent',
+        shippingFolders: 'shippingFolders',
+        stockTableBody: 'stockTableBody',
+        customerList: 'customerList',
+        allCustomersList: 'allCustomersList',
+        toast: 'toast',
+        containerNumber: 'containerNumber',
+        totalPackages: 'totalPackages',
+        shippingFilter: 'shippingFilter',
+        stockSearch: 'stockSearch',
+        selectAllPackages: 'selectAllPackages',
+        apiKeyModal: 'apiKeyModal',
+        apiKeyInput: 'apiKeyInput',
+        quantityInput: 'quantityInput',
+        quantityModal: 'quantityModal',
+        quantityModalTitle: 'quantityModalTitle',
+        scannedBarcodes: 'scannedBarcodes',
+        connectionStatus: 'connectionStatus',
+        alertContainer: 'alertContainer',
+        scannerToggle: 'scannerToggle',
+        containerSearch: 'containerSearch',
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        toggleThemeBtn: 'toggleThemeBtn',
+        downloadDataBtn: 'downloadDataBtn',
+        changeApiKeyBtn: 'changeApiKeyBtn',
+    };
+    
+    Object.keys(elementMap).forEach(key => {
+        const element = document.getElementById(elementMap[key]);
+        if (element) {
+            elements[key] = element;
+        } else {
+            console.warn(`Element ${elementMap[key]} not found`);
+            elements[key] = null;
+        }
+    });
+    
+    return elements;
+}
 
-// FIXED: Supabase bağlantısını test et
-async function testConnection() {
-    if (!supabase) {
-        console.warn('Supabase client not initialized for connection test');
-        showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
-        return false;
+        
+
+// Profesyonel alert sistemi
+function showAlert(message, type = 'info', duration = 5000) {
+    if (!elements.alertContainer) {
+        console.error('Alert container not found, using console instead');
+        console.log(`${type.toUpperCase()}: ${message}`);
+        return;
     }
     
-    try {
-        const { data, error } = await supabase.from('customers').select('*').limit(1);
-        if (error) throw error;
-        
-        console.log('Supabase connection test successful:', data);
-        showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
-        return true;
-    } catch (e) {
-        console.error('Supabase connection test failed:', e.message);
-        showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
-        return false;
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    
+    const span = document.createElement('span');
+    span.textContent = message; // Use textContent for XSS protection
+    
+    const button = document.createElement('button');
+    button.className = 'alert-close';
+    button.textContent = '×';
+    
+    alert.appendChild(span);
+    alert.appendChild(button);
+    
+    elements.alertContainer.appendChild(alert);
+    
+    // Close button event
+    button.addEventListener('click', () => {
+        alert.classList.add('hide');
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 300);
+    });
+    
+    // Auto close
+    if (duration > 0) {
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.classList.add('hide');
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.remove();
+                    }
+                }, 300);
+            }
+        }, duration);
     }
+    
+    return alert;
 }
+
+
+
+
+        
+// Yardımcı fonksiyonlar
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+
+
+        
+
+// Form doğrulama fonksiyonu
+function validateForm(inputs) {
+    let isValid = true;
+    
+    inputs.forEach(input => {
+        const element = document.getElementById(input.id);
+        const errorElement = document.getElementById(input.errorId);
+        
+        if (input.required && !element.value.trim()) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
+            isValid = false;
+        } else if (input.type === 'email' && element.value.trim() && !isValidEmail(element.value)) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
+            errorElement.textContent = 'Geçerli bir e-posta adresi girin';
+            isValid = false;
+        } else if (input.type === 'number' && element.value && (!Number.isInteger(Number(element.value)) || Number(element.value) < 1)) {
+            element.classList.add('invalid');
+            errorElement.style.display = 'block';
+            errorElement.textContent = 'Geçerli bir sayı girin';
+            isValid = false;
+        } else {
+            element.classList.remove('invalid');
+            errorElement.style.display = 'none';
+        }
+    });
+    
+    return isValid;
+}
+
+
+
+
+
+        
+function isValidEmail(email) {
+    const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
+}
+
 
 
         
@@ -150,22 +247,87 @@ function saveApiKey() {
     }
 }
 
-     
 
-// Yardımcı fonksiyonlar
-function getSupabaseClient() {
-    if (!supabase) {
-        return initializeSupabase();
+
+        
+
+// API anahtarı modalını göster
+function showApiKeyModal() {
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    if (apiKeyInput) {
+        apiKeyInput.value = SUPABASE_ANON_KEY || '';
+        document.getElementById('apiKeyModal').style.display = 'flex';
     }
-    return supabase;
+}
+
+
+
+        
+// API anahtarı yardımı göster
+function showApiKeyHelp() {
+    const helpWindow = window.open('', '_blank');
+    helpWindow.document.write(`
+        <html>
+        <head>
+            <title>Supabase API Anahtarı Alma Rehberi</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+                h1 { color: #2c3e50; }
+                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
+            <div class="step">
+                <h3>1. Supabase hesabınıza giriş yapın</h3>
+                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
+            </div>
+            <div class="step">
+                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
+            </div>
+            <div class="step">
+                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
+            </div>
+            <div class="step">
+                <h3>4. API sekmesine gidin</h3>
+            </div>
+            <div class="step">
+                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
+                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
+            </div>
+            <div class="step">
+                <h3>Önemli Not:</h3>
+                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
+            </div>
+        </body>
+        </html>
+    `);
 }
 
 
 
 
         
-function isSupabaseReady() {
-    return supabase !== null && SUPABASE_ANON_KEY !== null;
+// FIXED: Supabase bağlantısını test et
+async function testConnection() {
+    if (!supabase) {
+        console.warn('Supabase client not initialized for connection test');
+        showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+        return false;
+    }
+    
+    try {
+        const { data, error } = await supabase.from('customers').select('*').limit(1);
+        if (error) throw error;
+        
+        console.log('Supabase connection test successful:', data);
+        showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
+        return true;
+    } catch (e) {
+        console.error('Supabase connection test failed:', e.message);
+        showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+        return false;
+    }
 }
 
 
@@ -259,9 +421,7 @@ function isSupabaseReady() {
 
 
 
-
-
-        // Data loading functions
+   // Data loading functions
    async function populateCustomers() {
     try {
         if (!elements.customerSelect) {
@@ -301,6 +461,7 @@ function isSupabaseReady() {
         showAlert('Müşteri yükleme hatası: ' + error.message, 'error');
     }
 }
+
 
 
 
@@ -410,9 +571,9 @@ function isSupabaseReady() {
 }
 
 
-
-
-    // Helper function to calculate total quantity of selected packages
+        
+        
+        // Helper function to calculate total quantity of selected packages
         async function calculateTotalQuantity(packageIds) {
             try {
                 const { data: packages, error } = await supabase
@@ -550,7 +711,8 @@ function isSupabaseReady() {
 
 
 
-// Konteyner detaylarını görüntüle
+
+ // Konteyner detaylarını görüntüle
         async function viewContainerDetails(containerId) {
             try {
                 const { data: container, error } = await supabase
@@ -618,7 +780,8 @@ function isSupabaseReady() {
 
 
 
- // Konteyner detay modalından sevk et
+
+// Konteyner detay modalından sevk et
         async function shipContainerFromModal() {
             if (currentContainerDetails) {
                 await shipContainer(currentContainerDetails.container_no);
@@ -628,8 +791,40 @@ function isSupabaseReady() {
 
 
 
- 
-        async function populateStockTable() {
+        
+        // Konteyner ara
+        function searchContainers() {
+            const searchTerm = elements.containerSearch.value.toLowerCase();
+            const folders = document.querySelectorAll('.customer-folder');
+            
+            folders.forEach(folder => {
+                const containerRows = folder.querySelectorAll('tbody tr');
+                let hasVisibleRows = false;
+                
+                containerRows.forEach(row => {
+                    const containerNo = row.cells[1].textContent.toLowerCase();
+                    if (containerNo.includes(searchTerm)) {
+                        row.style.display = '';
+                        hasVisibleRows = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                // Eğer bu klasörde görünebilir satır yoksa, klasörü gizle
+                const folderHeader = folder.querySelector('.folder-header');
+                if (hasVisibleRows) {
+                    folder.style.display = 'block';
+                    folderHeader.style.display = 'flex';
+                } else {
+                    folder.style.display = 'none';
+                }
+            });
+        }
+
+
+
+  async function populateStockTable() {
             try {
                 elements.stockTableBody.innerHTML = '';
                 
@@ -694,8 +889,8 @@ function isSupabaseReady() {
 
 
 
-
-async function saveStockItem(code) {
+ 
+        async function saveStockItem(code) {
             const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
             const quantityInput = row.querySelector('.stock-quantity-input');
             const quantitySpan = row.querySelector('.stock-quantity');
@@ -831,7 +1026,6 @@ async function saveStockItem(code) {
 
 
 
-
  // Customer operations
         async function showCustomers() {
             try {
@@ -956,8 +1150,9 @@ async function saveStockItem(code) {
         }
 
 
+        
 
-async function deleteCustomer(customerId) {
+        async function deleteCustomer(customerId) {
             if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
 
             try {
@@ -1062,8 +1257,7 @@ async function completePackage() {
 
 
 
-
- async function deleteSelectedPackages() {
+async function deleteSelectedPackages() {
             const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
             if (checkboxes.length === 0) {
                 showAlert('Silinecek paket seçin', 'error');
@@ -1098,7 +1292,7 @@ async function completePackage() {
 
 
 
- // Shipping operations
+// Shipping operations
         async function sendToRamp(containerNo = null) {
             try {
                 const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
@@ -1197,7 +1391,6 @@ async function completePackage() {
         function filterShipping() {
             populateShippingTable();
         }
-
 
 
 
