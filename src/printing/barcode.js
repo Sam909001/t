@@ -206,46 +206,50 @@ class BarcodeManager {
             return;
         }
 
-        scannedContainer.innerHTML = `
+                scannedContainer.innerHTML = `
             <div style="margin-bottom: 0.5rem; font-weight: bold; font-size: 0.9rem;">
                 Son Okutulan Barkodlar (${this.scannedCodes.length})
             </div>
             ${this.scannedCodes.map(scan => `
                 <div style="
-                    background: #f8f9fa;
-                    padding: 0.5rem;
-                    margin: 0.3rem 0;
-                    border-radius: 4px;
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center;
+                    padding: 0.3rem 0.5rem; 
+                    margin: 0.2rem 0; 
+                    background: #f8f9fa; 
+                    border-radius: 3px;
                     font-size: 0.8rem;
-                    border-left: 3px solid #3498db;
                 ">
-                    <div style="font-family: monospace; font-weight: bold;">${scan.barcode}</div>
-                    <div style="color: #666; font-size: 0.7rem;">${Helpers.formatTime(scan.timestamp)}</div>
+                    <span style="font-family: monospace; font-weight: bold;">
+                        ${this.truncateBarcode(scan.barcode)}
+                    </span>
+                    <span style="color: #666; font-size: 0.7rem;">
+                        ${Helpers.formatTime(scan.timestamp)}
+                    </span>
                 </div>
             `).join('')}
-            <button onclick="BarcodeManager.clearScannedList()" class="btn btn-sm btn-secondary" style="width: 100%; margin-top: 0.5rem; font-size: 0.8rem;">
-                Listeyi Temizle
-            </button>
         `;
     }
 
-    // Clear scanned list
-    clearScannedList() {
-        this.scannedCodes = [];
-        this.updateScannedList();
-        NotificationManager.showAlert('Barkod listesi temizlendi', 'info');
+    // Truncate barcode for display
+    truncateBarcode(barcode) {
+        if (barcode.length > 12) {
+            return barcode.substring(0, 8) + '...';
+        }
+        return barcode;
     }
 
-    // Toggle scanner mode
+    // Toggle camera scanner
     toggleScanner() {
         this.scannerMode = !this.scannerMode;
         
         const scannerToggle = document.getElementById('scannerToggle');
         if (scannerToggle) {
             if (this.scannerMode) {
-                scannerToggle.innerHTML = '<i class="fas fa-camera-slash"></i> Kamerayı Kapat';
-                scannerToggle.classList.remove('btn-secondary');
+                scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Kamerayı Kapat';
                 scannerToggle.classList.add('btn-danger');
+                scannerToggle.classList.remove('btn-secondary');
                 this.startCameraScanner();
             } else {
                 scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Kamera Tarayıcı';
@@ -258,89 +262,151 @@ class BarcodeManager {
 
     // Start camera scanner
     startCameraScanner() {
-        // This would require a QR/Barcode scanning library like QuaggaJS or ZXing
+        // This would require a barcode scanning library like QuaggaJS or ZXing
         // For now, we'll show a placeholder
-        NotificationManager.showAlert('Kamera tarayıcı özelliği geliştirme aşamasında', 'info');
+        NotificationManager.showAlert('Kamera tarayıcı özelliği yakında eklenecek', 'info');
         
-        // In a real implementation, you would:
-        // 1. Request camera permission
-        // 2. Initialize barcode scanning library
-        // 3. Start video stream
-        // 4. Process detected barcodes
+        // Reset scanner mode since we're not actually starting it
+        this.scannerMode = false;
+        this.toggleScanner();
     }
 
     // Stop camera scanner
     stopCameraScanner() {
-        // Stop video stream and clean up resources
+        // Implementation for stopping camera scanner
         console.log('Camera scanner stopped');
     }
 
-    // Generate barcode
+    // Generate barcode for package
     generateBarcode(prefix = 'PC') {
-        return Helpers.generateBarcode(prefix);
-    }
-
-    // Generate barcode image
-    generateBarcodeImage(text, elementId) {
-        try {
-            if (typeof JsBarcode === 'undefined') {
-                console.error('JsBarcode library not loaded');
-                return false;
-            }
-
-            const element = document.getElementById(elementId);
-            if (!element) {
-                console.error('Barcode element not found:', elementId);
-                return false;
-            }
-
-            JsBarcode(element, text, {
-                format: "CODE128",
-                width: 2,
-                height: 50,
-                displayValue: true,
-                fontSize: 12,
-                margin: 10
-            });
-
-            return true;
-        } catch (error) {
-            console.error('Error generating barcode image:', error);
-            return false;
-        }
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+        return `${prefix}${timestamp}${random}`;
     }
 
     // Validate barcode format
     validateBarcode(barcode) {
-        // Basic validation - can be enhanced based on specific barcode formats
-        if (!barcode || typeof barcode !== 'string') {
-            return { valid: false, error: 'Geçersiz barkod formatı' };
-        }
-
-        const trimmed = barcode.trim();
-        if (trimmed.length < 3) {
-            return { valid: false, error: 'Barkod çok kısa' };
-        }
-
-        if (trimmed.length > 50) {
-            return { valid: false, error: 'Barkod çok uzun' };
-        }
-
-        // Check for valid characters (alphanumeric)
-        if (!/^[A-Za-z0-9]+$/.test(trimmed)) {
-            return { valid: false, error: 'Barkod sadece harf ve rakam içermelidir' };
-        }
-
-        return { valid: true, barcode: trimmed };
+        // Basic validation - at least 6 characters, alphanumeric
+        const barcodeRegex = /^[A-Za-z0-9]{6,}$/;
+        return barcodeRegex.test(barcode);
     }
 
-    // Bulk barcode generation
-    generateBulkBarcodes(count, prefix = 'PC') {
-        const barcodes = [];
-        for (let i = 0; i < count; i++) {
-            barcodes.push(this.generateBarcode(prefix));
+    // Create barcode image using JsBarcode
+    createBarcodeImage(barcodeValue, options = {}) {
+        try {
+            if (typeof JsBarcode === 'undefined') {
+                console.warn('JsBarcode library not loaded');
+                return null;
+            }
+
+            const canvas = document.createElement('canvas');
+            const defaultOptions = {
+                format: "CODE128",
+                width: 2,
+                height: 60,
+                displayValue: true,
+                fontSize: 12,
+                textAlign: "center",
+                textPosition: "bottom"
+            };
+
+            JsBarcode(canvas, barcodeValue, { ...defaultOptions, ...options });
+            return canvas.toDataURL();
+        } catch (error) {
+            console.error('Error creating barcode image:', error);
+            return null;
         }
-        return barcodes;
+    }
+
+    // Get quick buttons for common products
+    updateQuickButtons() {
+        const quickButtonsContainer = document.getElementById('quickButtons');
+        if (!quickButtonsContainer) return;
+
+        // Get recent products from packages
+        const recentProducts = this.getRecentProducts();
+        
+        if (recentProducts.length === 0) {
+            quickButtonsContainer.innerHTML = '<p style="text-align: center; color: #666; font-size: 0.8rem;">Henüz hızlı buton yok</p>';
+            return;
+        }
+
+        quickButtonsContainer.innerHTML = recentProducts.map(product => `
+            <button class="quick-btn" onclick="BarcodeManager.selectQuickProduct('${product.name}', ${product.count})">
+                <div>${Helpers.truncateText(product.name, 15)}</div>
+                <span class="quantity-badge">${product.count}</span>
+            </button>
+        `).join('');
+    }
+
+    // Get recent products for quick buttons
+    getRecentProducts() {
+        const packages = PackageManager.getAllPackages();
+        const productCounts = {};
+
+        // Count products from recent packages
+        packages.slice(0, 50).forEach(pkg => {
+            const productName = pkg.product_name;
+            productCounts[productName] = (productCounts[productName] || 0) + 1;
+        });
+
+        // Convert to array and sort by count
+        return Object.entries(productCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 9); // Max 9 buttons for 3x3 grid
+    }
+
+    // Select quick product
+    async selectQuickProduct(productName, count) {
+        if (!app.selectedCustomer) {
+            NotificationManager.showAlert('Önce müşteri seçin', 'warning');
+            return;
+        }
+
+        // Show quantity modal
+        ModalManager.showQuantityModal(
+            `${productName} - Adet Girin`,
+            async (quantity) => {
+                try {
+                    const barcode = this.generateBarcode();
+                    
+                    const packageData = {
+                        customer_id: app.selectedCustomer.id,
+                        product_name: productName,
+                        quantity: parseInt(quantity),
+                        barcode: barcode,
+                        container_id: ContainerManager.getCurrentContainer()?.id || null
+                    };
+
+                    const newPackage = await PackageManager.createPackage(packageData);
+                    
+                    if (newPackage) {
+                        // Try to reduce stock
+                        await StockManager.reduceStock(productName, quantity);
+                        
+                        // Add to scanned list
+                        this.addToScannedList(barcode);
+                        
+                        NotificationManager.showAlert(
+                            `Paket oluşturuldu: ${productName} (${quantity} adet)`,
+                            'success'
+                        );
+                    }
+
+                } catch (error) {
+                    console.error('Error creating package from quick button:', error);
+                    NotificationManager.showAlert('Paket oluşturulamadı: ' + error.message, 'error');
+                }
+            }
+        );
+    }
+
+    // Clear scanned list
+    clearScannedList() {
+        this.scannedCodes = [];
+        this.updateScannedList();
+        NotificationManager.showAlert('Barkod listesi temizlendi', 'info');
     }
 
     // Export scanned barcodes
@@ -352,40 +418,63 @@ class BarcodeManager {
 
         const csvData = this.scannedCodes.map(scan => ({
             'Barkod': scan.barcode,
-            'Okutma Zamanı': Helpers.formatDateTime(scan.timestamp)
+            'Tarih': Helpers.formatDate(scan.timestamp),
+            'Saat': Helpers.formatTime(scan.timestamp)
         }));
 
         Helpers.downloadCSV(csvData, `okutulan_barkodlar_${Helpers.formatDate(new Date())}.csv`);
-        NotificationManager.showAlert('Barkod listesi dışa aktarıldı', 'success');
     }
 
-    // Get scanning statistics
-    getScanningStats() {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    // Search packages by barcode
+    searchByBarcode(barcode) {
+        const packages = PackageManager.getAllPackages();
+        return packages.filter(pkg => 
+            pkg.barcode.toLowerCase().includes(barcode.toLowerCase())
+        );
+    }
 
-        const todayScans = this.scannedCodes.filter(scan => 
-            scan.timestamp >= today
-        ).length;
-
+    // Get barcode statistics
+    getBarcodeStats() {
         return {
-            totalScans: this.scannedCodes.length,
-            todayScans: todayScans,
-            lastScan: this.scannedCodes.length > 0 ? this.scannedCodes[0].timestamp : null
+            totalScanned: this.scannedCodes.length,
+            lastScan: this.scannedCodes.length > 0 ? this.scannedCodes[0].timestamp : null,
+            scannerActive: this.scannerMode
         };
     }
 
-    // Focus barcode input
-    focusInput() {
-        if (this.barcodeInput) {
-            this.barcodeInput.focus();
-            this.barcodeInput.select();
-        }
+    // Setup barcode shortcuts
+    setupBarcodeShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // F2 - Focus barcode input
+            if (e.key === 'F2') {
+                e.preventDefault();
+                if (this.barcodeInput) {
+                    this.barcodeInput.focus();
+                    this.barcodeInput.select();
+                }
+            }
+            
+            // F3 - Toggle scanner
+            if (e.key === 'F3') {
+                e.preventDefault();
+                this.toggleScanner();
+            }
+            
+            // Escape - Clear barcode input
+            if (e.key === 'Escape' && this.barcodeInput === document.activeElement) {
+                this.barcodeInput.value = '';
+            }
+        });
     }
 
-    // Get scanned codes list
-    getScannedCodes() {
-        return [...this.scannedCodes];
+    // Initialize barcode manager
+    init() {
+        this.barcodeInput = document.getElementById('barcodeInput');
+        this.setupBarcodeInput();
+        this.setupScannerToggle();
+        this.setupBarcodeShortcuts();
+        this.updateQuickButtons();
+        console.log('BarcodeManager initialized');
     }
 }
 
