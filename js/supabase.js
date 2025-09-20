@@ -504,4 +504,441 @@ function isSupabaseReady() {
 
 
 
+// Konteyner detaylarını görüntüle
+        async function viewContainerDetails(containerId) {
+            try {
+                const { data: container, error } = await supabase
+                    .from('containers')
+                    .select(`
+                        *,
+                        packages (
+                            *,
+                            customers (name, code)
+                        )
+                    `)
+                    .eq('id', containerId)
+                    .single();
+
+                if (error) throw error;
+                
+                currentContainerDetails = container;
+                
+                const modalTitle = document.getElementById('containerDetailTitle');
+                const modalContent = document.getElementById('containerDetailContent');
+                
+                modalTitle.textContent = `Konteyner: ${container.container_no}`;
+                
+                let contentHTML = `
+                    <p><strong>Durum:</strong> <span class="container-status status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></p>
+                    <p><strong>Oluşturulma Tarihi:</strong> ${new Date(container.created_at).toLocaleDateString('tr-TR')}</p>
+                    <p><strong>Paket Sayısı:</strong> ${container.package_count || 0}</p>
+                    <p><strong>Toplam Adet:</strong> ${container.total_quantity || 0}</p>
+                `;
+                
+                if (container.packages && container.packages.length > 0) {
+                    contentHTML += `
+                        <h4>Paketler</h4>
+                        <table class="package-table">
+                            <thead>
+                                <tr>
+                                    <th>Paket No</th>
+                                    <th>Müşteri</th>
+                                    <th>Adet</th>
+                                    <th>Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${container.packages.map(pkg => `
+                                    <tr>
+                                        <td>${pkg.package_no}</td>
+                                        <td>${pkg.customers?.name || 'N/A'}</td>
+                                        <td>${pkg.total_quantity}</td>
+                                        <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+                
+                modalContent.innerHTML = contentHTML;
+                document.getElementById('containerDetailModal').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error loading container details:', error);
+                showAlert('Konteyner detayları yüklenirken hata oluştu', 'error');
+            }
+        }
+
+
+
+ // Konteyner detay modalından sevk et
+        async function shipContainerFromModal() {
+            if (currentContainerDetails) {
+                await shipContainer(currentContainerDetails.container_no);
+                closeContainerDetailModal();
+            }
+        }
+
+
+
+ 
+        async function populateStockTable() {
+            try {
+                elements.stockTableBody.innerHTML = '';
+                
+                const { data: stockItems, error } = await supabase
+                    .from('stock_items')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading stock items:', error);
+                    showAlert('Stok verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (stockItems && stockItems.length > 0) {
+                    stockItems.forEach(item => {
+                        const row = document.createElement('tr');
+                        
+                        // Determine stock status
+                        let statusClass = 'status-stokta';
+                        let statusText = 'Stokta';
+                        
+                        if (item.quantity <= 0) {
+                            statusClass = 'status-kritik';
+                            statusText = 'Kritik';
+                        } else if (item.quantity < 10) {
+                            statusClass = 'status-az-stok';
+                            statusText = 'Az Stok';
+                        }
+                        
+                        row.innerHTML = `
+                            <td>${item.code}</td>
+                            <td>${item.name}</td>
+                            <td class="editable-cell">
+                                <span class="stock-quantity">${item.quantity}</span>
+                                <input type="number" class="stock-quantity-input" value="${item.quantity}" style="display:none;">
+                            </td>
+                            <td>${item.unit || 'Adet'}</td>
+                            <td><span class="${statusClass}">${statusText}</span></td>
+                            <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                            <td>
+                                <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
+                                <div class="edit-buttons" style="display:none;">
+                                    <button onclick="saveStockItem('${item.code}')" class="btn btn-success btn-sm">Kaydet</button>
+                                    <button onclick="cancelEditStockItem('${item.code}', ${item.quantity})" class="btn btn-secondary btn-sm">İptal</button>
+                                </div>
+                            </td>
+                        `;
+                        elements.stockTableBody.appendChild(row);
+                    });
+                } else {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
+                    elements.stockTableBody.appendChild(row);
+                }
+                
+            } catch (error) {
+                console.error('Error in populateStockTable:', error);
+                showAlert('Stok tablosu yükleme hatası', 'error');
+            }
+        }
+
+
+
+
+async function saveStockItem(code) {
+            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            const newQuantity = parseInt(quantityInput.value);
+            
+            if (isNaN(newQuantity) || newQuantity < 0) {
+                showAlert('Geçerli bir miktar girin', 'error');
+                return;
+            }
+            
+            try {
+                if (!navigator.onLine) {
+                    // Çevrimdışı mod
+                    saveOfflineData('stockUpdates', {
+                        code: code,
+                        quantity: newQuantity,
+                        updated_at: new Date().toISOString()
+                    });
+                    showAlert(`Stok çevrimdışı güncellendi: ${code}`, 'warning');
+                } else {
+                    // Çevrimiçi mod
+                    const { error } = await supabase
+                        .from('stock_items')
+                        .update({ 
+                            quantity: newQuantity,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('code', code);
+                    
+                    if (error) throw error;
+                    
+                    showAlert(`Stok güncellendi: ${code}`, 'success');
+                }
+                
+                // Görünümü güncelle
+                quantitySpan.textContent = newQuantity;
+                quantitySpan.style.display = 'block';
+                quantityInput.style.display = 'none';
+                editButton.style.display = 'block';
+                editButtons.style.display = 'none';
+                
+                // Durumu yeniden hesapla
+                const statusCell = row.querySelector('td:nth-child(5) span');
+                if (newQuantity <= 0) {
+                    statusCell.className = 'status-kritik';
+                    statusCell.textContent = 'Kritik';
+                } else if (newQuantity < 10) {
+                    statusCell.className = 'status-az-stok';
+                    statusCell.textContent = 'Az Stok';
+                } else {
+                    statusCell.className = 'status-stokta';
+                    statusCell.textContent = 'Stokta';
+                }
+                
+                editingStockItem = null;
+                
+            } catch (error) {
+                console.error('Error updating stock:', error);
+                showAlert('Stok güncellenirken hata oluştu', 'error');
+            }
+        }
+
+
+
+
+ // Barkod işleme fonksiyonu
+      async function processBarcode() {
+    if (!elements.barcodeInput) {
+        showAlert('Barkod girişi bulunamadı', 'error');
+        return;
+    }
+    
+    const barcode = elements.barcodeInput.value.trim();
+    if (!barcode) {
+        showAlert('Barkod girin', 'error');
+        return;
+    }
+
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    try {
+        const barcodeData = {
+            barcode: barcode,
+            customer_id: selectedCustomer.id,
+            scanned_at: new Date().toISOString(),
+            processed: false
+        };
+
+        if (!navigator.onLine) {
+            // Offline mode
+            saveOfflineData('barcodes', barcodeData);
+            scannedBarcodes.push({...barcodeData, id: 'offline-' + Date.now()});
+            showAlert(`Barkod çevrimdışı kaydedildi: ${barcode}`, 'warning');
+        } else {
+            // Online mode with proper error handling
+            if (!supabase) {
+                throw new Error('Supabase client not initialized');
+            }
+            
+            const { data, error } = await supabase
+                .from('barcodes')
+                .insert([barcodeData])
+                .select();
+
+            if (error) {
+                handleSupabaseError(error, 'Barkod kaydetme');
+                return;
+            }
+
+            if (data && data.length > 0) {
+                scannedBarcodes.push(data[0]);
+                showAlert(`Barkod kaydedildi: ${barcode}`, 'success');
+            }
+        }
+
+        elements.barcodeInput.value = '';
+        if (elements.barcodeInput.focus) {
+            elements.barcodeInput.focus();
+        }
+        
+        displayScannedBarcodes();
+        
+    } catch (error) {
+        console.error('Barkod işleme hatası:', error);
+        showAlert('Barkod işlenirken bir hata oluştu: ' + error.message, 'error');
+    }
+}
+
+
+
+
+ // Customer operations
+        async function showCustomers() {
+            try {
+                elements.customerList.innerHTML = '';
+                
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
+                        const div = document.createElement('div');
+                        div.className = 'customer-item';
+                        div.innerHTML = `
+                            <div>
+                                <strong>${customer.name}</strong><br>
+                                <small>${customer.code}</small>
+                            </div>
+                        `;
+                        div.onclick = () => selectCustomerFromModal(customer);
+                        elements.customerList.appendChild(div);
+                    });
+                }
+                
+                document.getElementById('customerModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error in showCustomers:', error);
+                showAlert('Müşteri listesi yükleme hatası', 'error');
+            }
+        }
+
+
+        
+
+        async function showAllCustomers() {
+            try {
+                elements.allCustomersList.innerHTML = '';
+                
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
+                        const div = document.createElement('div');
+                        div.className = 'customer-item';
+                        div.innerHTML = `
+                            <div>
+                                <strong>${customer.name}</strong> (${customer.code})<br>
+                                <small>${customer.email || 'E-posta yok'}</small>
+                            </div>
+                            <button onclick="deleteCustomer('${customer.id}')" class="btn btn-danger btn-sm">Sil</button>
+                        `;
+                        elements.allCustomersList.appendChild(div);
+                    });
+                }
+                
+                document.getElementById('allCustomersModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error in showAllCustomers:', error);
+                showAlert('Müşteri yönetimi yükleme hatası', 'error');
+            }
+        }
+
+
+        
+
+        async function addNewCustomer() {
+            const code = document.getElementById('newCustomerCode').value.trim();
+            const name = document.getElementById('newCustomerName').value.trim();
+            const email = document.getElementById('newCustomerEmail').value.trim();
+
+            // Form doğrulama
+            if (!validateForm([
+                { id: 'newCustomerCode', errorId: 'customerCodeError', type: 'text', required: true },
+                { id: 'newCustomerName', errorId: 'customerNameError', type: 'text', required: true },
+                { id: 'newCustomerEmail', errorId: 'customerEmailError', type: 'email', required: false }
+            ])) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('customers')
+                    .insert([{ code, name, email: email || null }]);
+
+                if (error) {
+                    console.error('Error adding customer:', error);
+                    showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showAlert('Müşteri başarıyla eklendi', 'success');
+                
+                // Clear form
+                document.getElementById('newCustomerCode').value = '';
+                document.getElementById('newCustomerName').value = '';
+                document.getElementById('newCustomerEmail').value = '';
+                
+                // Refresh lists
+                await populateCustomers();
+                await showAllCustomers();
+                
+            } catch (error) {
+                console.error('Error in addNewCustomer:', error);
+                showAlert('Müşteri ekleme hatası', 'error');
+            }
+        }
+
+
+
+async function deleteCustomer(customerId) {
+            if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('customers')
+                    .delete()
+                    .eq('id', customerId);
+
+                if (error) {
+                    console.error('Error deleting customer:', error);
+                    showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showAlert('Müşteri başarıyla silindi', 'success');
+                
+                // Refresh lists
+                await populateCustomers();
+                await showAllCustomers();
+                
+            } catch (error) {
+                console.error('Error in deleteCustomer:', error);
+                showAlert('Müşteri silme hatası', 'error');
+            }
+        }
+
+
+
+
 
