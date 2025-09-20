@@ -349,27 +349,31 @@
     <!-- Alert Container -->
     <div id="alertContainer" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
 
-    <!-- Scripts -->
-    <script src="src/utils/helpers.js"></script>
-    <script src="src/utils/notifications.js"></script>
-    <script src="src/utils/validation.js"></script>
-    <script src="src/utils/offline.js"></script>
-    
-    <script src="src/database/index.js"></script>
-    <script src="src/database/auth.js"></script>
-    <script src="src/database/customers.js"></script>
-    <script src="src/database/packages.js"></script>
-    <script src="src/database/stock.js"></script>
-    <script src="src/database/reports.js"></script>
-    <script src="src/database/containers.js"></script>
-    
-    <script src="src/printing/printer.js"></script>
-    <script src="src/printing/barcode.js"></script>
-    
-    <script src="src/ui/modals.js"></script>
-    <script src="src/ui/tabs.js"></script>
-    <script src="src/ui/tables.js"></script>
-    
-    <script src="src/app.js"></script>
+ <!-- Core utilities first -->
+<script src="src/utils/helpers.js"></script>
+<script src="src/utils/notifications.js"></script>
+<script src="src/utils/validation.js"></script>
+<script src="src/utils/offline.js"></script>
+
+<!-- Database layer -->
+<script src="src/database/index.js"></script>
+<script src="src/database/auth.js"></script>
+<script src="src/database/customers.js"></script>
+<script src="src/database/packages.js"></script>
+<script src="src/database/stock.js"></script>
+<script src="src/database/reports.js"></script>
+<script src="src/database/containers.js"></script>
+
+<!-- UI components -->
+<script src="src/ui/modals.js"></script>
+<script src="src/ui/tabs.js"></script>
+<script src="src/ui/tables.js"></script>
+
+<!-- Printing and barcode -->
+<script src="src/printing/printer.js"></script>
+<script src="src/printing/barcode.js"></script>
+
+<!-- Main application - load last -->
+<script src="src/app.js"></script>pt>
 </body>
 </html>
