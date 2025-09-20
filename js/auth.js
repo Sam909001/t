@@ -89,3 +89,40 @@ async function login() {
         loginBtn.textContent = 'Giriş Yap';
     }
 }
+
+
+
+function applyRoleBasedPermissions(role) {
+            const adminOnlyElements = document.querySelectorAll('.admin-only');
+            
+            if (role === 'admin') {
+                adminOnlyElements.forEach(el => el.style.display = 'block');
+            } else {
+                adminOnlyElements.forEach(el => el.style.display = 'none');
+            }
+        }
+
+
+
+        
+
+        // Kullanıcı çıkışı
+        function logout() {
+            if (!supabase) return;
+            
+            supabase.auth.signOut().then(() => {
+                showAlert('Başarıyla çıkış yapıldı.', 'success');
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('appContainer').style.display = 'none';
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+            }).catch(e => {
+                console.error('Çıkış yapılırken bir hata oluştu:', e);
+                showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
+            });
+        }
+
+
+
+
+
