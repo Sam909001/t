@@ -148,8 +148,8 @@ class ValidationManager {
                 break;
 
             case 'custom':
-                const customValidator = this.customValidators.get(params.validator);
-                if (customValidator && !customValidator.validator(value, field, params)) {
+                const customValidator = this.customValidators.get(params.name);
+                if (customValidator && !customValidator.validator(value, field)) {
                     return message || customValidator.message;
                 }
                 break;
@@ -158,47 +158,31 @@ class ValidationManager {
         return null;
     }
 
-    // Update field UI based on validation result
+    // Update field UI based on validation
     updateFieldUI(field, errors) {
-        const errorContainer = this.getOrCreateErrorContainer(field);
+        const hasErrors = errors.length > 0;
         
-        // Clear previous errors
-        field.classList.remove('error', 'invalid', 'valid');
-        errorContainer.style.display = 'none';
-        errorContainer.textContent = '';
+        // Update field styling
+        field.classList.toggle('error', hasErrors);
+        field.classList.toggle('invalid', hasErrors);
+        field.classList.toggle('valid', !hasErrors && field.value.trim() !== '');
 
-        if (errors.length > 0) {
-            // Show errors
-            field.classList.add('error', 'invalid');
-            errorContainer.textContent = errors[0]; // Show first error
-            errorContainer.style.display = 'block';
-        } else if (field.value.trim() !== '') {
-            // Field is valid and has content
-            field.classList.add('valid');
-        }
-    }
-
-    // Get or create error container for field
-    getOrCreateErrorContainer(field) {
+        // Update error message
         const errorId = field.id + 'Error';
-        let errorContainer = document.getElementById(errorId);
-
-        if (!errorContainer) {
-            errorContainer = document.createElement('div');
-            errorContainer.id = errorId;
-            errorContainer.className = 'error-message';
-            errorContainer.style.cssText = `
-                color: var(--accent, #e74c3c);
-                font-size: 0.8rem;
-                margin-top: 0.2rem;
-                display: none;
-            `;
-
-            // Insert after the field
-            field.parentNode.insertBefore(errorContainer, field.nextSibling);
+        let errorElement = document.getElementById(errorId);
+        
+        if (hasErrors) {
+            if (!errorElement) {
+                errorElement = document.createElement('div');
+                errorElement.id = errorId;
+                errorElement.className = 'error-message';
+                field.parentNode.appendChild(errorElement);
+            }
+            errorElement.textContent = errors[0]; // Show first error
+            errorElement.style.display = 'block';
+        } else if (errorElement) {
+            errorElement.style.display = 'none';
         }
-
-        return errorContainer;
     }
 
     // Email validation
@@ -213,121 +197,66 @@ class ValidationManager {
         return phoneRegex.test(phone);
     }
 
-    // Turkish ID number validation
-    isValidTurkishId(id) {
-        if (!id || id.length !== 11) return false;
-        
-        const digits = id.split('').map(Number);
-        if (digits.some(isNaN)) return false;
-        if (digits[0] === 0) return false;
-
-        const sum1 = digits[0] + digits[2] + digits[4] + digits[6] + digits[8];
-        const sum2 = digits[1] + digits[3] + digits[5] + digits[7];
-        const check1 = (sum1 * 7 - sum2) % 10;
-        const check2 = (sum1 + sum2 + check1) % 10;
-
-        return check1 === digits[9] && check2 === digits[10];
-    }
-
-    // Setup real-time validation for a field
-    setupRealTimeValidation(fieldId, rules, debounceTime = 300) {
+    // Setup real-time validation
+    setupRealtimeValidation(fieldId) {
         const field = document.getElementById(fieldId);
         if (!field) return;
 
-        this.addRule(fieldId, rules);
-
-        const debouncedValidate = Helpers.debounce(() => {
+        const validateOnEvent = Helpers.debounce(() => {
             this.validateField(fieldId);
-        }, debounceTime);
+        }, 300);
 
-        field.addEventListener('input', debouncedValidate);
-        field.addEventListener('blur', () => {
-            this.validateField(fieldId);
-        });
+        field.addEventListener('input', validateOnEvent);
+        field.addEventListener('blur', () => this.validateField(fieldId));
     }
 
-    // Setup form validation
-    setupFormValidation(formId, fieldRules, onSubmit) {
-        const form = document.getElementById(formId);
-        if (!form) return;
-
-        // Add rules for all fields
-        Object.entries(fieldRules).forEach(([fieldId, rules]) => {
-            this.setupRealTimeValidation(fieldId, rules);
-        });
-
-        // Handle form submission
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            const result = this.validateForm(form);
-            if (result.isValid) {
-                if (onSubmit) onSubmit(new FormData(form));
-            } else {
-                // Focus first invalid field
-                const firstInvalidField = Object.keys(result.fields).find(
-                    fieldId => !result.fields[fieldId].isValid
-                );
-                if (firstInvalidField) {
-                    document.getElementById(firstInvalidField)?.focus();
-                }
+    // Clear validation errors
+    clearValidation(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.classList.remove('error', 'invalid', 'valid');
+            const errorElement = document.getElementById(fieldId + 'Error');
+            if (errorElement) {
+                errorElement.style.display = 'none';
             }
-        });
+        }
     }
 
-    // Clear all validation for a form
+    // Clear all validation errors in form
     clearFormValidation(formElement) {
         const inputs = formElement.querySelectorAll('input, select, textarea');
         inputs.forEach(input => {
-            input.classList.remove('error', 'invalid', 'valid');
-            const errorContainer = document.getElementById(input.id + 'Error');
-            if (errorContainer) {
-                errorContainer.style.display = 'none';
+            if (input.id) {
+                this.clearValidation(input.id);
             }
         });
-    }
-
-    // Validate common form patterns
-    validateLoginForm(emailId, passwordId) {
-        return this.validateFields([emailId, passwordId]);
-    }
-
-    validateRegistrationForm(emailId, passwordId, confirmPasswordId) {
-        this.addRule(confirmPasswordId, [
-            { type: 'required' },
-            { type: 'match', field: passwordId, message: 'Şifreler eşleşmiyor' }
-        ]);
-        
-        return this.validateFields([emailId, passwordId, confirmPasswordId]);
-    }
-
-    // Preset validation rules
-    static getCommonRules() {
-        return {
-            email: [
-                { type: 'required' },
-                { type: 'email' }
-            ],
-            password: [
-                { type: 'required' },
-                { type: 'minLength', min: 6, message: 'Şifre en az 6 karakter olmalıdır' }
-            ],
-            phone: [
-                { type: 'required' },
-                { type: 'phone' }
-            ],
-            name: [
-                { type: 'required' },
-                { type: 'minLength', min: 2, message: 'Ad en az 2 karakter olmalıdır' }
-            ],
-            number: [
-                { type: 'required' },
-                { type: 'number' },
-                { type: 'min', min: 0 }
-            ]
-        };
     }
 }
 
 // Create global instance
 window.ValidationManager = new ValidationManager();
+
+// Common validation rule sets
+window.ValidationRules = {
+    email: [
+        { type: 'required' },
+        { type: 'email' }
+    ],
+    password: [
+        { type: 'required' },
+        { type: 'minLength', min: 6 }
+    ],
+    phone: [
+        { type: 'phone' }
+    ],
+    required: [
+        { type: 'required' }
+    ],
+    number: [
+        { type: 'number' }
+    ],
+    positiveNumber: [
+        { type: 'number' },
+        { type: 'min', min: 0 }
+    ]
+};
