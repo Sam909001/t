@@ -269,23 +269,23 @@ function showApiKeyHelp() {
 }
 
 // Barkod tarayıcı modunu aç/kapa
-function toggleScannerMode() {
-    scannerMode = !scannerMode;
-    
-    if (scannerMode) {
-        elements.barcodeInput.classList.add('scanner-active');
-        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
-        elements.barcodeInput.focus();
-        showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
-    } else {
-        elements.barcodeInput.classList.remove('scanner-active');
-        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
-        showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
-    }
-}
+        function toggleScannerMode() {
+            scannerMode = !scannerMode;
+            
+            if (scannerMode) {
+                elements.barcodeInput.classList.add('scanner-active');
+                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
+                elements.barcodeInput.focus();
+                showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
+            } else {
+                elements.barcodeInput.classList.remove('scanner-active');
+                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
+                showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
+            }
+        }
 
-// Barkod tarayıcı dinleyicisi
-function setupBarcodeScanner() {
+        // Barkod tarayıcı dinleyicisi
+      function setupBarcodeScanner() {
     if (!elements.barcodeInput) {
         console.error('Barcode input element not found');
         return;
@@ -315,6 +315,8 @@ function setupBarcodeScanner() {
         lastKeyTime = currentTime;
     });
 }
+
+
 
 function processBarcode() {
     // Implement barcode processing logic here
@@ -558,15 +560,6 @@ function loadSettings() {
     document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
 }
 
-function saveSettings() {
-    const autoSave = document.getElementById('autoSaveToggle').checked;
-    const settings = {
-        autoSave: autoSave
-    };
-    localStorage.setItem('procleanSettings', JSON.stringify(settings));
-}
-
-// Save all settings
 function saveAllSettings() {
     const settings = {
         theme: document.getElementById('themeToggle').checked ? 'dark' : 'light',
@@ -582,141 +575,68 @@ function saveAllSettings() {
 }
 
 function applySettings(settings) {
-    // Theme
+    // Apply theme
     if (settings.theme === 'dark') {
         document.body.classList.add('dark-mode');
-        document.getElementById('themeToggle').checked = true;
     } else {
         document.body.classList.remove('dark-mode');
-        document.getElementById('themeToggle').checked = false;
     }
-
-    // Language
+    
+    // Apply language (you'll need to implement language files)
     if (settings.language) {
-        document.getElementById('languageSelect').value = settings.language;
+        changeLanguage(settings.language);
     }
-
-    // Printer Scaling
-    if (settings.printerScaling) {
-        document.getElementById('printerScaling').value = settings.printerScaling;
-    }
-
-    // Copies
-    if (settings.copies !== undefined) {
-        document.getElementById('copiesNumber').value = settings.copies;
-    }
-
-    // Auto-Save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
 }
 
 function toggleTheme() {
-    const themeToggle = document.getElementById('themeToggle');
-    const isDark = themeToggle.checked;
-
-    // Apply dark/light class
+    const isDark = document.getElementById('themeToggle').checked;
     document.body.classList.toggle('dark-mode', isDark);
-
-    // Update UI status text
-    const statusText = document.getElementById('themeStatus');
-    if (statusText) {
-        statusText.textContent = isDark ? 'Koyu' : 'Açık';
-    }
-
-    // Save to localStorage
-    const savedSettings = JSON.parse(localStorage.getItem('procleanSettings')) || {};
-    savedSettings.theme = isDark ? 'dark' : 'light';
-    localStorage.setItem('procleanSettings', JSON.stringify(savedSettings));
-
-    // Optional: show feedback
-    showAlert(isDark ? 'Koyu tema etkinleştirildi.' : 'Açık tema etkinleştirildi.', 'info');
+    document.getElementById('themeStatus').textContent = isDark ? 'Koyu' : 'Açık';
 }
 
-async function checkSystemStatus() {
+function checkSystemStatus() {
+    // Check database connection
     const dbStatus = document.getElementById('dbConnectionStatus');
-    if (!dbStatus) return;
-
-    // Simulate database connection check
-    // In a real app, you would check your actual database connection
-    setTimeout(() => {
+    if (supabase) {
         dbStatus.textContent = 'Bağlı';
         dbStatus.className = 'status-indicator connected';
-    }, 1000);
-}
-
-async function checkPrinterStatus() {
+    } else {
+        dbStatus.textContent = 'Bağlantı Yok';
+        dbStatus.className = 'status-indicator disconnected';
+    }
+    
+    // Check printer connection
     const printerStatus = document.getElementById('printerConnectionStatus');
-    if (!printerStatus) return;
-
-    // Simulate printer connection check
-    setTimeout(() => {
+    if (printer && printer.isConnected) {
+        printerStatus.textContent = 'Bağlı';
+        printerStatus.className = 'status-indicator connected';
+    } else {
         printerStatus.textContent = 'Bağlantı Yok';
         printerStatus.className = 'status-indicator disconnected';
-    }, 1000);
+    }
 }
 
-async function exportData(format) {
+function exportData(format) {
+    // Implementation for data export
     showAlert(`${format.toUpperCase()} formatında veri indirme hazırlanıyor...`, 'info');
-
-    try {
-        // Simulate data export
-        setTimeout(() => {
-            showAlert('Veri indirme tamamlandı.', 'success');
-        }, 2000);
-    } catch (err) {
-        console.error('Export error:', err);
-        showAlert('Veri indirme sırasında hata oluştu.', 'error');
-    }
+    // Add your export logic here
 }
 
 function clearLocalData() {
     if (confirm('Tüm yerel veriler silinecek. Emin misiniz?')) {
-        // Remove all stored ProClean data
         localStorage.removeItem('procleanState');
         localStorage.removeItem('procleanOfflineData');
         localStorage.removeItem('procleanSettings');
-
-        // Reset UI elements to defaults
-        const themeToggle = document.getElementById('themeToggle');
-        const autoSaveToggle = document.getElementById('autoSaveToggle');
-        const printerScaling = document.getElementById('printerScaling');
-        const copiesNumber = document.getElementById('copiesNumber');
-        const languageSelect = document.getElementById('languageSelect');
-
-        if (themeToggle) themeToggle.checked = false;
-        if (autoSaveToggle) autoSaveToggle.checked = true;
-        if (printerScaling) printerScaling.value = '100';
-        if (copiesNumber) copiesNumber.value = '1';
-        if (languageSelect) languageSelect.value = 'tr';
-
-        // Reset theme
-        document.body.classList.remove('dark-mode');
-        const themeStatus = document.getElementById('themeStatus');
-        if (themeStatus) themeStatus.textContent = 'Açık';
-
-        // Show success message
-        showAlert('Yerel veriler temizlendi ve varsayılan ayarlar uygulandı.', 'success');
+        showAlert('Yerel veriler temizlendi', 'success');
     }
 }
 
 // Initialize settings on app load
 function initializeSettings() {
     const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-
-    // Set default values if not present
-    const defaultSettings = {
-        theme: 'light',
-        language: 'tr',
-        printerScaling: '100',
-        copies: 1,
-        autoSave: true
-    };
-
-    const settings = { ...defaultSettings, ...savedSettings };
-
-    // Apply settings to the UI and app
-    applySettings(settings);
+    applySettings(savedSettings);
 }
+
 
 function selectPackage(pkg) {
     // Remove selected class from all rows
