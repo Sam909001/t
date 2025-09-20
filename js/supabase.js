@@ -1,3 +1,49 @@
+// ====================
+// Simple showAlert function
+// ====================
+function showAlert(message, type = 'info', duration = 3000) {
+    // Create alert container if it doesn't exist
+    let alertContainer = document.getElementById('alertContainer');
+    if (!alertContainer) {
+        alertContainer = document.createElement('div');
+        alertContainer.id = 'alertContainer';
+        alertContainer.style.position = 'fixed';
+        alertContainer.style.top = '20px';
+        alertContainer.style.right = '20px';
+        alertContainer.style.zIndex = '9999';
+        document.body.appendChild(alertContainer);
+    }
+
+    // Create the alert element
+    const alert = document.createElement('div');
+    alert.textContent = message;
+    alert.style.padding = '10px 20px';
+    alert.style.marginTop = '10px';
+    alert.style.borderRadius = '5px';
+    alert.style.color = '#fff';
+    alert.style.fontFamily = 'Arial, sans-serif';
+    alert.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+    alert.style.transition = 'opacity 0.3s ease';
+
+    // Color based on type
+    switch(type) {
+        case 'success': alert.style.backgroundColor = '#28a745'; break;
+        case 'error': alert.style.backgroundColor = '#dc3545'; break;
+        case 'warning': alert.style.backgroundColor = '#ffc107'; alert.style.color = '#000'; break;
+        default: alert.style.backgroundColor = '#17a2b8';
+    }
+
+    alertContainer.appendChild(alert);
+
+    // Remove after duration
+    setTimeout(() => {
+        alert.style.opacity = '0';
+        setTimeout(() => alert.remove(), 300);
+    }, duration);
+}
+
+
+
 // Supabase initialization - Varsayılan değerler
         const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
