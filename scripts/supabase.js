@@ -89,11 +89,11 @@ function showAlert(message, type = 'info', duration = 3000) {
     }
 })();
 
-// Initialize elements object with better error handling
-// Modified initializeElementsObject to handle missing elements gracefully
+
+// Modified initializeElementsObject - only check for elements that should exist on page load
 function initializeElementsObject() {
-    const elementMap = {
-        // Critical elements that should exist on page load
+    // Only check for elements that exist on initial page load
+    const pageLoadElements = {
         loginScreen: 'loginScreen',
         loginButton: 'loginBtn',
         emailInput: 'email',
@@ -101,79 +101,57 @@ function initializeElementsObject() {
         apiKeyModal: 'apiKeyModal',
         apiKeyInput: 'apiKeyInput',
         alertContainer: 'alertContainer',
+        toast: 'toast',
         logoutBtn: 'logoutBtn',
         settingsBtn: 'settingsBtn',
-        
-        // App elements that may not exist until login
-        appContainer: 'appContainer',
-        customerSelect: 'customerSelect',
-        personnelSelect: 'personnelSelect',
-        currentDate: 'currentDate',
-        barcodeInput: 'barcodeInput',
-        packagesTableBody: 'packagesTableBody',
-        packageDetailContent: 'packageDetailContent',
-        shippingFolders: 'shippingFolders',
-        stockTableBody: 'stockTableBody',
-        customerList: 'customerList',
-        allCustomersList: 'allCustomersList',
-        containerNumber: 'containerNumber',
-        totalPackages: 'totalPackages',
-        shippingFilter: 'shippingFilter',
-        stockSearch: 'stockSearch',
-        selectAllPackages: 'selectAllPackages',
-        quantityInput: 'quantityInput',
-        quantityModal: 'quantityModal',
-        quantityModalTitle: 'quantityModalTitle',
-        scannedBarcodes: 'scannedBarcodes',
-        connectionStatus: 'connectionStatus',
-        scannerToggle: 'scannerToggle',
-        containerSearch: 'containerSearch',
-        settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn',
         userRole: 'userRole',
         offlineIndicator: 'offlineIndicator'
     };
     
     let foundCount = 0;
     let missingCount = 0;
-    const missingElements = [];
     
-    Object.keys(elementMap).forEach(key => {
-        const element = document.getElementById(elementMap[key]);
+    // Initialize all element slots as null first
+    const allElements = [
+        'loginScreen', 'appContainer', 'loginButton', 'emailInput', 'passwordInput',
+        'customerSelect', 'personnelSelect', 'currentDate', 'barcodeInput',
+        'packagesTableBody', 'packageDetailContent', 'shippingFolders',
+        'stockTableBody', 'customerList', 'allCustomersList', 'toast',
+        'containerNumber', 'totalPackages', 'shippingFilter', 'stockSearch',
+        'selectAllPackages', 'apiKeyModal', 'apiKeyInput', 'quantityInput',
+        'quantityModal', 'quantityModalTitle', 'scannedBarcodes',
+        'connectionStatus', 'alertContainer', 'scannerToggle', 'containerSearch',
+        'settingsModal', 'closeSettingsModalBtn', 'userRole', 'logoutBtn',
+        'settingsBtn', 'offlineIndicator'
+    ];
+    
+    // Initialize all as null
+    allElements.forEach(key => {
+        elements[key] = null;
+    });
+    
+    // Only check and warn about page load elements
+    Object.keys(pageLoadElements).forEach(key => {
+        const element = document.getElementById(pageLoadElements[key]);
         if (element) {
             elements[key] = element;
             foundCount++;
         } else {
-            // Only warn for critical elements that should exist on page load
-            const criticalElements = ['loginScreen', 'loginButton', 'emailInput', 'passwordInput', 'apiKeyModal', 'apiKeyInput'];
-            if (criticalElements.includes(key)) {
-                console.error(`Critical element ${elementMap[key]} not found`);
-            } else {
-                console.debug(`App element ${elementMap[key]} not found (will retry after login)`);
-            }
-            elements[key] = null;
-            missingElements.push(key);
+            console.warn(`Page load element ${pageLoadElements[key]} not found`);
             missingCount++;
         }
     });
     
-    console.log(`Elements initialized: ${foundCount} found, ${missingCount} missing`);
-    
-    // Store missing elements for later retry
-    elements._missingElements = missingElements;
-    
+    console.log(`Page elements initialized: ${foundCount} found, ${missingCount} missing`);
     return elements;
 }
 
 
 
 // Call this function after successful login to find app elements
+// Call this after login to initialize app elements
 function initializeAppElements() {
-    if (!elements._missingElements || elements._missingElements.length === 0) {
-        return;
-    }
-    
-    const elementMap = {
+    const appElements = {
         appContainer: 'appContainer',
         customerSelect: 'customerSelect',
         personnelSelect: 'personnelSelect',
@@ -183,47 +161,62 @@ function initializeAppElements() {
         packageDetailContent: 'packageDetailContent',
         shippingFolders: 'shippingFolders',
         stockTableBody: 'stockTableBody',
-        customerList: 'customerList',
-        allCustomersList: 'allCustomersList',
         containerNumber: 'containerNumber',
         totalPackages: 'totalPackages',
         shippingFilter: 'shippingFilter',
         stockSearch: 'stockSearch',
         selectAllPackages: 'selectAllPackages',
-        quantityInput: 'quantityInput',
-        quantityModal: 'quantityModal',
-        quantityModalTitle: 'quantityModalTitle',
         scannedBarcodes: 'scannedBarcodes',
         connectionStatus: 'connectionStatus',
         scannerToggle: 'scannerToggle',
-        containerSearch: 'containerSearch',
-        settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn',
-        userRole: 'userRole',
-        offlineIndicator: 'offlineIndicator'
+        containerSearch: 'containerSearch'
     };
     
     let foundCount = 0;
-    const stillMissing = [];
     
-    elements._missingElements.forEach(key => {
-        if (elementMap[key]) {
-            const element = document.getElementById(elementMap[key]);
+    Object.keys(appElements).forEach(key => {
+        const element = document.getElementById(appElements[key]);
+        if (element) {
+            elements[key] = element;
+            foundCount++;
+        }
+    });
+    
+    console.log(`App elements initialized: ${foundCount} found`);
+    return foundCount;
+}
+
+// Call this when modals are needed to initialize modal elements
+function initializeModalElements() {
+    const modalElements = {
+        customerList: 'customerList',
+        allCustomersList: 'allCustomersList',
+        quantityInput: 'quantityInput',
+        quantityModal: 'quantityModal',
+        quantityModalTitle: 'quantityModalTitle',
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn'
+    };
+    
+    let foundCount = 0;
+    
+    Object.keys(modalElements).forEach(key => {
+        if (!elements[key]) { // Only check if not already found
+            const element = document.getElementById(modalElements[key]);
             if (element) {
                 elements[key] = element;
                 foundCount++;
-                console.log(`Found app element: ${elementMap[key]}`);
-            } else {
-                stillMissing.push(key);
             }
         }
     });
     
-    elements._missingElements = stillMissing;
-    console.log(`App elements retry: ${foundCount} found, ${stillMissing.length} still missing`);
+    if (foundCount > 0) {
+        console.log(`Modal elements initialized: ${foundCount} found`);
+    }
     
-    return foundCount > 0;
+    return foundCount;
 }
+
 
 
 
@@ -496,6 +489,7 @@ async function initializeAppData() {
 
 // Settings functions
 function showSettingsModal() {
+initializeModalElements();   
     console.log('Opening settings modal...');
     const modal = document.getElementById('settingsModal');
     if (modal) {
