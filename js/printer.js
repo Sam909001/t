@@ -52,68 +52,75 @@ class PrinterService {
     }
     
     async printBarcode(barcode, text = '') {
-        if (!this.isConnected) {
-            console.error('❌ Printer not connected');
+    if (!this.isConnected) {
+        console.error('❌ Printer not connected');
+        if (typeof showAlert === 'function') {
+            showAlert('Printer server is not connected. Please check if the Node.js server is running.', 'error');
+        }
+        return false;
+    }
+    
+    try {
+        console.log(`🖨️ Printing: ${barcode} - ${text}`);
+        
+        const response = await fetch(`${this.serverUrl}/api/print/barcode`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                barcode: barcode,
+                text: text,
+                copies: 1
+            }),
+            signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
+        // Check if response is HTML instead of JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+            const htmlResponse = await response.text();
+            console.error('Server returned HTML:', htmlResponse.substring(0, 500));
+            
+            // Check if it's a common error page
+            if (htmlResponse.includes('Cannot POST') || htmlResponse.includes('404')) {
+                throw new Error('Endpoint not found. Check if /api/print/barcode exists on server.');
+            } else if (htmlResponse.includes('Cannot GET')) {
+                throw new Error('Wrong endpoint. Server might be expecting GET instead of POST.');
+            } else {
+                throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
+            }
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log(`✅ Print successful: ${barcode}`);
+            return true;
+        } else {
+            console.error(`❌ Print failed: ${result.error}`);
             if (typeof showAlert === 'function') {
-                showAlert('Printer server is not connected. Please check if the Node.js server is running.', 'error');
+                showAlert(`❌ Print failed: ${result.error}`, 'error');
             }
             return false;
         }
         
-        try {
-            console.log(`🖨️ Printing: ${barcode} - ${text}`);
-            
-            const response = await fetch(`${this.serverUrl}/api/print/barcode`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    barcode: barcode,
-                    text: text,
-                    copies: 1
-                }),
-                signal: AbortSignal.timeout(10000) // 10 second timeout
-            });
-            
-            // Check if response is HTML instead of JSON
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('text/html')) {
-                const htmlResponse = await response.text();
-                console.error('Server returned HTML:', htmlResponse.substring(0, 200));
-                throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log(`✅ Print successful: ${barcode}`);
-                return true;
+    } catch (error) {
+        console.error(`❌ Print error:`, error);
+        if (typeof showAlert === 'function') {
+            let userMessage = 'Print error: ';
+            if (error.name === 'AbortError') {
+                userMessage += 'Request timeout. Server not responding.';
             } else {
-                console.error(`❌ Print failed: ${result.error}`);
-                if (typeof showAlert === 'function') {
-                    showAlert(`❌ Print failed: ${result.error}`, 'error');
-                }
-                return false;
+                userMessage += error.message;
             }
-            
-        } catch (error) {
-            console.error(`❌ Print error:`, error);
-            if (typeof showAlert === 'function') {
-                let userMessage = 'Print error: ';
-                if (error.name === 'AbortError') {
-                    userMessage += 'Request timeout. Server not responding.';
-                } else if (error.message.includes('HTML')) {
-                    userMessage += 'Server configuration error. Check if the printer server is running correctly.';
-                } else {
-                    userMessage += error.message;
-                }
-                showAlert(userMessage, 'error');
-            }
-            return false;
+            showAlert(userMessage, 'error');
         }
+        return false;
     }
+}
 
+    
     async testPrint() {
         const testBarcode = '123456789';
         const testText = `Test - ${new Date().toLocaleTimeString()}`;
