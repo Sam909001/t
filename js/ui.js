@@ -285,5 +285,96 @@ function initializeElements() {
 
 
 
+function checkOnlineStatus() {
+    if (!navigator.onLine) {
+        showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
+        return false;
+    }
+    return true;
+}
+
+
+
+// Konteyner detay modalını kapat
+        function closeContainerDetailModal() {
+            document.getElementById('containerDetailModal').style.display = 'none';
+            currentContainerDetails = null;
+        }
+
+
+
+// Konteyner ara
+        function searchContainers() {
+            const searchTerm = elements.containerSearch.value.toLowerCase();
+            const folders = document.querySelectorAll('.customer-folder');
+            
+            folders.forEach(folder => {
+                const containerRows = folder.querySelectorAll('tbody tr');
+                let hasVisibleRows = false;
+                
+                containerRows.forEach(row => {
+                    const containerNo = row.cells[1].textContent.toLowerCase();
+                    if (containerNo.includes(searchTerm)) {
+                        row.style.display = '';
+                        hasVisibleRows = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                // Eğer bu klasörde görünebilir satır yoksa, klasörü gizle
+                const folderHeader = folder.querySelector('.folder-header');
+                if (hasVisibleRows) {
+                    folder.style.display = 'block';
+                    folderHeader.style.display = 'flex';
+                } else {
+                    folder.style.display = 'none';
+                }
+            });
+        }
+
+
+
+// Müşteri klasöründeki tüm konteynerleri seç
+        function toggleSelectAllCustomer(checkbox) {
+            const folder = checkbox.closest('.customer-folder');
+            const checkboxes = folder.querySelectorAll('.container-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+
+
+// Taranan barkodları göster
+        function displayScannedBarcodes() {
+            const container = document.getElementById('scannedBarcodes');
+            container.innerHTML = '';
+            
+            if (scannedBarcodes.length === 0) {
+                container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Henüz barkod taranmadı</p>';
+                return;
+            }
+            
+            const list = document.createElement('ul');
+            list.style = 'list-style: none; padding: 0; margin: 0; font-size: 0.8rem;';
+            
+            scannedBarcodes.forEach(barcode => {
+                const item = document.createElement('li');
+                item.style = 'padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;';
+                item.innerHTML = `
+                    <span>${barcode.barcode}</span>
+                    <span style="color: ${barcode.processed ? 'green' : 'orange'}">
+                        ${barcode.processed ? 'İşlendi' : 'Beklemede'}
+                    </span>
+                `;
+                list.appendChild(item);
+            });
+            
+            container.appendChild(list);
+        }
+
+
+
+
+
 
 
