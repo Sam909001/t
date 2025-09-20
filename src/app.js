@@ -16,7 +16,7 @@ class ProCleanApp {
             
             // Initialize utilities first
             window.NotificationManager.init();
-            OfflineManager.init();
+            window.OfflineManager.init();
             
             // Initialize database connection
             await DatabaseManager.init();
