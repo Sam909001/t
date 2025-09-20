@@ -536,10 +536,65 @@ function loadSettings() {
         document.getElementById('languageSelect').value = settings.language;
     }
     
+    // Function to load settings
+function loadSettings() {
+    // Get saved settings from localStorage (or default)
+    const savedSettings = JSON.parse(localStorage.getItem('procleanSettings')) || {};
+    
+    // Set checkbox based on saved setting (default: true)
+    document.getElementById('autoSaveToggle').checked = savedSettings.autoSave !== false;
+}
+
+// Function to save settings
+function saveSettings() {
+    const autoSave = document.getElementById('autoSaveToggle').checked;
+    const settings = {
+        autoSave: autoSave
+    };
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
+}
+
+// Event listener for toggle
+document.getElementById('autoSaveToggle').addEventListener('change', function() {
+    saveSettings();
+    if (this.checked) {
+        showAlert('Auto-Save etkinleştirildi.', 'info');
+    } else {
+        showAlert('Auto-Save devre dışı bırakıldı.', 'info');
+    }
+});
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', loadSettings);
+
+
+    
+
+// Apply settings to UI and app
+function applySettings(settings) {
+    // Theme
+    if (settings.theme === 'dark') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('themeToggle').checked = true;
+    } else {
+        document.body.classList.remove('dark-mode');
+        document.getElementById('themeToggle').checked = false;
+    }
+
+    // Printer scaling
+    document.getElementById('printerScaling').value = settings.printerScaling || '100';
+
+    // Copies
+    document.getElementById('copiesNumber').value = settings.copies || 1;
+
+    // Language
+    document.getElementById('languageSelect').value = settings.language || 'tr';
+
     // Auto-save
     document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
 }
 
+// Save all settings
 function saveAllSettings() {
     const settings = {
         theme: document.getElementById('themeToggle').checked ? 'dark' : 'light',
@@ -554,73 +609,287 @@ function saveAllSettings() {
     showAlert('Ayarlar kaydedildi', 'success');
 }
 
+// Load settings on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const savedSettings = JSON.parse(localStorage.getItem('procleanSettings')) || {};
+    applySettings(savedSettings);
+});
+
+// Optional: Add event listener to Save button
+document.getElementById('saveSettingsBtn')?.addEventListener('click', saveAllSettings);
+
+
+
+    
 function applySettings(settings) {
-    // Apply theme
+    // ----------- Theme -----------
     if (settings.theme === 'dark') {
         document.body.classList.add('dark-mode');
+        document.getElementById('themeToggle').checked = true;
     } else {
         document.body.classList.remove('dark-mode');
+        document.getElementById('themeToggle').checked = false;
     }
-    
-    // Apply language (you'll need to implement language files)
+
+    // ----------- Language -----------
     if (settings.language) {
-        changeLanguage(settings.language);
+        document.getElementById('languageSelect').value = settings.language;
+        if (typeof changeLanguage === 'function') {
+            changeLanguage(settings.language); // make sure you have this function
+        }
     }
+
+    // ----------- Printer Scaling -----------
+    if (settings.printerScaling) {
+        document.getElementById('printerScaling').value = settings.printerScaling;
+        // Apply scaling in your print preview logic if needed
+        applyPrinterScaling(settings.printerScaling); // optional function
+    }
+
+    // ----------- Copies -----------
+    if (settings.copies !== undefined) {
+        document.getElementById('copiesNumber').value = settings.copies;
+        // Apply in printing logic if needed
+    }
+
+    // ----------- Auto-Save -----------
+    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+
+    // You can call any additional functions here if needed to apply settings live
 }
+
+
+    
 
 
 
 
 function toggleTheme() {
-    const isDark = document.getElementById('themeToggle').checked;
+    const themeToggle = document.getElementById('themeToggle');
+    const isDark = themeToggle.checked;
+
+    // Apply dark/light class
     document.body.classList.toggle('dark-mode', isDark);
-    document.getElementById('themeStatus').textContent = isDark ? 'Koyu' : 'Açık';
+
+    // Update UI status text
+    const statusText = document.getElementById('themeStatus');
+    if (statusText) {
+        statusText.textContent = isDark ? 'Koyu' : 'Açık';
+    }
+
+    // Save to localStorage
+    const savedSettings = JSON.parse(localStorage.getItem('procleanSettings')) || {};
+    savedSettings.theme = isDark ? 'dark' : 'light';
+    localStorage.setItem('procleanSettings', JSON.stringify(savedSettings));
+
+    // Optional: show feedback
+    showAlert(isDark ? 'Koyu tema etkinleştirildi.' : 'Açık tema etkinleştirildi.', 'info');
 }
 
-function checkSystemStatus() {
-    // Check database connection
-    const dbStatus = document.getElementById('dbConnectionStatus');
-    if (supabase) {
-        dbStatus.textContent = 'Bağlı';
-        dbStatus.className = 'status-indicator connected';
+// Make sure the checkbox triggers toggle
+document.getElementById('themeToggle').addEventListener('change', toggleTheme);
+
+// Apply saved theme on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const savedSettings = JSON.parse(localStorage.getItem('procleanSettings')) || {};
+    if (savedSettings.theme === 'dark') {
+        document.getElementById('themeToggle').checked = true;
+        document.body.classList.add('dark-mode');
+        document.getElementById('themeStatus').textContent = 'Koyu';
     } else {
+        document.getElementById('themeToggle').checked = false;
+        document.body.classList.remove('dark-mode');
+        document.getElementById('themeStatus').textContent = 'Açık';
+    }
+});
+
+
+    
+async function checkSystemStatus() {
+    const dbStatus = document.getElementById('dbConnectionStatus');
+
+    if (!supabase) {
         dbStatus.textContent = 'Bağlantı Yok';
         dbStatus.className = 'status-indicator disconnected';
+        return;
     }
+
+    try {
+        // Test query: fetch 1 row from a known table
+        const { data, error } = await supabase.from('packages').select('id').limit(1);
+
+        if (error) {
+            dbStatus.textContent = 'Bağlantı Yok';
+            dbStatus.className = 'status-indicator disconnected';
+            console.error('Supabase connection error:', error);
+        } else {
+            dbStatus.textContent = 'Bağlı';
+            dbStatus.className = 'status-indicator connected';
+        }
+    } catch (err) {
+        dbStatus.textContent = 'Bağlantı Yok';
+        dbStatus.className = 'status-indicator disconnected';
+        console.error('Unexpected error:', err);
+    }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', checkSystemStatus);
+
+// Optional: periodically check every 30 seconds
+setInterval(checkSystemStatus, 30000);
+
+
+
     
-    // Check printer connection
+   async function checkPrinterStatus() {
     const printerStatus = document.getElementById('printerConnectionStatus');
-    if (printer && printer.isConnected) {
-        printerStatus.textContent = 'Bağlı';
-        printerStatus.className = 'status-indicator connected';
-    } else {
+
+    try {
+        // If you're using a printer library, replace this with actual connection test
+        // Example: await printer.testConnection() or check printer.isConnected
+        let isConnected = false;
+
+        if (printer && typeof printer.isConnected !== 'undefined') {
+            isConnected = printer.isConnected;
+        } else if (printer && typeof printer.testConnection === 'function') {
+            isConnected = await printer.testConnection(); // hypothetical async test
+        }
+
+        if (isConnected) {
+            printerStatus.textContent = 'Bağlı';
+            printerStatus.className = 'status-indicator connected';
+        } else {
+            printerStatus.textContent = 'Bağlantı Yok';
+            printerStatus.className = 'status-indicator disconnected';
+        }
+    } catch (err) {
         printerStatus.textContent = 'Bağlantı Yok';
         printerStatus.className = 'status-indicator disconnected';
+        console.error('Printer connection error:', err);
+    }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', checkPrinterStatus);
+
+// Optional: refresh every 30 seconds
+setInterval(checkPrinterStatus, 30000);
+
+
+    
+
+
+
+async function exportData(format) {
+    showAlert(`${format.toUpperCase()} formatında veri indirme hazırlanıyor...`, 'info');
+
+    try {
+        // Example: fetch data from Supabase table 'packages'
+        const { data, error } = await supabase.from('packages').select('*');
+        if (error) throw error;
+
+        let fileContent, mimeType, fileName;
+
+        if (format.toLowerCase() === 'json') {
+            fileContent = JSON.stringify(data, null, 2);
+            mimeType = 'application/json';
+            fileName = 'packages.json';
+        } else if (format.toLowerCase() === 'csv') {
+            // Convert array of objects to CSV
+            const headers = Object.keys(data[0] || {});
+            const rows = data.map(row => headers.map(h => `"${row[h] ?? ''}"`).join(','));
+            fileContent = [headers.join(','), ...rows].join('\n');
+            mimeType = 'text/csv';
+            fileName = 'packages.csv';
+        } else {
+            showAlert('Desteklenmeyen format: ' + format, 'error');
+            return;
+        }
+
+        // Trigger download
+        const blob = new Blob([fileContent], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showAlert(`${fileName} indirildi.`, 'success');
+    } catch (err) {
+        console.error('Export error:', err);
+        showAlert('Veri indirme sırasında hata oluştu.', 'error');
     }
 }
 
 
-
-function exportData(format) {
-    // Implementation for data export
-    showAlert(`${format.toUpperCase()} formatında veri indirme hazırlanıyor...`, 'info');
-    // Add your export logic here
-}
+    
 
 function clearLocalData() {
     if (confirm('Tüm yerel veriler silinecek. Emin misiniz?')) {
+        // Remove all stored ProClean data
         localStorage.removeItem('procleanState');
         localStorage.removeItem('procleanOfflineData');
         localStorage.removeItem('procleanSettings');
-        showAlert('Yerel veriler temizlendi', 'success');
+
+        // Optional: reset UI elements to defaults
+        const themeToggle = document.getElementById('themeToggle');
+        const autoSaveToggle = document.getElementById('autoSaveToggle');
+        const printerScaling = document.getElementById('printerScaling');
+        const copiesNumber = document.getElementById('copiesNumber');
+        const languageSelect = document.getElementById('languageSelect');
+
+        if (themeToggle) themeToggle.checked = false;
+        if (autoSaveToggle) autoSaveToggle.checked = true;
+        if (printerScaling) printerScaling.value = '100';
+        if (copiesNumber) copiesNumber.value = '1';
+        if (languageSelect) languageSelect.value = 'tr';
+
+        // Reset theme
+        document.body.classList.remove('dark-mode');
+        const themeStatus = document.getElementById('themeStatus');
+        if (themeStatus) themeStatus.textContent = 'Açık';
+
+        // Show success message
+        showAlert('Yerel veriler temizlendi ve varsayılan ayarlar uygulandı.', 'success');
     }
 }
+
+// Optional: attach to a button
+document.getElementById('clearDataBtn')?.addEventListener('click', clearLocalData);
+
+
+
+    
 
 // Initialize settings on app load
 function initializeSettings() {
     const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    applySettings(savedSettings);
+
+    // Set default values if not present
+    const defaultSettings = {
+        theme: 'light',
+        language: 'tr',
+        printerScaling: '100',
+        copies: 1,
+        autoSave: true
+    };
+
+    const settings = { ...defaultSettings, ...savedSettings };
+
+    // Apply settings to the UI and app
+    applySettings(settings);
 }
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', initializeSettings);
+
+
+
+    
 
 
 
