@@ -9,38 +9,68 @@ class ProCleanApp {
     }
 
     async init() {
-        if (this.initialized) return;
-        
-        try {
-            console.log('Initializing ProClean application...');
-            
-            // Initialize utilities first
+    if (this.initialized) return;
+
+    try {
+        console.log('Initializing ProClean application...');
+
+        // Safely initialize NotificationManager
+        if (window.NotificationManager && typeof window.NotificationManager.init === 'function') {
             window.NotificationManager.init();
+            console.log('NotificationManager initialized');
+        } else {
+            console.warn('NotificationManager.init() not found');
+        }
+
+        // Safely initialize OfflineManager
+        if (window.OfflineManager && typeof window.OfflineManager.init === 'function') {
             window.OfflineManager.init();
-            
-            // Initialize database connection
-            await DatabaseManager.init();
-            
-            // Setup authentication listener
+            console.log('OfflineManager initialized');
+        } else {
+            console.warn('OfflineManager.init() not found');
+        }
+
+        // Safely initialize DatabaseManager
+        if (window.DatabaseManager) {
+            if (typeof window.DatabaseManager.init === 'function') {
+                await window.DatabaseManager.init();
+                console.log('DatabaseManager initialized');
+            } else {
+                console.warn('DatabaseManager.init() not found — skipping initialization');
+            }
+        } else {
+            console.warn('DatabaseManager not found');
+        }
+
+        // Safely setup AuthManager
+        if (window.AuthManager && typeof window.AuthManager.setupAuthListener === 'function') {
             AuthManager.setupAuthListener();
-            
-            // Initialize UI components
-            await this.initializeUI();
-            
-            // Setup event listeners
-            this.setupGlobalEventListeners();
-            
-            // Load saved settings
-            this.loadSettings();
-            
-            this.initialized = true;
-            console.log('ProClean application initialized successfully');
-            
-        } catch (error) {
-            console.error('Application initialization failed:', error);
+            console.log('AuthManager listener set up');
+        } else {
+            console.warn('AuthManager.setupAuthListener() not found');
+        }
+
+        // Initialize UI components
+        await this.initializeUI();
+
+        // Setup event listeners
+        this.setupGlobalEventListeners();
+
+        // Load saved settings
+        this.loadSettings();
+
+        this.initialized = true;
+        console.log('ProClean application initialized successfully');
+
+    } catch (error) {
+        console.error('Application initialization failed:', error);
+        if (window.NotificationManager && typeof window.NotificationManager.showAlert === 'function') {
             window.NotificationManager.showAlert('Uygulama başlatılamadı: ' + error.message, 'error');
+        } else {
+            alert('Uygulama başlatılamadı: ' + error.message);
         }
     }
+}
 
     async initializeUI() {
         // Initialize element cache
