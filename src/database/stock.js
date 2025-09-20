@@ -1,50 +1,142 @@
+class StockManager {
+    constructor() {
+        this.stock = [];
+        this.stockCache = new Map();
+        this.lowStockThreshold = 5;
+        this.criticalStockThreshold = 2;
+    }
+
+    // Basit bildirim fonksiyonu
+    showNotification(message, type = 'info', duration = 3000) {
+        console.log(`${type.toUpperCase()}: ${message}`);
+        
+        // Tarayıcı bildirimi göster (izin verilmişse)
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification('ProClean', { body: message });
+        }
+        
+        // Basit bir alert kutusu göster
+        alert(`${type.toUpperCase()}: ${message}`);
+    }
+
+    // Create stock item
+    async createStock(stockData) {
+        try {
+            // AuthManager kontrolü
+            if (typeof AuthManager !== 'undefined' && AuthManager.requirePermission) {
+                AuthManager.requirePermission('manage_stock');
+            }
+
+            // DatabaseManager kontrolü
+            let dbReady = false;
+            if (typeof DatabaseManager !== 'undefined' && DatabaseManager.isReady) {
+                dbReady = DatabaseManager.isReady();
+            }
+
+            const newItem = {
+                id: Date.now().toString(),
+                product_name: stockData.product_name,
+                product_code: stockData.product_code || '',
+                quantity: parseInt(stockData.quantity) || 0,
+                min_quantity: parseInt(stockData.min_quantity) || this.lowStockThreshold,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            if (dbReady) {
+                await DatabaseManager.query('stock', 'insert', { data: newItem });
+            } else {
+                // Queue for offline sync
+                if (typeof OfflineManager !== 'undefined' && OfflineManager.queueForSync) {
+                    OfflineManager.queueForSync({
+                        type: 'create_stock',
+                        data: newItem
+                    });
+                }
+            }
+
+            // Add to local cache
+            this.stock.push(newItem);
+            this.stockCache.set(newItem.id, newItem);
+
+            // Update offline storage
+            if (typeof OfflineManager !== 'undefined' && OfflineManager.storeOfflineData) {
+                OfflineManager.storeOfflineData('stock', this.stock);
+            }
+
+            // Refresh table
+            if (this.populateStockTable) {
+                await this.populateStockTable();
+            }
+
+            this.showNotification('Stok eklendi', 'success');
+            return newItem;
+        } catch (error) {
+            console.error('Error creating stock:', error);
+            this.showNotification('Stok eklenemedi: ' + error.message, 'error');
+            throw error;
+        }
+    }
+
     // Update stock item
     async updateStock(stockId, updates) {
         try {
-            AuthManager.requirePermission('manage_stock');
+            // AuthManager kontrolü
+            if (typeof AuthManager !== 'undefined' && AuthManager.requirePermission) {
+                AuthManager.requirePermission('manage_stock');
+            }
 
             const item = this.stockCache.get(stockId);
             if (!item) {
                 throw new Error('Stok kalemi bulunamadı');
             }
 
-            if (DatabaseManager.isReady()) {
+            // DatabaseManager kontrolü
+            let dbReady = false;
+            if (typeof DatabaseManager !== 'undefined' && DatabaseManager.isReady) {
+                dbReady = DatabaseManager.isReady();
+            }
+
+            if (dbReady) {
                 await DatabaseManager.query('stock', 'update', {
                     data: { ...updates, updated_at: new Date().toISOString() },
                     filter: { id: stockId }
                 });
-
-                // Update local cache
-                const updatedItem = { ...item, ...updates };
-                this.stockCache.set(stockId, updatedItem);
-                
-                // Update stock array
-                const index = this.stock.findIndex(s => s.id === stockId);
-                if (index !== -1) {
-                    this.stock[index] = updatedItem;
-                }
-
-                // Update offline storage
-                OfflineManager.storeOfflineData('stock', this.stock);
-                
-                // Refresh table
-                await this.populateStockTable();
-                
-                NotificationManager.showAlert('Stok güncellendi', 'success');
-                return updatedItem;
             } else {
                 // Queue for offline sync
-                OfflineManager.queueForSync({
-                    type: 'update_stock',
-                    data: { id: stockId, ...updates }
-                });
-                
-                NotificationManager.showAlert('Stok güncellendi (çevrimdışı)', 'info');
-                return item;
+                if (typeof OfflineManager !== 'undefined' && OfflineManager.queueForSync) {
+                    OfflineManager.queueForSync({
+                        type: 'update_stock',
+                        data: { id: stockId, ...updates }
+                    });
+                }
             }
+
+            // Update local cache
+            const updatedItem = { ...item, ...updates, updated_at: new Date().toISOString() };
+            this.stockCache.set(stockId, updatedItem);
+            
+            // Update stock array
+            const index = this.stock.findIndex(s => s.id === stockId);
+            if (index !== -1) {
+                this.stock[index] = updatedItem;
+            }
+
+            // Update offline storage
+            if (typeof OfflineManager !== 'undefined' && OfflineManager.storeOfflineData) {
+                OfflineManager.storeOfflineData('stock', this.stock);
+            }
+            
+            // Refresh table
+            if (this.populateStockTable) {
+                await this.populateStockTable();
+            }
+            
+            this.showNotification('Stok güncellendi', 'success');
+            return updatedItem;
         } catch (error) {
             console.error('Error updating stock:', error);
-            NotificationManager.showAlert('Stok güncellenemedi: ' + error.message, 'error');
+            this.showNotification('Stok güncellenemedi: ' + error.message, 'error');
             throw error;
         }
     }
@@ -52,7 +144,10 @@
     // Delete stock item
     async deleteStock(stockId) {
         try {
-            AuthManager.requirePermission('manage_stock');
+            // AuthManager kontrolü
+            if (typeof AuthManager !== 'undefined' && AuthManager.requirePermission) {
+                AuthManager.requirePermission('manage_stock');
+            }
 
             const item = this.stockCache.get(stockId);
             if (!item) {
@@ -60,46 +155,51 @@
             }
 
             // Show confirmation
-            const confirmed = await new Promise(resolve => {
-                NotificationManager.showConfirm(
-                    `"${item.product_name}" stok kalemini silmek istediğinizden emin misiniz?`,
-                    () => resolve(true),
-                    () => resolve(false)
-                );
-            });
+            const confirmed = confirm(
+                `"${item.product_name}" stok kalemini silmek istediğinizden emin misiniz?`
+            );
 
             if (!confirmed) return false;
 
-            if (DatabaseManager.isReady()) {
+            // DatabaseManager kontrolü
+            let dbReady = false;
+            if (typeof DatabaseManager !== 'undefined' && DatabaseManager.isReady) {
+                dbReady = DatabaseManager.isReady();
+            }
+
+            if (dbReady) {
                 await DatabaseManager.query('stock', 'delete', {
                     filter: { id: stockId }
                 });
-
-                // Remove from local cache
-                this.stockCache.delete(stockId);
-                this.stock = this.stock.filter(s => s.id !== stockId);
-
-                // Update offline storage
-                OfflineManager.storeOfflineData('stock', this.stock);
-                
-                // Refresh table
-                await this.populateStockTable();
-                
-                NotificationManager.showAlert('Stok silindi', 'success');
-                return true;
             } else {
                 // Queue for offline sync
-                OfflineManager.queueForSync({
-                    type: 'delete_stock',
-                    data: { id: stockId }
-                });
-                
-                NotificationManager.showAlert('Stok silindi (çevrimdışı)', 'info');
-                return true;
+                if (typeof OfflineManager !== 'undefined' && OfflineManager.queueForSync) {
+                    OfflineManager.queueForSync({
+                        type: 'delete_stock',
+                        data: { id: stockId }
+                    });
+                }
             }
+
+            // Remove from local cache
+            this.stockCache.delete(stockId);
+            this.stock = this.stock.filter(s => s.id !== stockId);
+
+            // Update offline storage
+            if (typeof OfflineManager !== 'undefined' && OfflineManager.storeOfflineData) {
+                OfflineManager.storeOfflineData('stock', this.stock);
+            }
+            
+            // Refresh table
+            if (this.populateStockTable) {
+                await this.populateStockTable();
+            }
+            
+            this.showNotification('Stok silindi', 'success');
+            return true;
         } catch (error) {
             console.error('Error deleting stock:', error);
-            NotificationManager.showAlert('Stok silinemedi: ' + error.message, 'error');
+            this.showNotification('Stok silinemedi: ' + error.message, 'error');
             return false;
         }
     }
@@ -108,40 +208,44 @@
     async adjustStock(stockId) {
         const item = this.stockCache.get(stockId);
         if (!item) {
-            NotificationManager.showAlert('Stok kalemi bulunamadı', 'error');
+            this.showNotification('Stok kalemi bulunamadı', 'error');
             return;
         }
 
         // Show quantity adjustment modal
-        NotificationManager.showPrompt(
+        const newQuantity = prompt(
             `"${item.product_name}" için yeni miktar girin (Mevcut: ${item.quantity}):`,
-            item.quantity.toString(),
-            async (newQuantity) => {
-                const quantity = parseInt(newQuantity);
-                if (isNaN(quantity) || quantity < 0) {
-                    NotificationManager.showAlert('Geçerli bir miktar girin', 'error');
-                    return;
-                }
-
-                try {
-                    await this.updateStock(stockId, { quantity });
-                } catch (error) {
-                    console.error('Error adjusting stock:', error);
-                }
-            }
+            item.quantity.toString()
         );
+        
+        if (newQuantity === null) return; // Kullanıcı iptal etti
+        
+        const quantity = parseInt(newQuantity);
+        if (isNaN(quantity) || quantity < 0) {
+            this.showNotification('Geçerli bir miktar girin', 'error');
+            return;
+        }
+
+        try {
+            await this.updateStock(stockId, { quantity });
+        } catch (error) {
+            console.error('Error adjusting stock:', error);
+        }
     }
 
     // Edit stock item
     editStock(stockId) {
         const item = this.stockCache.get(stockId);
         if (!item) {
-            NotificationManager.showAlert('Stok kalemi bulunamadı', 'error');
+            this.showNotification('Stok kalemi bulunamadı', 'error');
             return;
         }
 
-        // Show edit modal (to be implemented in modals.js)
-        ModalManager.showStockEditModal(item);
+        // Show edit modal
+        const newName = prompt('Yeni ürün adı:', item.product_name);
+        if (newName !== null && newName.trim() !== '') {
+            this.updateStock(stockId, { product_name: newName });
+        }
     }
 
     // Search stock
@@ -160,7 +264,7 @@
         const searchInput = document.getElementById('stockSearch');
         if (!searchInput) return;
 
-        const debouncedSearch = Helpers.debounce(async (query) => {
+        const debouncedSearch = this.debounce(async (query) => {
             const filteredStock = this.searchStock(query);
             await this.displayFilteredStock(filteredStock);
         }, 300);
@@ -170,11 +274,28 @@
         });
     }
 
+    // Debounce utility function
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
     // Display filtered stock
     async displayFilteredStock(filteredStock) {
-        const originalStock = this.stock;
+        const originalStock = [...this.stock];
         this.stock = filteredStock;
-        await this.populateStockTable();
+        
+        if (this.populateStockTable) {
+            await this.populateStockTable();
+        }
+        
         this.stock = originalStock;
     }
 
@@ -197,16 +318,14 @@
         const lowItems = this.getLowStockItems();
 
         if (criticalItems.length > 0) {
-            NotificationManager.showAlert(
+            this.showNotification(
                 `${criticalItems.length} ürünün stoku kritik seviyede!`, 
-                'error', 
-                5000
+                'error'
             );
         } else if (lowItems.length > 0) {
-            NotificationManager.showAlert(
+            this.showNotification(
                 `${lowItems.length} ürünün stoku az seviyede`, 
-                'warning',
-                4000
+                'warning'
             );
         }
     }
@@ -214,7 +333,10 @@
     // Import stock from CSV
     async importStockFromCSV(file) {
         try {
-            AuthManager.requirePermission('manage_stock');
+            // AuthManager kontrolü
+            if (typeof AuthManager !== 'undefined' && AuthManager.requirePermission) {
+                AuthManager.requirePermission('manage_stock');
+            }
 
             const text = await file.text();
             const lines = text.split('\n');
@@ -263,7 +385,7 @@
 
             if (errors.length > 0) {
                 console.warn('Import errors:', errors);
-                NotificationManager.showAlert(
+                this.showNotification(
                     `${errors.length} satırda hata oluştu. Konsolu kontrol edin.`,
                     'warning'
                 );
@@ -280,14 +402,14 @@
                 }
             }
 
-            NotificationManager.showAlert(
+            this.showNotification(
                 `${successCount} stok kalemi başarıyla içe aktarıldı`,
                 'success'
             );
 
         } catch (error) {
             console.error('Error importing stock:', error);
-            NotificationManager.showAlert('İçe aktarma başarısız: ' + error.message, 'error');
+            this.showNotification('İçe aktarma başarısız: ' + error.message, 'error');
         }
     }
 
@@ -299,10 +421,78 @@
             'Miktar': item.quantity,
             'Minimum Miktar': item.min_quantity || '',
             'Durum': this.getStockStatus(item),
-            'Son Güncelleme': Helpers.formatDateTime(item.updated_at || item.created_at)
+            'Son Güncelleme': this.formatDateTime(item.updated_at || item.created_at)
         }));
 
-        Helpers.downloadCSV(csvData, `stok_${Helpers.formatDate(new Date())}.csv`);
+        this.downloadCSV(csvData, `stok_${this.formatDate(new Date())}.csv`);
+    }
+
+    // Format date
+    formatDate(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    // Format date time
+    formatDateTime(dateString) {
+        return new Date(dateString).toLocaleString();
+    }
+
+    // Download CSV
+    downloadCSV(data, filename) {
+        const csvContent = this.convertToCSV(data);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+    // Convert to CSV
+    convertToCSV(objArray) {
+        const array = typeof objArray !== 'object' ? JSON.parse(objArray) : objArray;
+        let str = '';
+        
+        // Headers
+        const headers = Object.keys(array[0]);
+        str += headers.join(',') + '\r\n';
+        
+        // Rows
+        for (let i = 0; i < array.length; i++) {
+            let line = '';
+            for (let j = 0; j < headers.length; j++) {
+                if (line !== '') line += ',';
+                
+                // Değeri string'e çevir ve tırnak içine al
+                const value = array[i][headers[j]] || '';
+                line += `"${value.toString().replace(/"/g, '""')}"`;
+            }
+            str += line + '\r\n';
+        }
+        
+        return str;
+    }
+
+    // Get file extension
+    getFileExtension(filename) {
+        return filename.split('.').pop().toLowerCase();
+    }
+
+    // Get stock status
+    getStockStatus(item) {
+        if (item.quantity <= this.criticalStockThreshold) {
+            return 'Kritik';
+        } else if (item.quantity <= (item.min_quantity || this.lowStockThreshold)) {
+            return 'Az';
+        } else {
+            return 'Yeterli';
+        }
     }
 
     // Get stock statistics
@@ -331,20 +521,20 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            const extension = Helpers.getFileExtension(file.name);
+            const extension = this.getFileExtension(file.name);
             
             try {
                 if (extension === 'csv') {
                     await this.importStockFromCSV(file);
                 } else if (extension === 'xlsx' || extension === 'xls') {
                     // Excel import would require additional library
-                    NotificationManager.showAlert('Excel desteği henüz eklenmedi. CSV kullanın.', 'warning');
+                    this.showNotification('Excel desteği henüz eklenmedi. CSV kullanın.', 'warning');
                 } else {
                     throw new Error('Desteklenmeyen dosya formatı. CSV veya Excel kullanın.');
                 }
             } catch (error) {
                 console.error('File upload error:', error);
-                NotificationManager.showAlert('Dosya yükleme hatası: ' + error.message, 'error');
+                this.showNotification('Dosya yükleme hatası: ' + error.message, 'error');
             }
 
             // Reset file input
@@ -368,7 +558,7 @@
         }
 
         if (item.quantity < quantity) {
-            NotificationManager.showAlert(
+            this.showNotification(
                 `Yetersiz stok: ${productName} (Mevcut: ${item.quantity}, İstenen: ${quantity})`,
                 'warning'
             );
@@ -381,7 +571,7 @@
             
             // Check if stock is now low
             if (newQuantity <= (item.min_quantity || this.lowStockThreshold)) {
-                NotificationManager.showAlert(
+                this.showNotification(
                     `${productName} stoku azaldı (Kalan: ${newQuantity})`,
                     'warning'
                 );
@@ -397,6 +587,20 @@
     // Get all stock items (for external use)
     getAllStock() {
         return [...this.stock];
+    }
+
+    // Load stock from data
+    loadStockData(stockData) {
+        this.stock = stockData;
+        
+        // Update cache
+        this.stockCache.clear();
+        this.stock.forEach(item => {
+            this.stockCache.set(item.id, item);
+        });
+        
+        // Check stock levels
+        this.checkStockLevels();
     }
 
     // Initialize stock management
