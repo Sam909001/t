@@ -90,13 +90,22 @@ function showAlert(message, type = 'info', duration = 3000) {
 })();
 
 // Initialize elements object with better error handling
+// Modified initializeElementsObject to handle missing elements gracefully
 function initializeElementsObject() {
     const elementMap = {
+        // Critical elements that should exist on page load
         loginScreen: 'loginScreen',
-        appContainer: 'appContainer',
         loginButton: 'loginBtn',
         emailInput: 'email',
         passwordInput: 'password',
+        apiKeyModal: 'apiKeyModal',
+        apiKeyInput: 'apiKeyInput',
+        alertContainer: 'alertContainer',
+        logoutBtn: 'logoutBtn',
+        settingsBtn: 'settingsBtn',
+        
+        // App elements that may not exist until login
+        appContainer: 'appContainer',
         customerSelect: 'customerSelect',
         personnelSelect: 'personnelSelect',
         currentDate: 'currentDate',
@@ -107,32 +116,27 @@ function initializeElementsObject() {
         stockTableBody: 'stockTableBody',
         customerList: 'customerList',
         allCustomersList: 'allCustomersList',
-        toast: 'toast',
         containerNumber: 'containerNumber',
         totalPackages: 'totalPackages',
         shippingFilter: 'shippingFilter',
         stockSearch: 'stockSearch',
         selectAllPackages: 'selectAllPackages',
-        apiKeyModal: 'apiKeyModal',
-        apiKeyInput: 'apiKeyInput',
         quantityInput: 'quantityInput',
         quantityModal: 'quantityModal',
         quantityModalTitle: 'quantityModalTitle',
         scannedBarcodes: 'scannedBarcodes',
         connectionStatus: 'connectionStatus',
-        alertContainer: 'alertContainer',
         scannerToggle: 'scannerToggle',
         containerSearch: 'containerSearch',
         settingsModal: 'settingsModal',
         closeSettingsModalBtn: 'closeSettingsModalBtn',
         userRole: 'userRole',
-        logoutBtn: 'logoutBtn',
-        settingsBtn: 'settingsBtn',
         offlineIndicator: 'offlineIndicator'
     };
     
     let foundCount = 0;
     let missingCount = 0;
+    const missingElements = [];
     
     Object.keys(elementMap).forEach(key => {
         const element = document.getElementById(elementMap[key]);
@@ -140,15 +144,89 @@ function initializeElementsObject() {
             elements[key] = element;
             foundCount++;
         } else {
-            console.warn(`Element ${elementMap[key]} not found`);
+            // Only warn for critical elements that should exist on page load
+            const criticalElements = ['loginScreen', 'loginButton', 'emailInput', 'passwordInput', 'apiKeyModal', 'apiKeyInput'];
+            if (criticalElements.includes(key)) {
+                console.error(`Critical element ${elementMap[key]} not found`);
+            } else {
+                console.debug(`App element ${elementMap[key]} not found (will retry after login)`);
+            }
             elements[key] = null;
+            missingElements.push(key);
             missingCount++;
         }
     });
     
     console.log(`Elements initialized: ${foundCount} found, ${missingCount} missing`);
+    
+    // Store missing elements for later retry
+    elements._missingElements = missingElements;
+    
     return elements;
 }
+
+
+
+// Call this function after successful login to find app elements
+function initializeAppElements() {
+    if (!elements._missingElements || elements._missingElements.length === 0) {
+        return;
+    }
+    
+    const elementMap = {
+        appContainer: 'appContainer',
+        customerSelect: 'customerSelect',
+        personnelSelect: 'personnelSelect',
+        currentDate: 'currentDate',
+        barcodeInput: 'barcodeInput',
+        packagesTableBody: 'packagesTableBody',
+        packageDetailContent: 'packageDetailContent',
+        shippingFolders: 'shippingFolders',
+        stockTableBody: 'stockTableBody',
+        customerList: 'customerList',
+        allCustomersList: 'allCustomersList',
+        containerNumber: 'containerNumber',
+        totalPackages: 'totalPackages',
+        shippingFilter: 'shippingFilter',
+        stockSearch: 'stockSearch',
+        selectAllPackages: 'selectAllPackages',
+        quantityInput: 'quantityInput',
+        quantityModal: 'quantityModal',
+        quantityModalTitle: 'quantityModalTitle',
+        scannedBarcodes: 'scannedBarcodes',
+        connectionStatus: 'connectionStatus',
+        scannerToggle: 'scannerToggle',
+        containerSearch: 'containerSearch',
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        userRole: 'userRole',
+        offlineIndicator: 'offlineIndicator'
+    };
+    
+    let foundCount = 0;
+    const stillMissing = [];
+    
+    elements._missingElements.forEach(key => {
+        if (elementMap[key]) {
+            const element = document.getElementById(elementMap[key]);
+            if (element) {
+                elements[key] = element;
+                foundCount++;
+                console.log(`Found app element: ${elementMap[key]}`);
+            } else {
+                stillMissing.push(key);
+            }
+        }
+    });
+    
+    elements._missingElements = stillMissing;
+    console.log(`App elements retry: ${foundCount} found, ${stillMissing.length} still missing`);
+    
+    return foundCount > 0;
+}
+
+
+
 
 // FIXED: Singleton Supabase initialization
 function initializeSupabase() {
