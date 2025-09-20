@@ -1,4 +1,4 @@
-// Supabase initialization - Varsayılan değerler
+// Supabase initialization - Singleton pattern to prevent multiple instances
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
@@ -19,18 +19,77 @@ let selectedPackageForPrinting = null;
 // Global elements cache
 const elements = {};
 
-// EmailJS initialization
+// Show alert function - available globally
+function showAlert(message, type = 'info', duration = 3000) {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    // Try to use existing alert system if available
+    const alertContainer = document.getElementById('alertContainer');
+    if (alertContainer) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.innerHTML = `
+            <span>${message}</span>
+            <button class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+        `;
+        alertContainer.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, duration);
+    } else {
+        // Fallback: create temporary alert container
+        let tempContainer = document.getElementById('tempAlertContainer');
+        if (!tempContainer) {
+            tempContainer = document.createElement('div');
+            tempContainer.id = 'tempAlertContainer';
+            tempContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                max-width: 300px;
+            `;
+            document.body.appendChild(tempContainer);
+        }
+        
+        const alertDiv = document.createElement('div');
+        alertDiv.style.cssText = `
+            background: ${type === 'error' ? '#e74c3c' : type === 'success' ? '#2ecc71' : '#3498db'};
+            color: white;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 14px;
+        `;
+        alertDiv.textContent = message;
+        tempContainer.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, duration);
+    }
+}
+
+// EmailJS initialization with error handling
 (function() {
-    // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
     try {
-        emailjs.init("jH-KlJ2ffs_lGwfsp");
-        console.log('EmailJS initialized successfully');
+        if (typeof emailjs !== 'undefined') {
+            emailjs.init("jH-KlJ2ffs_lGwfsp");
+            console.log('EmailJS initialized successfully');
+        } else {
+            console.warn('EmailJS library not loaded');
+        }
     } catch (error) {
         console.warn('EmailJS initialization failed:', error);
     }
 })();
 
-// Modified initializeElementsObject to handle async loading
+// Initialize elements object with better error handling
 function initializeElementsObject() {
     const elementMap = {
         loginScreen: 'loginScreen',
@@ -66,9 +125,6 @@ function initializeElementsObject() {
         containerSearch: 'containerSearch',
         settingsModal: 'settingsModal',
         closeSettingsModalBtn: 'closeSettingsModalBtn',
-        toggleThemeBtn: 'toggleThemeBtn',
-        downloadDataBtn: 'downloadDataBtn',
-        changeApiKeyBtn: 'changeApiKeyBtn',
         userRole: 'userRole',
         logoutBtn: 'logoutBtn',
         settingsBtn: 'settingsBtn',
@@ -94,114 +150,59 @@ function initializeElementsObject() {
     return elements;
 }
 
-// New function to retry finding missing elements
-async function retryMissingElements(maxAttempts = 10, interval = 300) {
-    const elementMap = {
-        appContainer: 'appContainer',
-        customerSelect: 'customerSelect',
-        personnelSelect: 'personnelSelect',
-        currentDate: 'currentDate',
-        barcodeInput: 'barcodeInput',
-        packagesTableBody: 'packagesTableBody',
-        packageDetailContent: 'packageDetailContent',
-        shippingFolders: 'shippingFolders',
-        stockTableBody: 'stockTableBody',
-        customerList: 'customerList',
-        allCustomersList: 'allCustomersList',
-        containerNumber: 'containerNumber',
-        totalPackages: 'totalPackages',
-        shippingFilter: 'shippingFilter',
-        stockSearch: 'stockSearch',
-        selectAllPackages: 'selectAllPackages',
-        quantityInput: 'quantityInput',
-        quantityModal: 'quantityModal',
-        quantityModalTitle: 'quantityModalTitle',
-        scannedBarcodes: 'scannedBarcodes',
-        connectionStatus: 'connectionStatus',
-        scannerToggle: 'scannerToggle',
-        containerSearch: 'containerSearch',
-        userRole: 'userRole'
-    };
-    
-    let attempts = 0;
-    const missingElements = Object.keys(elementMap).filter(key => !elements[key]);
-    
-    if (missingElements.length === 0) {
-        console.log('All elements found, no retry needed');
-        return true;
+// FIXED: Singleton Supabase initialization
+function initializeSupabase() {
+    // Return existing client if already initialized
+    if (supabase) {
+        console.log('Using existing Supabase client');
+        return supabase;
     }
     
-    console.log(`Retrying ${missingElements.length} missing elements...`);
-    
-    return new Promise((resolve) => {
-        const intervalId = setInterval(() => {
-            attempts++;
-            let foundNew = false;
-            
-            missingElements.forEach(key => {
-                if (!elements[key]) {
-                    const element = document.getElementById(elementMap[key]);
-                    if (element) {
-                        elements[key] = element;
-                        console.log(`Found element: ${elementMap[key]}`);
-                        foundNew = true;
-                    }
-                }
-            });
-            
-            if (missingElements.every(key => elements[key])) {
-                clearInterval(intervalId);
-                console.log('All missing elements found!');
-                resolve(true);
-            } else if (attempts >= maxAttempts) {
-                clearInterval(intervalId);
-                console.warn(`Could not find all elements after ${maxAttempts} attempts`);
-                resolve(false);
-            }
-        }, interval);
-    });
-}
-
-// FIXED: Supabase istemcisini başlat - Singleton pattern ile
-function initializeSupabase() {
     if (!SUPABASE_ANON_KEY) {
         console.warn('Supabase API key not set');
         return null;
     }
     
+    if (typeof window.supabase === 'undefined') {
+        console.error('Supabase library not loaded');
+        showAlert('Supabase kütüphanesi yüklenmemiş', 'error');
+        return null;
+    }
+    
     try {
+        // Create client only once
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized successfully');
-        
-        // Set up auth listener
-        setupAuthListener();
-        
-        // Test connection
-        setTimeout(() => {
-            testConnection();
-        }, 1000);
-        
         return supabase;
     } catch (error) {
         console.error('Supabase initialization error:', error);
+        showAlert('Supabase başlatılamadı: ' + error.message, 'error');
         return null;
     }
 }
 
-// FIXED: API anahtarını kaydet ve istemciyi başlat
+// API anahtarını kaydet
 function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    if (!apiKeyInput) {
+        showAlert('API key input bulunamadı', 'error');
+        return;
+    }
+    
+    const apiKey = apiKeyInput.value.trim();
     if (!apiKey) {
         showAlert('Lütfen bir API anahtarı girin', 'error');
         return;
     }
     
-    // Eski client'ı temizle
-    supabase = null;
-    
-    // Yeni API key'i ayarla
+    // API key'i ayarla
     SUPABASE_ANON_KEY = apiKey;
     localStorage.setItem('procleanApiKey', apiKey);
+    
+    // Eğer zaten bir client varsa, yeni key ile yeniden başlat
+    if (supabase) {
+        supabase = null; // Clear existing client
+    }
     
     // Yeni client oluştur
     const newClient = initializeSupabase();
@@ -209,7 +210,10 @@ function saveApiKey() {
     if (newClient) {
         document.getElementById('apiKeyModal').style.display = 'none';
         showAlert('API anahtarı kaydedildi', 'success');
-        testConnection();
+        
+        // Auth listener'ı kur ve bağlantı test et
+        setupAuthListener();
+        setTimeout(() => testConnection(), 1000);
     } else {
         showAlert('API anahtarı geçersiz. Lütfen kontrol edin.', 'error');
     }
@@ -217,10 +221,21 @@ function saveApiKey() {
 
 // API anahtarı modalını göster
 function showApiKeyModal() {
+    const apiKeyModal = document.getElementById('apiKeyModal');
     const apiKeyInput = document.getElementById('apiKeyInput');
-    if (apiKeyInput) {
+    
+    if (apiKeyModal && apiKeyInput) {
         apiKeyInput.value = SUPABASE_ANON_KEY || '';
-        document.getElementById('apiKeyModal').style.display = 'flex';
+        apiKeyModal.style.display = 'flex';
+    } else {
+        console.error('API key modal elements not found');
+        // Fallback: prompt user
+        const key = prompt('Lütfen Supabase API anahtarınızı girin:');
+        if (key) {
+            SUPABASE_ANON_KEY = key;
+            localStorage.setItem('procleanApiKey', key);
+            initializeSupabase();
+        }
     }
 }
 
@@ -228,7 +243,7 @@ function showApiKeyModal() {
 async function testConnection() {
     if (!supabase) {
         console.warn('Supabase client not initialized for connection test');
-        showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+        showAlert('Supabase istemcisi başlatılmadı', 'error');
         return false;
     }
     
@@ -236,21 +251,192 @@ async function testConnection() {
         const { data, error } = await supabase.from('customers').select('*').limit(1);
         if (error) throw error;
         
-        console.log('Supabase connection test successful:', data);
+        console.log('Supabase connection test successful');
         showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
         return true;
     } catch (e) {
         console.error('Supabase connection test failed:', e.message);
-        showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+        showAlert('Veritabanına bağlanılamıyor. API anahtarınızı kontrol edin.', 'error');
         return false;
+    }
+}
+
+// Auth listener setup
+function setupAuthListener() {
+    if (!supabase) {
+        console.warn('Cannot setup auth listener: Supabase not initialized');
+        return;
+    }
+    
+    try {
+        supabase.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state change:', event, session?.user?.email || 'No user');
+            
+            if (session?.user) {
+                currentUser = {
+                    email: session.user.email,
+                    uid: session.user.id,
+                    name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                    role: 'operator' // Default role
+                };
+                
+                // Update UI
+                const userRoleElement = document.getElementById('userRole');
+                if (userRoleElement) {
+                    userRoleElement.textContent = `Operatör: ${currentUser.name}`;
+                }
+                
+                // Show main app
+                const loginScreen = document.getElementById('loginScreen');
+                const appContainer = document.getElementById('appContainer');
+                
+                if (loginScreen) loginScreen.style.display = 'none';
+                if (appContainer) appContainer.style.display = 'flex';
+                
+                // Initialize app data
+                initializeAppData();
+                
+            } else {
+                // Show login screen
+                const loginScreen = document.getElementById('loginScreen');
+                const appContainer = document.getElementById('appContainer');
+                
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (appContainer) appContainer.style.display = 'none';
+                
+                currentUser = null;
+            }
+        });
+        
+        console.log('Auth listener setup complete');
+    } catch (error) {
+        console.error('Error setting up auth listener:', error);
+    }
+}
+
+// Login function
+async function login() {
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    
+    if (!emailInput || !passwordInput) {
+        showAlert('Email veya şifre alanı bulunamadı', 'error');
+        return;
+    }
+    
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+    
+    if (!email || !password) {
+        showAlert('Email ve şifre gereklidir', 'error');
+        return;
+    }
+    
+    if (!supabase) {
+        showAlert('Önce API anahtarını girin', 'error');
+        showApiKeyModal();
+        return;
+    }
+    
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Giriş yapılıyor...';
+    }
+    
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+        
+        if (error) {
+            showAlert(`Giriş başarısız: ${error.message}`, 'error');
+            return;
+        }
+        
+        if (data.user) {
+            showAlert('Giriş başarılı!', 'success');
+            // Auth listener will handle the rest
+        }
+        
+    } catch (error) {
+        console.error('Login error:', error);
+        showAlert('Giriş sırasında bir hata oluştu', 'error');
+    } finally {
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Giriş Yap';
+        }
+    }
+}
+
+// Logout function
+async function logout() {
+    if (!supabase) return;
+    
+    try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        
+        showAlert('Başarıyla çıkış yapıldı', 'success');
+        
+        // Clear form fields
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        
+        if (emailInput) emailInput.value = '';
+        if (passwordInput) passwordInput.value = '';
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        showAlert('Çıkış yapılırken bir hata oluştu', 'error');
+    }
+}
+
+// Initialize app data after login
+async function initializeAppData() {
+    try {
+        console.log('Initializing app data...');
+        
+        // Set current date
+        const currentDateElement = document.getElementById('currentDate');
+        if (currentDateElement) {
+            currentDateElement.textContent = new Date().toLocaleDateString('tr-TR');
+        }
+        
+        // Load customers, personnel, etc.
+        // Add your data loading functions here
+        
+        showAlert('Uygulama verileri yüklendi', 'success', 2000);
+        
+    } catch (error) {
+        console.error('Error initializing app data:', error);
+        showAlert('Uygulama verileri yüklenirken hata oluştu', 'error');
+    }
+}
+
+// Settings functions
+function showSettingsModal() {
+    console.log('Opening settings modal...');
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    } else {
+        console.error('Settings modal not found');
+        showAlert('Ayarlar modalı bulunamadı', 'error');
+    }
+}
+
+function closeSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+        modal.style.display = 'none';
     }
 }
 
 // Helper functions
 function getSupabaseClient() {
-    if (!supabase) {
-        return initializeSupabase();
-    }
     return supabase;
 }
 
@@ -258,90 +444,157 @@ function isSupabaseReady() {
     return supabase !== null && SUPABASE_ANON_KEY !== null;
 }
 
-// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle ve uygulamayı başlat
-document.addEventListener('DOMContentLoaded', () => {
-    // Önce elementleri initialize et
-    initializeElementsObject();
-    
-    const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
-        SUPABASE_ANON_KEY = savedApiKey;
-        console.log('API key loaded from localStorage');
-        
-        // Supabase'i başlat ve auth listener'ı kur
-        const client = initializeSupabase();
-        
-        if (client) {
-            // Bağlantı testi yap
-            setTimeout(() => {
-                testConnection().then(isConnected => {
-                    if (!isConnected) {
-                        // Eğer bağlantı başarısızsa API key modalını göster
-                        showApiKeyModal();
-                    }
-                });
-            }, 1000);
-        }
-    } else {
-        // API key yoksa modalı göster
-        setTimeout(() => {
-            showApiKeyModal();
-        }, 500);
-    }
-    
-    // Event listener'ları kur
-    setupEventListeners();
-});
-
-// Event listener'ları kur
+// Event listener setup
 function setupEventListeners() {
-    // Login butonu
+    // Login button
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
         loginBtn.addEventListener('click', login);
+        console.log('Login button listener added');
     }
     
-    // Email ve password inputları için enter key
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+        console.log('Logout button listener added');
+    }
+    
+    // Settings button
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', showSettingsModal);
+        console.log('Settings button listener added');
+    }
+    
+    // Close settings modal
+    const closeSettingsBtn = document.getElementById('closeSettingsModalBtn');
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', closeSettingsModal);
+    }
+    
+    // Email and password inputs for enter key
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     
     if (emailInput) {
         emailInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                login();
+            }
         });
     }
     
     if (passwordInput) {
         passwordInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                login();
+            }
         });
     }
     
-    // API key modalı için event listener'lar
+    // API key input for enter key
     const apiKeyInput = document.getElementById('apiKeyInput');
     if (apiKeyInput) {
         apiKeyInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') saveApiKey();
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveApiKey();
+            }
         });
     }
+    
+    // Modal close on outside click
+    window.addEventListener('click', function(event) {
+        const settingsModal = document.getElementById('settingsModal');
+        const apiKeyModal = document.getElementById('apiKeyModal');
+        
+        if (event.target === settingsModal) {
+            closeSettingsModal();
+        }
+        
+        if (event.target === apiKeyModal) {
+            apiKeyModal.style.display = 'none';
+        }
+    });
+    
+    console.log('Event listeners setup complete');
 }
 
-function showAlert(message, type = 'info', duration = 3000) {
-    console.log(`${type.toUpperCase()}: ${message}`);
-    
-    // Try to use existing alert system if available
-    const alertContainer = document.getElementById('alertContainer');
-    if (alertContainer) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type}`;
-        alertDiv.textContent = message;
-        alertContainer.appendChild(alertDiv);
+// Main initialization
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        console.log('Initializing ProClean application...');
         
-        setTimeout(() => {
-            alertDiv.remove();
-        }, duration);
-    } else {
-        // Fallback to browser alert
-        alert(`${type.toUpperCase()}: ${message}`);
+        // Initialize elements first
+        initializeElementsObject();
+        
+        // Setup event listeners
+        setupEventListeners();
+        
+        // Load API key and initialize Supabase
+        const savedApiKey = localStorage.getItem('procleanApiKey');
+        if (savedApiKey) {
+            SUPABASE_ANON_KEY = savedApiKey;
+            console.log('API key loaded from localStorage');
+            
+            const client = initializeSupabase();
+            if (client) {
+                setupAuthListener();
+                
+                // Test connection after a delay
+                setTimeout(() => {
+                    testConnection().then(isConnected => {
+                        if (!isConnected) {
+                            showApiKeyModal();
+                        }
+                    });
+                }, 1000);
+            }
+        } else {
+            console.log('No saved API key found');
+            // Show API key modal after a short delay
+            setTimeout(() => {
+                showApiKeyModal();
+            }, 1000);
+        }
+        
+        // Set initial display states
+        const loginScreen = document.getElementById('loginScreen');
+        const appContainer = document.getElementById('appContainer');
+        
+        if (loginScreen) loginScreen.style.display = 'flex';
+        if (appContainer) appContainer.style.display = 'none';
+        
+        console.log('ProClean application initialized successfully');
+        
+    } catch (error) {
+        console.error('Critical error during initialization:', error);
+        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
+        
+        // Show fallback UI
+        document.body.innerHTML = `
+            <div style="padding: 40px; text-align: center; font-family: Arial, sans-serif;">
+                <h2 style="color: #e74c3c;">Uygulama Başlatılamadı</h2>
+                <p>Bir hata oluştu: ${error.message}</p>
+                <button onclick="location.reload()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Sayfayı Yenile
+                </button>
+            </div>
+        `;
     }
-}
+});
+
+// Global error handler
+window.addEventListener('error', function(event) {
+    console.error('Global error:', event.error);
+    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+});
+
+// Handle unhandled promise rejections
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('Unhandled promise rejection:', event.reason);
+    showAlert('Bir işlem tamamlanamadı. Lütfen tekrar deneyin.', 'error');
+});
