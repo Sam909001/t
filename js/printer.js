@@ -64,7 +64,90 @@ class PrinterService {
         console.log(`Printer status: ${status} - ${message}`);
     }
     
-   async printBarcode(barcode
+    async printBarcode(barcode, text = '') {
+        if (!this.isConnected) {
+            console.error('❌ Printer not connected');
+            showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
+            return false;
+        }
+        
+        try {
+            console.log(`🖨️ Printing: ${barcode} - ${text}`);
+            
+            // Generate a simple PDF with the barcode instead of calling barcode endpoint
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: [80, 50] });
+            
+            // Add text
+            doc.setFontSize(12);
+            doc.text(text || 'ProClean', 40, 10, { align: 'center' });
+            
+            // Add barcode
+            const canvas = document.createElement('canvas');
+            JsBarcode(canvas, barcode, {
+                format: "CODE128",
+                width: 2,
+                height: 20,
+                displayValue: true,
+                fontSize: 10,
+                margin: 0
+            });
+            
+            const barcodeDataUrl = canvas.toDataURL('image/png');
+            doc.addImage(barcodeDataUrl, 'PNG', 20, 15, 40, 20);
+            
+            // Add package number below barcode
+            doc.setFontSize(10);
+            doc.text(barcode, 40, 40, { align: 'center' });
+            
+            // Convert to base64
+            const pdfBase64 = doc.output('datauristring');
+            
+            // Send to PDF print endpoint (which exists on your server)
+            const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    pdfData: pdfBase64,
+                    copies: 1,
+                    scaling: 'fit'
+                }),
+                signal: AbortSignal.timeout(10000)
+            });
+            
+            // Check if response is HTML instead of JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                const htmlResponse = await response.text();
+                console.error('Server returned HTML:', htmlResponse.substring(0, 500));
+                throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Print successful: ${barcode}`);
+                return true;
+            } else {
+                console.error(`❌ Print failed: ${result.error}`);
+                showAlert(`❌ Yazdırma hatası: ${result.error}`, 'error');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error(`❌ Print error:`, error);
+            let userMessage = 'Yazdırma hatası: ';
+            if (error.name === 'AbortError') {
+                userMessage += 'İstek zaman aşımı. Sunucu yanıt vermiyor.';
+            } else {
+                userMessage += error.message;
+            }
+            showAlert(userMessage, 'error');
+            return false;
+        }
+    }
 
     async testPrint() {
         const testBarcode = '123456789';
@@ -135,8 +218,6 @@ class PrinterService {
         }
     }
 }
-
-
 
 // ================== PRINTER FUNCTIONS ==================
 function initializePrinter() {
@@ -239,8 +320,10 @@ async function printAllLabels() {
 
             console.log(`📦 Processing package ${i + 1}:`, pkg);
 
-            // Use PDF printing instead of barcode printing
-            const printResult = await printerInstance.printPDFLabel(pkg);
+            const labelText = `${pkg.customer_name} - ${pkg.product}`;
+            const barcode = pkg.package_no;
+
+            const printResult = await printerInstance.printBarcode(barcode, labelText);
 
             if (printResult) {
                 successCount++;
@@ -268,9 +351,9 @@ async function printAllLabels() {
     } else {
         showAlert(`❌ Hiçbir etiket yazdırılamadı. ${errorCount} hata oluştu.`, 'error');
     }
+
+    console.log(`Print job completed: ${successCount} success, ${errorCount} errors`);
 }
-
-
 
 // ================== INITIALIZATION ==================
 function initializePrinterService() {
