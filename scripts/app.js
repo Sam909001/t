@@ -94,6 +94,124 @@ async function initApp() {
 }
 
 
+        // Settings functions
+function showSettingsModal() {
+    loadSettings(); // Load current settings
+    checkSystemStatus(); // Update status indicators
+    document.getElementById('settingsModal').style.display = 'flex';
+}
+
+function closeSettingsModal() {
+    document.getElementById('settingsModal').style.display = 'none';
+}
+
+function loadSettings() {
+    // Load saved settings from localStorage
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    
+    // Theme
+    if (settings.theme === 'dark') {
+        document.getElementById('themeToggle').checked = true;
+        document.body.classList.add('dark-mode');
+    }
+    
+    // Printer settings
+    if (settings.printerScaling) {
+        document.getElementById('printerScaling').value = settings.printerScaling;
+    }
+    
+    if (settings.copies) {
+        document.getElementById('copiesNumber').value = settings.copies;
+    }
+    
+    // Language
+    if (settings.language) {
+        document.getElementById('languageSelect').value = settings.language;
+    }
+    
+    // Auto-save
+    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+}
+
+function saveAllSettings() {
+    const settings = {
+        theme: document.getElementById('themeToggle').checked ? 'dark' : 'light',
+        printerScaling: document.getElementById('printerScaling').value,
+        copies: parseInt(document.getElementById('copiesNumber').value),
+        language: document.getElementById('languageSelect').value,
+        autoSave: document.getElementById('autoSaveToggle').checked
+    };
+    
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
+    applySettings(settings);
+    showAlert('Ayarlar kaydedildi', 'success');
+}
+
+function applySettings(settings) {
+    // Apply theme
+    if (settings.theme === 'dark') {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+    
+    // Apply language (you'll need to implement language files)
+    if (settings.language) {
+        changeLanguage(settings.language);
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.getElementById('themeToggle').checked;
+    document.body.classList.toggle('dark-mode', isDark);
+    document.getElementById('themeStatus').textContent = isDark ? 'Koyu' : 'Açık';
+}
+
+function checkSystemStatus() {
+    // Check database connection
+    const dbStatus = document.getElementById('dbConnectionStatus');
+    if (supabase) {
+        dbStatus.textContent = 'Bağlı';
+        dbStatus.className = 'status-indicator connected';
+    } else {
+        dbStatus.textContent = 'Bağlantı Yok';
+        dbStatus.className = 'status-indicator disconnected';
+    }
+    
+    // Check printer connection
+    const printerStatus = document.getElementById('printerConnectionStatus');
+    if (printer && printer.isConnected) {
+        printerStatus.textContent = 'Bağlı';
+        printerStatus.className = 'status-indicator connected';
+    } else {
+        printerStatus.textContent = 'Bağlantı Yok';
+        printerStatus.className = 'status-indicator disconnected';
+    }
+}
+
+function exportData(format) {
+    // Implementation for data export
+    showAlert(`${format.toUpperCase()} formatında veri indirme hazırlanıyor...`, 'info');
+    // Add your export logic here
+}
+
+function clearLocalData() {
+    if (confirm('Tüm yerel veriler silinecek. Emin misiniz?')) {
+        localStorage.removeItem('procleanState');
+        localStorage.removeItem('procleanOfflineData');
+        localStorage.removeItem('procleanSettings');
+        showAlert('Yerel veriler temizlendi', 'success');
+    }
+}
+
+// Initialize settings on app load
+function initializeSettings() {
+    const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    applySettings(savedSettings);
+}
+
+
+
 
 
 // Event listener'ları kur
