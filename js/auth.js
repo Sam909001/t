@@ -125,4 +125,36 @@ function applyRoleBasedPermissions(role) {
 
 
 
+// Basit form doğrulama fonksiyonu
+function validateForm(fields) {
+    let valid = true;
+
+    fields.forEach(field => {
+        const el = document.getElementById(field.id);
+        const errorEl = document.getElementById(field.errorId);
+        if (!el) return;
+
+        let value = el.value.trim();
+
+        // Temel kontrol
+        if (field.required && value === '') {
+            valid = false;
+            if (errorEl) errorEl.textContent = 'Bu alan zorunludur.';
+        } else if (field.type === 'email') {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+                valid = false;
+                if (errorEl) errorEl.textContent = 'Geçerli bir e-posta giriniz.';
+            } else {
+                if (errorEl) errorEl.textContent = '';
+            }
+        } else {
+            if (errorEl) errorEl.textContent = '';
+        }
+    });
+
+    return valid;
+}
+
+
 
