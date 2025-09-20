@@ -15,7 +15,7 @@ class ProCleanApp {
             console.log('Initializing ProClean application...');
             
             // Initialize utilities first
-            NotificationManager.init();
+            window.NotificationManager.init();
             OfflineManager.init();
             
             // Initialize database connection
@@ -38,7 +38,7 @@ class ProCleanApp {
             
         } catch (error) {
             console.error('Application initialization failed:', error);
-            NotificationManager.showAlert('Uygulama başlatılamadı: ' + error.message, 'error');
+            window.NotificationManager.showAlert('Uygulama başlatılamadı: ' + error.message, 'error');
         }
     }
 
@@ -167,12 +167,12 @@ class ProCleanApp {
             const customer = await CustomerManager.getCustomer(customerId);
             if (customer) {
                 this.selectedCustomer = customer;
-                NotificationManager.showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
+                window.NotificationManager.showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
                 this.saveAppState();
             }
         } catch (error) {
             console.error('Error selecting customer:', error);
-            NotificationManager.showAlert('Müşteri bilgileri alınamadı', 'error');
+            window.NotificationManager.showAlert('Müşteri bilgileri alınamadı', 'error');
         }
     }
 
@@ -300,7 +300,7 @@ class ProCleanApp {
         // Load saved state
         this.loadAppState();
 
-        NotificationManager.showAlert('Giriş başarılı!', 'success');
+        window.NotificationManager.showAlert('Giriş başarılı!', 'success');
     }
 
     applyRolePermissions(role) {
@@ -331,7 +331,7 @@ class ProCleanApp {
             console.log('App data loaded successfully');
         } catch (error) {
             console.error('Error loading app data:', error);
-            NotificationManager.showAlert('Veriler yüklenirken hata oluştu', 'warning');
+            window.NotificationManager.showAlert('Veriler yüklenirken hata oluştu', 'warning');
         }
     }
 
