@@ -1,3 +1,60 @@
+
+function initializeElementsObject() {
+    const elementMap = {
+        loginScreen: 'loginScreen',
+        appContainer: 'appContainer',
+        loginButton: 'loginBtn',
+        emailInput: 'email',
+        passwordInput: 'password',
+        customerSelect: 'customerSelect',
+        personnelSelect: 'personnelSelect',
+        currentDate: 'currentDate',
+        barcodeInput: 'barcodeInput',
+        packagesTableBody: 'packagesTableBody',
+        packageDetailContent: 'packageDetailContent',
+        shippingFolders: 'shippingFolders',
+        stockTableBody: 'stockTableBody',
+        customerList: 'customerList',
+        allCustomersList: 'allCustomersList',
+        toast: 'toast',
+        containerNumber: 'containerNumber',
+        totalPackages: 'totalPackages',
+        shippingFilter: 'shippingFilter',
+        stockSearch: 'stockSearch',
+        selectAllPackages: 'selectAllPackages',
+        apiKeyModal: 'apiKeyModal',
+        apiKeyInput: 'apiKeyInput',
+        quantityInput: 'quantityInput',
+        quantityModal: 'quantityModal',
+        quantityModalTitle: 'quantityModalTitle',
+        scannedBarcodes: 'scannedBarcodes',
+        connectionStatus: 'connectionStatus',
+        alertContainer: 'alertContainer',
+        scannerToggle: 'scannerToggle',
+        containerSearch: 'containerSearch',
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        toggleThemeBtn: 'toggleThemeBtn',
+        downloadDataBtn: 'downloadDataBtn',
+        changeApiKeyBtn: 'changeApiKeyBtn',
+    };
+    
+    Object.keys(elementMap).forEach(key => {
+        const element = document.getElementById(elementMap[key]);
+        if (element) {
+            elements[key] = element;
+        } else {
+            console.warn(`Element ${elementMap[key]} not found`);
+            elements[key] = null;
+        }
+    });
+    
+    return elements;
+}
+
+
+
+
 // Profesyonel alert sistemi
 function showAlert(message, type = 'info', duration = 5000) {
     if (!elements.alertContainer) {
