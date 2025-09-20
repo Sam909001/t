@@ -47,13 +47,22 @@ async function safeSetElementDisplay(elementId, displayValue, maxRetries = 5) {
 async function safeSetElementHTML(elementId, html, maxRetries = 5) {
     try {
         const element = await waitForElement(elementId, maxRetries * 10, 100);
-        element.innerHTML = html;
+        // Sanitize HTML before setting
+        element.innerHTML = sanitizeHTML(html);
         return true;
     } catch (error) {
         console.warn(error.message);
         return false;
     }
 }
+
+function sanitizeHTML(html) {
+    const div = document.createElement('div');
+    div.textContent = html;
+    return div.innerHTML;
+}
+
+
 
 // Check if element exists
 function elementExists(id) {
