@@ -3,19 +3,23 @@ const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
 
-// Global state variables
-let selectedCustomer = null;
-let currentPackage = {};
-let currentContainer = null;
-let selectedProduct = null;
-let currentUser = null;
-let scannedBarcodes = [];
-let editingStockItem = null;
-let scannerMode = false;
-let currentContainerDetails = null;
-let currentReportData = null;
-let selectedPackageForPrinting = null;
+// In supabase.js, replace scattered globals with:
+const AppState = {
+    supabase: null,
+    currentUser: null,
+    selectedCustomer: null,
+    currentPackage: {},
+    currentContainer: null,
+    selectedProduct: null,
+    scannedBarcodes: [],
+    editingStockItem: null,
+    scannerMode: false,
+    currentContainerDetails: null,
+    currentReportData: null,
+    selectedPackageForPrinting: null
+};
 
+// Update all references to use AppState.variableName
 // Global elements cache
 const elements = {};
 
