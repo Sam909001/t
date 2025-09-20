@@ -1,6 +1,7 @@
 // scripts/domUtils.js
 
 // DOM element waiting utility
+// Keep only in domUtils.js, remove from auth.js and debug.js
 function waitForElement(id, maxAttempts = 50, interval = 100) {
     return new Promise((resolve, reject) => {
         let attempts = 0;
@@ -17,6 +18,8 @@ function waitForElement(id, maxAttempts = 50, interval = 100) {
         }, interval);
     });
 }
+
+
 
 // Safe element operations
 async function safeSetElementText(elementId, text, maxRetries = 5) {
