@@ -78,7 +78,7 @@ class PrinterService {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ 
                 unit: 'mm', 
-                format: [80, 100], // 8x10 cm
+                format: [70, 90], // 8x10 cm
                 orientation: 'portrait'
             });
             
@@ -87,9 +87,9 @@ class PrinterService {
             let yPosition = margin;
             
             // Company header with larger font
-            doc.setFontSize(16);
+            doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
-            doc.text('PROCLEAN', 40, yPosition, { align: 'center' });
+            doc.text('Yeditep Laundry', 40, yPosition, { align: 'center' });
             yPosition += 8;
             
             // Divider line
@@ -154,7 +154,7 @@ class PrinterService {
             
             // Additional text if provided
             if (text) {
-                doc.setFontSize(10);
+                doc.setFontSize(9);
                 doc.setFont('helvetica', 'normal');
                 const truncatedText = text.length > 35 ? text.substring(0, 32) + '...' : text;
                 doc.text(truncatedText, 40, yPosition, { align: 'center' });
@@ -164,7 +164,6 @@ class PrinterService {
             // Footer with company info
             doc.setFontSize(8);
             doc.setFont('helvetica', 'italic');
-            doc.text('www.proclean.com.tr', 40, 95, { align: 'center' });
             
             // Convert to base64
             const pdfBase64 = doc.output('datauristring');
