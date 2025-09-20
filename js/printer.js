@@ -64,183 +64,179 @@ class PrinterService {
         console.log(`Printer status: ${status} - ${message}`);
     }
     
-    async function printBarcode(barcode, text = '', packageInfo = null) {
-    if (!this.isConnected) {
-        console.error('❌ Printer not connected');
-        showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
-        return false;
-    }
-    
-    try {
-        console.log(`🖨️ Printing: ${barcode} - ${text}`);
-        
-        // Generate a professional PDF label (8x10 cm = 80x100 mm)
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ 
-            unit: 'mm', 
-            format: [80, 100], // 8x10 cm
-            orientation: 'portrait'
-        });
-        
-        // Set margins
-        const margin = 5;
-        let yPosition = margin;
-        
-        // Company header with larger font
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text('PROCLEAN', 40, yPosition, { align: 'center' });
-        yPosition += 8;
-        
-        // Divider line
-        doc.line(margin, yPosition, 80 - margin, yPosition);
-        yPosition += 5;
-        
-        // Package info section
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        
-        if (packageInfo) {
-            // Customer name (truncate if too long)
-            const customerName = packageInfo.customer_name || 'Müşteri';
-            const truncatedCustomer = customerName.length > 25 ? customerName.substring(0, 22) + '...' : customerName;
-            doc.text('MÜŞTERİ:', margin, yPosition);
-            doc.setFont('helvetica', 'normal');
-            doc.text(truncatedCustomer, 25, yPosition);
-            yPosition += 5;
-            
-            // Product name (truncate if too long)
-            doc.setFont('helvetica', 'bold');
-            const productName = packageInfo.product || 'Ürün';
-            const truncatedProduct = productName.length > 25 ? productName.substring(0, 22) + '...' : productName;
-            doc.text('ÜRÜN:', margin, yPosition);
-            doc.setFont('helvetica', 'normal');
-            doc.text(truncatedProduct, 25, yPosition);
-            yPosition += 5;
-            
-            // Date
-            doc.setFont('helvetica', 'bold');
-            const date = packageInfo.created_at ? new Date(packageInfo.created_at).toLocaleDateString('tr-TR') : new Date().toLocaleDateString('tr-TR');
-            doc.text('TARİH:', margin, yPosition);
-            doc.setFont('helvetica', 'normal');
-            doc.text(date, 25, yPosition);
-            yPosition += 5;
-        }
-        
-        // Divider before barcode
-        doc.line(margin, yPosition, 80 - margin, yPosition);
-        yPosition += 5;
-        
-        // Large barcode
-        const canvas = document.createElement('canvas');
-        JsBarcode(canvas, barcode, {
-            format: "CODE128",
-            width: 2.5, // Wider bars
-            height: 30, // Taller barcode
-            displayValue: false, // We'll add the number separately
-            fontSize: 12,
-            margin: 0
-        });
-        
-        const barcodeDataUrl = canvas.toDataURL('image/png');
-        doc.addImage(barcodeDataUrl, 'PNG', margin, yPosition, 70, 25); // Wider barcode
-        yPosition += 28;
-        
-        // Barcode number below (centered)
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(barcode, 40, yPosition, { align: 'center' });
-        yPosition += 7;
-        
-        // Additional text if provided
-        if (text) {
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            const truncatedText = text.length > 35 ? text.substring(0, 32) + '...' : text;
-            doc.text(truncatedText, 40, yPosition, { align: 'center' });
-            yPosition += 6;
-        }
-        
-        // Footer with company info
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'italic');
-        doc.text('www.proclean.com.tr', 40, 95, { align: 'center' });
-        
-        // Convert to base64
-        const pdfBase64 = doc.output('datauristring');
-        
-        // Send to PDF print endpoint
-        const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                pdfData: pdfBase64,
-                copies: 1,
-                scaling: 'fit'
-            }),
-            signal: AbortSignal.timeout(15000) // 15 second timeout
-        });
-        
-        // Check if response is HTML instead of JSON
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('text/html')) {
-            const htmlResponse = await response.text();
-            console.error('Server returned HTML:', htmlResponse.substring(0, 500));
-            throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            console.log(`✅ Print successful: ${barcode}`);
-            return true;
-        } else {
-            console.error(`❌ Print failed: ${result.error}`);
-            showAlert(`❌ Yazdırma hatası: ${result.error}`, 'error');
+    async printBarcode(barcode, text = '', packageInfo = null) {
+        if (!this.isConnected) {
+            console.error('❌ Printer not connected');
+            showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
             return false;
         }
         
-    } catch (error) {
-        console.error(`❌ Print error:`, error);
-        let userMessage = 'Yazdırma hatası: ';
-        if (error.name === 'AbortError') {
-            userMessage += 'İstek zaman aşımı. Sunucu yanıt vermiyor.';
-        } else {
-            userMessage += error.message;
+        try {
+            console.log(`🖨️ Printing: ${barcode} - ${text}`);
+            
+            // Generate a professional PDF label (8x10 cm = 80x100 mm)
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ 
+                unit: 'mm', 
+                format: [80, 100], // 8x10 cm
+                orientation: 'portrait'
+            });
+            
+            // Set margins
+            const margin = 5;
+            let yPosition = margin;
+            
+            // Company header with larger font
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text('PROCLEAN', 40, yPosition, { align: 'center' });
+            yPosition += 8;
+            
+            // Divider line
+            doc.line(margin, yPosition, 80 - margin, yPosition);
+            yPosition += 5;
+            
+            // Package info section
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            
+            if (packageInfo) {
+                // Customer name (truncate if too long)
+                const customerName = packageInfo.customer_name || 'Müşteri';
+                const truncatedCustomer = customerName.length > 25 ? customerName.substring(0, 22) + '...' : customerName;
+                doc.text('MÜŞTERİ:', margin, yPosition);
+                doc.setFont('helvetica', 'normal');
+                doc.text(truncatedCustomer, 25, yPosition);
+                yPosition += 5;
+                
+                // Product name (truncate if too long)
+                doc.setFont('helvetica', 'bold');
+                const productName = packageInfo.product || 'Ürün';
+                const truncatedProduct = productName.length > 25 ? productName.substring(0, 22) + '...' : productName;
+                doc.text('ÜRÜN:', margin, yPosition);
+                doc.setFont('helvetica', 'normal');
+                doc.text(truncatedProduct, 25, yPosition);
+                yPosition += 5;
+                
+                // Date
+                doc.setFont('helvetica', 'bold');
+                const date = packageInfo.created_at ? new Date(packageInfo.created_at).toLocaleDateString('tr-TR') : new Date().toLocaleDateString('tr-TR');
+                doc.text('TARİH:', margin, yPosition);
+                doc.setFont('helvetica', 'normal');
+                doc.text(date, 25, yPosition);
+                yPosition += 5;
+            }
+            
+            // Divider before barcode
+            doc.line(margin, yPosition, 80 - margin, yPosition);
+            yPosition += 5;
+            
+            // Large barcode
+            const canvas = document.createElement('canvas');
+            JsBarcode(canvas, barcode, {
+                format: "CODE128",
+                width: 2.5, // Wider bars
+                height: 30, // Taller barcode
+                displayValue: false, // We'll add the number separately
+                fontSize: 12,
+                margin: 0
+            });
+            
+            const barcodeDataUrl = canvas.toDataURL('image/png');
+            doc.addImage(barcodeDataUrl, 'PNG', margin, yPosition, 70, 25); // Wider barcode
+            yPosition += 28;
+            
+            // Barcode number below (centered)
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(barcode, 40, yPosition, { align: 'center' });
+            yPosition += 7;
+            
+            // Additional text if provided
+            if (text) {
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                const truncatedText = text.length > 35 ? text.substring(0, 32) + '...' : text;
+                doc.text(truncatedText, 40, yPosition, { align: 'center' });
+                yPosition += 6;
+            }
+            
+            // Footer with company info
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.text('www.proclean.com.tr', 40, 95, { align: 'center' });
+            
+            // Convert to base64
+            const pdfBase64 = doc.output('datauristring');
+            
+            // Send to PDF print endpoint
+            const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    pdfData: pdfBase64,
+                    copies: 1,
+                    scaling: 'fit'
+                }),
+                signal: AbortSignal.timeout(15000) // 15 second timeout
+            });
+            
+            // Check if response is HTML instead of JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                const htmlResponse = await response.text();
+                console.error('Server returned HTML:', htmlResponse.substring(0, 500));
+                throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Print successful: ${barcode}`);
+                return true;
+            } else {
+                console.error(`❌ Print failed: ${result.error}`);
+                showAlert(`❌ Yazdırma hatası: ${result.error}`, 'error');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error(`❌ Print error:`, error);
+            let userMessage = 'Yazdırma hatası: ';
+            if (error.name === 'AbortError') {
+                userMessage += 'İstek zaman aşımı. Sunucu yanıt vermiyor.';
+            } else {
+                userMessage += error.message;
+            }
+            showAlert(userMessage, 'error');
+            return false;
         }
-        showAlert(userMessage, 'error');
-        return false;
     }
-}
 
-    
-   async function testPrint() {
-    const testBarcode = '123456789';
-    const testText = `Test Etiketi - ${new Date().toLocaleTimeString('tr-TR')}`;
-    
-    // Create sample package info for test
-    const testPackageInfo = {
-        customer_name: 'Test Müşteri',
-        product: 'Test Ürün',
-        created_at: new Date().toISOString()
-    };
-    
-    console.log('🧪 Testing printer with enhanced label...');
-    const result = await this.printBarcode(testBarcode, testText, testPackageInfo);
-    
-    if (result) {
-        showAlert('✅ Test yazdırma başarılı! Yeni etiket formatı kullanılıyor.', 'success');
-    } else {
-        showAlert('❌ Test yazdırma başarısız!', 'error');
+    async testPrint() {
+        const testBarcode = '123456789';
+        const testText = `Test Etiketi - ${new Date().toLocaleTimeString('tr-TR')}`;
+        
+        // Create sample package info for test
+        const testPackageInfo = {
+            customer_name: 'Test Müşteri',
+            product: 'Test Ürün',
+            created_at: new Date().toISOString()
+        };
+        
+        console.log('🧪 Testing printer with enhanced label...');
+        const result = await this.printBarcode(testBarcode, testText, testPackageInfo);
+        
+        if (result) {
+            showAlert('✅ Test yazdırma başarılı! Yeni etiket formatı kullanılıyor.', 'success');
+        } else {
+            showAlert('❌ Test yazdırma başarısız!', 'error');
+        }
+        
+        return result;
     }
-    
-    return result;
-}
-
-
-    
     
     async printPDFLabel(pkg) {
         if (!this.isConnected) {
@@ -446,9 +442,6 @@ async function printAllLabels() {
 
     console.log(`Print job completed: ${successCount} success, ${errorCount} errors`);
 }
-
-
-
 
 // ================== INITIALIZATION ==================
 function initializePrinterService() {
