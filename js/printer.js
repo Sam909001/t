@@ -197,6 +197,22 @@ class PrinterService {
     }
 }
 
+
+// Test printer access
+const pdfToPrinter = require('pdf-to-printer');
+
+pdfToPrinter.getPrinters()
+  .then(printers => {
+    console.log('Available printers:', printers);
+    if (printers.length === 0) {
+      console.log('No printers found. Check printer connections.');
+    }
+  })
+  .catch(error => {
+    console.error('Error accessing printers:', error);
+  });
+
+
 // ================== Print All Labels ==================
 async function printAllLabels() {
     console.log('🚀 Starting printAllLabels function...');
