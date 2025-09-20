@@ -407,6 +407,29 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+
+function showAlert(message, type = 'info', duration = 3000) {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    // Try to use existing alert system if available
+    const alertContainer = document.getElementById('alertContainer');
+    if (alertContainer) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.textContent = message;
+        alertContainer.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, duration);
+    } else {
+        // Fallback to browser alert
+        alert(`${type.toUpperCase()}: ${message}`);
+    }
+}
+
+
+
 // Global error handler
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
