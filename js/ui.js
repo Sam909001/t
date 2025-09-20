@@ -376,5 +376,41 @@ function checkOnlineStatus() {
 
 
 
+// Stok düzenleme fonksiyonları
+        function editStockItem(button, code) {
+            const row = button.closest('tr');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            
+            // Düzenleme moduna geç
+            quantitySpan.style.display = 'none';
+            quantityInput.style.display = 'block';
+            editButton.style.display = 'none';
+            editButtons.style.display = 'flex';
+            
+            editingStockItem = code;
+        }
+
+
+
+
+function cancelEditStockItem(code, originalQuantity) {
+            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            
+            // Değişiklikleri iptal et
+            quantityInput.value = originalQuantity;
+            quantitySpan.style.display = 'block';
+            quantityInput.style.display = 'none';
+            editButton.style.display = 'block';
+            editButtons.style.display = 'none';
+            
+            editingStockItem = null;
+        }
 
 
