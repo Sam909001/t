@@ -83,23 +83,25 @@ function initializeElementsObject() {
         alertContainer: 'alertContainer',
         scannerToggle: 'scannerToggle',
         containerSearch: 'containerSearch',
-        userRole: 'userRole'
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        toggleThemeBtn: 'toggleThemeBtn',
+        downloadDataBtn: 'downloadDataBtn',
+        changeApiKeyBtn: 'changeApiKeyBtn',
     };
-    
-    let foundCount = 0;
-    let missingCount = 0;
     
     Object.keys(elementMap).forEach(key => {
         const element = document.getElementById(elementMap[key]);
         if (element) {
             elements[key] = element;
-            foundCount++;
         } else {
-            console.warn(`Element ${elementMap[key]} not found (will retry later)`);
+            console.warn(`Element ${elementMap[key]} not found`);
             elements[key] = null;
-            missingCount++;
         }
     });
+    
+    return elements;
+}
     
     console.log(`Elements initialized: ${foundCount} found, ${missingCount} missing`);
     return elements;
