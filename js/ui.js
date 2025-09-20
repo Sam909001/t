@@ -570,30 +570,6 @@ document.addEventListener('DOMContentLoaded', loadSettings);
 
     
 
-// Apply settings to UI and app
-function applySettings(settings) {
-    // Theme
-    if (settings.theme === 'dark') {
-        document.body.classList.add('dark-mode');
-        document.getElementById('themeToggle').checked = true;
-    } else {
-        document.body.classList.remove('dark-mode');
-        document.getElementById('themeToggle').checked = false;
-    }
-
-    // Printer scaling
-    document.getElementById('printerScaling').value = settings.printerScaling || '100';
-
-    // Copies
-    document.getElementById('copiesNumber').value = settings.copies || 1;
-
-    // Language
-    document.getElementById('languageSelect').value = settings.language || 'tr';
-
-    // Auto-save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
-}
-
 // Save all settings
 function saveAllSettings() {
     const settings = {
@@ -658,8 +634,6 @@ function applySettings(settings) {
     // You can call any additional functions here if needed to apply settings live
 }
 
-
-    
 
 
 
