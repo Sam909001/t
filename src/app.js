@@ -369,6 +369,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Initialize NotificationManager explicitly
         window.NotificationManager.init();
+        window.OfflineManager.init();
+
 
         // Initialize OfflineManager (if you have it)
         if (window.OfflineManager) window.OfflineManager.init?.();
