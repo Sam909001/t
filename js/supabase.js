@@ -47,3 +47,90 @@ async function testConnection() {
         return false;
     }
 }
+
+
+        
+// FIXED: Supabase istemcisini başlat - Singleton pattern ile
+function initializeSupabase() {
+    // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
+    if (supabase && SUPABASE_ANON_KEY) {
+        return supabase;
+    }
+    
+    if (!SUPABASE_ANON_KEY) {
+        console.warn('Supabase API key not set, showing modal');
+        showApiKeyModal();
+        return null;
+    }
+    
+    try {
+        // Global supabase değişkenine ata
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase client initialized successfully');
+        return supabase;
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
+        showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+        showApiKeyModal();
+        return null;
+    }
+}
+
+
+        
+
+// FIXED: API anahtarını kaydet ve istemciyi başlat
+function saveApiKey() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    if (!apiKey) {
+        showAlert('Lütfen bir API anahtarı girin', 'error');
+        return;
+    }
+    
+    // Eski client'ı temizle
+    supabase = null;
+    
+    // Yeni API key'i ayarla
+    SUPABASE_ANON_KEY = apiKey;
+    localStorage.setItem('procleanApiKey', apiKey);
+    
+    // Yeni client oluştur
+    const newClient = initializeSupabase();
+    
+    if (newClient) {
+        document.getElementById('apiKeyModal').style.display = 'none';
+        showAlert('API anahtarı kaydedildi', 'success');
+        testConnection();
+    }
+}
+
+     
+
+// Yardımcı fonksiyonlar
+function getSupabaseClient() {
+    if (!supabase) {
+        return initializeSupabase();
+    }
+    return supabase;
+}
+
+
+
+
+        
+function isSupabaseReady() {
+    return supabase !== null && SUPABASE_ANON_KEY !== null;
+}
+
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+document.addEventListener('DOMContentLoaded', () => {
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        initializeSupabase();
+        console.log('API key loaded from localStorage');
+    }
+});
+
+
+
