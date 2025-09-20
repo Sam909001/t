@@ -296,31 +296,45 @@ window.addEventListener('error', function(e) {
 });
 
 // Sayfa yüklendiğinde çalışacak ana fonksiyon
-document.addEventListener('DOMContentLoaded', function() {
+// Replace the DOMContentLoaded event listener in app.js
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('DOM fully loaded, starting application setup...');
     
-    // Önce elementleri initialize et
+    // Wait a bit for all elements to be available
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Initialize elements
     if (typeof initializeElementsObject === 'function') {
         initializeElementsObject();
     }
     
-    // API anahtarını yükle ve supabase'i başlat
+    // Retry missing elements with more attempts
+    await retryMissingElements(20, 300);
+    
+    // Load API key and initialize Supabase
     if (typeof loadApiKey === 'function') {
         loadApiKey();
     }
     
-    // Auth listener'ı kur
+    if (typeof initializeSupabase === 'function') {
+        initializeSupabase();
+    }
+    
+    // Setup auth listener
     if (typeof setupAuthListener === 'function') {
         setupAuthListener();
     }
     
-    // Çevrimdışı desteği etkinleştir
+    // Setup offline support
     setupOfflineSupport();
     
-    // Auto-save mekanizmasını kur
-    setInterval(() => {
-        if (typeof saveAppState === 'function') {
-            saveAppState();
-        }
-    }, 5000);
+    // Setup event listeners
+    if (typeof setupEventListeners === 'function') {
+        setupEventListeners();
+    }
+    
+    // Check if user is already logged in
+    if (supabase && currentUser) {
+        await initApp();
+    }
 });
