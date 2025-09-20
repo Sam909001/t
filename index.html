@@ -4,376 +4,626 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</title>
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    
-    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
-    
-    <!- Local Libraries -->
-    <script src="libs/JsBarcode.all.min.js"></script>
-    <script src="libs/jspdf.umd.min.js"></script>
-    <script src="libs/jspdf.plugin.autotable.min.js"></script>
-    <script src="libs/papaparse.min.js"></script>
-    <script src="libs/xlsx.full.min.js"></script>
-</head>
+    <link rel="stylesheet" href="css/styles.css">
+
+
+    <!-- ✅ Local libraries -->
+<script src="libs/JsBarcode.all.min.js"></script>
+<script src="libs/jspdf.umd.min.js"></script>
+<script src="libs/jspdf.plugin.autotable.min.js"></script>
+<script src="libs/papaparse.min.js"></script>
+<script src="libs/xlsx.full.min.js"></script>
+
+
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/printer.js"></script>
+<script src="js/app.js"></script>
+
+   
+    </head>
 <body>
-    <!-- Login Screen -->
-    <div id="loginScreen" class="login-container">
-        <div class="login-form">
-            <h1><i class="fas fa-tshirt"></i> ProClean</h1>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="email">E-posta</label>
-                    <input type="email" id="email" required>
-                    <div id="emailError" class="error-message"></div>
-                </div>
-                <div class="form-group">
-                    <label for="password">Şifre</label>
-                    <input type="password" id="password" required>
-                    <div id="passwordError" class="error-message"></div>
-                </div>
-                <button type="submit" id="loginBtn" class="btn btn-primary" style="width: 100%;">Giriş Yap</button>
-            </form>
-            <button id="apiKeyBtn" class="btn btn-link" style="margin-top: 1rem; width: 100%;">API Anahtarını Ayarla</button>
+    <!-- API Key Giriş Modalı -->
+    <div class="api-key-modal" id="apiKeyModal">
+        <div class="api-key-content">
+            <h2>Supabase API Anahtarı Gerekli</h2>
+            <p>Uygulamayı kullanabilmek için geçerli bir Supabase API anahtarı girmeniz gerekiyor.</p>
+            <input type="text" id="apiKeyInput" class="api-key-input" placeholder="Supabase API Anahtarınızı girin">
+            <div class="quantity-buttons">
+                <button type="button" class="btn btn-primary" onclick="saveApiKey()">Kaydet</button>
+                <button type="button" class="btn btn-secondary" onclick="showApiKeyHelp()">Yardım</button>
+            </div>
+            <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                API anahtarını nasıl alacağınızı bilmiyorsanız "Yardım" butonuna tıklayın.
+            </p>
         </div>
     </div>
 
-    <!-- Main Application -->
-    <div id="appContainer" class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="app-title">
-                <i class="fas fa-tshirt"></i> ProClean
+    <div class="login-container" id="loginScreen">
+        <div class="login-form">
+            <h1>ProClean - Oturum Aç</h1>
+            <div class="form-group">
+                <label for="email">E-posta</label>
+                <input type="email" id="email" placeholder="E-posta adresinizi girin" required>
+                <div class="validation-error" id="emailError">Geçerli bir e-posta adresi girin</div>
             </div>
+            <div class="form-group">
+                <label for="password">Şifre</label>
+                <input type="password" id="password" placeholder="Şifrenizi girin" required>
+                <div class="validation-error" id="passwordError">Şifre gereklidir</div>
+            </div>
+            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
+            <div style="margin-top: 1rem; text-align: center;">
+                <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container" id="appContainer" aria-hidden="true">
+        <div class="app-header">
+            <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
-                <span id="userRole">Yükleniyor...</span>
-                <button id="settingsBtn" class="btn"><i class="fas fa-cog"></i></button>
-                <button id="logoutBtn" class="btn"><i class="fas fa-sign-out-alt"></i> Çıkış</button>
-            </div>
-        </header>
+                <span id="userRole">Operatör: Yükleniyor...</span>
 
-        <!-- Navigation Tabs -->
-        <nav class="tabs">
-            <div class="tab active" data-tab="packaging">
-                <i class="fas fa-box"></i> Paketleme
-            </div>
-            <div class="tab" data-tab="shipping">
-                <i class="fas fa-truck"></i> Sevkiyat
-            </div>
-            <div class="tab" data-tab="stock">
-                <i class="fas fa-warehouse"></i> Stok
-            </div>
-            <div class="tab admin-only" data-tab="customers">
-                <i class="fas fa-users"></i> Müşteriler
-            </div>
-            <div class="tab admin-only" data-tab="reports">
-                <i class="fas fa-chart-bar"></i> Raporlar
-            </div>
-        </nav>
+            
+   <button id="settingsBtn" class="btn btn-secondary" onclick="showSettingsModal()">
+    <i class="fas fa-cog"></i>
+    <span>Ayarlar</span>
+</button>
 
-        <!-- Tab Content -->
-        <main class="tab-content">
-            <!-- Packaging Tab -->
-            <div id="packagingTab" class="tab-pane active">
+                
+                <button type="button" id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
+            </div>
+        </div>
+                       <div class="printer-status-section">
+    <div id="printer-status" class="printer-status">
+        <span id="printer-indicator">🔴</span>
+        <span id="printer-text">Checking printer...</span>
+        <button id="test-printer" onclick="testPrinter()">Test Printer</button>
+        <button onclick="checkPrinterStatus()">Check Status</button>
+    </div>
+</div>
+
+        <div class="tabs" role="tablist" aria-label="Ana Sekmeler">
+            <div class="tab active" data-tab="packaging" role="tab">Paketleme</div>
+            <div class="tab" data-tab="shipping" role="tab">Sevkiyat</div>
+            <div class="tab" data-tab="stock" role="tab">Stok Sorgu</div>
+            <div class="tab admin-only" data-tab="reports" role="tab">Raporlar</div>
+        </div>
+
+        <div class="tab-content">
+            <div class="tab-pane active" id="packagingTab">
                 <div class="packaging-header">
                     <div class="customer-info">
                         <div class="info-group">
-                            <label>Müşteri</label>
-                            <select id="customerSelect">
-                                <option value="">Müşteri Seçin</option>
+                            <label for="customerSelect">Müşteri Seçimi</label>
+                            <select id="customerSelect" required>
+                                <option value="">Müşteri seçin...</option>
                             </select>
+                            <div class="validation-error" id="customerError">Müşteri seçimi zorunludur</div>
                         </div>
                         <div class="info-group">
-                            <label>Personel</label>
-                            <select id="personnelSelect">
-                                <option value="">Personel Seçin</option>
+                            <label for="personnelSelect">Personel</label>
+                            <select id="personnelSelect" required>
+                                <option value="">Personel seçin...</option>
                             </select>
+                            <div class="validation-error" id="personnelError">Personel seçimi zorunludur</div>
                         </div>
                         <div class="info-group">
                             <label>Tarih</label>
-                            <span id="currentDate"></span>
+                            <span id="currentDate">-</span>
                         </div>
                     </div>
                     <div class="action-buttons">
-                        <button id="newContainerBtn" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Yeni Konteyner
-                        </button>
-                        <button id="printLabelsBtn" class="btn btn-warning">
-                            <i class="fas fa-print"></i> Etiket Yazdır
-                        </button>
+                        <button type="button" class="btn btn-primary" onclick="showAllCustomers()">Müşteri Yönetimi</button>
+                        <button type="button" class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
+                        <button type="button" class="btn btn-success" onclick="sendToRamp()">Konteynere Ekle</button>
                     </div>
                 </div>
 
                 <div class="packaging-content">
                     <div class="barcode-section">
-                        <h3><i class="fas fa-qrcode"></i> Barkod Okuyucu</h3>
+                        <h3>Barkod Okuma</h3>
                         <div class="barcode-input">
-                            <input type="text" id="barcodeInput" placeholder="Barkod okutun veya yazın">
-                            <button id="barcodeSubmit"><i class="fas fa-search"></i></button>
+                            <input type="text" id="barcodeInput" placeholder="Barkod okutun veya girin" autofocus>
+                            <button type="button" onclick="processBarcode()"><i class="fas fa-search"></i></button>
                         </div>
-                        <div id="scannedBarcodes" class="scanned-list"></div>
-                        <div class="quick-buttons" id="quickButtons"></div>
-                        <button id="scannerToggle" class="btn btn-secondary" style="width: 100%; margin-top: 1rem;">
-                            <i class="fas fa-camera"></i> Kamera Tarayıcı
+                        <div id="barcodeResult">
+                            <div id="scannedBarcodes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+                        </div>
+                        
+                        <div class="quick-buttons">
+                            <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
+                                <span>Büyük çarşaf</span>
+                                <div class="quantity-badge" id="Büyük Çarşaf-quantity">0</div>
+                            </div>
+                            <div class="quick-btn" onclick="openQuantityModal('Çarşaf')" data-product="Çarşaf">
+                                <span>Çarşaf</span>
+                                <div class="quantity-badge" id="Çarşaf-quantity">0</div>
+                            </div>
+                            <div class="quick-btn" onclick="openQuantityModal('Büyük Nevresim')" data-product="Büyük Nevresim">
+                                <span>Büyük Nevresim</span>
+                                <div class="quantity-badge" id="Büyük Nevresim-quantity">0</div>
+                            </div>
+                            <div class="quick-btn" onclick="openQuantityModal('Nevresim')" data-product="Nevresim">
+                                <span>Nevresim</span>
+                                <div class="quantity-badge" id="Nevresim-quantity">0</div>
+                            </div>
+                            <div class="quick-btn" onclick="openQuantityModal('Büyük Havlu')" data-product="Büyük Havlu">
+                                <span>Büyük Havlu</span>
+                                <div class="quantity-badge" id="Büyük Havlu-quantity">0</div>
+                            </div>
+                            <div class="quick-btn" onclick="openQuantityModal('Havlu')" data-product="Havlu">
+                                <span>Havlu</span>
+                                <div class="quantity-badge" id="Havlu-quantity">0</div>
+                            </div>
+                            <div class="quick-btn" onclick="openQuantityModal('Yastık')" data-product="Yastık">
+                                <span>Yastık</span>
+                                <div class="quantity-badge" id="Yastık-quantity">0</div>
+                            </div>
+                            <div class="quick-btn" onclick="openQuantityModal('Yastık Kılıfı')" data-product="Yastık Kılıfı">
+                                <span>Yastık Kılıfı</span>
+                                <div class="quantity-badge" id="Yastık Kılıfı-quantity">0</div>
+                            </div>
+                             <div class="quick-btn" onclick="openQuantityModal('Alez')" data-product="Alez">
+                                <span>Alez</span>
+                                <div class="quantity-badge" id="Alez-quantity">0</div>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="width:100%; margin-top:1rem;">Manuel Giriş</button>
+                        <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:0.5rem;" id="scannerToggle">
+                            <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
                         </button>
                     </div>
 
                     <div class="pending-packages">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <h3><i class="fas fa-clock"></i> Bekleyen Paketler</h3>
-                            <div>
-                                <input type="checkbox" id="selectAllPackages"> Tümünü Seç
-                            </div>
-                        </div>
-                        <table class="package-table">
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>Müşteri</th>
-                                    <th>Ürün</th>
-                                    <th>Adet</th>
-                                    <th>Durum</th>
-                                    <th>İşlemler</th>
-                                </tr>
-                            </thead>
-                            <tbody id="packagesTableBody"></tbody>
-                        </table>
-                    </div>
+    <h3>Bekleyen Paketler</h3>
+    <table class="package-table">
+        <thead>
+            <tr>
+                <th>
+                    <input type="checkbox" id="selectAllPackages" onchange="toggleSelectAll()">
+                </th>
+                <th>Paket No</th>
+                <th>Müşteri</th>
+                <th>Ürün</th>
+                <th>Tarih</th>
+                <th>Durum</th>
+            </tr>
+        </thead>
+        <tbody id="packagesTableBody">
+            </tbody>
+    </table>
+</div>
 
                     <div class="package-details">
-                        <h3><i class="fas fa-info-circle"></i> Paket Detayları</h3>
+                        <h3>Paket Detayları</h3>
                         <div id="packageDetailContent">
-                            <p>Paket seçin...</p>
+                            <p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>
                         </div>
+                        
                         <div class="package-actions">
-                            <button id="printPackageBtn" class="btn btn-success" disabled>
-                                <i class="fas fa-print"></i> Yazdır
-                            </button>
-                            <button id="editPackageBtn" class="btn btn-warning" disabled>
-                                <i class="fas fa-edit"></i> Düzenle
-                            </button>
-                            <button id="deletePackageBtn" class="btn btn-danger" disabled>
-                                <i class="fas fa-trash"></i> Sil
-                            </button>
+                            <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
+                            <button type="button" class="btn btn-warning" onclick="printAllLabels()">Etiket Yazdır</button>
+                            <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Shipping Tab -->
-            <div id="shippingTab" class="tab-pane">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2><i class="fas fa-truck"></i> Sevkiyat Klasörleri</h2>
-                    <div>
-                        <select id="shippingFilter">
-                            <option value="">Tüm Durumlar</option>
-                            <option value="beklemede">Beklemede</option>
-                            <option value="sevk-edildi">Sevk Edildi</option>
-                        </select>
-                        <button id="markAsShippedBtn" class="btn btn-success">
-                            <i class="fas fa-check"></i> Sevk Edildi İşaretle
-                        </button>
+            <div class="tab-pane" id="shippingTab">
+                <div class="packaging-header">
+                    <div class="customer-info">
+                        <div class="info-group">
+                            <label for="shippingFilter">Durum Filtresi</label>
+                            <select id="shippingFilter" onchange="filterShipping()">
+                                <option value="all">Tümü</option>
+                                <option value="beklemede">Beklemede</option>
+                                <option value="sevk-edildi">Sevk Edildi</option>
+                            </select>
+                        </div>
+                        <div class="info-group">
+                            <label for="containerSearch">Konteyner Ara</label>
+                            <input type="text" id="containerSearch" placeholder="Konteyner no..." oninput="searchContainers()">
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
+                        <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()">Mevcut Konteyner</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteContainer()">Konteyner Sil</button>
                     </div>
                 </div>
-                <div id="shippingFolders" class="shipping-container"></div>
+
+                <div id="shippingFolders">
+                    <!-- Customer folders will be populated here -->
+                </div>
             </div>
 
-            <!-- Stock Tab -->
-            <div id="stockTab" class="tab-pane">
+            <div class="tab-pane" id="stockTab">
                 <div class="stock-search">
-                    <input type="text" id="stockSearch" placeholder="Stok ara...">
-                    <button id="addStockBtn" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Stok Ekle
-                    </button>
-                    <button id="exportStockBtn" class="btn btn-secondary">
-                        <i class="fas fa-download"></i> Dışa Aktar
-                    </button>
+                    <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
+                    <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
+                    <button type="button" class="btn btn-success" onclick="exportStock()">Stokları Dışa Aktar</button>
                 </div>
+
                 <table class="stock-table">
                     <thead>
                         <tr>
-                            <th>Ürün Kodu</th>
+                            <th>Stok Kodu</th>
                             <th>Ürün Adı</th>
-                            <th>Stok Miktarı</th>
-                            <th>Minimum Stok</th>
+                            <th>Mevcut Adet</th>
+                            <th>Birim</th>
                             <th>Durum</th>
                             <th>Son Güncelleme</th>
                             <th>İşlemler</th>
                         </tr>
                     </thead>
-                    <tbody id="stockTableBody"></tbody>
+                    <tbody id="stockTableBody">
+                        <!-- Stock data will be populated here -->
+                    </tbody>
                 </table>
+
                 <div class="file-upload">
-                    <h3>Toplu Stok Yükleme</h3>
-                    <input type="file" id="stockFileInput" accept=".csv,.xlsx" style="display: none;">
-                    <label for="stockFileInput" class="upload-button">
-                        <i class="fas fa-upload"></i> Dosya Seç
-                    </label>
-                    <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
-                        CSV veya Excel dosyası yükleyebilirsiniz
-                    </p>
+                    <h3>Stok Dosyası Yükle</h3>
+                    <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
+                    <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
+                    <div>
+                        <span id="selectedFileName"></span>
+                        <div class="validation-error" id="fileError"></div>
+                    </div>
+                    <button type="button" class="upload-button" onclick="uploadStockFile()">
+                        <i class="fas fa-upload"></i> Dosya Yükle
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
+                        <i class="fas fa-download"></i> Şablon İndir
+                    </button>
                 </div>
             </div>
 
-            <!-- Customers Tab -->
-            <div id="customersTab" class="tab-pane">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2><i class="fas fa-users"></i> Müşteri Yönetimi</h2>
-                    <div>
-                        <input type="text" id="customerSearch" placeholder="Müşteri ara...">
-                        <button id="addCustomerBtn" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Müşteri Ekle
-                        </button>
+            <div class="tab-pane admin-only" id="reportsTab">
+                <div class="packaging-header">
+                    <h3>Raporlar</h3>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-primary" onclick="generateCustomReport()">Özel Rapor</button>
+                        <button type="button" class="btn btn-warning" onclick="exportReports()">Raporları Dışa Aktar</button>
                     </div>
                 </div>
-                <div id="allCustomersList" class="customers-grid"></div>
-            </div>
 
-            <!-- Reports Tab -->
-            <div id="reportsTab" class="tab-pane">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2><i class="fas fa-chart-bar"></i> Raporlar</h2>
-                    <div>
-                        <input type="date" id="reportStartDate">
-                        <input type="date" id="reportEndDate">
-                        <button id="generateReportBtn" class="btn btn-primary">
-                            <i class="fas fa-chart-line"></i> Rapor Oluştur
-                        </button>
+                <div class="report-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <div class="info-group">
+                        <label for="reportType">Rapor Türü</label>
+                        <select id="reportType">
+                            <option value="daily">Günlük Rapor</option>
+                            <option value="weekly">Haftalık Rapor</option>
+                            <option value="monthly">Aylık Rapor</option>
+                            <option value="custom">Özel Rapor</option>
+                        </select>
+                    </div>
+                    <div class="info-group">
+                        <label for="startDate">Başlangıç Tarihi</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="info-group">
+                        <label for="endDate">Bitiş Tarihi</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <div class="info-group" style="align-self: flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
                     </div>
                 </div>
-                <div id="reportContent" class="report-container"></div>
-            </div>
-        </main>
 
-        <!-- Footer -->
-        <footer class="app-footer">
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th>Rapor Tarihi</th>
+                            <th>Rapor Türü</th>
+                            <th>Paket Sayısı</th>
+                            <th>Toplam Adet</th>
+                            <th>Oluşturan</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportsTableBody">
+                        <!-- Reports will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="app-footer">
             <div class="container-info">
-                <span>Konteyner: <span id="containerNumber">-</span></span>
-                <span>Toplam Paket: <span id="totalPackages">0</span></span>
-                <span id="connectionStatus" class="connection-status">Bağlantı durumu kontrol ediliyor...</span>
+                <span>Aktif Konteyner: <strong id="containerNumber">Yok</strong></span>
+                <span>|</span>
+                <span>Toplam Paket: <strong id="totalPackages">0</strong></span>
+                <span>|</span>
+                <span>ProClean © 2025</span>
             </div>
-            <div>
-                <span>ProClean v2.0 © 2024</span>
-            </div>
-        </footer>
+            <div id="connectionStatus">Çevrimiçi</div>
+        </div>
     </div>
 
-    <!-- Modals -->
-    <div id="customerModal" class="modal">
+    <!-- Alert container -->
+    <div class="alert-container" id="alertContainer"></div>
+
+    <!-- Customer Modal -->
+    <div class="modal" id="customerModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Müşteri Seç</h3>
-                <button class="modal-close">&times;</button>
+                <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
             </div>
-            <div id="customerList" class="customer-list"></div>
-        </div>
-    </div>
-
-    <div id="quantityModal" class="quantity-modal">
-        <div class="quantity-content">
-            <h3 id="quantityModalTitle">Adet Girin</h3>
-            <input type="number" id="quantityInput" class="quantity-input" min="1" value="1">
-            <div class="quantity-buttons">
-                <button id="confirmQuantity" class="btn btn-success">Onayla</button>
-                <button id="cancelQuantity" class="btn btn-danger">İptal</button>
+            <div class="customer-list" id="customerList">
+                <!-- Customers will be populated here -->
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">İptal</button>
             </div>
         </div>
     </div>
 
-    <div id="apiKeyModal" class="api-key-modal">
-        <div class="api-key-content">
-            <h3>Supabase API Anahtarı</h3>
-            <p>Lütfen Supabase anon anahtarınızı girin:</p>
-            <input type="text" id="apiKeyInput" class="api-key-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-            <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
-                <button id="saveApiKey" class="btn btn-primary">Kaydet</button>
-                <button id="cancelApiKey" class="btn btn-danger">İptal</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="settingsModal" class="modal">
+    <!-- All Customers Modal -->
+    <div class="modal" id="allCustomersModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Ayarlar</h3>
-                <button id="closeSettingsModalBtn" class="modal-close">&times;</button>
+                <h3>Müşteri Yönetimi</h3>
+                <button type="button" class="modal-close" onclick="closeAllCustomersModal()">&times;</button>
             </div>
-            <div class="settings-content">
-                <div class="setting-group">
-                    <h4>Görünüm</h4>
-                    <label>
-                        <input type="checkbox" id="themeToggle"> Koyu Tema
-                    </label>
-                </div>
-                <div class="setting-group">
-                    <h4>Yazdırma</h4>
-                    <label>Ölçeklendirme:</label>
-                    <select id="printerScaling">
-                        <option value="100%">100%</option>
-                        <option value="125%">125%</option>
-                        <option value="150%">150%</option>
-                    </select>
-                    <label>Kopya Sayısı:</label>
-                    <input type="number" id="copiesNumber" min="1" max="10" value="1">
-                </div>
-                <div class="setting-group">
-                    <h4>Sistem</h4>
-                    <label>
-                        <input type="checkbox" id="autoSaveToggle" checked> Otomatik Kaydet
-                    </label>
-                    <div class="status-indicators">
-                        <div>DB Bağlantısı: <span id="dbConnectionStatus" class="status-indicator"></span></div>
-                        <div>Yazıcı: <span id="printerConnectionStatus" class="status-indicator"></span></div>
-                    </div>
-                </div>
-                <div class="setting-actions">
-                    <button id="saveAllSettings" class="btn btn-primary">Ayarları Kaydet</button>
-                    <button id="exportData" class="btn btn-secondary">Verileri Dışa Aktar</button>
-                    <button id="clearLocalData" class="btn btn-danger">Yerel Verileri Temizle</button>
-                </div>
+            <div class="form-group">
+                <label for="newCustomerCode">Müşteri Kodu</label>
+                <input type="text" id="newCustomerCode" placeholder="Örn: P0005" required>
+                <div class="validation-error" id="customerCodeError">Müşteri kodu gereklidir</div>
+            </div>
+            <div class="form-group">
+                <label for="newCustomerName">Müşteri Adı</label>
+                <input type="text" id="newCustomerName" placeholder="Müşteri adını girin" required>
+                <div class="validation-error" id="customerNameError">Müşteri adı gereklidir</div>
+            </div>
+            <div class="form-group">
+                <label for="newCustomerEmail">E-posta (İsteğe bağlı)</label>
+                <input type="email" id="newCustomerEmail" placeholder="E-posta adresini girin">
+                <div class="validation-error" id="customerEmailError">Geçerli bir e-posta adresi girin</div>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
+            
+            <hr style="margin: 1.5rem 0;">
+            <h4>Mevcut Müşteriler</h4>
+            <div class="customer-list" id="allCustomersList">
+                <!-- All customers will be populated here -->
             </div>
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
-
-    <!-- Offline Indicator -->
-    <div id="offlineIndicator" class="offline-indicator">
-        <i class="fas fa-wifi"></i> Çevrimdışı Mod
+    <!-- Email Modal -->
+    <div class="modal" id="emailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>İş Sonu Raporu Gönder</h3>
+                <button type="button" class="modal-close" onclick="closeEmailModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="reportEmail">E-posta Adresi</label>
+                <input type="email" id="reportEmail" placeholder="Rapor gönderilecek e-posta" required>
+                <div class="validation-error" id="reportEmailError">Geçerli bir e-posta adresi girin</div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-primary" onclick="sendDailyReport()">Rapor Gönder</button>
+                <button type="button" class="btn btn-warning" onclick="previewReport()">Önizleme</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEmailModal()">İptal</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Alert Container -->
-    <div id="alertContainer" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+    <!-- Quantity Modal -->
+    <div class="quantity-modal" id="quantityModal">
+        <div class="quantity-content">
+            <h3 id="quantityModalTitle">Adet Girin</h3>
+            <input type="number" id="quantityInput" class="quantity-input" min="1" placeholder="Adet" required>
+            <div class="validation-error" id="quantityError">Geçerli bir adet girin</div>
+            <div class="quantity-buttons">
+                <button type="button" class="btn btn-primary" onclick="confirmQuantity()">Onayla</button>
+                <button type="button" class="btn btn-secondary" onclick="closeQuantityModal()">İptal</button>
+            </div>
+        </div>
+    </div>
 
- <!-- Core utilities first -->
-<script src="src/utils/helpers.js"></script>
-<script src="src/utils/offline.js"></script>
-<script src="src/utils/NotificationManager.js"></script>
-<script src="src/utils/validation.js"></script>
+    <!-- Manual Entry Modal -->
+    <div class="modal" id="manualModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Manuel Ürün Girişi</h3>
+                <button type="button" class="modal-close" onclick="closeManualModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="manualProduct">Ürün Adı</label>
+                <input type="text" id="manualProduct" placeholder="Ürün adını girin" required>
+                <div class="validation-error" id="manualProductError">Ürün adı gereklidir</div>
+            </div>
+            <div class="form-group">
+                <label for="manualQuantity">Adet</label>
+                <input type="number" id="manualQuantity" min="1" placeholder="Adet girin" required>
+                <div class="validation-error" id="manualQuantityError">Geçerli bir adet girin</div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-primary" onclick="addManualProduct()">Ekle</button>
+                <button type="button" class="btn btn-secondary" onclick="closeManualModal()">İptal</button>
+            </div>
+        </div>
+    </div>
 
-<!-- Database layer -->
-<script src="src/database/index.js"></script>
-<script src="src/database/auth.js"></script>
-<script src="src/database/customers.js"></script>
-<script src="src/database/packages.js"></script>
-<script src="src/database/stock.js"></script>
-<script src="src/database/reports.js"></script>
-<script src="src/database/containers.js"></script>
+    <!-- Container Detail Modal -->
+    <div class="modal" id="containerDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="containerDetailTitle">Konteyner Detayları</h3>
+                <button type="button" class="modal-close" onclick="closeContainerDetailModal()">&times;</button>
+            </div>
+            <div id="containerDetailContent">
+                <!-- Container details will be populated here -->
+            </div>
+            <div class="modal-buttons" style="margin-top: 20px;">
+                <button type="button" class="btn btn-success" onclick="shipContainerFromModal()">Sevk Et</button>
+                <button type="button" class="btn btn-secondary" onclick="closeContainerDetailModal()">Kapat</button>
+            </div>
+        </div>
+    </div>
 
-<!-- UI components -->
-<script src="src/ui/modals.js"></script>
-<script src="src/ui/tabs.js"></script>
-<script src="src/ui/tables.js"></script>
+   <!-- Ayarlar Modalı -->
+<div class="modal" id="settingsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Ayarlar</h2>
+            <button type="button" class="modal-close" id="closeSettingsModalBtn">&times;</button>
+        </div>
+        
+        <!-- Genel Ayarlar -->
+        <div class="settings-section">
+            <h3>Genel Ayarlar</h3>
+            
+            <div class="settings-option">
+                <label for="themeToggle">Tema Modu</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                    <label for="themeToggle" class="toggle-slider"></label>
+                    <span id="themeStatus">Açık</span>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label for="languageSelect">Dil</label>
+                <select id="languageSelect" onchange="changeLanguage()">
+                    <option value="tr">Türkçe</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            
+            <div class="settings-option">
+                <label for="autoSaveToggle">Otomatik Kaydet</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="autoSaveToggle" checked onchange="toggleAutoSave()">
+                    <label for="autoSaveToggle" class="toggle-slider"></label>
+                    <span>5 saniyede bir</span>
+                </div>
+            </div>
+        </div>
 
-<!-- Printing and barcode -->
-<script src="src/printing/printer.js"></script>
-<script src="src/printing/barcode.js"></script>
+        <!-- Yazıcı Ayarları -->
+        <div class="settings-section">
+            <h3>Yazıcı Ayarları</h3>
+            
+            <div class="settings-option">
+                <label for="printerScaling">Etiket Boyutu</label>
+                <select id="printerScaling" onchange="savePrinterSettings()">
+                    <option value="100%">Küçük (100%)</option>
+                    <option value="150%">Orta (150%)</option>
+                    <option value="200%">Büyük (200%)</option>
+                    <option value="fit">Otomatik Sığdır</option>
+                </select>
+            </div>
+            
+            <div class="settings-option">
+                <label for="copiesNumber">Kopya Sayısı</label>
+                <input type="number" id="copiesNumber" min="1" max="10" value="1" 
+                       onchange="savePrinterSettings()" style="width: 60px;">
+            </div>
+            
+            <div class="settings-option">
+                <label>Yazıcı Testi</label>
+                <button class="btn btn-primary" onclick="testPrinter()">Test Yazdır</button>
+            </div>
+        </div>
 
-<!-- Main application - load last -->
-<script src="src/app.js"></script>
+        <!-- Veri Yönetimi -->
+        <div class="settings-section">
+            <h3>Veri Yönetimi</h3>
+            
+            <div class="settings-option">
+                <label>Supabase API Anahtarı</label>
+                <button class="btn btn-warning" onclick="showApiKeyModal()">API Anahtarını Değiştir</button>
+            </div>
+            
+            <div class="settings-option">
+                <label>Veri Yedekleme</label>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="exportData('json')">JSON İndir</button>
+                    <button class="btn btn-primary" onclick="exportData('excel')">Excel İndir</button>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label>Verileri Temizle</label>
+                <button class="btn btn-danger" onclick="clearLocalData()">Yerel Verileri Temizle</button>
+            </div>
+        </div>
+
+        <!-- Sistem Bilgileri -->
+        <div class="settings-section">
+            <h3>Sistem Bilgileri</h3>
+            
+            <div class="settings-option">
+                <label>Uygulama Versiyonu</label>
+                <span class="system-info">v2.0.0</span>
+            </div>
+            
+            <div class="settings-option">
+                <label>Son Güncelleme</label>
+                <span class="system-info" id="lastUpdateDate">-</span>
+            </div>
+            
+            <div class="settings-option">
+                <label>Veritabanı Bağlantısı</label>
+                <span id="dbConnectionStatus" class="status-indicator">Kontrol ediliyor...</span>
+            </div>
+            
+            <div class="settings-option">
+                <label>Yazıcı Durumu</label>
+                <span id="printerConnectionStatus" class="status-indicator">Kontrol ediliyor...</span>
+            </div>
+        </div>
+
+        <!-- Geliştirici Seçenekleri (Admin only) -->
+        <div class="settings-section admin-only">
+            <h3>Geliştirici Seçenekleri</h3>
+            
+            <div class="settings-option">
+                <label>Hata Ayıklama Modu</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="debugModeToggle" onchange="toggleDebugMode()">
+                    <label for="debugModeToggle" class="toggle-slider"></label>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label>Konsol Logları</label>
+                <button class="btn btn-secondary" onclick="showConsoleLogs()">Logları Görüntüle</button>
+            </div>
+            
+            <div class="settings-option">
+                <label>Performans Testi</label>
+                <button class="btn btn-secondary" onclick="runPerformanceTest()">Test Çalıştır</button>
+            </div>
+        </div>
+
+        <div class="modal-buttons" style="margin-top: 20px;">
+            <button type="button" class="btn btn-success" onclick="saveAllSettings()">Tüm Ayarları Kaydet</button>
+            <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">Kapat</button>
+        </div>
+    </div>
+</div>
+
+    
+
+    <!-- Print Label Container (hidden) -->
+    <div id="printContainer" style="display:none;"></div>
+    
+    
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
+
 </body>
 </html>
