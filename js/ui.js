@@ -232,3 +232,58 @@ function initializeElements() {
 }
 
 
+
+
+ 
+        // Barkod tarayıcı modunu aç/kapa
+        function toggleScannerMode() {
+            scannerMode = !scannerMode;
+            
+            if (scannerMode) {
+                elements.barcodeInput.classList.add('scanner-active');
+                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
+                elements.barcodeInput.focus();
+                showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
+            } else {
+                elements.barcodeInput.classList.remove('scanner-active');
+                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
+                showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
+            }
+        }
+
+        // Barkod tarayıcı dinleyicisi
+      function setupBarcodeScanner() {
+    if (!elements.barcodeInput) {
+        console.error('Barcode input element not found');
+        return;
+    }
+    
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+    
+    elements.barcodeInput.addEventListener('keypress', function(e) {
+        const currentTime = Date.now();
+        
+        if (scannerMode || currentTime - lastKeyTime < 50) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (barcodeBuffer.length > 5) {
+                    elements.barcodeInput.value = barcodeBuffer;
+                    processBarcode();
+                }
+                barcodeBuffer = '';
+            } else {
+                barcodeBuffer += e.key;
+            }
+        } else {
+            barcodeBuffer = '';
+        }
+        
+        lastKeyTime = currentTime;
+    });
+}
+
+
+
+
+
