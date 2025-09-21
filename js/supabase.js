@@ -442,12 +442,39 @@ async function calculateTotalQuantity(packageIds) {
 
         
 
-        // Update the populateShippingTable function to avoid duplication
+       // Fixed populateShippingTable function with duplication prevention
 async function populateShippingTable() {
+    // Prevent multiple simultaneous calls
+    if (shippingTableLoading) {
+        console.log('Shipping table already loading, skipping...');
+        return;
+    }
+    
+    shippingTableLoading = true;
+    
     try {
-        elements.shippingFolders.innerHTML = '';
+        // Ensure elements are properly initialized
+        const shippingFolders = elements.shippingFolders || document.getElementById('shippingFolders');
+        if (!shippingFolders) {
+            console.error('Shipping folders container not found');
+            return;
+        }
 
-        const filter = elements.shippingFilter?.value || 'all';
+        // Clear existing content completely
+        shippingFolders.innerHTML = '';
+
+        // Check Supabase connection
+        if (!supabase) {
+            console.error('Supabase not initialized');
+            showAlert('Veritabanı bağlantısı yok', 'error');
+            return;
+        }
+
+        // Get filter value safely
+        const shippingFilter = elements.shippingFilter || document.getElementById('shippingFilter');
+        const filter = shippingFilter?.value || 'all';
+        
+        // Build query
         let query = supabase
             .from('containers')
             .select(`
@@ -468,110 +495,84 @@ async function populateShippingTable() {
 
         if (error) {
             console.error('Error loading containers:', error);
-            showAlert('Sevkiyat verileri yüklenemedi', 'error');
+            handleSupabaseError(error, 'Sevkiyat verileri yükleme');
             return;
         }
 
-        if (containers && containers.length > 0) {
-            // ✅ Deduplicate containers by ID
-            const uniqueContainers = {};
-            containers.forEach(container => {
-                if (!uniqueContainers[container.id]) {
-                    uniqueContainers[container.id] = container;
-                }
-            });
-
-            // ✅ Group by customer(s)
-            const customersMap = {};
-            Object.values(uniqueContainers).forEach(container => {
-                let customerName = 'Diğer';
-
-                if (container.packages && container.packages.length > 0) {
-                    // Collect all customer names from packages
-                    const names = container.packages
-                        .map(p => p.customers?.name)
-                        .filter(Boolean);
-
-                    if (names.length > 0) {
-                        customerName = [...new Set(names)].join(', ');
-                    }
-                } else if (container.customer) {
-                    customerName = container.customer;
-                }
-
-                if (!customersMap[customerName]) {
-                    customersMap[customerName] = [];
-                }
-                customersMap[customerName].push(container);
-            });
-
-            // ✅ Render grouped folders
-            for (const [customerName, customerContainers] of Object.entries(customersMap)) {
-                const folderDiv = document.createElement('div');
-                folderDiv.className = 'customer-folder';
-
-                const folderHeader = document.createElement('div');
-                folderHeader.className = 'folder-header';
-                folderHeader.innerHTML = `
-                    <span>${customerName}</span>
-                    <span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>
-                `;
-
-                const folderContent = document.createElement('div');
-                folderContent.className = 'folder-content';
-
-                const table = document.createElement('table');
-                table.className = 'package-table';
-                table.innerHTML = `
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)"></th>
-                            <th>Konteyner No</th>
-                            <th>Paket Sayısı</th>
-                            <th>Toplam Adet</th>
-                            <th>Tarih</th>
-                            <th>Durum</th>
-                            <th>İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${customerContainers.map(container => `
-                            <tr>
-                                <td><input type="checkbox" value="${container.id}" class="container-checkbox"></td>
-                                <td>${container.container_no}</td>
-                                <td>${container.package_count || 0}</td>
-                                <td>${container.total_quantity || 0}</td>
-                                <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                                <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                                <td>
-                                    <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm">Detay</button>
-                                    <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
-                                    <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                `;
-
-                folderContent.appendChild(table);
-                folderDiv.appendChild(folderHeader);
-                folderDiv.appendChild(folderContent);
-
-                // Folder toggle
-                folderHeader.addEventListener('click', () => {
-                    folderDiv.classList.toggle('folder-open');
-                    folderContent.style.display = folderDiv.classList.contains('folder-open') ? 'block' : 'none';
-                });
-
-                elements.shippingFolders.appendChild(folderDiv);
-            }
-        } else {
-            elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
+        if (!containers || containers.length === 0) {
+            shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
+            return;
         }
+
+        // ✅ CRITICAL FIX: Strict deduplication by container ID
+        const uniqueContainers = new Map();
+        containers.forEach(container => {
+            if (container && container.id && !uniqueContainers.has(container.id)) {
+                uniqueContainers.set(container.id, container);
+            }
+        });
+
+        const containerArray = Array.from(uniqueContainers.values());
+        console.log(`Original containers: ${containers.length}, Unique containers: ${containerArray.length}`);
+
+        // ✅ Group containers by customer with better logic
+        const customersMap = new Map();
+        
+        containerArray.forEach(container => {
+            let customerKey = 'Diğer'; // Default key for ungrouped containers
+            
+            try {
+                if (container.packages && Array.isArray(container.packages) && container.packages.length > 0) {
+                    // Extract unique customer names from packages
+                    const customerNames = container.packages
+                        .map(pkg => pkg.customers?.name)
+                        .filter(name => name && typeof name === 'string' && name.trim())
+                        .map(name => name.trim());
+                    
+                    const uniqueNames = [...new Set(customerNames)];
+                    
+                    if (uniqueNames.length > 0) {
+                        // Sort names for consistent grouping
+                        customerKey = uniqueNames.sort().join(', ');
+                    }
+                } else if (container.customer && typeof container.customer === 'string' && container.customer.trim()) {
+                    customerKey = container.customer.trim();
+                }
+                
+                // Add to customer group
+                if (!customersMap.has(customerKey)) {
+                    customersMap.set(customerKey, []);
+                }
+                customersMap.get(customerKey).push(container);
+                
+            } catch (groupError) {
+                console.warn('Error grouping container:', container.id, groupError);
+                // Add to default group on error
+                if (!customersMap.has('Diğer')) {
+                    customersMap.set('Diğer', []);
+                }
+                customersMap.get('Diğer').push(container);
+            }
+        });
+
+        // ✅ Render customer folders with error handling
+        for (const [customerName, customerContainers] of customersMap.entries()) {
+            try {
+                const folderElement = createCustomerFolder(customerName, customerContainers);
+                shippingFolders.appendChild(folderElement);
+            } catch (renderError) {
+                console.error('Error rendering customer folder:', customerName, renderError);
+            }
+        }
+
+        console.log(`✅ Shipping table populated with ${containerArray.length} containers in ${customersMap.size} customer groups`);
 
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
-        showAlert('Sevkiyat tablosu yükleme hatası', 'error');
+        showAlert('Sevkiyat tablosu yükleme hatası: ' + error.message, 'error');
+    } finally {
+        // Always reset loading state
+        shippingTableLoading = false;
     }
 }
 
