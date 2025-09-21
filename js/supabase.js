@@ -350,22 +350,22 @@ async function populatePersonnel() {
 
         
         
-        // Helper function to calculate total quantity of selected packages
-        async function calculateTotalQuantity(packageIds) {
-            try {
-                const { data: packages, error } = await supabase
-                    .from('packages')
-                    .select('total_quantity')
-                    .in('id', packageIds);
-                    
-                if (error) throw error;
-                
-                return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
-            } catch (error) {
-                console.error('Error calculating total quantity:', error);
-                return packageIds.length; // Fallback to package count
-            }
-        }
+       // Calculate total quantity of selected packages
+async function calculateTotalQuantity(packageIds) {
+    try {
+        const { data: packages, error } = await supabase
+            .from('packages')
+            .select('total_quantity')
+            .in('id', packageIds);
+
+        if (error) throw error;
+
+        return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+    } catch (error) {
+        console.error('Error calculating total quantity:', error);
+        return packageIds.length; // fallback
+    }
+}
 
 
         
@@ -976,114 +976,99 @@ async function populateShippingTable() {
 
 
 
+// Complete current package
 async function completePackage() {
-            if (!selectedCustomer) {
-                showAlert('Önce müşteri seçin', 'error');
-                return;
-            }
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
 
-            if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-                showAlert('Pakete ürün ekleyin', 'error');
-                return;
-            }
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
 
-            try {
-                const packageNo = `PKG-${Date.now()}`;
-                const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-                const selectedPersonnel = elements.personnelSelect.value;
+    try {
+        const packageNo = `PKG-${Date.now()}`;
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect.value;
 
-                const packageData = {
-                    package_no: packageNo,
-                    customer_id: selectedCustomer.id,
-                    items: currentPackage.items,
-                    total_quantity: totalQuantity,
-                    status: 'beklemede',
-                    packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-                    created_at: new Date().toISOString()
-                };
+        const packageData = {
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            items: currentPackage.items,
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString()
+        };
 
-                if (!navigator.onLine) {
-                    // Çevrimdışı mod
-                    saveOfflineData('packages', packageData);
-                    showAlert(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
-                } else {
-                    // Çevrimiçi mod
-                    const { data, error } = await supabase
-                        .from('packages')
-                        .insert([packageData])
-                        .select();
+        if (!navigator.onLine) {
+            saveOfflineData('packages', packageData);
+            showAlert(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
+        } else {
+            const { data, error } = await supabase
+                .from('packages')
+                .insert([packageData])
+                .select();
 
-                    if (error) {
-                        console.error('Error creating package:', error);
-                        showAlert('Paket oluşturulurken hata: ' + error.message, 'error');
-                        return;
-                    }
+            if (error) throw error;
 
-                    showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-                }
-
-                // Reset current package and quantities
-                currentPackage = {};
-                document.querySelectorAll('.quantity-badge').forEach(badge => {
-                    badge.textContent = '0';
-                });
-                
-                // Taranan barkodları işlendi olarak işaretle
-                if (scannedBarcodes.length > 0 && navigator.onLine) {
-                    const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
-                    if (barcodeIds.length > 0) {
-                        await supabase
-                            .from('barcodes')
-                            .update({ processed: true })
-                            .in('id', barcodeIds);
-                    }
-                    scannedBarcodes = [];
-                    displayScannedBarcodes();
-                }
-                
-                // Refresh packages table
-                await populatePackagesTable();
-                
-            } catch (error) {
-                console.error('Error in completePackage:', error);
-                showAlert('Paket oluşturma hatası', 'error');
-            }
+            showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
         }
 
+        // Reset current package
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+
+        // Mark scanned barcodes as processed
+        if (scannedBarcodes.length > 0 && navigator.onLine) {
+            const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
+            if (barcodeIds.length > 0) {
+                await supabase.from('barcodes').update({ processed: true }).in('id', barcodeIds);
+            }
+            scannedBarcodes = [];
+            displayScannedBarcodes();
+        }
+
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası', 'error');
+    }
+}
 
 
+
+// Delete selected packages
 async function deleteSelectedPackages() {
-            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-            if (checkboxes.length === 0) {
-                showAlert('Silinecek paket seçin', 'error');
-                return;
-            }
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
 
-            if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
 
-            try {
-                const packageIds = Array.from(checkboxes).map(cb => cb.value);
-                
-                const { error } = await supabase
-                    .from('packages')
-                    .delete()
-                    .in('id', packageIds);
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
 
-                if (error) {
-                    console.error('Error deleting packages:', error);
-                    showAlert('Paketler silinirken hata: ' + error.message, 'error');
-                    return;
-                }
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
 
-                showAlert(`${packageIds.length} paket silindi`, 'success');
-                await populatePackagesTable();
-                
-            } catch (error) {
-                console.error('Error in deleteSelectedPackages:', error);
-                showAlert('Paket silme hatası', 'error');
-            }
-        }
+        if (error) throw error;
 
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
+    }
+}
 
 
 
