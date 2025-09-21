@@ -214,28 +214,50 @@ class PrinterService {
         }
     }
 
-    async testPrint() {
-        const testBarcode = '123456789';
-        const testText = `Test Etiketi - ${new Date().toLocaleTimeString('tr-TR')}`;
-        
-        // Create sample package info for test
-        const testPackageInfo = {
-            customer_name: 'Test Müşteri',
-            product: 'Test Ürün',
-            created_at: new Date().toISOString()
-        };
-        
-        console.log('🧪 Testing printer with enhanced label...');
-        const result = await this.printBarcode(testBarcode, testText, testPackageInfo);
-        
-        if (result) {
-            showAlert('✅ Test yazdırma başarılı! Yeni etiket formatı kullanılıyor.', 'success');
-        } else {
-            showAlert('❌ Test yazdırma başarısız!', 'error');
-        }
-        
-        return result;
+    async testPrint(settings = null) {
+    // Use passed settings or fallback to saved settings
+    if (!settings) {
+        settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     }
+
+    const testBarcode = '123456789';
+    const testText = `Test Etiketi - ${new Date().toLocaleTimeString('tr-TR')}`;
+
+    // Create sample package info for test
+    const testPackageInfo = {
+        customer_name: 'Test Müşteri',
+        product: 'Test Ürün',
+        created_at: new Date().toISOString()
+    };
+
+    console.log('🧪 Testing printer with current user settings...', settings);
+
+    // Prepare printing options based on settings
+    const printOptions = {
+        scaling: settings.printerScaling || '100%',
+        copies: settings.copies || 1,
+        fontName: settings.fontName || 'Arial',
+        fontSize: settings.fontSize || 10,
+        orientation: settings.orientation || 'portrait',
+        marginTop: settings.marginTop !== undefined ? settings.marginTop : 5,
+        marginBottom: settings.marginBottom !== undefined ? settings.marginBottom : 5
+    };
+
+    // Call your existing printBarcode function with options
+    const result = await this.printBarcode(testBarcode, testText, testPackageInfo, printOptions);
+
+    if (result) {
+        showAlert('✅ Test yazdırma başarılı! Kullanıcı ayarları uygulandı.', 'success');
+    } else {
+        showAlert('❌ Test yazdırma başarısız!', 'error');
+    }
+
+    return result;
+}
+
+
+
+    
     
     async printPDFLabel(pkg) {
         if (!this.isConnected) {
