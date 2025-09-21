@@ -15,6 +15,7 @@ let scannerMode = false;
 let currentContainerDetails = null;
 let currentReportData = null;
 let selectedPackageForPrinting = null;
+let personnelLoaded = false;
 
 // EmailJS initialization
 (function() {
@@ -238,17 +239,21 @@ async function testConnection() {
 
 
 
+
+
 async function populatePersonnel() {
+    if (personnelLoaded) return; // prevent duplicates
+    personnelLoaded = true;
+
     const personnelSelect = document.getElementById('personnelSelect');
     if (!personnelSelect) return;
 
-    // Clear existing options
     personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
 
     try {
         const { data: personnel, error } = await supabase
-            .from('personnel')   // ✅ correct table name
-            .select('id, name')  // adjust column names if needed
+            .from('personnel')
+            .select('id, name')
             .order('name', { ascending: true });
 
         if (error) {
