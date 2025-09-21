@@ -1229,30 +1229,3 @@ body.dark-mode button {
     background-color: #0056b3;
     color: #fff;
 }
-
-
-/* ---------- LIGHT THEME (default) ---------- */
-body {
-    background-color: #f5f5f5;
-    color: #333;
-    font-family: Arial, sans-serif;
-}
-
-header, footer, .card, .container, .modal {
-    background-color: #fff;
-    color: #333;
-    border: 1px solid #ccc;
-}
-
-button {
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-}
-
-input, select, textarea {
-    background-color: #fff;
-    color: #333;
-    border: 1px solid #ccc;
-}
