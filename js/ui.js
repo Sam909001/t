@@ -828,42 +828,80 @@ function initializeSettings() {
 
 
 
-
 function selectPackage(pkg) {
-    // Remove selected class from all rows
-    document.querySelectorAll('#packagesTableBody tr').forEach(row => {
-        row.classList.remove('selected');
-    });
-    
-    // Add selected class to the clicked row
-    const rows = document.querySelectorAll('#packagesTableBody tr');
-    for (let i = 0; i < rows.length; i++) {
-        const checkbox = rows[i].querySelector('input[type="checkbox"]');
-        if (checkbox && checkbox.value === pkg.id) {
-            rows[i].classList.add('selected'); // FIXED: removed extra "class."
-            break;
+    try {
+        // Validate input
+        if (!pkg || !pkg.id) {
+            console.error('Invalid package data:', pkg);
+            showAlert('Geçersiz paket verisi', 'error');
+            return;
+        }
+        
+        // Remove selected class from all rows
+        document.querySelectorAll('#packagesTableBody tr').forEach(row => {
+            row.classList.remove('selected');
+        });
+        
+        // Find and select the target row
+        const targetCheckbox = document.querySelector(`#packagesTableBody input[value="${pkg.id}"]`);
+        const targetRow = targetCheckbox?.closest('tr');
+        
+        if (targetRow) {
+            targetRow.classList.add('selected');
+        } else {
+            console.warn('Could not find row for package:', pkg.id);
+        }
+        
+        // Update detail content
+        const detailContent = document.getElementById('packageDetailContent');
+        if (detailContent) {
+            updatePackageDetails(pkg, detailContent);
+        }
+        
+    } catch (error) {
+        console.error('Error in selectPackage:', error);
+        showAlert('Paket seçilirken hata oluştu', 'error');
+    }
+}
+
+function updatePackageDetails(pkg, container) {
+    // Safe date formatting
+    let dateStr = 'N/A';
+    if (pkg.created_at) {
+        try {
+            const date = new Date(pkg.created_at);
+            dateStr = isNaN(date.getTime()) ? 'Geçersiz tarih' : date.toLocaleDateString('tr-TR');
+        } catch (e) {
+            dateStr = 'Geçersiz tarih';
         }
     }
     
-    const detailContent = document.getElementById('packageDetailContent');
-    if (detailContent) {
-        detailContent.innerHTML = `
-            <h4>Paket: ${pkg.package_no}</h4>
-            <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-            <p><strong>Toplam Adet:</strong> ${pkg.total_quantity}</p>
-            <p><strong>Tarih:</strong> ${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</p>
-            <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
-            ${pkg.items ? `
-                <h5>Ürünler:</h5>
-                <ul>
-                    ${Object.entries(pkg.items).map(([product, quantity]) => 
-                        `<li>${escapeHtml(product)}: ${quantity} adet</li>`
-                    ).join('')}
-                </ul>
-            ` : ''}
-        `;
+    // Create elements safely
+    container.innerHTML = `
+        <h4>Paket: ${pkg.package_no || 'N/A'}</h4>
+        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}</p>
+        <p><strong>Tarih:</strong> ${dateStr}</p>
+        <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
+    `;
+    
+    // Add items list if exists
+    if (pkg.items && typeof pkg.items === 'object' && Object.keys(pkg.items).length > 0) {
+        const itemsHeader = document.createElement('h5');
+        itemsHeader.textContent = 'Ürünler:';
+        container.appendChild(itemsHeader);
+        
+        const itemsList = document.createElement('ul');
+        Object.entries(pkg.items).forEach(([product, quantity]) => {
+            const li = document.createElement('li');
+            li.textContent = `${product}: ${quantity} adet`;
+            itemsList.appendChild(li);
+        });
+        container.appendChild(itemsList);
     }
 }
+
+
 
 
 
