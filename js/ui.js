@@ -558,36 +558,44 @@ function closeSettingsModal() {
 function loadSettings() {
     // Load saved settings from localStorage
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    
+
     // Theme
     if (settings.theme === 'dark') {
         document.getElementById('themeToggle').checked = true;
         document.body.classList.add('dark-mode');
     }
-    
-  function loadPrinterSettings() {
+
+    // Load printer settings
+    loadPrinterSettings(settings);
+}
+
+function loadPrinterSettings(settings) {
     // Scaling / label size
     if (settings.printerScaling) {
         document.getElementById('printerScaling').value = settings.printerScaling;
+    } else {
+        document.getElementById('printerScaling').value = '100%';
     }
 
     // Copies
     if (settings.copies) {
         document.getElementById('copiesNumber').value = settings.copies;
+    } else {
+        document.getElementById('copiesNumber').value = 1;
     }
 
     // Font
     if (settings.fontName) {
         document.getElementById('fontName').value = settings.fontName;
     } else {
-        document.getElementById('fontName').value = 'Arial'; // default
+        document.getElementById('fontName').value = 'Arial';
     }
 
     // Font size
     if (settings.fontSize) {
         document.getElementById('fontSize').value = settings.fontSize;
     } else {
-        document.getElementById('fontSize').value = 10; // default
+        document.getElementById('fontSize').value = 10;
     }
 
     // Orientation
@@ -601,18 +609,19 @@ function loadSettings() {
     if (settings.marginTop !== undefined) {
         document.getElementById('marginTop').value = settings.marginTop;
     } else {
-        document.getElementById('marginTop').value = 5; // default
+        document.getElementById('marginTop').value = 5;
     }
 
     if (settings.marginBottom !== undefined) {
         document.getElementById('marginBottom').value = settings.marginBottom;
     } else {
-        document.getElementById('marginBottom').value = 5; // default
+        document.getElementById('marginBottom').value = 5;
     }
 }
 
+function savePrinterSettings() {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
-    function savePrinterSettings() {
     settings.printerScaling = document.getElementById('printerScaling').value;
     settings.copies = parseInt(document.getElementById('copiesNumber').value, 10);
     settings.fontName = document.getElementById('fontName').value;
@@ -621,9 +630,45 @@ function loadSettings() {
     settings.marginTop = parseInt(document.getElementById('marginTop').value, 10);
     settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
 
-    localStorage.setItem('printerSettings', JSON.stringify(settings));
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
     console.log('Printer settings saved', settings);
 }
+
+// Attach Test Yazdır button to use the current settings
+document.addEventListener('DOMContentLoaded', () => {
+    // Load all settings first
+    loadSettings();
+
+    // Attach change listeners to save settings automatically
+    const inputIds = [
+        'printerScaling', 'copiesNumber', 'fontName',
+        'fontSize', 'orientation', 'marginTop', 'marginBottom'
+    ];
+
+    inputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', savePrinterSettings);
+    });
+
+    // Attach Test Yazdır button
+    const testBtn = document.getElementById('test-printer-yazdir'); // your button ID
+    if (testBtn) {
+        testBtn.addEventListener('click', async () => {
+            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+            const printerInstance = getPrinter();
+
+            const originalText = testBtn.textContent;
+            testBtn.disabled = true;
+            testBtn.textContent = 'Test Ediliyor...';
+
+            // Call the testPrint function with the current settings
+            await printerInstance.testPrint(settings);
+
+            testBtn.disabled = false;
+            testBtn.textContent = originalText;
+        });
+    }
+});
 
 
     
