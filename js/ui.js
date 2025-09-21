@@ -307,11 +307,13 @@ function showApiKeyHelp() {
 
 
 
+let editingStockItem = null;
+
 function editStockItem(button, code) {
     const row = button.closest("tr");
     const quantitySpan = row.querySelector(".stock-quantity");
     const quantityInput = row.querySelector(".stock-quantity-input");
-    const editButton = row.querySelector("button"); // Düzenle
+    const editButton = row.querySelector("td > button"); // Düzenle button
     const editButtons = row.querySelector(".edit-buttons");
 
     // Switch to edit mode
@@ -325,12 +327,14 @@ function editStockItem(button, code) {
 
 function cancelEditStockItem(button, code, originalQuantity) {
     const row = button.closest("tr");
+    if (!row) return;
+
     const quantitySpan = row.querySelector(".stock-quantity");
     const quantityInput = row.querySelector(".stock-quantity-input");
-    const editButton = row.querySelector("td button"); // Düzenle
+    const editButton = row.querySelector("td > button"); // Düzenle button
     const editButtons = row.querySelector(".edit-buttons");
 
-    // Reset to original
+    // Reset to original values
     quantityInput.value = originalQuantity;
     quantitySpan.style.display = "inline";
     quantityInput.style.display = "none";
@@ -342,41 +346,27 @@ function cancelEditStockItem(button, code, originalQuantity) {
 
 async function saveStockItem(button, code) {
     const row = button.closest("tr");
+    if (!row) return;
+
     const quantitySpan = row.querySelector(".stock-quantity");
     const quantityInput = row.querySelector(".stock-quantity-input");
-    const editButton = row.querySelector("td button"); // Düzenle
+    const editButton = row.querySelector("td > button"); // Düzenle button
     const editButtons = row.querySelector(".edit-buttons");
 
     const newQuantity = parseInt(quantityInput.value, 10);
-
     if (isNaN(newQuantity) || newQuantity < 0) {
         showAlert("Geçerli bir sayı girin", "error");
         return;
     }
 
-    try {
-        const { error } = await supabase
-            .from("stock")
-            .update({ quantity: newQuantity })
-            .eq("code", code);
+    // Update UI
+    quantitySpan.textContent = newQuantity;
+    quantitySpan.style.display = "inline";
+    quantityInput.style.display = "none";
+    editButton.style.display = "inline-block";
+    editButtons.style.display = "none";
 
-        if (error) throw error;
-
-        // Update UI
-        quantitySpan.textContent = newQuantity;
-        quantitySpan.style.display = "inline";
-        quantityInput.style.display = "none";
-        editButton.style.display = "inline-block";
-        editButtons.style.display = "none";
-
-        editingStockItem = null;
-        showAlert("Stok başarıyla güncellendi", "success");
-    } catch (err) {
-        console.error("Stock update error:", err);
-        showAlert("Stok güncellenemedi", "error");
-    }
-}
-
+    editingStockItem = null;
 
 
 
