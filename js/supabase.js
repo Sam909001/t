@@ -239,37 +239,38 @@ async function testConnection() {
 
 
 
-async function populatePersonnels() {
-     try {
-        const { data: personelData, error } = await supabase
-            .from('personel')  // exact table name
-            .select('id, name') // use the correct column names
+  const personnelSelect = document.getElementById('personnelSelect');
+    if (!personnelSelect) return;
+
+    // Clear existing options
+    personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+
+    try {
+        const { data: personnel, error } = await supabase
+            .from('personnel')   // ✅ correct table name
+            .select('id, name')  // adjust column names if needed
             .order('name', { ascending: true });
 
         if (error) {
             console.error('Error fetching personnel:', error);
+            showAlert('Personel verileri yüklenemedi', 'error');
             return;
         }
 
-        const personnelSelect = document.getElementById('personnelSelect');
-        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>'; // reset
-
-        if (personelData && personelData.length > 0) {
-            personelData.forEach(person => {
+        if (personnel && personnel.length > 0) {
+            personnel.forEach(p => {
                 const option = document.createElement('option');
-                option.value = person.id;  // or person.code if you have that
-                option.textContent = person.name; // make sure the column is correct
+                option.value = p.id;
+                option.textContent = p.name;
                 personnelSelect.appendChild(option);
             });
-        } else {
-            console.log('No personnel found in the database');
         }
 
     } catch (err) {
-        console.error('populatePersonnelDropdown error:', err);
+        console.error('Unexpected error:', err);
+        showAlert('Personel dropdown yükleme hatası', 'error');
     }
 }
-
 
 
         
