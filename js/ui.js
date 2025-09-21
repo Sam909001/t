@@ -611,6 +611,23 @@ function loadSettings() {
     }
 }
 
+
+    function savePrinterSettings() {
+    settings.printerScaling = document.getElementById('printerScaling').value;
+    settings.copies = parseInt(document.getElementById('copiesNumber').value, 10);
+    settings.fontName = document.getElementById('fontName').value;
+    settings.fontSize = parseInt(document.getElementById('fontSize').value, 10);
+    settings.orientation = document.getElementById('orientation').value;
+    settings.marginTop = parseInt(document.getElementById('marginTop').value, 10);
+    settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
+
+    localStorage.setItem('printerSettings', JSON.stringify(settings));
+    console.log('Printer settings saved', settings);
+}
+
+
+    
+
     
     // Language
     if (settings.language) {
