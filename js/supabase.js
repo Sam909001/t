@@ -284,7 +284,9 @@ async function populatePersonnel() {
 
         
 
-  async function populatePackagesTable() {
+ let packagesTableLoading = false;
+
+async function populatePackagesTable() {
     // Prevent multiple simultaneous calls
     if (packagesTableLoading) {
         console.log('Package table already loading, skipping...');
@@ -316,10 +318,12 @@ async function populatePersonnel() {
             return;
         }
 
+        // Only fetch packages that are NOT shipped (status = 'beklemede')
         const { data: packages, error } = await supabase
             .from('packages')
             .select(`*, customers (name, code)`)
             .is('container_id', null)
+            .eq('status', 'beklemede')  // Only show packages with 'beklemede' status
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -400,25 +404,6 @@ async function populatePersonnel() {
         packagesTableLoading = false;
     }
 }
-
-// Helper function to escape HTML
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Debounced version to prevent rapid successive calls
-let populatePackagesTimeout;
-function debouncedPopulatePackagesTable() {
-    clearTimeout(populatePackagesTimeout);
-    populatePackagesTimeout = setTimeout(populatePackagesTable, 100);
-}
-
-// Use this instead of direct calls in multiple places
-window.refreshPackageTable = debouncedPopulatePackagesTable;
-
 
         
         
