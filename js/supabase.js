@@ -239,7 +239,7 @@ async function testConnection() {
 
 
 
-
+// Populate Personnels (no duplicates by name)
 async function populatePersonnels() {
     try {
         const { data: personnels, error } = await supabase
@@ -252,11 +252,11 @@ async function populatePersonnels() {
             return;
         }
 
-        const personelSelect = document.getElementById('personelSelect');
-        if (!personelSelect) return;
+        const personnelSelect = document.getElementById('personnelSelect');
+        if (!personnelSelect) return;
 
         // Clear old options
-        personelSelect.innerHTML = '<option value="">Personel Seç</option>';
+        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
 
         // Deduplicate by name
         const uniquePersonnels = {};
@@ -266,12 +266,12 @@ async function populatePersonnels() {
             }
         });
 
-        // Append unique personnels
+        // Append options
         Object.values(uniquePersonnels).forEach(per => {
             const opt = document.createElement('option');
             opt.value = per.id;
             opt.textContent = per.name;
-            personelSelect.appendChild(opt);
+            personnelSelect.appendChild(opt);
         });
 
     } catch (err) {
