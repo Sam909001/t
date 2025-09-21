@@ -284,9 +284,7 @@ async function populatePersonnel() {
 
         
 
- let packagesTableLoading = false;
-
-async function populatePackagesTable() {
+  async function populatePackagesTable() {
     // Prevent multiple simultaneous calls
     if (packagesTableLoading) {
         console.log('Package table already loading, skipping...');
@@ -318,12 +316,10 @@ async function populatePackagesTable() {
             return;
         }
 
-        // Only fetch packages that are NOT shipped (status = 'beklemede')
         const { data: packages, error } = await supabase
             .from('packages')
             .select(`*, customers (name, code)`)
             .is('container_id', null)
-            .eq('status', 'beklemede')  // Only show packages with 'beklemede' status
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -404,6 +400,25 @@ async function populatePackagesTable() {
         packagesTableLoading = false;
     }
 }
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Debounced version to prevent rapid successive calls
+let populatePackagesTimeout;
+function debouncedPopulatePackagesTable() {
+    clearTimeout(populatePackagesTimeout);
+    populatePackagesTimeout = setTimeout(populatePackagesTable, 100);
+}
+
+// Use this instead of direct calls in multiple places
+window.refreshPackageTable = debouncedPopulatePackagesTable;
+
 
         
         
@@ -1206,65 +1221,65 @@ async function deleteSelectedPackages() {
 
 // Shipping operations
         async function sendToRamp(containerNo = null) {
-    try {
-        const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
-            .map(cb => cb.value);
-        
-        if (selectedPackages.length === 0) {
-            showAlert('Rampaya göndermek için paket seçin', 'error');
-            return;
+            try {
+                const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
+                    .map(cb => cb.value);
+                
+                if (selectedPackages.length === 0) {
+                    showAlert('Rampaya göndermek için paket seçin', 'error');
+                    return;
+                }
+
+                // Use existing container or create a new one
+                let containerId;
+                if (containerNo && currentContainer) {
+                    containerId = currentContainer;
+                } else {
+                    const timestamp = new Date().getTime();
+                    containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+                    
+                    const { data: newContainer, error } = await supabase
+                        .from('containers')
+                        .insert([{
+                            container_no: containerNo,
+                            customer: selectedCustomer?.name || '',
+                            package_count: selectedPackages.length,
+                            total_quantity: await calculateTotalQuantity(selectedPackages),
+                            status: 'beklemede',
+                            created_at: new Date().toISOString()
+                        }])
+                        .select();
+
+                    if (error) throw error;
+                    
+                    containerId = newContainer[0].id;
+                    currentContainer = containerNo;
+                    elements.containerNumber.textContent = containerNo;
+                    saveAppState();
+                }
+
+                // Update packages with container reference
+                const { error: updateError } = await supabase
+                    .from('packages')
+                    .update({ 
+                        container_id: containerId,
+                        status: 'sevk-edildi'
+                    })
+                    .in('id', selectedPackages);
+
+                if (updateError) throw updateError;
+
+                showAlert(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
+                
+                // Refresh tables
+                await populatePackagesTable();
+                await populateShippingTable();
+                
+            } catch (error) {
+                console.error('Error sending to ramp:', error);
+                showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
+            }
         }
-
-        // Use existing container or create a new one
-        let containerId;
-        if (containerNo && currentContainer) {
-            containerId = currentContainer;
-        } else {
-            const timestamp = new Date().getTime();
-            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-            
-            const { data: newContainer, error } = await supabase
-                .from('containers')
-                .insert([{
-                    container_no: containerNo,
-                    customer: selectedCustomer?.name || '',
-                    package_count: selectedPackages.length,
-                    total_quantity: await calculateTotalQuantity(selectedPackages),
-                    status: 'beklemede',
-                    created_at: new Date().toISOString()
-                }])
-                .select();
-
-            if (error) throw error;
-            
-            containerId = newContainer[0].id;
-            currentContainer = containerNo;
-            elements.containerNumber.textContent = containerNo;
-            saveAppState();
-        }
-
-        // Update packages with container reference AND change status to 'sevk-edildi'
-        const { error: updateError } = await supabase
-            .from('packages')
-            .update({ 
-                container_id: containerId,
-                status: 'sevk-edildi'  // This is the critical change
-            })
-            .in('id', selectedPackages);
-
-        if (updateError) throw updateError;
-
-        showAlert(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
-        
-        // Refresh tables
-        await populatePackagesTable();
-        await populateShippingTable();
-        
-    } catch (error) {
-        console.error('Error sending to ramp:', error);
-        showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
-    }
-}
 
 
 
@@ -1305,52 +1320,4 @@ async function deleteSelectedPackages() {
         }
 
 
-// Helper function to escape HTML
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
-// Debounced version to prevent rapid successive calls
-let populatePackagesTimeout;
-function debouncedPopulatePackagesTable() {
-    clearTimeout(populatePackagesTimeout);
-    populatePackagesTimeout = setTimeout(populatePackagesTable, 100);
-}
-
-// Save application state to localStorage
-function saveAppState() {
-    const state = {
-        selectedCustomer,
-        currentContainer,
-        currentUser
-    };
-    localStorage.setItem('procleanAppState', JSON.stringify(state));
-}
-
-// Load application state from localStorage
-function loadAppState() {
-    const savedState = localStorage.getItem('procleanAppState');
-    if (savedState) {
-        const state = JSON.parse(savedState);
-        selectedCustomer = state.selectedCustomer || null;
-        currentContainer = state.currentContainer || null;
-        currentUser = state.currentUser || null;
-        
-        // Update UI elements if needed
-        if (currentContainer && elements.containerNumber) {
-            elements.containerNumber.textContent = currentContainer;
-        }
-    }
-}
-
-// Clear application state
-function clearAppState() {
-    localStorage.removeItem('procleanAppState');
-    selectedCustomer = null;
-    currentContainer = null;
-    // Refresh the packages table
-    debouncedPopulatePackagesTable();
-}
