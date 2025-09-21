@@ -741,54 +741,70 @@ function checkSystemStatus() {
 
 
 function exportData(format) {
+    if (!format) {
+        showAlert('⚠️ Format belirtilmedi!', 'error');
+        return;
+    }
+
+    format = format.toLowerCase().trim();
+
     const table = document.getElementById('stockTableBody');
     if (!table) {
         showAlert('⚠️ Stok tablosu bulunamadı!', 'error');
         return;
     }
 
-    // Build array of rows
-    const rows = Array.from(table.querySelectorAll('tr')).map(tr => {
-        return Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
-    });
+    const rows = Array.from(table.querySelectorAll('tr')).map(tr =>
+        Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim())
+    );
 
     if (rows.length === 0) {
         showAlert('⚠️ Tablo boş, veri yok!', 'info');
         return;
     }
 
-    if (format === 'csv') {
-        // Convert to CSV string
-        const csvContent = rows.map(r => r.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
+    if (format === 'json') {
+        // Convert table to JSON array
+        const headers = Array.from(document.querySelectorAll('.stock-table thead th')).map(th => th.textContent.trim());
+        const jsonData = rows.map(row => {
+            const obj = {};
+            row.forEach((cell, i) => {
+                obj[headers[i]] = cell;
+            });
+            return obj;
+        });
 
+        const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `stok_${new Date().toISOString().slice(0,10)}.csv`;
+        a.download = `stok_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
 
-        showAlert('✅ CSV dosyası indirildi!', 'success');
+        showAlert('✅ JSON dosyası indirildi!', 'success');
+    }
 
-    } else if (format === 'xlsx') {
-        // Using SheetJS library for Excel
+    else if (format === 'excel') {
         if (typeof XLSX === 'undefined') {
             showAlert('⚠️ XLSX kütüphanesi bulunamadı! Yükleyin.', 'error');
             return;
         }
-
         const ws = XLSX.utils.aoa_to_sheet(rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Stoklar');
-
         XLSX.writeFile(wb, `stok_${new Date().toISOString().slice(0,10)}.xlsx`);
         showAlert('✅ Excel dosyası indirildi!', 'success');
+    }
 
-    } else {
+    else {
         showAlert('⚠️ Geçersiz format seçildi!', 'error');
     }
 }
+
+
+
+
 
 
 
