@@ -443,7 +443,23 @@ async function calculateTotalQuantity(packageIds) {
         
 
        // Fixed populateShippingTable function with duplication prevention
+let isShippingTableLoading = false;
+let lastShippingFetchTime = 0;
+
 async function populateShippingTable() {
+    // Prevent multiple simultaneous calls
+    if (isShippingTableLoading) return;
+    
+    // Debounce - prevent rapid successive calls
+    const now = Date.now();
+    if (now - lastShippingFetchTime < 500) {
+        setTimeout(populateShippingTable, 500);
+        return;
+    }
+    
+    isShippingTableLoading = true;
+    lastShippingFetchTime = now;
+    
     try {
         console.log('populateShippingTable called');
 
@@ -503,6 +519,7 @@ async function populateShippingTable() {
         const packagesMap = {};
         packagesData.forEach(p => {
             if (!packagesMap[p.container_id]) packagesMap[p.container_id] = [];
+            // Check for duplicate packages by ID
             if (!packagesMap[p.container_id].some(x => x.id === p.id)) {
                 packagesMap[p.container_id].push(p);
             }
@@ -576,6 +593,7 @@ async function populateShippingTable() {
             folderDiv.appendChild(folderHeader);
             folderDiv.appendChild(folderContent);
 
+            // Use event delegation instead of attaching multiple listeners
             folderHeader.addEventListener('click', () => {
                 folderDiv.classList.toggle('folder-open');
                 folderContent.style.display = folderDiv.classList.contains('folder-open') ? 'block' : 'none';
@@ -587,9 +605,17 @@ async function populateShippingTable() {
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
         showAlert('Sevkiyat tablosu yükleme hatası', 'error');
+    } finally {
+        isShippingTableLoading = false;
     }
 }
 
+// Debounced version to prevent rapid successive calls
+let shippingTableTimeout;
+function debouncedPopulateShippingTable() {
+    clearTimeout(shippingTableTimeout);
+    shippingTableTimeout = setTimeout(populateShippingTable, 300);
+}
 
 
 
@@ -706,69 +732,103 @@ async function populateShippingTable() {
 
 
 
-  async function populateStockTable() {
-            try {
-                elements.stockTableBody.innerHTML = '';
-                
-                const { data: stockItems, error } = await supabase
-                    .from('stock_items')
-                    .select('*')
-                    .order('name');
+  let isStockTableLoading = false;
+let lastStockFetchTime = 0;
 
-                if (error) {
-                    console.error('Error loading stock items:', error);
-                    showAlert('Stok verileri yüklenemedi', 'error');
-                    return;
-                }
+async function populateStockTable() {
+    // Prevent multiple simultaneous calls
+    if (isStockTableLoading) return;
+    
+    // Debounce - prevent rapid successive calls
+    const now = Date.now();
+    if (now - lastStockFetchTime < 500) {
+        setTimeout(populateStockTable, 500);
+        return;
+    }
+    
+    isStockTableLoading = true;
+    lastStockFetchTime = now;
+    
+    try {
+        // Clear table only once
+        elements.stockTableBody.innerHTML = '';
+        
+        const { data: stockItems, error } = await supabase
+            .from('stock_items')
+            .select('*')
+            .order('name');
 
-                if (stockItems && stockItems.length > 0) {
-                    stockItems.forEach(item => {
-                        const row = document.createElement('tr');
-                        
-                        // Determine stock status
-                        let statusClass = 'status-stokta';
-                        let statusText = 'Stokta';
-                        
-                        if (item.quantity <= 0) {
-                            statusClass = 'status-kritik';
-                            statusText = 'Kritik';
-                        } else if (item.quantity < 10) {
-                            statusClass = 'status-az-stok';
-                            statusText = 'Az Stok';
-                        }
-                        
-                        row.innerHTML = `
-                            <td>${item.code}</td>
-                            <td>${item.name}</td>
-                            <td class="editable-cell">
-                                <span class="stock-quantity">${item.quantity}</span>
-                                <input type="number" class="stock-quantity-input" value="${item.quantity}" style="display:none;">
-                            </td>
-                            <td>${item.unit || 'Adet'}</td>
-                            <td><span class="${statusClass}">${statusText}</span></td>
-                            <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                            <td>
-                                <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
-                                <div class="edit-buttons" style="display:none;">
-                                    <button onclick="saveStockItem('${item.code}')" class="btn btn-success btn-sm">Kaydet</button>
-                                    <button onclick="cancelEditStockItem('${item.code}', ${item.quantity})" class="btn btn-secondary btn-sm">İptal</button>
-                                </div>
-                            </td>
-                        `;
-                        elements.stockTableBody.appendChild(row);
-                    });
-                } else {
-                    const row = document.createElement('tr');
-                    row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
-                    elements.stockTableBody.appendChild(row);
-                }
-                
-            } catch (error) {
-                console.error('Error in populateStockTable:', error);
-                showAlert('Stok tablosu yükleme hatası', 'error');
-            }
+        if (error) {
+            console.error('Error loading stock items:', error);
+            showAlert('Stok verileri yüklenemedi', 'error');
+            return;
         }
 
+        // Deduplicate stock items by code
+        const uniqueStockItems = [];
+        const seenStockCodes = new Set();
+        
+        if (stockItems && stockItems.length > 0) {
+            stockItems.forEach(item => {
+                if (!seenStockCodes.has(item.code)) {
+                    seenStockCodes.add(item.code);
+                    uniqueStockItems.push(item);
+                    
+                    const row = document.createElement('tr');
+                    
+                    // Determine stock status
+                    let statusClass = 'status-stokta';
+                    let statusText = 'Stokta';
+                    
+                    if (item.quantity <= 0) {
+                        statusClass = 'status-kritik';
+                        statusText = 'Kritik';
+                    } else if (item.quantity < 10) {
+                        statusClass = 'status-az-stok';
+                        statusText = 'Az Stok';
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${item.code}</td>
+                        <td>${item.name}</td>
+                        <td class="editable-cell">
+                            <span class="stock-quantity">${item.quantity}</span>
+                            <input type="number" class="stock-quantity-input" value="${item.quantity}" style="display:none;">
+                        </td>
+                        <td>${item.unit || 'Adet'}</td>
+                        <td><span class="${statusClass}">${statusText}</span></td>
+                        <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                        <td>
+                            <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
+                            <div class="edit-buttons" style="display:none;">
+                                <button onclick="saveStockItem('${item.code}')" class="btn btn-success btn-sm">Kaydet</button>
+                                <button onclick="cancelEditStockItem('${item.code}', ${item.quantity})" class="btn btn-secondary btn-sm">İptal</button>
+                            </div>
+                        </td>
+                    `;
+                    elements.stockTableBody.appendChild(row);
+                }
+            });
+        } else {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
+            elements.stockTableBody.appendChild(row);
+        }
+        
+    } catch (error) {
+        console.error('Error in populateStockTable:', error);
+        showAlert('Stok tablosu yükleme hatası', 'error');
+    } finally {
+        isStockTableLoading = false;
+    }
+}
+
+// Debounced version to prevent rapid successive calls
+let stockTableTimeout;
+function debouncedPopulateStockTable() {
+    clearTimeout(stockTableTimeout);
+    stockTableTimeout = setTimeout(populateStockTable, 300);
+}
 
 
  
