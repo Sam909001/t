@@ -9,7 +9,6 @@
 })();
 
 // Loading state guards to prevent duplicates
-let packagesTableLoading = false;
 let shippingTableLoading = false;
 let stockTableLoading = false;
 
