@@ -317,22 +317,25 @@ function showApiKeyHelp() {
 
         
 
-        function cancelEditStockItem(code, originalQuantity) {
-            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-            const quantityInput = row.querySelector('.stock-quantity-input');
-            const quantitySpan = row.querySelector('.stock-quantity');
-            const editButton = row.querySelector('button');
-            const editButtons = row.querySelector('.edit-buttons');
-            
-            // Değişiklikleri iptal et
-            quantityInput.value = originalQuantity;
-            quantitySpan.style.display = 'block';
-            quantityInput.style.display = 'none';
-            editButton.style.display = 'block';
-            editButtons.style.display = 'none';
-            
-            editingStockItem = null;
-        }
+function cancelEditStockItem(button, originalQuantity) {
+    const row = button.closest('tr');
+    const quantityInput = row.querySelector('.stock-quantity-input');
+    const quantitySpan = row.querySelector('.stock-quantity');
+    const editButton = row.querySelector('.edit-btn'); // give Edit button a class
+    const editButtons = row.querySelector('.edit-buttons');
+    
+    // Reset the value
+    quantityInput.value = originalQuantity;
+    
+    // Switch back to view mode
+    quantitySpan.style.display = 'block';
+    quantityInput.style.display = 'none';
+    editButton.style.display = 'inline-block';
+    editButtons.style.display = 'none';
+    
+    editingStockItem = null;
+}
+
 
 
 
