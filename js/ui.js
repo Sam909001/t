@@ -293,48 +293,6 @@ function showApiKeyHelp() {
 
 
 
-// Stok düzenleme fonksiyonları
-        function editStockItem(button, code) {
-            const row = button.closest('tr');
-            const quantitySpan = row.querySelector('.stock-quantity');
-            const quantityInput = row.querySelector('.stock-quantity-input');
-            const editButton = row.querySelector('button');
-            const editButtons = row.querySelector('.edit-buttons');
-            
-            // Düzenleme moduna geç
-            quantitySpan.style.display = 'none';
-            quantityInput.style.display = 'block';
-            editButton.style.display = 'none';
-            editButtons.style.display = 'flex';
-            
-            editingStockItem = code;
-        }
-
-
-
-       
-
-
-        
-
-function cancelEditStockItem(button, originalQuantity) {
-    const row = button.closest('tr');
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const editButton = row.querySelector('.edit-btn'); // give Edit button a class
-    const editButtons = row.querySelector('.edit-buttons');
-    
-    // Reset the value
-    quantityInput.value = originalQuantity;
-    
-    // Switch back to view mode
-    quantitySpan.style.display = 'block';
-    quantityInput.style.display = 'none';
-    editButton.style.display = 'inline-block';
-    editButtons.style.display = 'none';
-    
-    editingStockItem = null;
-}
 
 
 
@@ -346,6 +304,79 @@ function cancelEditStockItem(button, originalQuantity) {
     }
     return true;
 }
+
+
+
+function editStockItem(button, code) {
+    const row = button.closest("tr");
+    const quantitySpan = row.querySelector(".stock-quantity");
+    const quantityInput = row.querySelector(".stock-quantity-input");
+    const editButton = row.querySelector("button"); // Düzenle
+    const editButtons = row.querySelector(".edit-buttons");
+
+    // Switch to edit mode
+    quantitySpan.style.display = "none";
+    quantityInput.style.display = "inline-block";
+    editButton.style.display = "none";
+    editButtons.style.display = "inline-flex";
+
+    editingStockItem = code;
+}
+
+function cancelEditStockItem(button, code, originalQuantity) {
+    const row = button.closest("tr");
+    const quantitySpan = row.querySelector(".stock-quantity");
+    const quantityInput = row.querySelector(".stock-quantity-input");
+    const editButton = row.querySelector("td button"); // Düzenle
+    const editButtons = row.querySelector(".edit-buttons");
+
+    // Reset to original
+    quantityInput.value = originalQuantity;
+    quantitySpan.style.display = "inline";
+    quantityInput.style.display = "none";
+    editButton.style.display = "inline-block";
+    editButtons.style.display = "none";
+
+    editingStockItem = null;
+}
+
+async function saveStockItem(button, code) {
+    const row = button.closest("tr");
+    const quantitySpan = row.querySelector(".stock-quantity");
+    const quantityInput = row.querySelector(".stock-quantity-input");
+    const editButton = row.querySelector("td button"); // Düzenle
+    const editButtons = row.querySelector(".edit-buttons");
+
+    const newQuantity = parseInt(quantityInput.value, 10);
+
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        showAlert("Geçerli bir sayı girin", "error");
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from("stock")
+            .update({ quantity: newQuantity })
+            .eq("code", code);
+
+        if (error) throw error;
+
+        // Update UI
+        quantitySpan.textContent = newQuantity;
+        quantitySpan.style.display = "inline";
+        quantityInput.style.display = "none";
+        editButton.style.display = "inline-block";
+        editButtons.style.display = "none";
+
+        editingStockItem = null;
+        showAlert("Stok başarıyla güncellendi", "success");
+    } catch (err) {
+        console.error("Stock update error:", err);
+        showAlert("Stok güncellenemedi", "error");
+    }
+}
+
 
 
 
