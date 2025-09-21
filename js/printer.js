@@ -308,23 +308,35 @@ function getPrinter() {
     return printer;
 }
 
-async function testPrinter() {
+async function testPrinter(event) {
     console.log('🧪 Test printer button clicked');
-    
+
     const printerInstance = getPrinter();
-    
-    const testBtn = document.getElementById('test-printer');
-    if (testBtn) {
-        const originalText = testBtn.textContent;
-        testBtn.disabled = true;
-        testBtn.textContent = 'Test Ediliyor...';
-        
-        await printerInstance.testPrint();
-        
-        testBtn.disabled = false;
-        testBtn.textContent = originalText;
-    }
+
+    // Use the clicked button
+    const testBtn = event.currentTarget;
+    const originalText = testBtn.textContent;
+    testBtn.disabled = true;
+    testBtn.textContent = 'Test Ediliyor...';
+
+    await printerInstance.testPrint();
+
+    testBtn.disabled = false;
+    testBtn.textContent = originalText;
 }
+
+// Attach listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const btn1 = document.getElementById('test-printer');
+    if (btn1) btn1.addEventListener('click', testPrinter);
+
+    const btn2 = document.getElementById('test-printer-yazdir');
+    if (btn2) btn2.addEventListener('click', testPrinter);
+});
+
+
+
+
 
 function checkPrinterStatus() {
     console.log('🔍 Checking printer status...');
