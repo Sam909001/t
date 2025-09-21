@@ -282,9 +282,6 @@ async function populatePersonnel() {
 
 
 
-        
-
- let packagesTableLoading = false;
 
 async function populatePackagesTable() {
     // Prevent multiple simultaneous calls
