@@ -448,79 +448,61 @@ async function populateShippingTable() {
         elements.shippingFolders.innerHTML = '';
 
         const filter = elements.shippingFilter?.value || 'all';
-        let query = supabase
-            .from('containers')
-            .select(`
-                *,
-                packages (
-                    id,
-                    package_no,
-                    total_quantity,
-                    customers (name, code)
-                )
-            `);
+        let containerQuery = supabase.from('containers').select('*');
+        if (filter !== 'all') containerQuery = containerQuery.eq('status', filter);
+        const { data: containers, error } = await containerQuery.order('created_at', { ascending: false });
 
-        if (filter !== 'all') query = query.eq('status', filter);
-
-        const { data: containers, error } = await query.order('created_at', { ascending: false });
         if (error) {
             console.error('Error loading containers:', error);
             showAlert('Sevkiyat verileri yüklenemedi', 'error');
             return;
         }
-
         if (!containers || containers.length === 0) {
             elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
             return;
         }
 
-        // ✅ Merge containers by ID and combine packages
-        const containerMap = new Map();
-        containers.forEach(c => {
-            if (!containerMap.has(c.id)) {
-                containerMap.set(c.id, { ...c, packages: c.packages ? [...c.packages] : [] });
-            } else if (c.packages && c.packages.length > 0) {
-                // Merge packages, deduplicate by package id
-                const existing = containerMap.get(c.id);
-                const combined = [...existing.packages, ...c.packages];
-                const uniquePackages = Array.from(
-                    new Map(combined.map(p => [p.id, p]))
-                ).map(([_, p]) => p);
-                existing.packages = uniquePackages;
-            }
+        // Fetch packages for all containers at once
+        const containerIds = containers.map(c => c.id);
+        const { data: packagesData } = await supabase
+            .from('packages')
+            .select('id, package_no, total_quantity, container_id, customers(name, code)')
+            .in('container_id', containerIds);
+
+        // Map packages to their container
+        const packagesMap = {};
+        packagesData.forEach(p => {
+            if (!packagesMap[p.container_id]) packagesMap[p.container_id] = [];
+            // Deduplicate by package id just in case
+            if (!packagesMap[p.container_id].some(x => x.id === p.id)) packagesMap[p.container_id].push(p);
         });
 
-        const uniqueContainers = Array.from(containerMap.values());
+        // Attach packages to containers
+        containers.forEach(c => {
+            c.packages = packagesMap[c.id] || [];
+        });
 
-        // ✅ Group by customer(s)
+        // ✅ Group by customer(s) and render (same as before)
         const customersMap = {};
-        uniqueContainers.forEach(container => {
+        containers.forEach(container => {
             let customerName = 'Diğer';
-
-            if (container.packages && container.packages.length > 0) {
-                const names = container.packages
-                    .map(p => p.customers?.name)
-                    .filter(Boolean);
+            if (container.packages.length > 0) {
+                const names = container.packages.map(p => p.customers?.name).filter(Boolean);
                 if (names.length > 0) customerName = [...new Set(names)].join(', ');
             } else if (container.customer) {
                 customerName = container.customer;
             }
-
             if (!customersMap[customerName]) customersMap[customerName] = [];
             customersMap[customerName].push(container);
         });
 
-        // ✅ Render grouped folders (same as before)
         for (const [customerName, customerContainers] of Object.entries(customersMap)) {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'customer-folder';
 
             const folderHeader = document.createElement('div');
             folderHeader.className = 'folder-header';
-            folderHeader.innerHTML = `
-                <span>${customerName}</span>
-                <span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>
-            `;
+            folderHeader.innerHTML = `<span>${customerName}</span><span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>`;
 
             const folderContent = document.createElement('div');
             folderContent.className = 'folder-content';
@@ -544,8 +526,8 @@ async function populateShippingTable() {
                         <tr>
                             <td><input type="checkbox" value="${container.id}" class="container-checkbox"></td>
                             <td>${container.container_no}</td>
-                            <td>${container.packages?.length || 0}</td>
-                            <td>${container.packages?.reduce((sum, p) => sum + (p.total_quantity || 0), 0)}</td>
+                            <td>${container.packages.length}</td>
+                            <td>${container.packages.reduce((sum, p) => sum + (p.total_quantity || 0), 0)}</td>
                             <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                             <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
                             <td>
