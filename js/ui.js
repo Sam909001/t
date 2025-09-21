@@ -293,220 +293,46 @@ function showApiKeyHelp() {
 
 
 
-// ================== STOCK EDITING FUNCTIONS ==================
-let editingStockItem = null;
-let originalQuantity = 0;
-let originalStatus = '';
-
-async function saveStockItem(code) {
-    const row = document.querySelector(`tr[data-code="${code}"]`);
-    if (!row) {
-        console.error('Row not found for code:', code);
-        showAlert('Stok öğesi bulunamadı', 'error');
-        return;
-    }
-    
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const statusSpan = row.querySelector('.stock-status');
-    const editButton = row.querySelector('.edit-button');
-    const editButtons = row.querySelector('.edit-buttons');
-    
-    const newQuantity = parseInt(quantityInput.value);
-    
-    // Validation
-    if (isNaN(newQuantity) || newQuantity < 0) {
-        showAlert('Lütfen geçerli bir sayı giriniz (0 veya daha büyük)', 'error');
-        quantityInput.focus();
-        return;
-    }
-    
-    try {
-        // Show loading state
-        if (editButtons) {
-            const saveBtn = editButtons.querySelector('.save-btn');
-            if (saveBtn) {
-                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
-                saveBtn.disabled = true;
-            }
+// Stok düzenleme fonksiyonları
+        function editStockItem(button, code) {
+            const row = button.closest('tr');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            
+            // Düzenleme moduna geç
+            quantitySpan.style.display = 'none';
+            quantityInput.style.display = 'block';
+            editButton.style.display = 'none';
+            editButtons.style.display = 'flex';
+            
+            editingStockItem = code;
         }
+
+
+
+       
+
+
         
-        // Update in database
-        const success = await updateStockInDatabase(code, newQuantity);
-        
-        if (success) {
-            // Update the display
-            quantitySpan.textContent = newQuantity;
-            quantitySpan.style.display = 'inline';
+
+        function cancelEditStockItem(code, originalQuantity) {
+            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            
+            // Değişiklikleri iptal et
+            quantityInput.value = originalQuantity;
+            quantitySpan.style.display = 'block';
             quantityInput.style.display = 'none';
+            editButton.style.display = 'block';
+            editButtons.style.display = 'none';
             
-            // Update status based on quantity
-            updateStockStatus(statusSpan, newQuantity);
-            
-            if (editButton) editButton.style.display = 'block';
-            if (editButtons) editButtons.style.display = 'none';
-            
-            showAlert('Stok başarıyla güncellendi', 'success');
-        } else {
-            showAlert('Stok güncellenirken hata oluştu', 'error');
+            editingStockItem = null;
         }
-        
-    } catch (error) {
-        console.error('Save error:', error);
-        showAlert('Stok kaydedilirken bir hata oluştu', 'error');
-    } finally {
-        // Reset button state
-        if (editButtons) {
-            const saveBtn = editButtons.querySelector('.save-btn');
-            if (saveBtn) {
-                saveBtn.innerHTML = 'Kaydet';
-                saveBtn.disabled = false;
-            }
-        }
-    }
-    
-    editingStockItem = null;
-}
-
-function updateStockStatus(statusElement, quantity) {
-    if (!statusElement) return;
-    
-    if (quantity === 0) {
-        statusElement.textContent = 'Tükendi';
-        statusElement.className = 'stock-status out-of-stock';
-    } else if (quantity < 10) {
-        statusElement.textContent = 'Az';
-        statusElement.className = 'stock-status low-stock';
-    } else if (quantity < 30) {
-        statusElement.textContent = 'Orta';
-        statusElement.className = 'stock-status medium-stock';
-    } else {
-        statusElement.textContent = 'Yeterli';
-        statusElement.className = 'stock-status sufficient-stock';
-    }
-}
-
-async function updateStockInDatabase(code, newQuantity) {
-    try {
-        console.log(`Updating stock in database: ${code} -> ${newQuantity}`);
-        
-        // Supabase update example
-        const { data, error } = await supabase
-            .from('stock')
-            .update({ 
-                quantity: newQuantity, 
-                updated_at: new Date().toISOString(),
-                status: getStockStatus(newQuantity)
-            })
-            .eq('code', code)
-            .select();
-        
-        if (error) {
-            console.error('Database update error:', error);
-            throw error;
-        }
-        
-        return true;
-        
-    } catch (error) {
-        console.error('Update stock error:', error);
-        throw error;
-    }
-}
-
-function getStockStatus(quantity) {
-    if (quantity === 0) return 'out-of-stock';
-    if (quantity < 10) return 'low-stock';
-    if (quantity < 30) return 'medium-stock';
-    return 'sufficient-stock';
-}
-
-function editStockItem(button, code, currentQuantity) {
-    const row = button.closest('tr');
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const statusSpan = row.querySelector('.stock-status');
-    const editButton = row.querySelector('.edit-button');
-    const editButtons = row.querySelector('.edit-buttons');
-    
-    // Store original values
-    editingStockItem = code;
-    originalQuantity = currentQuantity;
-    originalStatus = statusSpan ? statusSpan.textContent : '';
-    
-    // Switch to edit mode
-    quantitySpan.style.display = 'none';
-    quantityInput.style.display = 'inline-block';
-    quantityInput.value = currentQuantity;
-    quantityInput.focus();
-    quantityInput.select();
-    
-    if (editButton) editButton.style.display = 'none';
-    if (editButtons) editButtons.style.display = 'flex';
-}
-
-function cancelEditStockItem(code) {
-    const row = document.querySelector(`tr[data-code="${code}"]`);
-    if (!row) {
-        console.error('Row not found for code:', code);
-        return;
-    }
-    
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const statusSpan = row.querySelector('.stock-status');
-    const editButton = row.querySelector('.edit-button');
-    const editButtons = row.querySelector('.edit-buttons');
-    
-    // Revert changes
-    quantityInput.value = originalQuantity;
-    quantitySpan.style.display = 'inline';
-    quantityInput.style.display = 'none';
-    
-    // Restore original status if needed
-    if (statusSpan && originalStatus) {
-        statusSpan.textContent = originalStatus;
-    }
-    
-    if (editButton) editButton.style.display = 'block';
-    if (editButtons) editButtons.style.display = 'none';
-    
-    editingStockItem = null;
-}
-
-function setupStockEditListeners() {
-    // Enter key to save
-    document.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && editingStockItem) {
-            saveStockItem(editingStockItem);
-        }
-    });
-    
-    // Escape key to cancel
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && editingStockItem) {
-            cancelEditStockItem(editingStockItem);
-        }
-    });
-    
-    // Click outside to cancel
-    document.addEventListener('click', function(e) {
-        if (editingStockItem && !e.target.closest('.edit-buttons') && !e.target.closest('.edit-button')) {
-            const quantityInput = document.querySelector('.stock-quantity-input:focus');
-            if (quantityInput) {
-                cancelEditStockItem(editingStockItem);
-            }
-        }
-    });
-}
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    setupStockEditListeners();
-    console.log('Stock editing system initialized');
-});
-
-
 
 
 
