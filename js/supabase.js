@@ -240,32 +240,33 @@ async function testConnection() {
 
 
 async function populatePersonnels() {
-    try {
-       const { data: personnels, error } = await supabase
-    .from('personel')
-            .select('*')
+     try {
+        const { data: personelData, error } = await supabase
+            .from('personel')  // exact table name
+            .select('id, name') // use the correct column names
             .order('name', { ascending: true });
 
         if (error) {
-            console.error('Error loading personnels:', error);
+            console.error('Error fetching personnel:', error);
             return;
         }
 
         const personnelSelect = document.getElementById('personnelSelect');
-        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>'; // reset
 
-        if (personnels && personnels.length > 0) {
-            personnels.forEach(personnel => {
+        if (personelData && personelData.length > 0) {
+            personelData.forEach(person => {
                 const option = document.createElement('option');
-                option.value = personnel.id;
-                option.textContent = personnel.name;   // 👈 make sure column name exists in DB
+                option.value = person.id;  // or person.code if you have that
+                option.textContent = person.name; // make sure the column is correct
                 personnelSelect.appendChild(option);
             });
         } else {
-            console.warn('No personnels found in database.');
+            console.log('No personnel found in the database');
         }
+
     } catch (err) {
-        console.error('populatePersonnels error:', err);
+        console.error('populatePersonnelDropdown error:', err);
     }
 }
 
