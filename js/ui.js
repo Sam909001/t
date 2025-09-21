@@ -565,29 +565,54 @@ function loadSettings() {
         document.body.classList.add('dark-mode');
     }
     
-   // Default printer settings
-    printerScaling: '100%',
-    copies: 1,
-    fontName: 'Arial',
-    fontSize: 10,
-    orientation: 'portrait',
-    marginTop: 5,
-    marginBottom: 5
-};
+  function loadPrinterSettings() {
+    // Scaling / label size
+    if (settings.printerScaling) {
+        document.getElementById('printerScaling').value = settings.printerScaling;
+    }
 
-// Load settings into the modal
-function loadPrinterSettings() {
-    document.getElementById('printerScaling').value = settings.printerScaling;
-    document.getElementById('copiesNumber').value = settings.copies;
-    document.getElementById('fontName').value = settings.fontName;
-    document.getElementById('fontSize').value = settings.fontSize;
-    document.getElementById('orientation').value = settings.orientation;
-    document.getElementById('marginTop').value = settings.marginTop;
-    document.getElementById('marginBottom').value = settings.marginBottom;
+    // Copies
+    if (settings.copies) {
+        document.getElementById('copiesNumber').value = settings.copies;
+    }
+
+    // Font
+    if (settings.fontName) {
+        document.getElementById('fontName').value = settings.fontName;
+    } else {
+        document.getElementById('fontName').value = 'Arial'; // default
+    }
+
+    // Font size
+    if (settings.fontSize) {
+        document.getElementById('fontSize').value = settings.fontSize;
+    } else {
+        document.getElementById('fontSize').value = 10; // default
+    }
+
+    // Orientation
+    if (settings.orientation) {
+        document.getElementById('orientation').value = settings.orientation;
+    } else {
+        document.getElementById('orientation').value = 'portrait';
+    }
+
+    // Margins
+    if (settings.marginTop !== undefined) {
+        document.getElementById('marginTop').value = settings.marginTop;
+    } else {
+        document.getElementById('marginTop').value = 5; // default
+    }
+
+    if (settings.marginBottom !== undefined) {
+        document.getElementById('marginBottom').value = settings.marginBottom;
+    } else {
+        document.getElementById('marginBottom').value = 5; // default
+    }
 }
 
-// Save settings from modal inputs
-function savePrinterSettings() {
+
+    function savePrinterSettings() {
     settings.printerScaling = document.getElementById('printerScaling').value;
     settings.copies = parseInt(document.getElementById('copiesNumber').value, 10);
     settings.fontName = document.getElementById('fontName').value;
@@ -597,41 +622,7 @@ function savePrinterSettings() {
     settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
 
     localStorage.setItem('printerSettings', JSON.stringify(settings));
-    console.log('Printer settings saved:', settings);
-}
-
-// Attach change listeners dynamically
-document.addEventListener('DOMContentLoaded', () => {
-    const inputs = [
-        'printerScaling',
-        'copiesNumber',
-        'fontName',
-        'fontSize',
-        'orientation',
-        'marginTop',
-        'marginBottom'
-    ];
-
-    inputs.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', savePrinterSettings);
-    });
-
-    // Test print button
-    const testBtn = document.getElementById('testPrinterBtn');
-    if (testBtn) testBtn.addEventListener('click', testPrinter);
-
-    // Load saved settings if exist
-    const saved = localStorage.getItem('printerSettings');
-    if (saved) settings = JSON.parse(saved);
-
-    loadPrinterSettings();
-});
-
-// Example testPrinter function
-function testPrinter() {
-    console.log('Printing test label with settings:', settings);
-    alert(`Test Yazdırıldı!\nEtiket Boyutu: ${settings.printerScaling}\nKopya: ${settings.copies}`);
+    console.log('Printer settings saved', settings);
 }
 
 
