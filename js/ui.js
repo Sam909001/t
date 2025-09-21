@@ -565,9 +565,6 @@ function loadSettings() {
         document.body.classList.add('dark-mode');
     }
 
-    // Load printer settings
-    loadPrinterSettings(settings);
-}
 
 function loadPrinterSettings(settings) {
     // Scaling / label size
