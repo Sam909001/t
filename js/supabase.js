@@ -17,6 +17,7 @@ let currentReportData = null;
 let selectedPackageForPrinting = null;
 let personnelLoaded = false;
 let packagesLoaded = false;
+let packagesTableLoading = false;
 
 // EmailJS initialization
 (function() {
@@ -283,9 +284,37 @@ async function populatePersonnel() {
 
         
 
-   async function populatePackagesTable() {
+  async function populatePackagesTable() {
+    // Prevent multiple simultaneous calls
+    if (packagesTableLoading) {
+        console.log('Package table already loading, skipping...');
+        return;
+    }
+    
+    packagesTableLoading = true;
+    
     try {
-        elements.packagesTableBody.innerHTML = '';
+        // Ensure elements are initialized
+        const tableBody = elements.packagesTableBody || document.getElementById('packagesTableBody');
+        const totalPackagesElement = elements.totalPackages || document.getElementById('totalPackages');
+        
+        if (!tableBody) {
+            console.error('Package table body not found');
+            return;
+        }
+
+        // Clear existing content
+        tableBody.innerHTML = '';
+        if (totalPackagesElement) {
+            totalPackagesElement.textContent = '0';
+        }
+
+        // Check Supabase connection
+        if (!supabase) {
+            console.error('Supabase not initialized');
+            showAlert('Veritabanı bağlantısı yok', 'error');
+            return;
+        }
 
         const { data: packages, error } = await supabase
             .from('packages')
@@ -295,57 +324,100 @@ async function populatePersonnel() {
 
         if (error) {
             console.error('Error loading packages:', error);
-            showAlert('Paket verileri yüklenemedi', 'error');
+            showAlert('Paket verileri yüklenemedi: ' + error.message, 'error');
             return;
         }
 
         if (!packages || packages.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
-            elements.packagesTableBody.appendChild(row);
-            elements.totalPackages.textContent = '0';
+            tableBody.appendChild(row);
+            if (totalPackagesElement) {
+                totalPackagesElement.textContent = '0';
+            }
             return;
         }
 
-        // Deduplicate packages by ID
-        const uniquePackages = Array.from(new Map(packages.map(pkg => [pkg.id, pkg])).values());
+        // ✅ CRITICAL: Deduplicate packages by ID to prevent duplicates
+        const uniquePackages = [];
+        const seenIds = new Set();
+        
+        packages.forEach(pkg => {
+            if (!seenIds.has(pkg.id)) {
+                seenIds.add(pkg.id);
+                uniquePackages.push(pkg);
+            }
+        });
 
+        console.log(`Original packages: ${packages.length}, Unique packages: ${uniquePackages.length}`);
+
+        // Render unique packages
         uniquePackages.forEach(pkg => {
             const row = document.createElement('tr');
 
-            let productInfo = '';
+            let productInfo = 'N/A';
             if (pkg.items && typeof pkg.items === 'object') {
-                productInfo = Object.entries(pkg.items)
+                const items = Object.entries(pkg.items)
                     .map(([product, quantity]) => `${product}: ${quantity}`)
                     .join(', ');
+                productInfo = items || 'N/A';
             }
 
+            // Escape JSON for HTML attribute
+            const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            
             row.innerHTML = `
-                <td><input type="checkbox" value="${pkg.id}" data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}' onchange="updatePackageSelection()"></td>
-                <td>${pkg.package_no}</td>
-                <td>${pkg.customers?.name || 'N/A'}</td>
-                <td>${productInfo || 'N/A'}</td>
-                <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+                <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+                <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
+                <td title="${escapeHtml(productInfo)}">${escapeHtml(productInfo.length > 50 ? productInfo.substring(0, 50) + '...' : productInfo)}</td>
+                <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
             `;
 
-            row.onclick = (e) => {
+            // Add click handler for row selection (not on checkbox)
+            row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') {
                     selectPackage(pkg);
                 }
-            };
+            });
 
-            elements.packagesTableBody.appendChild(row);
+            tableBody.appendChild(row);
         });
 
-        elements.totalPackages.textContent = uniquePackages.length;
+        // Update total count
+        if (totalPackagesElement) {
+            totalPackagesElement.textContent = uniquePackages.length.toString();
+        }
+
+        console.log(`✅ Package table populated with ${uniquePackages.length} unique packages`);
 
     } catch (error) {
         console.error('Error in populatePackagesTable:', error);
-        showAlert('Paket tablosu yükleme hatası', 'error');
+        showAlert('Paket tablosu yükleme hatası: ' + error.message, 'error');
+    } finally {
+        // Always reset loading state
+        packagesTableLoading = false;
     }
 }
 
+// Helper function to escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Debounced version to prevent rapid successive calls
+let populatePackagesTimeout;
+function debouncedPopulatePackagesTable() {
+    clearTimeout(populatePackagesTimeout);
+    populatePackagesTimeout = setTimeout(populatePackagesTable, 100);
+}
+
+// Use this instead of direct calls in multiple places
+window.refreshPackageTable = debouncedPopulatePackagesTable;
 
 
         
