@@ -238,8 +238,8 @@ async function testConnection() {
 
 
 
-
-  const personnelSelect = document.getElementById('personnelSelect');
+async function populatePersonnel() {
+    const personnelSelect = document.getElementById('personnelSelect');
     if (!personnelSelect) return;
 
     // Clear existing options
@@ -271,6 +271,7 @@ async function testConnection() {
         showAlert('Personel dropdown yükleme hatası', 'error');
     }
 }
+
 
 
         
