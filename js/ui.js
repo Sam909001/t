@@ -566,7 +566,6 @@ function loadSettings() {
     }
     
    // Default printer settings
-let settings = {
     printerScaling: '100%',
     copies: 1,
     fontName: 'Arial',
