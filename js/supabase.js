@@ -445,7 +445,6 @@ async function calculateTotalQuantity(packageIds) {
        // Fixed populateShippingTable function with duplication prevention
 async function populateShippingTable() {
     try {
-        // Clear the main container first
         elements.shippingFolders.innerHTML = '';
 
         const filter = elements.shippingFilter?.value || 'all';
@@ -461,12 +460,9 @@ async function populateShippingTable() {
                 )
             `);
 
-        if (filter !== 'all') {
-            query = query.eq('status', filter);
-        }
+        if (filter !== 'all') query = query.eq('status', filter);
 
         const { data: containers, error } = await query.order('created_at', { ascending: false });
-
         if (error) {
             console.error('Error loading containers:', error);
             showAlert('Sevkiyat verileri yüklenemedi', 'error');
@@ -478,20 +474,25 @@ async function populateShippingTable() {
             return;
         }
 
-        // ✅ Deduplicate containers by ID
-        const uniqueContainers = Array.from(new Map(containers.map(c => [c.id, c])).values());
-
-        // ✅ Deduplicate packages inside each container
-        uniqueContainers.forEach(container => {
-            if (container.packages && container.packages.length > 0) {
+        // ✅ Merge containers by ID and combine packages
+        const containerMap = new Map();
+        containers.forEach(c => {
+            if (!containerMap.has(c.id)) {
+                containerMap.set(c.id, { ...c, packages: c.packages ? [...c.packages] : [] });
+            } else if (c.packages && c.packages.length > 0) {
+                // Merge packages, deduplicate by package id
+                const existing = containerMap.get(c.id);
+                const combined = [...existing.packages, ...c.packages];
                 const uniquePackages = Array.from(
-                    new Map(container.packages.map(p => [p.id + '-' + p.package_no, p]))
+                    new Map(combined.map(p => [p.id, p]))
                 ).map(([_, p]) => p);
-                container.packages = uniquePackages;
+                existing.packages = uniquePackages;
             }
         });
 
-        // ✅ Group containers by customer(s)
+        const uniqueContainers = Array.from(containerMap.values());
+
+        // ✅ Group by customer(s)
         const customersMap = {};
         uniqueContainers.forEach(container => {
             let customerName = 'Diğer';
@@ -509,7 +510,7 @@ async function populateShippingTable() {
             customersMap[customerName].push(container);
         });
 
-        // ✅ Render grouped folders
+        // ✅ Render grouped folders (same as before)
         for (const [customerName, customerContainers] of Object.entries(customersMap)) {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'customer-folder';
@@ -561,7 +562,6 @@ async function populateShippingTable() {
             folderDiv.appendChild(folderHeader);
             folderDiv.appendChild(folderContent);
 
-            // Folder toggle
             folderHeader.addEventListener('click', () => {
                 folderDiv.classList.toggle('folder-open');
                 folderContent.style.display = folderDiv.classList.contains('folder-open') ? 'block' : 'none';
