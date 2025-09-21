@@ -565,14 +565,52 @@ function loadSettings() {
         document.body.classList.add('dark-mode');
     }
     
-    // Printer settings
+    function loadPrinterSettings() {
+    // Scaling / label size
     if (settings.printerScaling) {
         document.getElementById('printerScaling').value = settings.printerScaling;
     }
-    
+
+    // Copies
     if (settings.copies) {
         document.getElementById('copiesNumber').value = settings.copies;
     }
+
+    // Font
+    if (settings.fontName) {
+        document.getElementById('fontName').value = settings.fontName;
+    } else {
+        document.getElementById('fontName').value = 'Arial'; // default
+    }
+
+    // Font size
+    if (settings.fontSize) {
+        document.getElementById('fontSize').value = settings.fontSize;
+    } else {
+        document.getElementById('fontSize').value = 10; // default
+    }
+
+    // Orientation
+    if (settings.orientation) {
+        document.getElementById('orientation').value = settings.orientation;
+    } else {
+        document.getElementById('orientation').value = 'portrait';
+    }
+
+    // Margins
+    if (settings.marginTop !== undefined) {
+        document.getElementById('marginTop').value = settings.marginTop;
+    } else {
+        document.getElementById('marginTop').value = 5; // default
+    }
+
+    if (settings.marginBottom !== undefined) {
+        document.getElementById('marginBottom').value = settings.marginBottom;
+    } else {
+        document.getElementById('marginBottom').value = 5; // default
+    }
+}
+
     
     // Language
     if (settings.language) {
