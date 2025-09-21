@@ -237,29 +237,30 @@
                 </div>
             </div>
 
-            <div class="tab-pane" id="stockTab">
-                <div class="stock-search">
-                    <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
-                    <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
-                    <button type="button" class="btn btn-success" onclick="exportStock()">Stokları Dışa Aktar</button>
-                </div>
+           <tbody id="stockTableBody">
+  <tr>
+    <td class="stock-code">ABC123</td>
+    <td class="stock-name">Ürün 1</td>
+    <td>
+      <span class="stock-quantity">10</span>
+      <input type="number" class="stock-quantity-input" value="10" style="display:none;">
+    </td>
+    <td class="stock-unit">Adet</td>
+    <td class="stock-status">Mevcut</td>
+    <td class="stock-last-update">2025-09-21</td>
+    <td>
+      <!-- Düzenle button -->
+      <button onclick="editStockItem(this, 'ABC123')">Düzenle</button>
 
-                <table class="stock-table">
-                    <thead>
-                        <tr>
-                            <th>Stok Kodu</th>
-                            <th>Ürün Adı</th>
-                            <th>Mevcut Adet</th>
-                            <th>Birim</th>
-                            <th>Durum</th>
-                            <th>Son Güncelleme</th>
-                            <th>İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stockTableBody">
-                        <!-- Stock data will be populated here -->
-                    </tbody>
-                </table>
+      <!-- Edit buttons group (Kaydet + İptal) -->
+      <div class="edit-buttons" style="display:none;">
+        <button onclick="saveStockItem(this, 'ABC123')">Kaydet</button>
+        <button onclick="cancelEditStockItem(this, 'ABC123', 10)">İptal</button>
+      </div>
+    </td>
+  </tr>
+</tbody>
+
 
                 <div class="file-upload">
                     <h3>Stok Dosyası Yükle</h3>
