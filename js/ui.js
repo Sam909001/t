@@ -307,66 +307,111 @@ function showApiKeyHelp() {
 
 
 
-let editingStockItem = null;
+// Stok düzenleme fonksiyonları
+        function editStockItem(button, code) {
+            const row = button.closest('tr');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            
+            // Düzenleme moduna geç
+            quantitySpan.style.display = 'none';
+            quantityInput.style.display = 'block';
+            editButton.style.display = 'none';
+            editButtons.style.display = 'flex';
+            
+            editingStockItem = code;
+        }
 
-function editStockItem(button, code) {
-    const row = button.closest("tr");
-    const quantitySpan = row.querySelector(".stock-quantity");
-    const quantityInput = row.querySelector(".stock-quantity-input");
-    const editButton = row.querySelector("td > button"); // Düzenle button
-    const editButtons = row.querySelector(".edit-buttons");
 
-    // Switch to edit mode
-    quantitySpan.style.display = "none";
-    quantityInput.style.display = "inline-block";
-    editButton.style.display = "none";
-    editButtons.style.display = "inline-flex";
 
-    editingStockItem = code;
-}
+        
+        async function saveStockItem(code) {
+            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            const newQuantity = parseInt(quantityInput.value);
+            
+            if (isNaN(newQuantity) || newQuantity < 0) {
+                showAlert('Geçerli bir miktar girin', 'error');
+                return;
+            }
+            
+            try {
+                if (!navigator.onLine) {
+                    // Çevrimdışı mod
+                    saveOfflineData('stockUpdates', {
+                        code: code,
+                        quantity: newQuantity,
+                        updated_at: new Date().toISOString()
+                    });
+                    showAlert(`Stok çevrimdışı güncellendi: ${code}`, 'warning');
+                } else {
+                    // Çevrimiçi mod
+                    const { error } = await supabase
+                        .from('stock_items')
+                        .update({ 
+                            quantity: newQuantity,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('code', code);
+                    
+                    if (error) throw error;
+                    
+                    showAlert(`Stok güncellendi: ${code}`, 'success');
+                }
+                
+                // Görünümü güncelle
+                quantitySpan.textContent = newQuantity;
+                quantitySpan.style.display = 'block';
+                quantityInput.style.display = 'none';
+                editButton.style.display = 'block';
+                editButtons.style.display = 'none';
+                
+                // Durumu yeniden hesapla
+                const statusCell = row.querySelector('td:nth-child(5) span');
+                if (newQuantity <= 0) {
+                    statusCell.className = 'status-kritik';
+                    statusCell.textContent = 'Kritik';
+                } else if (newQuantity < 10) {
+                    statusCell.className = 'status-az-stok';
+                    statusCell.textContent = 'Az Stok';
+                } else {
+                    statusCell.className = 'status-stokta';
+                    statusCell.textContent = 'Stokta';
+                }
+                
+                editingStockItem = null;
+                
+            } catch (error) {
+                console.error('Error updating stock:', error);
+                showAlert('Stok güncellenirken hata oluştu', 'error');
+            }
+        }
 
-function cancelEditStockItem(button, code, originalQuantity) {
-    const row = button.closest("tr");
-    if (!row) return;
 
-    const quantitySpan = row.querySelector(".stock-quantity");
-    const quantityInput = row.querySelector(".stock-quantity-input");
-    const editButton = row.querySelector("td > button"); // Düzenle button
-    const editButtons = row.querySelector(".edit-buttons");
 
-    // Reset to original values
-    quantityInput.value = originalQuantity;
-    quantitySpan.style.display = "inline";
-    quantityInput.style.display = "none";
-    editButton.style.display = "inline-block";
-    editButtons.style.display = "none";
+        
 
-    editingStockItem = null;
-}
-
-async function saveStockItem(button, code) {
-    const row = button.closest("tr");
-    if (!row) return;
-
-    const quantitySpan = row.querySelector(".stock-quantity");
-    const quantityInput = row.querySelector(".stock-quantity-input");
-    const editButton = row.querySelector("td > button"); // Düzenle button
-    const editButtons = row.querySelector(".edit-buttons");
-
-    const newQuantity = parseInt(quantityInput.value, 10);
-    if (isNaN(newQuantity) || newQuantity < 0) {
-        showAlert("Geçerli bir sayı girin", "error");
-        return;
-    }
-
-    // Update UI
-    quantitySpan.textContent = newQuantity;
-    quantitySpan.style.display = "inline";
-    quantityInput.style.display = "none";
-    editButton.style.display = "inline-block";
-    editButtons.style.display = "none";
-
-    editingStockItem = null;
+        function cancelEditStockItem(code, originalQuantity) {
+            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+            const quantityInput = row.querySelector('.stock-quantity-input');
+            const quantitySpan = row.querySelector('.stock-quantity');
+            const editButton = row.querySelector('button');
+            const editButtons = row.querySelector('.edit-buttons');
+            
+            // Değişiklikleri iptal et
+            quantityInput.value = originalQuantity;
+            quantitySpan.style.display = 'block';
+            quantityInput.style.display = 'none';
+            editButton.style.display = 'block';
+            editButtons.style.display = 'none';
+            
+            editingStockItem = null;
+        }
 
 
 
