@@ -241,8 +241,8 @@ async function testConnection() {
 
 async function populatePersonnels() {
     try {
-        const { data: personnels, error } = await supabase
-            .from('personnels')
+       const { data: personnels, error } = await supabase
+    .from('personel')
             .select('*')
             .order('name', { ascending: true });
 
