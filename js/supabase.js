@@ -239,12 +239,11 @@ async function testConnection() {
 
 
 
-// Populate Personnels (no duplicates by name)
 async function populatePersonnels() {
     try {
         const { data: personnels, error } = await supabase
             .from('personnels')
-            .select('id, name')
+            .select('*')
             .order('name', { ascending: true });
 
         if (error) {
@@ -253,27 +252,18 @@ async function populatePersonnels() {
         }
 
         const personnelSelect = document.getElementById('personnelSelect');
-        if (!personnelSelect) return;
-
-        // Clear old options
         personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
 
-        // Deduplicate by name
-        const uniquePersonnels = {};
-        personnels.forEach(per => {
-            if (!uniquePersonnels[per.name]) {
-                uniquePersonnels[per.name] = per;
-            }
-        });
-
-        // Append options
-        Object.values(uniquePersonnels).forEach(per => {
-            const opt = document.createElement('option');
-            opt.value = per.id;
-            opt.textContent = per.name;
-            personnelSelect.appendChild(opt);
-        });
-
+        if (personnels && personnels.length > 0) {
+            personnels.forEach(personnel => {
+                const option = document.createElement('option');
+                option.value = personnel.id;
+                option.textContent = personnel.name;   // 👈 make sure column name exists in DB
+                personnelSelect.appendChild(option);
+            });
+        } else {
+            console.warn('No personnels found in database.');
+        }
     } catch (err) {
         console.error('populatePersonnels error:', err);
     }
