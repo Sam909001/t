@@ -16,6 +16,7 @@ let currentContainerDetails = null;
 let currentReportData = null;
 let selectedPackageForPrinting = null;
 let personnelLoaded = false;
+let packagesLoaded = false;
 
 // EmailJS initialization
 (function() {
@@ -279,9 +280,13 @@ async function populatePersonnel() {
 
 
 
+
         
 
-      async function populatePackagesTable() {
+     async function populatePackagesTable() {
+    if (packagesLoaded) return; // Prevent multiple reloads
+    packagesLoaded = true;
+
     try {
         elements.packagesTableBody.innerHTML = '';
 
@@ -301,19 +306,14 @@ async function populatePersonnel() {
         }
 
         if (packages && packages.length > 0) {
-            // ✅ Deduplicate by package id
-            const uniquePackagesMap = new Map();
-            packages.forEach(pkg => {
-                if (!uniquePackagesMap.has(pkg.id)) {
-                    uniquePackagesMap.set(pkg.id, pkg);
-                }
-            });
-            const uniquePackages = Array.from(uniquePackagesMap.values());
+            // Deduplicate by package id
+            const uniquePackages = Array.from(
+                new Map(packages.map(pkg => [pkg.id, pkg])).values()
+            );
 
             uniquePackages.forEach(pkg => {
                 const row = document.createElement('tr');
 
-                // Format product information
                 let productInfo = '';
                 if (pkg.items && typeof pkg.items === 'object') {
                     productInfo = Object.entries(pkg.items)
@@ -322,25 +322,18 @@ async function populatePersonnel() {
                 }
 
                 row.innerHTML = `
-                    <td>
-                        <input type="checkbox" value="${pkg.id}" 
-                            data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}' 
-                            onchange="updatePackageSelection()">
-                    </td>
+                    <td><input type="checkbox" value="${pkg.id}" data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}' onchange="updatePackageSelection()"></td>
                     <td>${pkg.package_no}</td>
                     <td>${pkg.customers?.name || 'N/A'}</td>
                     <td>${productInfo || 'N/A'}</td>
                     <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                    <td>
-                        <span class="status-${pkg.status}">
-                            ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
-                        </span>
-                    </td>
+                    <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
                 `;
 
-                // Select package on row click (excluding checkbox)
                 row.onclick = (e) => {
-                    if (e.target.type !== 'checkbox') selectPackage(pkg);
+                    if (e.target.type !== 'checkbox') {
+                        selectPackage(pkg);
+                    }
                 };
 
                 elements.packagesTableBody.appendChild(row);
@@ -358,7 +351,6 @@ async function populatePersonnel() {
         showAlert('Paket tablosu yükleme hatası', 'error');
     }
 }
-
 
 
 
