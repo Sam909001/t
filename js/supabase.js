@@ -197,86 +197,88 @@ async function testConnection() {
 
 
 
-  // Populate customers without duplicates
-async function populateUniqueCustomers() {
+  async function populateCustomers() {
     try {
-        if (!elements.customerSelect) return;
-
-        // Clear dropdown
-        elements.customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
-
-        if (!supabase) throw new Error('Supabase client not initialized');
-
         const { data: customers, error } = await supabase
             .from('customers')
-            .select('*')
-            .order('name');
+            .select('id, name, code')
+            .order('name', { ascending: true });
 
-        if (error) throw error;
-
-        if (customers && customers.length > 0) {
-            const seenCustomerIds = new Set(); // Track added IDs
-            customers.forEach(customer => {
-                if (!seenCustomerIds.has(customer.id)) {
-                    const option = document.createElement('option');
-                    option.value = customer.id;
-                    option.textContent = `${customer.name} (${customer.code})`;
-                    elements.customerSelect.appendChild(option);
-                    seenCustomerIds.add(customer.id);
-                }
-            });
+        if (error) {
+            console.error('Error loading customers:', error);
+            return;
         }
-    } catch (error) {
-        console.error('Error in populateUniqueCustomers:', error);
-        showAlert('Müşteri yükleme hatası: ' + error.message, 'error');
+
+        const customerSelect = document.getElementById('customerSelect');
+        if (!customerSelect) return;
+
+        // Clear old options
+        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
+
+        // Deduplicate by customer code
+        const uniqueCustomers = {};
+        customers.forEach(cust => {
+            if (!uniqueCustomers[cust.code]) {
+                uniqueCustomers[cust.code] = cust;
+            }
+        });
+
+        // Append unique customers
+        Object.values(uniqueCustomers).forEach(cust => {
+            const opt = document.createElement('option');
+            opt.value = cust.id;
+            opt.textContent = `${cust.name} (${cust.code})`;
+            customerSelect.appendChild(opt);
+        });
+
+    } catch (err) {
+        console.error('populateCustomers error:', err);
     }
 }
 
 
 
 
-// Populate personnel without duplicates
-async function populateUniquePersonnel() {
+
+async function populatePersonnels() {
     try {
-        if (!elements.personnelSelect) return;
+        const { data: personnels, error } = await supabase
+            .from('personnels')
+            .select('id, name')
+            .order('name', { ascending: true });
 
-        elements.personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
-
-        if (!supabase) throw new Error('Supabase client not initialized');
-
-        const { data: personnel, error } = await supabase
-            .from('personnel')
-            .select('*')
-            .order('name');
-
-        if (error) throw error;
-
-        if (personnel && personnel.length > 0) {
-            const seenPersonnelIds = new Set();
-            personnel.forEach(person => {
-                if (!seenPersonnelIds.has(person.id)) {
-                    const option = document.createElement('option');
-                    option.value = person.id;
-                    option.textContent = person.name;
-                    elements.personnelSelect.appendChild(option);
-                    seenPersonnelIds.add(person.id);
-                }
-            });
+        if (error) {
+            console.error('Error loading personnels:', error);
+            return;
         }
 
-        // Add current user if not in the list
-        if (currentUser && !seenPersonnelIds.has(currentUser.uid)) {
-            const option = document.createElement('option');
-            option.value = currentUser.uid;
-            option.textContent = currentUser.name || 'Mevcut Kullanıcı';
-            option.selected = true;
-            elements.personnelSelect.appendChild(option);
-        }
-    } catch (error) {
-        console.error('Error in populateUniquePersonnel:', error);
-        showAlert('Personel yükleme hatası: ' + error.message, 'error');
+        const personelSelect = document.getElementById('personelSelect');
+        if (!personelSelect) return;
+
+        // Clear old options
+        personelSelect.innerHTML = '<option value="">Personel Seç</option>';
+
+        // Deduplicate by name
+        const uniquePersonnels = {};
+        personnels.forEach(per => {
+            if (!uniquePersonnels[per.name]) {
+                uniquePersonnels[per.name] = per;
+            }
+        });
+
+        // Append unique personnels
+        Object.values(uniquePersonnels).forEach(per => {
+            const opt = document.createElement('option');
+            opt.value = per.id;
+            opt.textContent = per.name;
+            personelSelect.appendChild(opt);
+        });
+
+    } catch (err) {
+        console.error('populatePersonnels error:', err);
     }
 }
+
 
 
         
