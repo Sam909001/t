@@ -281,10 +281,10 @@ async function populatePersonnel() {
 
         
 
-       async function populatePackagesTable() {
+      async function populatePackagesTable() {
     try {
         elements.packagesTableBody.innerHTML = '';
-        
+
         const { data: packages, error } = await supabase
             .from('packages')
             .select(`
@@ -301,19 +301,18 @@ async function populatePersonnel() {
         }
 
         if (packages && packages.length > 0) {
-            // ✅ Remove duplicates by package_no
-            const uniquePackages = [];
-            const seen = new Set();
-            for (const pkg of packages) {
-                if (!seen.has(pkg.package_no)) {
-                    seen.add(pkg.package_no);
-                    uniquePackages.push(pkg);
+            // ✅ Deduplicate by package id
+            const uniquePackagesMap = new Map();
+            packages.forEach(pkg => {
+                if (!uniquePackagesMap.has(pkg.id)) {
+                    uniquePackagesMap.set(pkg.id, pkg);
                 }
-            }
+            });
+            const uniquePackages = Array.from(uniquePackagesMap.values());
 
             uniquePackages.forEach(pkg => {
                 const row = document.createElement('tr');
-                
+
                 // Format product information
                 let productInfo = '';
                 if (pkg.items && typeof pkg.items === 'object') {
@@ -321,36 +320,45 @@ async function populatePersonnel() {
                         .map(([product, quantity]) => `${product}: ${quantity}`)
                         .join(', ');
                 }
-                
-                // Paket verilerini data attribute olarak sakla
+
                 row.innerHTML = `
-                    <td><input type="checkbox" value="${pkg.id}" data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}' onchange="updatePackageSelection()"></td>
+                    <td>
+                        <input type="checkbox" value="${pkg.id}" 
+                            data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}' 
+                            onchange="updatePackageSelection()">
+                    </td>
                     <td>${pkg.package_no}</td>
                     <td>${pkg.customers?.name || 'N/A'}</td>
                     <td>${productInfo || 'N/A'}</td>
                     <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                    <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                    <td>
+                        <span class="status-${pkg.status}">
+                            ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
+                        </span>
+                    </td>
                 `;
+
+                // Select package on row click (excluding checkbox)
                 row.onclick = (e) => {
-                    if (e.target.type !== 'checkbox') {
-                        selectPackage(pkg);
-                    }
+                    if (e.target.type !== 'checkbox') selectPackage(pkg);
                 };
+
                 elements.packagesTableBody.appendChild(row);
             });
-            
+
             elements.totalPackages.textContent = uniquePackages.length;
         } else {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
             elements.packagesTableBody.appendChild(row);
         }
-        
+
     } catch (error) {
         console.error('Error in populatePackagesTable:', error);
         showAlert('Paket tablosu yükleme hatası', 'error');
     }
 }
+
 
 
 
