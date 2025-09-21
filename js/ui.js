@@ -293,20 +293,6 @@ function showApiKeyHelp() {
 
 
 
-
-
-
-
-  function checkOnlineStatus() {
-    if (!navigator.onLine) {
-        showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
-        return false;
-    }
-    return true;
-}
-
-
-
 // Stok düzenleme fonksiyonları
         function editStockItem(button, code) {
             const row = button.closest('tr');
@@ -326,72 +312,7 @@ function showApiKeyHelp() {
 
 
 
-        
-        async function saveStockItem(code) {
-            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-            const quantityInput = row.querySelector('.stock-quantity-input');
-            const quantitySpan = row.querySelector('.stock-quantity');
-            const editButton = row.querySelector('button');
-            const editButtons = row.querySelector('.edit-buttons');
-            const newQuantity = parseInt(quantityInput.value);
-            
-            if (isNaN(newQuantity) || newQuantity < 0) {
-                showAlert('Geçerli bir miktar girin', 'error');
-                return;
-            }
-            
-            try {
-                if (!navigator.onLine) {
-                    // Çevrimdışı mod
-                    saveOfflineData('stockUpdates', {
-                        code: code,
-                        quantity: newQuantity,
-                        updated_at: new Date().toISOString()
-                    });
-                    showAlert(`Stok çevrimdışı güncellendi: ${code}`, 'warning');
-                } else {
-                    // Çevrimiçi mod
-                    const { error } = await supabase
-                        .from('stock_items')
-                        .update({ 
-                            quantity: newQuantity,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('code', code);
-                    
-                    if (error) throw error;
-                    
-                    showAlert(`Stok güncellendi: ${code}`, 'success');
-                }
-                
-                // Görünümü güncelle
-                quantitySpan.textContent = newQuantity;
-                quantitySpan.style.display = 'block';
-                quantityInput.style.display = 'none';
-                editButton.style.display = 'block';
-                editButtons.style.display = 'none';
-                
-                // Durumu yeniden hesapla
-                const statusCell = row.querySelector('td:nth-child(5) span');
-                if (newQuantity <= 0) {
-                    statusCell.className = 'status-kritik';
-                    statusCell.textContent = 'Kritik';
-                } else if (newQuantity < 10) {
-                    statusCell.className = 'status-az-stok';
-                    statusCell.textContent = 'Az Stok';
-                } else {
-                    statusCell.className = 'status-stokta';
-                    statusCell.textContent = 'Stokta';
-                }
-                
-                editingStockItem = null;
-                
-            } catch (error) {
-                console.error('Error updating stock:', error);
-                showAlert('Stok güncellenirken hata oluştu', 'error');
-            }
-        }
-
+       
 
 
         
@@ -412,6 +333,16 @@ function showApiKeyHelp() {
             
             editingStockItem = null;
         }
+
+
+
+  function checkOnlineStatus() {
+    if (!navigator.onLine) {
+        showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
+        return false;
+    }
+    return true;
+}
 
 
 
