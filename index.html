@@ -522,31 +522,74 @@
             </div>
         </div>
 
-        <!-- Yazıcı Ayarları -->
-        <div class="settings-section">
-            <h3>Yazıcı Ayarları</h3>
-            
-            <div class="settings-option">
-                <label for="printerScaling">Etiket Boyutu</label>
-                <select id="printerScaling" onchange="savePrinterSettings()">
-                    <option value="100%">Küçük (100%)</option>
-                    <option value="150%">Orta (150%)</option>
-                    <option value="200%">Büyük (200%)</option>
-                    <option value="fit">Otomatik Sığdır</option>
-                </select>
-            </div>
-            
-            <div class="settings-option">
-                <label for="copiesNumber">Kopya Sayısı</label>
-                <input type="number" id="copiesNumber" min="1" max="10" value="1" 
-                       onchange="savePrinterSettings()" style="width: 60px;">
-            </div>
-            
-            <div class="settings-option">
-                <label>Yazıcı Testi</label>
-                <button class="btn btn-primary" onclick="testPrinter()">Test Yazdır</button>
-            </div>
-        </div>
+  <!-- Yazıcı Ayarları -->
+<div class="settings-section">
+    <h3>Yazıcı Ayarları</h3>
+    
+    <!-- Etiket Boyutu / Scaling -->
+    <div class="settings-option">
+        <label for="printerScaling">Etiket Boyutu</label>
+        <select id="printerScaling" onchange="savePrinterSettings()">
+            <option value="100%">Küçük (100%)</option>
+            <option value="150%">Orta (150%)</option>
+            <option value="200%">Büyük (200%)</option>
+            <option value="fit">Otomatik Sığdır</option>
+        </select>
+    </div>
+
+    <!-- Kopya Sayısı -->
+    <div class="settings-option">
+        <label for="copiesNumber">Kopya Sayısı</label>
+        <input type="number" id="copiesNumber" min="1" max="10" value="1" 
+               onchange="savePrinterSettings()" style="width: 60px;">
+    </div>
+
+    <!-- Font Family -->
+    <div class="settings-option">
+        <label for="fontName">Font</label>
+        <select id="fontName" onchange="savePrinterSettings()">
+            <option value="Arial">Arial</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Tahoma">Tahoma</option>
+        </select>
+    </div>
+
+    <!-- Font Size -->
+    <div class="settings-option">
+        <label for="fontSize">Font Boyutu</label>
+        <input type="number" id="fontSize" min="6" max="20" value="10" 
+               onchange="savePrinterSettings()" style="width: 60px;">
+    </div>
+
+    <!-- Orientation -->
+    <div class="settings-option">
+        <label for="orientation">Yönlendirme</label>
+        <select id="orientation" onchange="savePrinterSettings()">
+            <option value="portrait">Dikey (Portrait)</option>
+            <option value="landscape">Yatay (Landscape)</option>
+        </select>
+    </div>
+
+    <!-- Margins -->
+    <div class="settings-option">
+        <label for="marginTop">Üst Margin (mm)</label>
+        <input type="number" id="marginTop" min="0" max="50" value="5" 
+               onchange="savePrinterSettings()" style="width: 60px;">
+    </div>
+    <div class="settings-option">
+        <label for="marginBottom">Alt Margin (mm)</label>
+        <input type="number" id="marginBottom" min="0" max="50" value="5" 
+               onchange="savePrinterSettings()" style="width: 60px;">
+    </div>
+
+    <!-- Test Print -->
+    <div class="settings-option">
+        <label>Yazıcı Testi</label>
+        <button class="btn btn-primary" onclick="testPrinter()">Test Yazdır</button>
+    </div>
+</div>
+
 
         <!-- Veri Yönetimi -->
         <div class="settings-section">
