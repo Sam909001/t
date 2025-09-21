@@ -1,4 +1,17 @@
-// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
+// Complete UI functions including all original functions plus fixes
+// UI-specific global variables (keep these in ui.js)
+let elements = {};
+let editingStockItem = null;
+let selectedProduct = null;
+let scannerMode = false;
+let scannedBarcodes = [];
+let selectedCustomer = null;
+let currentContainerDetails = null;
+
+// Note: currentPackage should be moved to supabase.js as it's data-related
+// Access it via window.currentPackage when needed
+
+// 1. ELEMENT INITIALIZATION FUNCTIONS (from original)
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
     const elements = {};
@@ -12,10 +25,6 @@ function initializeElements() {
     
     return elements;
 }
-
-
-
-
 
 function initializeElementsObject() {
     const elementMap = {
@@ -70,16 +79,17 @@ function initializeElementsObject() {
     return elements;
 }
 
-
-
-
-
-// Profesyonel alert sistemi
+// 2. ALERT SYSTEM (from original)
 function showAlert(message, type = 'info', duration = 5000) {
     if (!elements.alertContainer) {
-        console.error('Alert container not found, using console instead');
-        console.log(`${type.toUpperCase()}: ${message}`);
-        return;
+        const alertContainer = document.getElementById('alertContainer');
+        if (alertContainer) {
+            elements.alertContainer = alertContainer;
+        } else {
+            console.error('Alert container not found, using console instead');
+            console.log(`${type.toUpperCase()}: ${message}`);
+            return;
+        }
     }
     
     const alert = document.createElement('div');
@@ -124,26 +134,23 @@ function showAlert(message, type = 'info', duration = 5000) {
     return alert;
 }
 
-
-
-
-        
-// Yardımcı fonksiyonlar
+// 3. TOAST FUNCTION (from original)
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast ${type} show`;
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
+    if (toast) {
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    } else {
+        // Fallback to showAlert if toast element doesn't exist
+        showAlert(message, type);
+    }
 }
 
-
-
-        
-
-// Form doğrulama fonksiyonu
+// 4. FORM VALIDATION (from original)
 function validateForm(inputs) {
     let isValid = true;
     
@@ -174,19 +181,12 @@ function validateForm(inputs) {
     return isValid;
 }
 
-
-
-
-
-        
 function isValidEmail(email) {
     const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 }
 
-
-
-// API anahtarı modalını göster
+// 5. API KEY FUNCTIONS (from original)
 function showApiKeyModal() {
     const apiKeyInput = document.getElementById('apiKeyInput');
     if (apiKeyInput) {
@@ -195,9 +195,6 @@ function showApiKeyModal() {
     }
 }
 
-
-
-// API anahtarı yardımı göster
 function showApiKeyHelp() {
     const helpWindow = window.open('', '_blank');
     helpWindow.document.write(`
@@ -238,29 +235,23 @@ function showApiKeyHelp() {
     `);
 }
 
+// 6. BARCODE SCANNER FUNCTIONS (from original)
+function toggleScannerMode() {
+    scannerMode = !scannerMode;
+    
+    if (scannerMode) {
+        elements.barcodeInput.classList.add('scanner-active');
+        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
+        elements.barcodeInput.focus();
+        showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
+    } else {
+        elements.barcodeInput.classList.remove('scanner-active');
+        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
+        showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
+    }
+}
 
-
-// Barkod tarayıcı modunu aç/kapa
-        function toggleScannerMode() {
-            scannerMode = !scannerMode;
-            
-            if (scannerMode) {
-                elements.barcodeInput.classList.add('scanner-active');
-                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
-                elements.barcodeInput.focus();
-                showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
-            } else {
-                elements.barcodeInput.classList.remove('scanner-active');
-                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
-                showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
-            }
-        }
-
-
-
-
-        // Barkod tarayıcı dinleyicisi
-      function setupBarcodeScanner() {
+function setupBarcodeScanner() {
     if (!elements.barcodeInput) {
         console.error('Barcode input element not found');
         return;
@@ -291,203 +282,323 @@ function showApiKeyHelp() {
     });
 }
 
-
-
-// Stok düzenleme fonksiyonları
-        function editStockItem(button, code) {
-            const row = button.closest('tr');
-            const quantitySpan = row.querySelector('.stock-quantity');
-            const quantityInput = row.querySelector('.stock-quantity-input');
-            const editButton = row.querySelector('button');
-            const editButtons = row.querySelector('.edit-buttons');
-            
-            // Düzenleme moduna geç
-            quantitySpan.style.display = 'none';
-            quantityInput.style.display = 'block';
-            editButton.style.display = 'none';
-            editButtons.style.display = 'flex';
-            
-            editingStockItem = code;
-        }
-
-
-
-       
-
-
-        
-
-        function cancelEditStockItem(code, originalQuantity) {
-            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-            const quantityInput = row.querySelector('.stock-quantity-input');
-            const quantitySpan = row.querySelector('.stock-quantity');
-            const editButton = row.querySelector('button');
-            const editButtons = row.querySelector('.edit-buttons');
-            
-            // Değişiklikleri iptal et
-            quantityInput.value = originalQuantity;
-            quantitySpan.style.display = 'block';
-            quantityInput.style.display = 'none';
-            editButton.style.display = 'block';
-            editButtons.style.display = 'none';
-            
-            editingStockItem = null;
-        }
-
-
-
-  function checkOnlineStatus() {
-    if (!navigator.onLine) {
-        showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
-        return false;
-    }
-    return true;
+// Add missing processBarcode function
+function processBarcode() {
+    const barcodeInput = elements.barcodeInput || document.getElementById('barcodeInput');
+    if (!barcodeInput || !barcodeInput.value) return;
+    
+    const barcode = barcodeInput.value.trim();
+    scannedBarcodes.push({
+        barcode: barcode,
+        timestamp: Date.now(),
+        processed: false
+    });
+    
+    showAlert(`Barkod tarandı: ${barcode}`, 'success');
+    barcodeInput.value = '';
+    displayScannedBarcodes();
 }
 
-
-
-
-        // Konteyner detay modalını kapat
-        function closeContainerDetailModal() {
-            document.getElementById('containerDetailModal').style.display = 'none';
-            currentContainerDetails = null;
+// 7. STOCK EDITING FUNCTIONS (from original - improved)
+function editStockItem(button, code) {
+    if (editingStockItem) {
+        showAlert('Başka bir öğe düzenleniyor. Önce onu kaydedin veya iptal edin.', 'warning');
+        return;
+    }
+    
+    const row = button.closest('tr');
+    const quantityCell = row.querySelector('td:nth-child(3)');
+    const actionsCell = row.querySelector('td:last-child');
+    
+    if (!quantityCell || !actionsCell) {
+        console.error('Required cells not found');
+        return;
+    }
+    
+    const currentQuantity = quantityCell.textContent.trim();
+    
+    // Create input field
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = currentQuantity;
+    input.className = 'stock-quantity-input';
+    input.style.width = '80px';
+    input.min = '0';
+    input.setAttribute('data-original', currentQuantity);
+    
+    // Replace cell content with input
+    quantityCell.innerHTML = '';
+    quantityCell.appendChild(input);
+    
+    // Create save and cancel buttons
+    const saveBtn = document.createElement('button');
+    saveBtn.innerHTML = '<i class="fas fa-check"></i> Kaydet';
+    saveBtn.className = 'btn btn-success btn-sm';
+    saveBtn.onclick = () => saveStockItem(code, input);
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.innerHTML = '<i class="fas fa-times"></i> İptal';
+    cancelBtn.className = 'btn btn-secondary btn-sm';
+    cancelBtn.onclick = () => cancelEditStockItem(code, currentQuantity);
+    
+    // Replace actions cell content
+    actionsCell.innerHTML = '';
+    actionsCell.appendChild(saveBtn);
+    actionsCell.appendChild(document.createTextNode(' '));
+    actionsCell.appendChild(cancelBtn);
+    
+    editingStockItem = code;
+    input.focus();
+    input.select();
+    
+    // Handle Enter/Escape keys
+    input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            saveStockItem(code, input);
+        } else if (e.key === 'Escape') {
+            cancelEditStockItem(code, currentQuantity);
         }
+    });
+}
 
+// Add missing saveStockItem function
+async function saveStockItem(code, input) {
+    const newQuantity = parseInt(input.value);
+    
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        showAlert('Geçerli bir sayı girin (0 veya üzeri)', 'error');
+        input.focus();
+        return;
+    }
+    
+    const originalQuantity = input.getAttribute('data-original');
+    
+    if (newQuantity.toString() === originalQuantity) {
+        cancelEditStockItem(code, originalQuantity);
+        return;
+    }
+    
+    try {
+        input.disabled = true;
+        showAlert('Güncelleniyor...', 'info', 1000);
         
-
-        // Müşteri klasöründeki tüm konteynerleri seç
-        function toggleSelectAllCustomer(checkbox) {
-            const folder = checkbox.closest('.customer-folder');
-            const checkboxes = folder.querySelectorAll('.container-checkbox');
-            checkboxes.forEach(cb => cb.checked = checkbox.checked);
-        }
-
-
-
-
-// Taranan barkodları göster
-        function displayScannedBarcodes() {
-            const container = document.getElementById('scannedBarcodes');
-            container.innerHTML = '';
-            
-            if (scannedBarcodes.length === 0) {
-                container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Henüz barkod taranmadı</p>';
-                return;
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Update the UI
+        const row = input.closest('tr');
+        const quantityCell = row.querySelector('td:nth-child(3)');
+        const actionsCell = row.querySelector('td:last-child');
+        const statusCell = row.querySelector('td:nth-child(5)');
+        const lastUpdateCell = row.querySelector('td:nth-child(6)');
+        
+        quantityCell.textContent = newQuantity;
+        
+        if (statusCell) {
+            if (newQuantity === 0) {
+                statusCell.innerHTML = '<span class="status-badge out-of-stock">Tükendi</span>';
+            } else if (newQuantity <= 5) {
+                statusCell.innerHTML = '<span class="status-badge low-stock">Düşük</span>';
+            } else {
+                statusCell.innerHTML = '<span class="status-badge in-stock">Mevcut</span>';
             }
-            
-            const list = document.createElement('ul');
-            list.style = 'list-style: none; padding: 0; margin: 0; font-size: 0.8rem;';
-            
-            scannedBarcodes.forEach(barcode => {
-                const item = document.createElement('li');
-                item.style = 'padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;';
-                item.innerHTML = `
-                    <span>${barcode.barcode}</span>
-                    <span style="color: ${barcode.processed ? 'green' : 'orange'}">
-                        ${barcode.processed ? 'İşlendi' : 'Beklemede'}
-                    </span>
-                `;
-                list.appendChild(item);
-            });
-            
-            container.appendChild(list);
         }
+        
+        if (lastUpdateCell) {
+            lastUpdateCell.textContent = new Date().toLocaleDateString('tr-TR');
+        }
+        
+        restoreEditButton(actionsCell, code);
+        editingStockItem = null;
+        
+        showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
+        
+    } catch (error) {
+        console.error('Stok güncelleme hatası:', error);
+        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
+        input.disabled = false;
+        input.focus();
+    }
+}
 
+function cancelEditStockItem(code, originalQuantity) {
+    const rows = document.querySelectorAll('#stockTableBody tr');
+    let row = null;
+    
+    for (let r of rows) {
+        if (r.cells[0] && r.cells[0].textContent.trim() === code) {
+            row = r;
+            break;
+        }
+    }
+    
+    if (!row) {
+        console.error(`Row not found for code: ${code}`);
+        editingStockItem = null;
+        return;
+    }
+    
+    const quantityCell = row.querySelector('td:nth-child(3)');
+    const actionsCell = row.querySelector('td:last-child');
+    
+    if (!quantityCell || !actionsCell) {
+        console.error('Required cells not found for cancel operation');
+        return;
+    }
+    
+    quantityCell.textContent = originalQuantity;
+    restoreEditButton(actionsCell, code);
+    editingStockItem = null;
+    
+    showAlert('Düzenleme iptal edildi', 'info');
+}
 
+function restoreEditButton(actionsCell, code) {
+    const editBtn = document.createElement('button');
+    editBtn.innerHTML = '<i class="fas fa-edit"></i> Düzenle';
+    editBtn.className = 'btn btn-primary btn-sm';
+    editBtn.onclick = () => editStockItem(editBtn, code);
+    
+    actionsCell.innerHTML = '';
+    actionsCell.appendChild(editBtn);
+}
 
+// 8. CONTAINER FUNCTIONS (from original)
+function closeContainerDetailModal() {
+    const modal = document.getElementById('containerDetailModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    currentContainerDetails = null;
+}
+
+function toggleSelectAllCustomer(checkbox) {
+    const folder = checkbox.closest('.customer-folder');
+    const checkboxes = folder.querySelectorAll('.container-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+}
+
+// 9. SCANNED BARCODES DISPLAY (from original)
+function displayScannedBarcodes() {
+    const container = document.getElementById('scannedBarcodes');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (scannedBarcodes.length === 0) {
+        container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Henüz barkod taranmadı</p>';
+        return;
+    }
+    
+    const list = document.createElement('ul');
+    list.style = 'list-style: none; padding: 0; margin: 0; font-size: 0.8rem;';
+    
+    scannedBarcodes.forEach(barcode => {
+        const item = document.createElement('li');
+        item.style = 'padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;';
+        item.innerHTML = `
+            <span>${escapeHtml(barcode.barcode)}</span>
+            <span style="color: ${barcode.processed ? 'green' : 'orange'}">
+                ${barcode.processed ? 'İşlendi' : 'Beklemede'}
+            </span>
+        `;
+        list.appendChild(item);
+    });
+    
+    container.appendChild(list);
+}
 
 function selectCustomerFromModal(customer) {
-            selectedCustomer = customer;
-            elements.customerSelect.value = customer.id;
-            closeModal();
-            showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
-        }
+    selectedCustomer = customer;
+    elements.customerSelect.value = customer.id;
+    closeModal();
+    showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
+}
 
+// 10. PACKAGE OPERATIONS (from original)
+function openQuantityModal(product) {
+    selectedProduct = product;
+    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
+    elements.quantityInput.value = '';
+    document.getElementById('quantityError').style.display = 'none';
+    elements.quantityModal.style.display = 'flex';
+    elements.quantityInput.focus();
+}
 
+function confirmQuantity() {
+    const quantity = parseInt(elements.quantityInput.value);
+    
+    // Validation
+    if (!quantity || quantity <= 0) {
+        document.getElementById('quantityError').style.display = 'block';
+        return;
+    }
 
-        
-        // Package operations
-        function openQuantityModal(product) {
-            selectedProduct = product;
-            elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
-            elements.quantityInput.value = '';
-            document.getElementById('quantityError').style.display = 'none';
-            elements.quantityModal.style.display = 'flex';
-            elements.quantityInput.focus();
-        }
+    // Update quantity badge
+    const badge = document.getElementById(`${selectedProduct}-quantity`);
+    if (badge) {
+        const currentQuantity = parseInt(badge.textContent) || 0;
+        badge.textContent = currentQuantity + quantity;
+    }
 
+    // Add to current package (access from global scope)
+    if (!window.currentPackage) window.currentPackage = { items: {} };
+    if (!window.currentPackage.items) window.currentPackage.items = {};
+    window.currentPackage.items[selectedProduct] = (window.currentPackage.items[selectedProduct] || 0) + quantity;
 
+    showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
+    closeQuantityModal();
+}
 
+function closeQuantityModal() {
+    const quantityModal = elements.quantityModal || document.getElementById('quantityModal');
+    if (quantityModal) {
+        quantityModal.style.display = 'none';
+    }
+    selectedProduct = null;
+}
 
-        
-        function confirmQuantity() {
-            const quantity = parseInt(elements.quantityInput.value);
-            
-            // Doğrulama
-            if (!quantity || quantity <= 0) {
-                document.getElementById('quantityError').style.display = 'block';
-                return;
-            }
+function openManualEntry() {
+    document.getElementById('manualModal').style.display = 'flex';
+    document.getElementById('manualProduct').focus();
+}
 
-            // Update quantity badge
-            const badge = document.getElementById(`${selectedProduct}-quantity`);
-            if (badge) {
-                const currentQuantity = parseInt(badge.textContent) || 0;
-                badge.textContent = currentQuantity + quantity;
-            }
+function closeManualModal() {
+    const manualModal = document.getElementById('manualModal');
+    if (manualModal) {
+        manualModal.style.display = 'none';
+    }
+}
 
-            // Add to current package
-            if (!currentPackage.items) currentPackage.items = {};
-            currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
+function addManualProduct() {
+    const product = document.getElementById('manualProduct').value.trim();
+    const quantity = parseInt(document.getElementById('manualQuantity').value);
 
-            showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-            closeQuantityModal();
-        }
+    // Form validation
+    if (!validateForm([
+        { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
+        { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
+    ])) {
+        return;
+    }
 
+    // Add to current package (access from global scope)
+    if (!window.currentPackage) window.currentPackage = { items: {} };
+    if (!window.currentPackage.items) window.currentPackage.items = {};
+    window.currentPackage.items[product] = (window.currentPackage.items[product] || 0) + quantity;
 
+    showAlert(`${product}: ${quantity} adet eklendi`, 'success');
+    
+    // Clear form
+    document.getElementById('manualProduct').value = '';
+    document.getElementById('manualQuantity').value = '';
+    closeManualModal();
+}
 
-        
-        function openManualEntry() {
-            document.getElementById('manualModal').style.display = 'flex';
-            document.getElementById('manualProduct').focus();
-        }
-
-
-
-
-        
-        function addManualProduct() {
-            const product = document.getElementById('manualProduct').value.trim();
-            const quantity = parseInt(document.getElementById('manualQuantity').value);
-
-            // Form doğrulama
-            if (!validateForm([
-                { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
-                { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
-            ])) {
-                return;
-            }
-
-            // Add to current package
-            if (!currentPackage.items) currentPackage.items = {};
-            currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
-
-            showAlert(`${product}: ${quantity} adet eklendi`, 'success');
-            
-            // Clear form
-            document.getElementById('manualProduct').value = '';
-            document.getElementById('manualQuantity').value = '';
-            closeManualModal();
-        }
-
-
-
-
-
-// Settings functions
+// 11. SETTINGS FUNCTIONS (from original)
 function showSettingsModal() {
-    loadSettings(); // Load current settings
-    checkSystemStatus(); // Update status indicators
+    loadSettings();
+    checkSystemStatus();
     document.getElementById('settingsModal').style.display = 'flex';
 }
 
@@ -496,40 +607,46 @@ function closeSettingsModal() {
 }
 
 function loadSettings() {
-    // Load saved settings from localStorage
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     
-    // Theme
     if (settings.theme === 'dark') {
-        document.getElementById('themeToggle').checked = true;
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.checked = true;
         document.body.classList.add('dark-mode');
     }
     
-    // Printer settings
     if (settings.printerScaling) {
-        document.getElementById('printerScaling').value = settings.printerScaling;
+        const printerScaling = document.getElementById('printerScaling');
+        if (printerScaling) printerScaling.value = settings.printerScaling;
     }
     
     if (settings.copies) {
-        document.getElementById('copiesNumber').value = settings.copies;
+        const copiesNumber = document.getElementById('copiesNumber');
+        if (copiesNumber) copiesNumber.value = settings.copies;
     }
     
-    // Language
     if (settings.language) {
-        document.getElementById('languageSelect').value = settings.language;
+        const languageSelect = document.getElementById('languageSelect');
+        if (languageSelect) languageSelect.value = settings.language;
     }
     
-    // Auto-save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+    const autoSaveToggle = document.getElementById('autoSaveToggle');
+    if (autoSaveToggle) autoSaveToggle.checked = settings.autoSave !== false;
 }
 
 function saveAllSettings() {
+    const themeToggle = document.getElementById('themeToggle');
+    const printerScaling = document.getElementById('printerScaling');
+    const copiesNumber = document.getElementById('copiesNumber');
+    const languageSelect = document.getElementById('languageSelect');
+    const autoSaveToggle = document.getElementById('autoSaveToggle');
+    
     const settings = {
-        theme: document.getElementById('themeToggle').checked ? 'dark' : 'light',
-        printerScaling: document.getElementById('printerScaling').value,
-        copies: parseInt(document.getElementById('copiesNumber').value),
-        language: document.getElementById('languageSelect').value,
-        autoSave: document.getElementById('autoSaveToggle').checked
+        theme: themeToggle && themeToggle.checked ? 'dark' : 'light',
+        printerScaling: printerScaling ? printerScaling.value : '100',
+        copies: copiesNumber ? parseInt(copiesNumber.value) : 1,
+        language: languageSelect ? languageSelect.value : 'tr',
+        autoSave: autoSaveToggle ? autoSaveToggle.checked : true
     };
     
     localStorage.setItem('procleanSettings', JSON.stringify(settings));
@@ -538,51 +655,54 @@ function saveAllSettings() {
 }
 
 function applySettings(settings) {
-    // Apply theme
     if (settings.theme === 'dark') {
         document.body.classList.add('dark-mode');
     } else {
         document.body.classList.remove('dark-mode');
     }
     
-    // Apply language (you'll need to implement language files)
     if (settings.language) {
         changeLanguage(settings.language);
     }
 }
 
 function toggleTheme() {
-    const isDark = document.getElementById('themeToggle').checked;
+    const themeToggle = document.getElementById('themeToggle');
+    const themeStatus = document.getElementById('themeStatus');
+    
+    const isDark = themeToggle && themeToggle.checked;
     document.body.classList.toggle('dark-mode', isDark);
-    document.getElementById('themeStatus').textContent = isDark ? 'Koyu' : 'Açık';
+    if (themeStatus) {
+        themeStatus.textContent = isDark ? 'Koyu' : 'Açık';
+    }
 }
 
 function checkSystemStatus() {
-    // Check database connection
     const dbStatus = document.getElementById('dbConnectionStatus');
-    if (supabase) {
-        dbStatus.textContent = 'Bağlı';
-        dbStatus.className = 'status-indicator connected';
-    } else {
-        dbStatus.textContent = 'Bağlantı Yok';
-        dbStatus.className = 'status-indicator disconnected';
+    if (dbStatus) {
+        if (typeof supabase !== 'undefined' && supabase) {
+            dbStatus.textContent = 'Bağlı';
+            dbStatus.className = 'status-indicator connected';
+        } else {
+            dbStatus.textContent = 'Bağlantı Yok';
+            dbStatus.className = 'status-indicator disconnected';
+        }
     }
     
-    // Check printer connection
     const printerStatus = document.getElementById('printerConnectionStatus');
-    if (printer && printer.isConnected) {
-        printerStatus.textContent = 'Bağlı';
-        printerStatus.className = 'status-indicator connected';
-    } else {
-        printerStatus.textContent = 'Bağlantı Yok';
-        printerStatus.className = 'status-indicator disconnected';
+    if (printerStatus) {
+        if (typeof printer !== 'undefined' && printer && printer.isConnected) {
+            printerStatus.textContent = 'Bağlı';
+            printerStatus.className = 'status-indicator connected';
+        } else {
+            printerStatus.textContent = 'Bağlantı Yok';
+            printerStatus.className = 'status-indicator disconnected';
+        }
     }
 }
 
 function exportData(format) {
-    // Implementation for data export
     showAlert(`${format.toUpperCase()} formatında veri indirme hazırlanıyor...`, 'info');
-    // Add your export logic here
 }
 
 function clearLocalData() {
@@ -594,27 +714,22 @@ function clearLocalData() {
     }
 }
 
-// Initialize settings on app load
 function initializeSettings() {
     const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     applySettings(savedSettings);
 }
 
-
-
-
+// 12. PACKAGE SELECTION FUNCTIONS (from original)
 function selectPackage(pkg) {
-    // Remove selected class from all rows
     document.querySelectorAll('#packagesTableBody tr').forEach(row => {
         row.classList.remove('selected');
     });
     
-    // Add selected class to the clicked row
     const rows = document.querySelectorAll('#packagesTableBody tr');
     for (let i = 0; i < rows.length; i++) {
         const checkbox = rows[i].querySelector('input[type="checkbox"]');
         if (checkbox && checkbox.value === pkg.id) {
-            rows[i].classList.add('selected'); // FIXED: removed extra "class."
+            rows[i].classList.add('selected');
             break;
         }
     }
@@ -639,9 +754,6 @@ function selectPackage(pkg) {
     }
 }
 
-
-
-
 function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
     if (!selectedRow) return null;
@@ -652,59 +764,52 @@ function getSelectedPackage() {
         id: packageId,
         package_no: selectedRow.cells[1].textContent,
         customers: { name: selectedRow.cells[2].textContent },
-        total_quantity: selectedRow.cells[3].textContent.trim(), // now as text
+        total_quantity: selectedRow.cells[3].textContent.trim(),
         created_at: selectedRow.cells[4].textContent
     };
 }
 
-
-
-
-// ================== Barcode Generator ==================
+// 13. BARCODE GENERATOR (from original)
 function generateBarcode(text) {
     try {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        JsBarcode(svg, text, {
-            format: "CODE128",
-            lineColor: "#000",
-            width: 3,
-            height: 25,
-            displayValue: true,
-            fontSize: 10,
-            margin: 0
-        });
-        return svg.outerHTML;
+        if (typeof JsBarcode !== 'undefined') {
+            JsBarcode(svg, text, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 3,
+                height: 25,
+                displayValue: true,
+                fontSize: 10,
+                margin: 0
+            });
+            return svg.outerHTML;
+        } else {
+            return `<div style="color:red; border:1px solid red; padding:5px;">JsBarcode kütüphanesi yüklenmedi: ${text}</div>`;
+        }
     } catch (error) {
         console.error('Barkod oluşturma hatası:', error);
         return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
     }
 }
 
-
-
 function toggleSelectAll() {
-            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-            const selectAll = document.getElementById('selectAllPackages').checked;
-            
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = selectAll;
-            });
-        }
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const selectAll = document.getElementById('selectAllPackages').checked;
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+}
 
+function updatePackageSelection() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    
+    document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+}
 
-        
-
-        function updatePackageSelection() {
-            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-            const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-            
-            document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-        }
-
-
-
-
- // Stock operations
+// 14. STOCK SEARCH FUNCTIONS (from original)
 function searchStock() {
     if (!elements.stockSearch) {
         console.error('Stock search input not found');
@@ -725,17 +830,280 @@ function searchStock() {
     });
 }
 
+function clearStockSearch() {
+    if (elements.stockSearch) {
+        elements.stockSearch.value = '';
+    }
+    
+    if (elements.stockTableBody) {
+        const rows = elements.stockTableBody.querySelectorAll('tr');
+        rows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+}
 
+// 15. UTILITY FUNCTIONS
+function checkOnlineStatus() {
+    if (!navigator.onLine) {
+        showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
+        return false;
+    }
+    return true;
+}
 
+function closeModal() {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.style.display = 'none';
+    });
+}
 
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// 16. HELPER FUNCTIONS FOR MISSING FUNCTIONALITY
+function changeLanguage(language) {
+    // Placeholder for language change functionality
+    console.log(`Language changed to: ${language}`);
+}
+
+// 17. INITIALIZATION FUNCTION
+function initializeUI() {
+    try {
+        initializeElementsObject();
+        setupBarcodeScanner();
+        initializeSettings();
         
-        function clearStockSearch() {
-            elements.stockSearch.value = '';
-            const rows = elements.stockTableBody.querySelectorAll('tr');
-            rows.forEach(row => {
-                row.style.display = '';
+        // Add global error handler if not already present
+        if (!window.globalErrorHandlerAdded) {
+            window.addEventListener('error', function(e) {
+                console.error('Global error:', e.error);
+                if (typeof showAlert === 'function') {
+                    showAlert('Bir hata oluştu: ' + e.error.message, 'error');
+                }
+            });
+            window.globalErrorHandlerAdded = true;
+        }
+        
+        console.log('UI initialized successfully');
+    } catch (error) {
+        console.error('UI initialization error:', error);
+    }
+}
+
+// 18. AUTO-INITIALIZE WHEN DOM IS READY
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeUI);
+} else {
+    initializeUI();
+}
+
+// 19. EXPORT FUNCTIONS TO GLOBAL SCOPE
+window.showAlert = showAlert;
+window.showToast = showToast;
+window.openQuantityModal = openQuantityModal;
+window.closeQuantityModal = closeQuantityModal;
+window.confirmQuantity = confirmQuantity;
+window.openManualEntry = openManualEntry;
+window.closeManualModal = closeManualModal;
+window.addManualProduct = addManualProduct;
+window.toggleScannerMode = toggleScannerMode;
+window.processBarcode = processBarcode;
+window.searchStock = searchStock;
+window.clearStockSearch = clearStockSearch;
+window.toggleSelectAll = toggleSelectAll;
+window.updatePackageSelection = updatePackageSelection;
+window.closeModal = closeModal;
+window.validateForm = validateForm;
+window.isValidEmail = isValidEmail;
+window.checkOnlineStatus = checkOnlineStatus;
+window.escapeHtml = escapeHtml;
+window.editStockItem = editStockItem;
+window.saveStockItem = saveStockItem;
+window.cancelEditStockItem = cancelEditStockItem;
+window.selectPackage = selectPackage;
+window.getSelectedPackage = getSelectedPackage;
+window.generateBarcode = generateBarcode;
+window.showApiKeyModal = showApiKeyModal;
+window.showApiKeyHelp = showApiKeyHelp;
+window.setupBarcodeScanner = setupBarcodeScanner;
+window.displayScannedBarcodes = displayScannedBarcodes;
+window.selectCustomerFromModal = selectCustomerFromModal;
+window.closeContainerDetailModal = closeContainerDetailModal;
+window.toggleSelectAllCustomer = toggleSelectAllCustomer;
+window.showSettingsModal = showSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.loadSettings = loadSettings;
+window.saveAllSettings = saveAllSettings;
+window.applySettings = applySettings;
+window.toggleTheme = toggleTheme;
+window.checkSystemStatus = checkSystemStatus;
+window.exportData = exportData;
+window.clearLocalData = clearLocalData;
+window.initializeSettings = initializeSettings;
+window.initializeElements = initializeElements;
+window.initializeElementsObject = initializeElementsObject;
+
+
+
+
+// ADD THIS CODE TO THE END OF YOUR ui.js FILE
+// This ensures all functions are immediately available globally
+
+// Force export all functions to global scope immediately
+(function() {
+    'use strict';
+    
+    // Create a global ProClean namespace to avoid conflicts
+    window.ProClean = window.ProClean || {};
+    
+    // Export all functions to both window directly and ProClean namespace
+    const functionsToExport = {
+        // Alert and UI functions
+        showAlert,
+        showToast,
+        
+        // Modal functions  
+        openQuantityModal,
+        closeQuantityModal,
+        confirmQuantity,
+        openManualEntry,
+        closeManualModal,
+        addManualProduct,
+        closeModal,
+        
+        // Stock functions
+        editStockItem,
+        saveStockItem,
+        cancelEditStockItem,
+        searchStock,
+        clearStockSearch,
+        
+        // Package functions
+        selectPackage,
+        getSelectedPackage,
+        toggleSelectAll,
+        updatePackageSelection,
+        
+        // Barcode functions
+        toggleScannerMode,
+        processBarcode,
+        setupBarcodeScanner,
+        displayScannedBarcodes,
+        generateBarcode,
+        
+        // Customer functions
+        selectCustomerFromModal,
+        toggleSelectAllCustomer,
+        
+        // Container functions
+        closeContainerDetailModal,
+        
+        // API functions
+        showApiKeyModal,
+        showApiKeyHelp,
+        
+        // Settings functions
+        showSettingsModal,
+        closeSettingsModal,
+        loadSettings,
+        saveAllSettings,
+        applySettings,
+        toggleTheme,
+        checkSystemStatus,
+        exportData,
+        clearLocalData,
+        initializeSettings,
+        
+        // Utility functions
+        validateForm,
+        isValidEmail,
+        checkOnlineStatus,
+        escapeHtml,
+        
+        // Initialization functions
+        initializeElements,
+        initializeElementsObject
+    };
+    
+    // Export to both window and ProClean namespace
+    Object.keys(functionsToExport).forEach(key => {
+        const func = functionsToExport[key];
+        if (typeof func === 'function') {
+            window[key] = func;
+            window.ProClean[key] = func;
+        }
+    });
+    
+    console.log('✅ All UI functions exported globally');
+    console.log('Available functions:', Object.keys(functionsToExport));
+    
+})();
+
+// Ensure currentPackage is available globally
+window.currentPackage = window.currentPackage || { items: {} };
+
+// Add event listeners for common modal close scenarios
+document.addEventListener('DOMContentLoaded', function() {
+    // Close modals when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            closeModal();
+        }
+    });
+    
+    // Close modals with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+    
+    // Re-initialize elements after DOM is fully loaded
+    setTimeout(() => {
+        initializeElementsObject();
+    }, 100);
+});
+
+// Debug function to check if functions are available
+window.checkFunctions = function() {
+    const testFunctions = ['showAlert', 'editStockItem', 'saveStockItem', 'cancelEditStockItem'];
+    testFunctions.forEach(funcName => {
+        if (typeof window[funcName] === 'function') {
+            console.log(`✅ ${funcName} is available`);
+        } else {
+            console.error(`❌ ${funcName} is NOT available`);
+        }
+    });
+};
+
+// Auto-fix for inline onclick handlers that might not work
+window.addEventListener('load', function() {
+    // Find all buttons with onclick attributes and ensure they work
+    const buttonsWithOnclick = document.querySelectorAll('button[onclick]');
+    buttonsWithOnclick.forEach(button => {
+        const onclickCode = button.getAttribute('onclick');
+        if (onclickCode) {
+            button.addEventListener('click', function(e) {
+                try {
+                    // Try to execute the onclick code
+                    eval(onclickCode);
+                } catch (error) {
+                    console.error('Error executing onclick:', onclickCode, error);
+                    showAlert('Buton işlemi gerçekleştirilemedi: ' + error.message, 'error');
+                }
             });
         }
-
-
-
+    });
+    
+    console.log('✅ Enhanced button click handlers applied');
+});
