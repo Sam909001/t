@@ -445,64 +445,96 @@ async function calculateTotalQuantity(packageIds) {
        // Fixed populateShippingTable function with duplication prevention
 async function populateShippingTable() {
     try {
+        console.log('populateShippingTable called');
+
+        // 1️⃣ Clear previous content
         elements.shippingFolders.innerHTML = '';
 
+        // 2️⃣ Get filter
         const filter = elements.shippingFilter?.value || 'all';
-        let containerQuery = supabase.from('containers').select('*');
-        if (filter !== 'all') containerQuery = containerQuery.eq('status', filter);
-        const { data: containers, error } = await containerQuery.order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('Error loading containers:', error);
+        // 3️⃣ Fetch containers with optional filter
+        let query = supabase
+            .from('containers')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (filter !== 'all') {
+            query = query.eq('status', filter);
+        }
+
+        const { data: containers, error: containersError } = await query;
+
+        if (containersError) {
+            console.error('Error loading containers:', containersError);
             showAlert('Sevkiyat verileri yüklenemedi', 'error');
             return;
         }
+
         if (!containers || containers.length === 0) {
             elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
             return;
         }
 
-        // Fetch packages for all containers at once
-        const containerIds = containers.map(c => c.id);
-        const { data: packagesData } = await supabase
+        // 4️⃣ Deduplicate containers by ID
+        const uniqueContainers = [];
+        const seenContainerIds = new Set();
+        containers.forEach(c => {
+            if (!seenContainerIds.has(c.id)) {
+                seenContainerIds.add(c.id);
+                uniqueContainers.push(c);
+            }
+        });
+
+        // 5️⃣ Fetch all packages for these containers
+        const containerIds = uniqueContainers.map(c => c.id);
+        const { data: packagesData, error: packagesError } = await supabase
             .from('packages')
             .select('id, package_no, total_quantity, container_id, customers(name, code)')
             .in('container_id', containerIds);
 
-        // Map packages to their container
+        if (packagesError) {
+            console.error('Error loading packages:', packagesError);
+            showAlert('Paket verileri yüklenemedi', 'error');
+            return;
+        }
+
+        // 6️⃣ Map packages to containers, deduplicate packages
         const packagesMap = {};
         packagesData.forEach(p => {
             if (!packagesMap[p.container_id]) packagesMap[p.container_id] = [];
-            // Deduplicate by package id just in case
-            if (!packagesMap[p.container_id].some(x => x.id === p.id)) packagesMap[p.container_id].push(p);
+            if (!packagesMap[p.container_id].some(x => x.id === p.id)) {
+                packagesMap[p.container_id].push(p);
+            }
         });
 
-        // Attach packages to containers
-        containers.forEach(c => {
-            c.packages = packagesMap[c.id] || [];
-        });
+        uniqueContainers.forEach(c => c.packages = packagesMap[c.id] || []);
 
-        // ✅ Group by customer(s) and render (same as before)
+        // 7️⃣ Group containers by customer
         const customersMap = {};
-        containers.forEach(container => {
+        uniqueContainers.forEach(container => {
             let customerName = 'Diğer';
+
             if (container.packages.length > 0) {
                 const names = container.packages.map(p => p.customers?.name).filter(Boolean);
                 if (names.length > 0) customerName = [...new Set(names)].join(', ');
-            } else if (container.customer) {
-                customerName = container.customer;
             }
+
             if (!customersMap[customerName]) customersMap[customerName] = [];
             customersMap[customerName].push(container);
         });
 
-        for (const [customerName, customerContainers] of Object.entries(customersMap)) {
+        // 8️⃣ Render folders
+        Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'customer-folder';
 
             const folderHeader = document.createElement('div');
             folderHeader.className = 'folder-header';
-            folderHeader.innerHTML = `<span>${customerName}</span><span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>`;
+            folderHeader.innerHTML = `
+                <span>${customerName}</span>
+                <span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>
+            `;
 
             const folderContent = document.createElement('div');
             folderContent.className = 'folder-content';
@@ -550,7 +582,7 @@ async function populateShippingTable() {
             });
 
             elements.shippingFolders.appendChild(folderDiv);
-        }
+        });
 
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
