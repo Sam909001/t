@@ -283,19 +283,13 @@ async function populatePersonnel() {
 
         
 
-     async function populatePackagesTable() {
-    if (packagesLoaded) return; // Prevent multiple reloads
-    packagesLoaded = true;
-
+   async function populatePackagesTable() {
     try {
         elements.packagesTableBody.innerHTML = '';
 
         const { data: packages, error } = await supabase
             .from('packages')
-            .select(`
-                *,
-                customers (name, code)
-            `)
+            .select(`*, customers (name, code)`)
             .is('container_id', null)
             .order('created_at', { ascending: false });
 
@@ -305,46 +299,46 @@ async function populatePersonnel() {
             return;
         }
 
-        if (packages && packages.length > 0) {
-            // Deduplicate by package id
-            const uniquePackages = Array.from(
-                new Map(packages.map(pkg => [pkg.id, pkg])).values()
-            );
-
-            uniquePackages.forEach(pkg => {
-                const row = document.createElement('tr');
-
-                let productInfo = '';
-                if (pkg.items && typeof pkg.items === 'object') {
-                    productInfo = Object.entries(pkg.items)
-                        .map(([product, quantity]) => `${product}: ${quantity}`)
-                        .join(', ');
-                }
-
-                row.innerHTML = `
-                    <td><input type="checkbox" value="${pkg.id}" data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}' onchange="updatePackageSelection()"></td>
-                    <td>${pkg.package_no}</td>
-                    <td>${pkg.customers?.name || 'N/A'}</td>
-                    <td>${productInfo || 'N/A'}</td>
-                    <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-                    <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                `;
-
-                row.onclick = (e) => {
-                    if (e.target.type !== 'checkbox') {
-                        selectPackage(pkg);
-                    }
-                };
-
-                elements.packagesTableBody.appendChild(row);
-            });
-
-            elements.totalPackages.textContent = uniquePackages.length;
-        } else {
+        if (!packages || packages.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
             elements.packagesTableBody.appendChild(row);
+            elements.totalPackages.textContent = '0';
+            return;
         }
+
+        // Deduplicate packages by ID
+        const uniquePackages = Array.from(new Map(packages.map(pkg => [pkg.id, pkg])).values());
+
+        uniquePackages.forEach(pkg => {
+            const row = document.createElement('tr');
+
+            let productInfo = '';
+            if (pkg.items && typeof pkg.items === 'object') {
+                productInfo = Object.entries(pkg.items)
+                    .map(([product, quantity]) => `${product}: ${quantity}`)
+                    .join(', ');
+            }
+
+            row.innerHTML = `
+                <td><input type="checkbox" value="${pkg.id}" data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}' onchange="updatePackageSelection()"></td>
+                <td>${pkg.package_no}</td>
+                <td>${pkg.customers?.name || 'N/A'}</td>
+                <td>${productInfo || 'N/A'}</td>
+                <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
+                <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+            `;
+
+            row.onclick = (e) => {
+                if (e.target.type !== 'checkbox') {
+                    selectPackage(pkg);
+                }
+            };
+
+            elements.packagesTableBody.appendChild(row);
+        });
+
+        elements.totalPackages.textContent = uniquePackages.length;
 
     } catch (error) {
         console.error('Error in populatePackagesTable:', error);
