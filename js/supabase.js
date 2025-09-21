@@ -424,57 +424,55 @@ async function calculateTotalQuantity(packageIds) {
 
         
 
-       // Fixed populateShippingTable function with duplication prevention
+  // Pagination state
+let currentPage = 0;
+const pageSize = 20; // number of containers per page
+
 let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
 
-async function populateShippingTable() {
-    // Prevent multiple simultaneous calls
+async function populateShippingTable(page = 0) {
     if (isShippingTableLoading) return;
-    
-    // Debounce - prevent rapid successive calls
+
+    // Debounce
     const now = Date.now();
     if (now - lastShippingFetchTime < 500) {
-        setTimeout(populateShippingTable, 500);
+        setTimeout(() => populateShippingTable(page), 500);
         return;
     }
-    
+
     isShippingTableLoading = true;
     lastShippingFetchTime = now;
-    
-    try {
-        console.log('populateShippingTable called');
 
-        // 1️⃣ Clear previous content
+    try {
+        console.log('populateShippingTable called, page', page);
+
         elements.shippingFolders.innerHTML = '';
 
-        // 2️⃣ Get filter
         const filter = elements.shippingFilter?.value || 'all';
 
-        // 3️⃣ Fetch containers with optional filter
+        // Pagination: calculate range
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
         let query = supabase
             .from('containers')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*', { count: 'exact' }) // for total count
+            .order('created_at', { ascending: false })
+            .range(from, to);
 
-        if (filter !== 'all') {
-            query = query.eq('status', filter);
-        }
+        if (filter !== 'all') query = query.eq('status', filter);
 
-        const { data: containers, error: containersError } = await query;
+        const { data: containers, error: containersError, count } = await query;
 
-        if (containersError) {
-            console.error('Error loading containers:', containersError);
-            showAlert('Sevkiyat verileri yüklenemedi', 'error');
-            return;
-        }
+        if (containersError) throw containersError;
 
         if (!containers || containers.length === 0) {
             elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
             return;
         }
 
-        // 4️⃣ Deduplicate containers by ID
+        // Deduplicate containers
         const uniqueContainers = [];
         const seenContainerIds = new Set();
         containers.forEach(c => {
@@ -484,46 +482,35 @@ async function populateShippingTable() {
             }
         });
 
-        // 5️⃣ Fetch all packages for these containers
+        // Fetch packages for these containers
         const containerIds = uniqueContainers.map(c => c.id);
-        const { data: packagesData, error: packagesError } = await supabase
+        const { data: packagesData } = await supabase
             .from('packages')
             .select('id, package_no, total_quantity, container_id, customers(name, code)')
             .in('container_id', containerIds);
 
-        if (packagesError) {
-            console.error('Error loading packages:', packagesError);
-            showAlert('Paket verileri yüklenemedi', 'error');
-            return;
-        }
-
-        // 6️⃣ Map packages to containers, deduplicate packages
+        // Map packages to containers, deduplicate
         const packagesMap = {};
-        packagesData.forEach(p => {
+        packagesData?.forEach(p => {
             if (!packagesMap[p.container_id]) packagesMap[p.container_id] = [];
-            // Check for duplicate packages by ID
-            if (!packagesMap[p.container_id].some(x => x.id === p.id)) {
-                packagesMap[p.container_id].push(p);
-            }
+            if (!packagesMap[p.container_id].some(x => x.id === p.id)) packagesMap[p.container_id].push(p);
         });
 
         uniqueContainers.forEach(c => c.packages = packagesMap[c.id] || []);
 
-        // 7️⃣ Group containers by customer
+        // Group by customer
         const customersMap = {};
         uniqueContainers.forEach(container => {
             let customerName = 'Diğer';
-
             if (container.packages.length > 0) {
                 const names = container.packages.map(p => p.customers?.name).filter(Boolean);
                 if (names.length > 0) customerName = [...new Set(names)].join(', ');
             }
-
             if (!customersMap[customerName]) customersMap[customerName] = [];
             customersMap[customerName].push(container);
         });
 
-        // 8️⃣ Render folders
+        // Render folders
         Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'customer-folder';
@@ -575,7 +562,6 @@ async function populateShippingTable() {
             folderDiv.appendChild(folderHeader);
             folderDiv.appendChild(folderContent);
 
-            // Use event delegation instead of attaching multiple listeners
             folderHeader.addEventListener('click', () => {
                 folderDiv.classList.toggle('folder-open');
                 folderContent.style.display = folderDiv.classList.contains('folder-open') ? 'block' : 'none';
@@ -583,6 +569,9 @@ async function populateShippingTable() {
 
             elements.shippingFolders.appendChild(folderDiv);
         });
+
+        // Render pagination buttons
+        renderPagination(count, page);
 
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
@@ -592,11 +581,42 @@ async function populateShippingTable() {
     }
 }
 
-// Debounced version to prevent rapid successive calls
+// Pagination buttons
+function renderPagination(totalCount, page) {
+    let paginationDiv = document.getElementById('pagination');
+    if (!paginationDiv) {
+        paginationDiv = document.createElement('div');
+        paginationDiv.id = 'pagination';
+        paginationDiv.style.textAlign = 'center';
+        paginationDiv.style.marginTop = '10px';
+        elements.shippingFolders.appendChild(paginationDiv);
+    }
+    paginationDiv.innerHTML = '';
+
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    if (page > 0) {
+        const prev = document.createElement('button');
+        prev.textContent = '◀ Geri';
+        prev.onclick = () => populateShippingTable(page - 1);
+        paginationDiv.appendChild(prev);
+    }
+
+    paginationDiv.append(` Sayfa ${page + 1} / ${totalPages} `);
+
+    if (page < totalPages - 1) {
+        const next = document.createElement('button');
+        next.textContent = 'İleri ▶';
+        next.onclick = () => populateShippingTable(page + 1);
+        paginationDiv.appendChild(next);
+    }
+}
+
+// Debounced version
 let shippingTableTimeout;
 function debouncedPopulateShippingTable() {
     clearTimeout(shippingTableTimeout);
-    shippingTableTimeout = setTimeout(populateShippingTable, 300);
+    shippingTableTimeout = setTimeout(() => populateShippingTable(currentPage), 300);
 }
 
 
