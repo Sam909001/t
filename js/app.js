@@ -669,38 +669,36 @@ async function previewReport() {
             showAlert('Mevcut konteyner yüklendi', 'success');
         }
 
-        async function createNewContainer() {
-            try {
-                const timestamp = new Date().getTime();
-                const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-                
-                const { data: newContainer, error } = await supabase
-                    .from('containers')
-                    .insert([{
-                        container_no: containerNo,
-                        customer: '',
-                        package_count: 0,
-                        total_quantity: 0,
-                        status: 'beklemede',
-                        package_ids: []
-                    }])
-                    .select();
+       async function createNewContainer() {
+    try {
+        const timestamp = new Date().getTime();
+        const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
 
-                if (error) throw error;
+        const { data: newContainer, error } = await supabase
+            .from('containers')
+            .insert([{
+                container_no: containerNo,
+                customer: null,           // leave blank initially
+                package_count: 0,
+                total_quantity: 0,
+                status: 'beklemede'
+            }])
+            .select('*');                // get inserted row back
 
-                elements.containerNumber.textContent = containerNo;
-                currentContainer = containerNo;
-                saveAppState();
-                
-                showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
-                await populateShippingTable();
-                
-            } catch (error) {
-                console.error('Error creating container:', error);
-                showAlert('Konteyner oluşturulurken hata oluştu', 'error');
-            }
-        }
+        if (error) throw error;
 
+        elements.containerNumber.textContent = containerNo;
+        currentContainer = containerNo;
+        saveAppState();
+
+        showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+        await populateShippingTable();
+
+    } catch (error) {
+        console.error('Error creating container:', error);
+        showAlert('Konteyner oluşturulurken hata oluştu', 'error');
+    }
+}
 
 
 
