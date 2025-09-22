@@ -621,7 +621,7 @@ async function generatePDFReport(reportData) {
             const doc = new jsPDF();
             
             // Set default font
-            doc.setFont("helvetica");
+           doc.setFont("Roboto", "normal");
             
             // Title
             doc.setFontSize(16);
