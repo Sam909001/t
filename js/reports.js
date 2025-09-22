@@ -104,7 +104,6 @@ async function generateDailyReport() {
     }
 }
 
-// Fixed Professional PDF Generation with Turkish Characters
 async function generateProfessionalPDFReport(reportData) {
     return new Promise((resolve, reject) => {
         try {
@@ -114,61 +113,57 @@ async function generateProfessionalPDFReport(reportData) {
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
-            // Use a font that supports Turkish characters
-            doc.setFont("helvetica");
-            
+
+            // ==================== FONTS ====================
+            // Use Roboto font (loaded via your roboto-bold.js VFS file)
+            doc.setFont("Roboto", "normal");
+
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
             const margin = 15;
             let currentY = margin;
 
             // ==================== COVER PAGE ====================
-            // Professional header
             doc.setFillColor(41, 128, 185);
             doc.rect(0, 0, pageWidth, 80, 'F');
-            
-            // Use text that doesn't require special characters for title
+
             doc.setFontSize(20);
-            doc.setFont(undefined, 'bold');
+            doc.setFont("Roboto", "bold");
             doc.setTextColor(255, 255, 255);
-            doc.text('PROCLEAN CAMASIRHANE', pageWidth / 2, 35, { align: 'center' });
-            
+            doc.text('PROCLEAN ÇAMAŞIRHANE', pageWidth / 2, 35, { align: 'center' });
+
             doc.setFontSize(14);
-            doc.text('Gunluk Detayli Is Raporu', pageWidth / 2, 50, { align: 'center' });
-            
+            doc.text('Günlük Detaylı İş Raporu', pageWidth / 2, 50, { align: 'center' });
+
             doc.setFontSize(10);
             doc.text(reportData.date, pageWidth / 2, 65, { align: 'center' });
 
-            // Report details box
             currentY = 100;
             doc.setFillColor(245, 245, 245);
             doc.roundedRect(margin, currentY, pageWidth - 2 * margin, 50, 3, 3, 'F');
-            
-            doc.setTextColor(0, 0, 0);
+
             doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
+            doc.setFont("Roboto", "bold");
+            doc.setTextColor(0, 0, 0);
             doc.text('RAPOR DETAYLARI', margin + 10, currentY + 15);
-            
-            doc.setFont(undefined, 'normal');
+
             doc.setFontSize(10);
-            // Use simple text without Turkish characters for labels
+            doc.setFont("Roboto", "normal");
             doc.text(`Rapor Tarihi: ${reportData.date}`, margin + 10, currentY + 25);
-            doc.text(`Rapor No: ${reportData.id || 'Yerel Kayit'}`, margin + 10, currentY + 35);
-            doc.text(`Operator: ${reportData.operator}`, pageWidth - margin - 10, currentY + 25, { align: 'right' });
-            doc.text(`Olusturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin - 10, currentY + 35, { align: 'right' });
+            doc.text(`Rapor No: ${reportData.id || 'Yerel Kayıt'}`, margin + 10, currentY + 35);
+            doc.text(`Operatör: ${reportData.operator}`, pageWidth - margin - 10, currentY + 25, { align: 'right' });
+            doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin - 10, currentY + 35, { align: 'right' });
 
             currentY += 70;
 
             // ==================== EXECUTIVE SUMMARY ====================
             doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
+            doc.setFont("Roboto", "bold");
             doc.setTextColor(41, 128, 185);
-            doc.text('GUNLUK OZET', margin, currentY);
-            
+            doc.text('GÜNLÜK ÖZET', margin, currentY);
+
             currentY += 15;
 
-            // Enhanced summary boxes with both waiting and shipped
             const summaryBoxes = [
                 { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219], icon: '📦' },
                 { title: 'Bekleyen', value: reportData.waitingPackages, color: [241, 196, 15], icon: '⏳' },
@@ -185,7 +180,7 @@ async function generateProfessionalPDFReport(reportData) {
                 
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(9);
-                doc.setFont(undefined, 'bold');
+                doc.setFont("Roboto", "bold");
                 doc.text(box.icon, x + boxWidth / 2, currentY + 10, { align: 'center' });
                 doc.text(box.title, x + boxWidth / 2, currentY + 18, { align: 'center' });
                 
@@ -202,25 +197,24 @@ async function generateProfessionalPDFReport(reportData) {
             }
 
             doc.setFontSize(14);
-            doc.setFont(undefined, 'bold');
+            doc.setFont("Roboto", "bold");
             doc.setTextColor(41, 128, 185);
-            doc.text('DETAYLI ISTATISTIKLER', margin, currentY);
+            doc.text('DETAYLI İSTATİSTİKLER', margin, currentY);
             currentY += 15;
 
-            // Comprehensive statistics
             const stats = [
-                `Toplam islenen paket: ${reportData.totalPackages} adet`,
+                `Toplam işlenen paket: ${reportData.totalPackages} adet`,
                 `Bekleyen paketler: ${reportData.waitingPackages} adet`,
                 `Sevk edilen paketler: ${reportData.shippedPackages} adet`,
-                `Toplam urun miktari: ${reportData.totalItems} adet`,
-                `Bekleyen urunler: ${reportData.waitingItems} adet`,
-                `Sevk edilen urunler: ${reportData.shippedItems} adet`,
-                `Hazirlanan konteyner: ${reportData.containers} adet`,
-                `Hizmet verilen musteri: ${reportData.customers} firma`
+                `Toplam ürün miktarı: ${reportData.totalItems} adet`,
+                `Bekleyen ürünler: ${reportData.waitingItems} adet`,
+                `Sevk edilen ürünler: ${reportData.shippedItems} adet`,
+                `Hazırlanan konteyner: ${reportData.containers} adet`,
+                `Hizmet verilen müşteri: ${reportData.customers} firma`
             ];
 
             doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
+            doc.setFont("Roboto", "normal");
             doc.setTextColor(0, 0, 0);
 
             stats.forEach(stat => {
@@ -235,147 +229,59 @@ async function generateProfessionalPDFReport(reportData) {
             currentY += 15;
 
             // ==================== PACKAGE DETAILS ====================
-            if (reportData.allPackages && reportData.allPackages.length > 0) {
+            if (reportData.allPackages && reportData.allPackages.length > 0 && doc.autoTable) {
                 if (currentY > pageHeight - 100) {
                     doc.addPage();
                     currentY = margin;
                 }
 
                 doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
+                doc.setFont("Roboto", "bold");
                 doc.setTextColor(41, 128, 185);
-                doc.text('TUM PAKET DETAYLARI', margin, currentY);
+                doc.text('TÜM PAKET DETAYLARI', margin, currentY);
                 currentY += 10;
 
-                // Use autoTable for professional tables
-                if (doc.autoTable) {
-                    const packageData = reportData.allPackages.map(pkg => [
-                        pkg.package_no || 'N/A',
-                        pkg.customers?.name || 'N/A',
-                        (pkg.total_quantity || 0).toString(),
-                        pkg.container_id ? 'Sevk Edildi' : 'Bekliyor',
-                        pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'
-                    ]);
+                const packageData = reportData.allPackages.map(pkg => [
+                    pkg.package_no || 'N/A',
+                    pkg.customers?.name || 'N/A',
+                    (pkg.total_quantity || 0).toString(),
+                    pkg.container_id ? 'Sevk Edildi' : 'Bekliyor',
+                    pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'
+                ]);
 
-                    doc.autoTable({
-                        startY: currentY,
-                        head: [['Paket No', 'Musteri', 'Adet', 'Durum', 'Tarih']],
-                        body: packageData,
-                        theme: 'grid',
-                        headStyles: { 
-                            fillColor: [41, 128, 185],
-                            textColor: [255, 255, 255],
-                            fontStyle: 'bold'
-                        },
-                        styles: {
-                            fontSize: 8,
-                            cellPadding: 3,
-                            font: 'helvetica'
-                        },
-                        margin: { top: 10 },
-                        pageBreak: 'auto',
-                        didDrawCell: (data) => {
-                            // Color code status cells
-                            if (data.column.index === 3 && data.cell.raw === 'Sevk Edildi') {
-                                doc.setFillColor(46, 204, 113);
-                                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                                doc.setTextColor(255, 255, 255);
-                            } else if (data.column.index === 3 && data.cell.raw === 'Bekliyor') {
-                                doc.setFillColor(241, 196, 15);
-                                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                                doc.setTextColor(0, 0, 0);
-                            }
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Paket No', 'Müşteri', 'Adet', 'Durum', 'Tarih']],
+                    body: packageData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [41, 128, 185],
+                        textColor: [255, 255, 255],
+                        font: 'Roboto',
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        font: 'Roboto',
+                        fontStyle: 'normal',
+                        fontSize: 8,
+                        cellPadding: 3
+                    },
+                    margin: { top: 10 },
+                    pageBreak: 'auto',
+                    didDrawCell: (data) => {
+                        if (data.column.index === 3 && data.cell.raw === 'Sevk Edildi') {
+                            doc.setFillColor(46, 204, 113);
+                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            doc.setTextColor(255, 255, 255);
+                        } else if (data.column.index === 3 && data.cell.raw === 'Bekliyor') {
+                            doc.setFillColor(241, 196, 15);
+                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            doc.setTextColor(0, 0, 0);
                         }
-                    });
+                    }
+                });
 
-                    currentY = doc.lastAutoTable.finalY + 15;
-                }
-            }
-
-            // ==================== CONTAINER DETAILS ====================
-            if (reportData.containers && reportData.containers.length > 0) {
-                if (currentY > pageHeight - 100) {
-                    doc.addPage();
-                    currentY = margin;
-                }
-
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.setTextColor(155, 89, 182);
-                doc.text('KONTEYNER DETAYLARI', margin, currentY);
-                currentY += 10;
-
-                if (doc.autoTable) {
-                    const containerData = reportData.containers.map(container => [
-                        container.container_no || 'N/A',
-                        (container.package_count || 0).toString(),
-                        (container.total_quantity || 0).toString(),
-                        container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Hazirlaniyor',
-                        container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'
-                    ]);
-
-                    doc.autoTable({
-                        startY: currentY,
-                        head: [['Konteyner No', 'Paket Sayisi', 'Toplam Adet', 'Durum', 'Tarih']],
-                        body: containerData,
-                        theme: 'grid',
-                        headStyles: { 
-                            fillColor: [155, 89, 182],
-                            textColor: [255, 255, 255],
-                            fontStyle: 'bold'
-                        },
-                        styles: {
-                            fontSize: 8,
-                            cellPadding: 3,
-                            font: 'helvetica'
-                        },
-                        margin: { top: 10 },
-                        pageBreak: 'auto'
-                    });
-
-                    currentY = doc.lastAutoTable.finalY + 15;
-                }
-            }
-
-            // ==================== CRITICAL STOCK ====================
-            if (reportData.criticalStock && reportData.criticalStock.length > 0) {
-                if (currentY > pageHeight - 80) {
-                    doc.addPage();
-                    currentY = margin;
-                }
-
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.setTextColor(231, 76, 60);
-                doc.text('KRITIK STOK UYARILARI', margin, currentY);
-                currentY += 10;
-
-                if (doc.autoTable) {
-                    const stockData = reportData.criticalStock.map(item => [
-                        item.code || 'N/A',
-                        item.name || 'N/A',
-                        (item.quantity || 0).toString(),
-                        item.quantity <= 0 ? 'STOK TUKENDI' : 'AZ STOK'
-                    ]);
-
-                    doc.autoTable({
-                        startY: currentY,
-                        head: [['Stok Kodu', 'Urun Adi', 'Mevcut Adet', 'Durum']],
-                        body: stockData,
-                        theme: 'grid',
-                        headStyles: { 
-                            fillColor: [231, 76, 60],
-                            textColor: [255, 255, 255],
-                            fontStyle: 'bold'
-                        },
-                        styles: {
-                            fontSize: 8,
-                            cellPadding: 3,
-                            font: 'helvetica'
-                        },
-                        margin: { top: 10 }
-                    });
-                }
+                currentY = doc.lastAutoTable.finalY + 15;
             }
 
             // ==================== FOOTER ====================
@@ -383,7 +289,7 @@ async function generateProfessionalPDFReport(reportData) {
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
                 doc.setFontSize(8);
-                doc.setFont(undefined, 'italic');
+                doc.setFont("Roboto", "italic");
                 doc.setTextColor(100, 100, 100);
                 
                 doc.setDrawColor(200, 200, 200);
@@ -391,19 +297,19 @@ async function generateProfessionalPDFReport(reportData) {
                 
                 doc.text(`Sayfa ${i} / ${pageCount}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
                 doc.text('ProClean Rapor Sistemi', margin, pageHeight - 15);
-                doc.text(`Olusturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin, pageHeight - 15, { align: 'right' });
+                doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin, pageHeight - 15, { align: 'right' });
             }
 
-            // Generate PDF blob
             const pdfBlob = doc.output('blob');
             resolve(pdfBlob);
-            
+
         } catch (error) {
-            console.error('PDF olusturma hatasi:', error);
-            reject(new Error(`PDF olusturulamadi: ${error.message}`));
+            console.error('PDF oluşturma hatası:', error);
+            reject(new Error(`PDF oluşturulamadı: ${error.message}`));
         }
     });
 }
+
 
 
 
