@@ -740,7 +740,7 @@ function toggleTheme() {
 }
 
 function checkSystemStatus() {
-    // --- Check database connection ---
+    // --- Database connection ---
     const dbStatus = document.getElementById('dbConnectionStatus');
     if (supabase) {
         dbStatus.textContent = 'Bağlı';
@@ -750,9 +750,9 @@ function checkSystemStatus() {
         dbStatus.className = 'status-indicator disconnected';
     }
 
-    // --- Check printer connection ---
+    // --- Printer connection ---
     const printerStatus = document.getElementById('printerConnectionStatus');
-    const printerInstance = getPrinter(); // Use getPrinter() instead of global printer
+    const printerInstance = getPrinterElectron(); // <-- Electron printer
 
     if (printerInstance && printerInstance.isConnected) {
         printerStatus.textContent = 'Bağlı';
@@ -762,6 +762,7 @@ function checkSystemStatus() {
         printerStatus.className = 'status-indicator disconnected';
     }
 }
+
 
 
 
