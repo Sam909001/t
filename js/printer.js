@@ -110,7 +110,31 @@ class PrinterService {
         doc.text('Yeditep Laundry', 40, yPosition, { align: 'center' });
         yPosition += 8;
         
-        // ... rest of your existing printBarcode code ...
+       // After your Yeditep Laundry header
+doc.setFontSize(fontSize);
+doc.setFont(undefined, 'normal');
+
+// Add package info
+if (packageInfo) {
+    doc.text(`Müşteri: ${packageInfo.customer_name || ''}`, 5, yPosition); yPosition += 6;
+    doc.text(`Ürün: ${packageInfo.product || ''}`, 5, yPosition); yPosition += 6;
+    doc.text(`Tarih: ${packageInfo.created_at || ''}`, 5, yPosition); yPosition += 10;
+}
+
+// Generate barcode
+const canvas = document.createElement('canvas');
+JsBarcode(canvas, barcode, {
+    format: "CODE128",
+    lineColor: "#000",
+    width: 2,
+    height: 25,
+    displayValue: true,
+    fontSize: 10,
+    margin: 0
+});
+const barcodeDataUrl = canvas.toDataURL('image/png');
+doc.addImage(barcodeDataUrl, 'PNG', 10, yPosition, 50, 20);
+
         
         // Apply scaling to the entire document
         const pdfBase64 = doc.output('datauristring');
@@ -311,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
 function checkPrinterStatus() {
     console.log('🔍 Checking printer status...');
     
@@ -435,15 +460,18 @@ function initializePrinterService() {
 }
 
 // ================== EVENT LISTENERS ==================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
     initializePrinterService();
-    
-    // Add event listeners for printer buttons
+
+    // Buttons
     const testBtn = document.getElementById('test-printer');
+    const testBtn2 = document.getElementById('test-printer-yazdir');
     const printBtn = document.getElementById('print-button');
     const statusBtn = document.getElementById('printer-status');
-    
+
     if (testBtn) testBtn.addEventListener('click', testPrinter);
+    if (testBtn2) testBtn2.addEventListener('click', testPrinter);
     if (printBtn) printBtn.addEventListener('click', printAllLabels);
     if (statusBtn) statusBtn.addEventListener('click', checkPrinterStatus);
 });
+
