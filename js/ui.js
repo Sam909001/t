@@ -75,10 +75,22 @@ function initializeElementsObject() {
 
 
 // Profesyonel alert sistemi
+// 1. Prevent duplicate alerts with debouncing
+let alertQueue = new Set(); // Track active alerts
+
 function showAlert(message, type = 'info', duration = 5000) {
+    // Prevent duplicate alerts
+    const alertKey = `${message}-${type}`;
+    if (alertQueue.has(alertKey)) {
+        return; // Already showing this alert
+    }
+    
+    alertQueue.add(alertKey);
+    
     if (!elements.alertContainer) {
         console.error('Alert container not found, using console instead');
         console.log(`${type.toUpperCase()}: ${message}`);
+        alertQueue.delete(alertKey);
         return;
     }
     
@@ -86,7 +98,7 @@ function showAlert(message, type = 'info', duration = 5000) {
     alert.className = `alert alert-${type}`;
     
     const span = document.createElement('span');
-    span.textContent = message; // Use textContent for XSS protection
+    span.textContent = message;
     
     const button = document.createElement('button');
     button.className = 'alert-close';
@@ -103,6 +115,7 @@ function showAlert(message, type = 'info', duration = 5000) {
         setTimeout(() => {
             if (alert.parentNode) {
                 alert.remove();
+                alertQueue.delete(alertKey);
             }
         }, 300);
     });
@@ -115,6 +128,7 @@ function showAlert(message, type = 'info', duration = 5000) {
                 setTimeout(() => {
                     if (alert.parentNode) {
                         alert.remove();
+                        alertQueue.delete(alertKey);
                     }
                 }, 300);
             }
@@ -123,6 +137,7 @@ function showAlert(message, type = 'info', duration = 5000) {
     
     return alert;
 }
+
 
 
 
@@ -144,34 +159,19 @@ function showToast(message, type = 'info') {
         
 
 // Form doğrulama fonksiyonu
-function validateForm(inputs) {
-    let isValid = true;
+let validationTimeout = null;
+
+function validateFormDebounced(inputs, callback) {
+    // Clear previous timeout
+    if (validationTimeout) {
+        clearTimeout(validationTimeout);
+    }
     
-    inputs.forEach(input => {
-        const element = document.getElementById(input.id);
-        const errorElement = document.getElementById(input.errorId);
-        
-        if (input.required && !element.value.trim()) {
-            element.classList.add('invalid');
-            errorElement.style.display = 'block';
-            isValid = false;
-        } else if (input.type === 'email' && element.value.trim() && !isValidEmail(element.value)) {
-            element.classList.add('invalid');
-            errorElement.style.display = 'block';
-            errorElement.textContent = 'Geçerli bir e-posta adresi girin';
-            isValid = false;
-        } else if (input.type === 'number' && element.value && (!Number.isInteger(Number(element.value)) || Number(element.value) < 1)) {
-            element.classList.add('invalid');
-            errorElement.style.display = 'block';
-            errorElement.textContent = 'Geçerli bir sayı girin';
-            isValid = false;
-        } else {
-            element.classList.remove('invalid');
-            errorElement.style.display = 'none';
-        }
-    });
-    
-    return isValid;
+    // Debounce validation
+    validationTimeout = setTimeout(() => {
+        const isValid = validateForm(inputs);
+        if (callback) callback(isValid);
+    }, 200);
 }
 
 
@@ -260,16 +260,24 @@ function showApiKeyHelp() {
 
 
         // Barkod tarayıcı dinleyicisi
-      function setupBarcodeScanner() {
+     let barcodeListenerAttached = false;
+
+function setupBarcodeScanner() {
     if (!elements.barcodeInput) {
         console.error('Barcode input element not found');
+        return;
+    }
+    
+    // Prevent multiple listeners
+    if (barcodeListenerAttached) {
         return;
     }
     
     let barcodeBuffer = '';
     let lastKeyTime = Date.now();
     
-    elements.barcodeInput.addEventListener('keypress', function(e) {
+    // Single event listener
+    const barcodeHandler = function(e) {
         const currentTime = Date.now();
         
         if (scannerMode || currentTime - lastKeyTime < 50) {
@@ -288,33 +296,55 @@ function showApiKeyHelp() {
         }
         
         lastKeyTime = currentTime;
-    });
+    };
+    
+    elements.barcodeInput.addEventListener('keypress', barcodeHandler);
+    barcodeListenerAttached = true;
 }
 
 
 
+
+
 // Stok düzenleme fonksiyonları
-        function editStockItem(button, code) {
-            const row = button.closest('tr');
-            const quantitySpan = row.querySelector('.stock-quantity');
-            const quantityInput = row.querySelector('.stock-quantity-input');
-            const editButton = row.querySelector('button');
-            const editButtons = row.querySelector('.edit-buttons');
-            
-            // Düzenleme moduna geç
-            quantitySpan.style.display = 'none';
-            quantityInput.style.display = 'block';
-            editButton.style.display = 'none';
-            editButtons.style.display = 'flex';
-            
-            editingStockItem = code;
-        }
+      let currentEditingRow = null;
+
+function editStockItem(button, code) {
+    // Prevent multiple edits
+    if (currentEditingRow && currentEditingRow !== code) {
+        showAlert('Önce mevcut düzenlemeyi tamamlayın', 'warning');
+        return;
+    }
+    
+    currentEditingRow = code;
+    
+    const row = button.closest('tr');
+    const quantitySpan = row.querySelector('.stock-quantity');
+    const quantityInput = row.querySelector('.stock-quantity-input');
+    const editButton = row.querySelector('button');
+    const editButtons = row.querySelector('.edit-buttons');
+    
+    // Switch to edit mode
+    quantitySpan.style.display = 'none';
+    quantityInput.style.display = 'block';
+    editButton.style.display = 'none';
+    editButtons.style.display = 'flex';
+    
+    editingStockItem = code;
+}
+
+
 
 
 
 
 // Add missing saveStockItem function
 async function saveStockItem(code, input) {
+    // Prevent multiple saves
+    if (input.disabled) {
+        return;
+    }
+    
     const newQuantity = parseInt(input.value);
     
     if (isNaN(newQuantity) || newQuantity < 0) {
@@ -332,7 +362,9 @@ async function saveStockItem(code, input) {
     
     try {
         input.disabled = true;
-        showAlert('Güncelleniyor...', 'info', 1000);
+        
+        // Only show one loading message
+        const loadingAlert = showAlert('Güncelleniyor...', 'info', 1000);
         
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -362,6 +394,7 @@ async function saveStockItem(code, input) {
         
         restoreEditButton(actionsCell, code);
         editingStockItem = null;
+        currentEditingRow = null;
         
         showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
         
@@ -372,6 +405,7 @@ async function saveStockItem(code, input) {
         input.focus();
     }
 }
+
        
 
 
