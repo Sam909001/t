@@ -1,4 +1,3 @@
-// Report operations - Fixed version with PDF upload to Supabase
 async function generateDailyReport() {
     try {
         showAlert('Profesyonel günlük rapor oluşturuluyor...', 'info');
@@ -12,43 +11,59 @@ async function generateDailyReport() {
         const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
         const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
 
-        // Fetch data for the report
-        const [
-            { data: packages, error: packagesError },
-            { data: containers, error: containersError },
-            { data: criticalStock, error: stockError }
-        ] = await Promise.all([
-            supabase
-                .from('packages')
-                .select('*, customers (name, code)')
-                .gte('created_at', startOfDay)
-                .lte('created_at', endOfDay),
-            supabase
-                .from('containers')
-                .select('*')
-                .gte('created_at', startOfDay)
-                .lte('created_at', endOfDay),
-            supabase
-                .from('stock_items')
-                .select('*')
-                .lte('quantity', 5)
-                .order('quantity', { ascending: true })
-        ]);
+        // Fetch ALL packages (both waiting and shipped) for the day
+        const { data: allPackages, error: packagesError } = await supabase
+            .from('packages')
+            .select('*, customers (name, code)')
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay)
+            .order('created_at', { ascending: false });
+
+        // Fetch ALL containers for the day
+        const { data: allContainers, error: containersError } = await supabase
+            .from('containers')
+            .select('*, packages (package_no, total_quantity, customers (name))')
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay)
+            .order('created_at', { ascending: false });
+
+        // Fetch critical stock
+        const { data: criticalStock, error: stockError } = await supabase
+            .from('stock_items')
+            .select('*')
+            .lte('quantity', 5)
+            .order('quantity', { ascending: true });
 
         // Handle errors
         if (packagesError) throw new Error(`Paket verileri alınamadı: ${packagesError.message}`);
         if (containersError) throw new Error(`Konteyner verileri alınamadı: ${containersError.message}`);
         if (stockError) throw new Error(`Stok verileri alınamadı: ${stockError.message}`);
 
-        // Prepare report data
+        // Separate packages by status
+        const waitingPackages = allPackages.filter(pkg => !pkg.container_id);
+        const shippedPackages = allPackages.filter(pkg => pkg.container_id);
+
+        // Calculate totals
+        const totalPackages = allPackages.length;
+        const totalItems = allPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
+        const waitingItems = waitingPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
+        const shippedItems = shippedPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
+
+        // Prepare comprehensive report data
         currentReportData = {
             date: new Date().toLocaleDateString('tr-TR'),
-            totalPackages: packages.length,
-            totalItems: packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0),
-            containers: containers.length,
-            customers: [...new Set(packages.map(p => p.customers?.name))].length,
-            packages: packages,
-            containers: containers,
+            totalPackages: totalPackages,
+            totalItems: totalItems,
+            waitingPackages: waitingPackages.length,
+            waitingItems: waitingItems,
+            shippedPackages: shippedPackages.length,
+            shippedItems: shippedItems,
+            containers: allContainers.length,
+            customers: [...new Set(allPackages.map(p => p.customers?.name))].length,
+            allPackages: allPackages,
+            waitingPackages: waitingPackages,
+            shippedPackages: shippedPackages,
+            containers: allContainers,
             criticalStock: criticalStock,
             operator: user.user_metadata?.full_name || 'Bilinmiyor',
             user_id: user.id
@@ -66,7 +81,7 @@ async function generateDailyReport() {
                 report_date: new Date(),
                 report_type: 'daily',
                 data: currentReportData,
-                pdf_url: pdfUrl, // Add PDF URL to the report
+                pdf_url: pdfUrl,
                 user_id: user.id
             }])
             .select()
@@ -75,7 +90,7 @@ async function generateDailyReport() {
         if (reportError) throw new Error(`Rapor kaydedilemedi: ${reportError.message}`);
 
         currentReportData.id = report.id;
-        currentReportData.pdf_url = pdfUrl; // Store PDF URL in current data
+        currentReportData.pdf_url = pdfUrl;
         
         showAlert('Profesyonel günlük rapor ve PDF başarıyla oluşturuldu', 'success');
         
@@ -89,11 +104,10 @@ async function generateDailyReport() {
     }
 }
 
-// Professional PDF Generation Function with Turkish Support
+// Fixed Professional PDF Generation with Turkish Characters
 async function generateProfessionalPDFReport(reportData) {
     return new Promise((resolve, reject) => {
         try {
-            // Check if jsPDF is available
             if (typeof window.jspdf === 'undefined') {
                 throw new Error('jsPDF kütüphanesi yüklenmemiş');
             }
@@ -101,27 +115,27 @@ async function generateProfessionalPDFReport(reportData) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // Set font for Turkish characters
+            // Use a font that supports Turkish characters
             doc.setFont("helvetica");
             
-            // Page dimensions
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
             const margin = 15;
             let currentY = margin;
 
             // ==================== COVER PAGE ====================
-            // Professional header with gradient effect
+            // Professional header
             doc.setFillColor(41, 128, 185);
             doc.rect(0, 0, pageWidth, 80, 'F');
             
+            // Use text that doesn't require special characters for title
             doc.setFontSize(20);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(255, 255, 255);
-            doc.text('PROCLEAN ÇAMAŞIRHANE', pageWidth / 2, 35, { align: 'center' });
+            doc.text('PROCLEAN CAMASIRHANE', pageWidth / 2, 35, { align: 'center' });
             
             doc.setFontSize(14);
-            doc.text('Günlük Detaylı İş Raporu', pageWidth / 2, 50, { align: 'center' });
+            doc.text('Gunluk Detayli Is Raporu', pageWidth / 2, 50, { align: 'center' });
             
             doc.setFontSize(10);
             doc.text(reportData.date, pageWidth / 2, 65, { align: 'center' });
@@ -130,8 +144,6 @@ async function generateProfessionalPDFReport(reportData) {
             currentY = 100;
             doc.setFillColor(245, 245, 245);
             doc.roundedRect(margin, currentY, pageWidth - 2 * margin, 50, 3, 3, 'F');
-            doc.setDrawColor(200, 200, 200);
-            doc.roundedRect(margin, currentY, pageWidth - 2 * margin, 50, 3, 3, 'D');
             
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(12);
@@ -140,10 +152,11 @@ async function generateProfessionalPDFReport(reportData) {
             
             doc.setFont(undefined, 'normal');
             doc.setFontSize(10);
+            // Use simple text without Turkish characters for labels
             doc.text(`Rapor Tarihi: ${reportData.date}`, margin + 10, currentY + 25);
-            doc.text(`Rapor No: ${reportData.id || 'Yerel Kayıt'}`, margin + 10, currentY + 35);
-            doc.text(`Operatör: ${reportData.operator}`, pageWidth - margin - 10, currentY + 25, { align: 'right' });
-            doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin - 10, currentY + 35, { align: 'right' });
+            doc.text(`Rapor No: ${reportData.id || 'Yerel Kayit'}`, margin + 10, currentY + 35);
+            doc.text(`Operator: ${reportData.operator}`, pageWidth - margin - 10, currentY + 25, { align: 'right' });
+            doc.text(`Olusturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin - 10, currentY + 35, { align: 'right' });
 
             currentY += 70;
 
@@ -151,30 +164,25 @@ async function generateProfessionalPDFReport(reportData) {
             doc.setFontSize(16);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(41, 128, 185);
-            doc.text('Günlük Faaliyet Özeti', margin, currentY);
+            doc.text('GUNLUK OZET', margin, currentY);
             
-            currentY += 10;
-            doc.setDrawColor(200, 200, 200);
-            doc.line(margin, currentY, pageWidth - margin, currentY);
             currentY += 15;
 
-            // Summary boxes
+            // Enhanced summary boxes with both waiting and shipped
             const summaryBoxes = [
                 { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219], icon: '📦' },
-                { title: 'Toplam Ürün', value: reportData.totalItems, color: [46, 204, 113], icon: '👕' },
-                { title: 'Konteyner', value: reportData.containers || 0, color: [155, 89, 182], icon: '🚢' },
-                { title: 'Müşteri', value: reportData.customers || 0, color: [241, 196, 15], icon: '👥' }
+                { title: 'Bekleyen', value: reportData.waitingPackages, color: [241, 196, 15], icon: '⏳' },
+                { title: 'Sevk Edilen', value: reportData.shippedPackages, color: [46, 204, 113], icon: '🚚' },
+                { title: 'Konteyner', value: reportData.containers, color: [155, 89, 182], icon: '📊' }
             ];
 
             const boxWidth = (pageWidth - 2 * margin - 15) / 4;
             summaryBoxes.forEach((box, index) => {
                 const x = margin + index * (boxWidth + 5);
                 
-                // Box background
                 doc.setFillColor(...box.color);
                 doc.roundedRect(x, currentY, boxWidth, 35, 3, 3, 'F');
                 
-                // Text
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(9);
                 doc.setFont(undefined, 'bold');
@@ -187,8 +195,7 @@ async function generateProfessionalPDFReport(reportData) {
 
             currentY += 50;
 
-            // ==================== DETAILED BREAKDOWN ====================
-            // Check if we need a new page
+            // ==================== DETAILED STATISTICS ====================
             if (currentY > pageHeight - 100) {
                 doc.addPage();
                 currentY = margin;
@@ -197,41 +204,38 @@ async function generateProfessionalPDFReport(reportData) {
             doc.setFontSize(14);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(41, 128, 185);
-            doc.text('Detaylı Günlük Döküm', margin, currentY);
+            doc.text('DETAYLI ISTATISTIKLER', margin, currentY);
             currentY += 15;
 
-            // Package Statistics
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(0, 0, 0);
-            doc.text('📊 PAKET İSTATİSTİKLERİ:', margin, currentY);
-            currentY += 8;
-
-            doc.setFont(undefined, 'normal');
-            const avgPackagesPerCustomer = reportData.customers > 0 ? (reportData.totalPackages / reportData.customers).toFixed(1) : 0;
-            const avgItemsPerPackage = reportData.totalPackages > 0 ? (reportData.totalItems / reportData.totalPackages).toFixed(1) : 0;
-
-            const packageStats = [
-                `• Toplam işlenen paket: ${reportData.totalPackages} adet`,
-                `• Toplam ürün miktarı: ${reportData.totalItems} adet`,
-                `• Hizmet verilen müşteri sayısı: ${reportData.customers || 0} firma`,
-                `• Ortalama paket/müşteri: ${avgPackagesPerCustomer}`,
-                `• Ortalama ürün/paket: ${avgItemsPerPackage}`
+            // Comprehensive statistics
+            const stats = [
+                `Toplam islenen paket: ${reportData.totalPackages} adet`,
+                `Bekleyen paketler: ${reportData.waitingPackages} adet`,
+                `Sevk edilen paketler: ${reportData.shippedPackages} adet`,
+                `Toplam urun miktari: ${reportData.totalItems} adet`,
+                `Bekleyen urunler: ${reportData.waitingItems} adet`,
+                `Sevk edilen urunler: ${reportData.shippedItems} adet`,
+                `Hazirlanan konteyner: ${reportData.containers} adet`,
+                `Hizmet verilen musteri: ${reportData.customers} firma`
             ];
 
-            packageStats.forEach(stat => {
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+
+            stats.forEach(stat => {
                 if (currentY > pageHeight - 20) {
                     doc.addPage();
                     currentY = margin;
                 }
-                doc.text(stat, margin + 5, currentY);
+                doc.text(`• ${stat}`, margin + 5, currentY);
                 currentY += 6;
             });
 
-            currentY += 10;
+            currentY += 15;
 
-            // ==================== PACKAGE DETAILS TABLE ====================
-            if (reportData.packages && reportData.packages.length > 0) {
+            // ==================== PACKAGE DETAILS ====================
+            if (reportData.allPackages && reportData.allPackages.length > 0) {
                 if (currentY > pageHeight - 100) {
                     doc.addPage();
                     currentY = margin;
@@ -240,22 +244,22 @@ async function generateProfessionalPDFReport(reportData) {
                 doc.setFontSize(12);
                 doc.setFont(undefined, 'bold');
                 doc.setTextColor(41, 128, 185);
-                doc.text('📋 PAKET DETAYLARI', margin, currentY);
+                doc.text('TUM PAKET DETAYLARI', margin, currentY);
                 currentY += 10;
 
-                // Use autoTable if available for professional tables
+                // Use autoTable for professional tables
                 if (doc.autoTable) {
-                    const packageData = reportData.packages.map(pkg => [
+                    const packageData = reportData.allPackages.map(pkg => [
                         pkg.package_no || 'N/A',
                         pkg.customers?.name || 'N/A',
-                        pkg.total_quantity?.toString() || '0',
-                        pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A',
-                        pkg.packer || 'Bilinmiyor'
+                        (pkg.total_quantity || 0).toString(),
+                        pkg.container_id ? 'Sevk Edildi' : 'Bekliyor',
+                        pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'
                     ]);
 
                     doc.autoTable({
                         startY: currentY,
-                        head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Paketleyen']],
+                        head: [['Paket No', 'Musteri', 'Adet', 'Durum', 'Tarih']],
                         body: packageData,
                         theme: 'grid',
                         headStyles: { 
@@ -269,72 +273,71 @@ async function generateProfessionalPDFReport(reportData) {
                             font: 'helvetica'
                         },
                         margin: { top: 10 },
+                        pageBreak: 'auto',
+                        didDrawCell: (data) => {
+                            // Color code status cells
+                            if (data.column.index === 3 && data.cell.raw === 'Sevk Edildi') {
+                                doc.setFillColor(46, 204, 113);
+                                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                                doc.setTextColor(255, 255, 255);
+                            } else if (data.column.index === 3 && data.cell.raw === 'Bekliyor') {
+                                doc.setFillColor(241, 196, 15);
+                                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                                doc.setTextColor(0, 0, 0);
+                            }
+                        }
+                    });
+
+                    currentY = doc.lastAutoTable.finalY + 15;
+                }
+            }
+
+            // ==================== CONTAINER DETAILS ====================
+            if (reportData.containers && reportData.containers.length > 0) {
+                if (currentY > pageHeight - 100) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(155, 89, 182);
+                doc.text('KONTEYNER DETAYLARI', margin, currentY);
+                currentY += 10;
+
+                if (doc.autoTable) {
+                    const containerData = reportData.containers.map(container => [
+                        container.container_no || 'N/A',
+                        (container.package_count || 0).toString(),
+                        (container.total_quantity || 0).toString(),
+                        container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Hazirlaniyor',
+                        container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'
+                    ]);
+
+                    doc.autoTable({
+                        startY: currentY,
+                        head: [['Konteyner No', 'Paket Sayisi', 'Toplam Adet', 'Durum', 'Tarih']],
+                        body: containerData,
+                        theme: 'grid',
+                        headStyles: { 
+                            fillColor: [155, 89, 182],
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold'
+                        },
+                        styles: {
+                            fontSize: 8,
+                            cellPadding: 3,
+                            font: 'helvetica'
+                        },
+                        margin: { top: 10 },
                         pageBreak: 'auto'
                     });
 
                     currentY = doc.lastAutoTable.finalY + 15;
-                } else {
-                    // Fallback to manual table
-                    // Table header
-                    doc.setFillColor(52, 152, 219);
-                    doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFontSize(9);
-                    doc.text('Paket No', margin + 5, currentY + 5);
-                    doc.text('Müşteri', margin + 40, currentY + 5);
-                    doc.text('Adet', pageWidth - margin - 30, currentY + 5, { align: 'right' });
-                    doc.text('Tarih', pageWidth - margin - 10, currentY + 5, { align: 'right' });
-
-                    currentY += 12;
-
-                    // Table rows
-                    doc.setTextColor(0, 0, 0);
-                    doc.setFont(undefined, 'normal');
-                    doc.setFontSize(8);
-
-                    reportData.packages.forEach((pkg, index) => {
-                        if (currentY > pageHeight - 15) {
-                            doc.addPage();
-                            currentY = margin;
-                            // Add header to new page
-                            doc.setFillColor(52, 152, 219);
-                            doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
-                            doc.setTextColor(255, 255, 255);
-                            doc.text('Paket No', margin + 5, currentY + 5);
-                            doc.text('Müşteri', margin + 40, currentY + 5);
-                            doc.text('Adet', pageWidth - margin - 30, currentY + 5, { align: 'right' });
-                            doc.text('Tarih', pageWidth - margin - 10, currentY + 5, { align: 'right' });
-                            currentY += 12;
-                        }
-
-                        // Alternate row colors
-                        if (index % 2 === 0) {
-                            doc.setFillColor(245, 245, 245);
-                            doc.rect(margin, currentY - 2, pageWidth - 2 * margin, 6, 'F');
-                        }
-
-                        const packageNo = pkg.package_no || 'N/A';
-                        const customerName = pkg.customers?.name || 'N/A';
-                        const quantity = pkg.total_quantity || 0;
-                        const date = pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A';
-
-                        // Truncate long text
-                        const truncatedPackageNo = packageNo.length > 12 ? packageNo.substring(0, 9) + '...' : packageNo;
-                        const truncatedCustomer = customerName.length > 20 ? customerName.substring(0, 17) + '...' : customerName;
-
-                        doc.text(truncatedPackageNo, margin + 5, currentY);
-                        doc.text(truncatedCustomer, margin + 40, currentY);
-                        doc.text(quantity.toString(), pageWidth - margin - 30, currentY, { align: 'right' });
-                        doc.text(date, pageWidth - margin - 10, currentY, { align: 'right' });
-
-                        currentY += 6;
-                    });
-
-                    currentY += 15;
                 }
             }
 
-            // ==================== CRITICAL STOCK ALERTS ====================
+            // ==================== CRITICAL STOCK ====================
             if (reportData.criticalStock && reportData.criticalStock.length > 0) {
                 if (currentY > pageHeight - 80) {
                     doc.addPage();
@@ -344,98 +347,65 @@ async function generateProfessionalPDFReport(reportData) {
                 doc.setFontSize(12);
                 doc.setFont(undefined, 'bold');
                 doc.setTextColor(231, 76, 60);
-                doc.text('⚠️ KRİTİK STOK UYARILARI', margin, currentY);
+                doc.text('KRITIK STOK UYARILARI', margin, currentY);
                 currentY += 10;
 
-                doc.setFontSize(9);
-                doc.setFont(undefined, 'normal');
-                doc.setTextColor(0, 0, 0);
+                if (doc.autoTable) {
+                    const stockData = reportData.criticalStock.map(item => [
+                        item.code || 'N/A',
+                        item.name || 'N/A',
+                        (item.quantity || 0).toString(),
+                        item.quantity <= 0 ? 'STOK TUKENDI' : 'AZ STOK'
+                    ]);
 
-                reportData.criticalStock.forEach((item, index) => {
-                    if (currentY > pageHeight - 15) {
-                        doc.addPage();
-                        currentY = margin;
-                    }
-
-                    const status = item.quantity <= 0 ? 'STOK TÜKENDİ' : 'AZ STOK';
-                    doc.text(`🔴 ${item.name} (${item.code}) - ${item.quantity} adet - ${status}`, margin, currentY);
-                    currentY += 5;
-                });
-
-                currentY += 10;
-            }
-
-            // ==================== CONTAINER SUMMARY ====================
-            if (reportData.containers && reportData.containers.length > 0) {
-                if (currentY > pageHeight - 60) {
-                    doc.addPage();
-                    currentY = margin;
+                    doc.autoTable({
+                        startY: currentY,
+                        head: [['Stok Kodu', 'Urun Adi', 'Mevcut Adet', 'Durum']],
+                        body: stockData,
+                        theme: 'grid',
+                        headStyles: { 
+                            fillColor: [231, 76, 60],
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold'
+                        },
+                        styles: {
+                            fontSize: 8,
+                            cellPadding: 3,
+                            font: 'helvetica'
+                        },
+                        margin: { top: 10 }
+                    });
                 }
-
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.setTextColor(46, 204, 113);
-                doc.text('🚢 KONTEYNER ÖZETİ', margin, currentY);
-                currentY += 10;
-
-                doc.setFontSize(9);
-                doc.setFont(undefined, 'normal');
-                doc.setTextColor(0, 0, 0);
-
-                reportData.containers.forEach(container => {
-                    if (currentY > pageHeight - 15) {
-                        doc.addPage();
-                        currentY = margin;
-                    }
-
-                    doc.text(`📦 ${container.container_no} - ${container.package_count || 0} paket - ${container.total_quantity || 0} adet`, margin, currentY);
-                    currentY += 5;
-                });
-
-                currentY += 10;
             }
 
             // ==================== FOOTER ====================
-            const addFooter = (doc) => {
-                const pageCount = doc.internal.getNumberOfPages();
-                for (let i = 1; i <= pageCount; i++) {
-                    doc.setPage(i);
-                    doc.setFontSize(8);
-                    doc.setFont(undefined, 'italic');
-                    doc.setTextColor(100, 100, 100);
-                    
-                    // Footer line
-                    doc.setDrawColor(200, 200, 200);
-                    doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
-                    
-                    // Footer text
-                    doc.text(`Sayfa ${i} / ${pageCount}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
-                    doc.text('ProClean Profesyonel Rapor Sistemi', margin, pageHeight - 15);
-                    doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin, pageHeight - 15, { align: 'right' });
-                }
-            };
-
-            // Add footer to all pages
-            addFooter(doc);
-
-            // ==================== FINAL TOUCHES ====================
-            // Add watermark on first page
-            doc.setPage(1);
-            doc.setFontSize(60);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(240, 240, 240);
-            doc.text('PROCLEAN', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'italic');
+                doc.setTextColor(100, 100, 100);
+                
+                doc.setDrawColor(200, 200, 200);
+                doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+                
+                doc.text(`Sayfa ${i} / ${pageCount}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
+                doc.text('ProClean Rapor Sistemi', margin, pageHeight - 15);
+                doc.text(`Olusturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin, pageHeight - 15, { align: 'right' });
+            }
 
             // Generate PDF blob
             const pdfBlob = doc.output('blob');
             resolve(pdfBlob);
             
         } catch (error) {
-            console.error('Profesyonel PDF oluşturma hatası:', error);
-            reject(new Error(`Profesyonel PDF oluşturulamadı: ${error.message}`));
+            console.error('PDF olusturma hatasi:', error);
+            reject(new Error(`PDF olusturulamadi: ${error.message}`));
         }
     });
 }
+
+
 
 
 
