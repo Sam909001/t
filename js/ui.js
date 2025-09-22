@@ -740,7 +740,7 @@ function toggleTheme() {
 }
 
 function checkSystemStatus() {
-    // Check database connection
+    // --- Check database connection ---
     const dbStatus = document.getElementById('dbConnectionStatus');
     if (supabase) {
         dbStatus.textContent = 'Bağlı';
@@ -749,10 +749,12 @@ function checkSystemStatus() {
         dbStatus.textContent = 'Bağlantı Yok';
         dbStatus.className = 'status-indicator disconnected';
     }
-    
-    // Check printer connection
+
+    // --- Check printer connection ---
     const printerStatus = document.getElementById('printerConnectionStatus');
-    if (printer && printer.isConnected) {
+    const printerInstance = getPrinter(); // Use getPrinter() instead of global printer
+
+    if (printerInstance && printerInstance.isConnected) {
         printerStatus.textContent = 'Bağlı';
         printerStatus.className = 'status-indicator connected';
     } else {
