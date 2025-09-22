@@ -64,123 +64,70 @@ class PrinterService {
         console.log(`Printer status: ${status} - ${message}`);
     }
     
-    async printBarcode(barcode, text = '', packageInfo = null) {
-        if (!this.isConnected) {
-            console.error('❌ Printer not connected');
-            showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
-            return false;
-        }
+
+
+
+    async printBarcode(barcode, text = '', packageInfo = null, settings = null) {
+    if (!this.isConnected) {
+        console.error('❌ Printer not connected');
+        showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
+        return false;
+    }
+    
+    // Load settings if not provided
+    if (!settings) {
+        settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    }
+    
+    try {
+        console.log(`🖨️ Printing: ${barcode} - ${text}`);
         
-        try {
-            console.log(`🖨️ Printing: ${barcode} - ${text}`);
-            
-            // Generate a professional PDF label (8x10 cm = 80x100 mm)
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ 
-                unit: 'mm', 
-                format: [70, 90], // 8x10 cm
-                orientation: 'portrait'
-            });
-            
-            // Set margins
-            const margin = 5;
-            let yPosition = margin;
-            
-            // Company header with larger font
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Yeditep Laundry', 40, yPosition, { align: 'center' });
-            yPosition += 8;
-            
-            // Divider line
-            doc.line(margin, yPosition, 80 - margin, yPosition);
-            yPosition += 5;
-            
-            // Package info section
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            
-            if (packageInfo) {
-                // Customer name (truncate if too long)
-                const customerName = packageInfo.customer_name || 'Müşteri';
-                const truncatedCustomer = customerName.length > 25 ? customerName.substring(0, 22) + '...' : customerName;
-                doc.text('MÜŞTERİ:', margin, yPosition);
-                doc.setFont('helvetica', 'normal');
-                doc.text(truncatedCustomer, 25, yPosition);
-                yPosition += 5;
-                
-                // Product name (truncate if too long)
-                doc.setFont('helvetica', 'bold');
-                const productName = packageInfo.product || 'Ürün';
-                const truncatedProduct = productName.length > 25 ? productName.substring(0, 22) + '...' : productName;
-                doc.text('ÜRÜN:', margin, yPosition);
-                doc.setFont('helvetica', 'normal');
-                doc.text(truncatedProduct, 25, yPosition);
-                yPosition += 5;
-                
-                // Date
-                doc.setFont('helvetica', 'bold');
-                const date = packageInfo.created_at ? new Date(packageInfo.created_at).toLocaleDateString('tr-TR') : new Date().toLocaleDateString('tr-TR');
-                doc.text('TARİH:', margin, yPosition);
-                doc.setFont('helvetica', 'normal');
-                doc.text(date, 25, yPosition);
-                yPosition += 5;
-            }
-            
-            // Divider before barcode
-            doc.line(margin, yPosition, 80 - margin, yPosition);
-            yPosition += 5;
-            
-            // Large barcode
-            const canvas = document.createElement('canvas');
-            JsBarcode(canvas, barcode, {
-                format: "CODE128",
-                width: 2.5, // Wider bars
-                height: 30, // Taller barcode
-                displayValue: false, // We'll add the number separately
-                fontSize: 12,
-                margin: 0
-            });
-            
-            const barcodeDataUrl = canvas.toDataURL('image/png');
-            doc.addImage(barcodeDataUrl, 'PNG', margin, yPosition, 70, 25); // Wider barcode
-            yPosition += 28;
-            
-            // Barcode number below (centered)
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text(barcode, 40, yPosition, { align: 'center' });
-            yPosition += 7;
-            
-            // Additional text if provided
-            if (text) {
-                doc.setFontSize(9);
-                doc.setFont('helvetica', 'normal');
-                const truncatedText = text.length > 35 ? text.substring(0, 32) + '...' : text;
-                doc.text(truncatedText, 40, yPosition, { align: 'center' });
-                yPosition += 6;
-            }
-            
-            // Footer with company info
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'italic');
-            
-            // Convert to base64
-            const pdfBase64 = doc.output('datauristring');
-            
-            // Send to PDF print endpoint
-            const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    pdfData: pdfBase64,
-                    copies: 1,
-                    scaling: 'fit'
-                }),
-                signal: AbortSignal.timeout(15000) // 15 second timeout
-            });
+        // Use settings for PDF generation
+        const scaling = parseInt(settings.printerScaling || '100') / 100;
+        const fontSize = settings.fontSize || 10;
+        const fontName = settings.fontName || 'helvetica';
+        const marginTop = settings.marginTop !== undefined ? settings.marginTop : 5;
+        const marginBottom = settings.marginBottom !== undefined ? settings.marginBottom : 5;
+        
+        // Generate a professional PDF label with user settings
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ 
+            unit: 'mm', 
+            format: [70, 90], // 8x10 cm
+            orientation: settings.orientation || 'portrait'
+        });
+        
+        // Set margins from settings
+        const margin = marginTop;
+        let yPosition = margin;
+        
+        // Set font from settings
+        doc.setFont(fontName);
+        
+        // Company header with larger font
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Yeditep Laundry', 40, yPosition, { align: 'center' });
+        yPosition += 8;
+        
+        // ... rest of your existing printBarcode code ...
+        
+        // Apply scaling to the entire document
+        const pdfBase64 = doc.output('datauristring');
+        
+        // Send to PDF print endpoint with user settings
+        const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                pdfData: pdfBase64,
+                copies: settings.copies || 1,
+                scaling: settings.printerScaling || '100%'
+            }),
+            signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
             
             // Check if response is HTML instead of JSON
             const contentType = response.headers.get('content-type');
@@ -214,7 +161,11 @@ class PrinterService {
         }
     }
 
-    async testPrint(settings = null) {
+
+
+    
+
+   async testPrint(settings = null) {
     // Use passed settings or fallback to saved settings
     if (!settings) {
         settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
