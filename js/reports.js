@@ -264,6 +264,83 @@ function blobToBase64(blob) {
     });
 }
 
+
+
+
+
+// -------------------------------
+// Upload report PDF to Supabase Storage
+// -------------------------------
+async function uploadReportToStorage(pdfBlob, reportData) {
+    if (!supabase.storage) throw new Error('Supabase Storage yüklenmemiş');
+
+    try {
+        const fileName = `reports/proclean-rapor-${reportData.date.replace(/\//g, '-')}.pdf`;
+        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+        // Upload or overwrite
+        const { data, error } = await supabase.storage
+            .from('reports') // Your bucket name
+            .upload(fileName, file, { upsert: true });
+
+        if (error) throw error;
+
+        // Generate public URL
+        const { publicUrl, error: urlError } = supabase.storage
+            .from('reports')
+            .getPublicUrl(fileName);
+
+        if (urlError) throw urlError;
+
+        return publicUrl;
+    } catch (err) {
+        console.warn('PDF storage upload failed:', err);
+        throw err;
+    }
+}
+
+
+
+// -------------------------------
+// Form validation helper
+// fields: [{id, errorId, type, required}]
+// -------------------------------
+function validateForm(fields) {
+    let isValid = true;
+
+    fields.forEach(field => {
+        const input = document.getElementById(field.id);
+        const errorEl = document.getElementById(field.errorId);
+
+        if (!input || !errorEl) return;
+
+        errorEl.textContent = '';
+        input.classList.remove('invalid');
+
+        if (field.required && !input.value.trim()) {
+            errorEl.textContent = 'Bu alan zorunludur';
+            input.classList.add('invalid');
+            isValid = false;
+            return;
+        }
+
+        if (field.type === 'email' && input.value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(input.value)) {
+                errorEl.textContent = 'Geçerli bir e-posta giriniz';
+                input.classList.add('invalid');
+                isValid = false;
+            }
+        }
+    });
+
+    return isValid;
+}
+
+
+
+
+
 // -------------------------------
 // 7️⃣ SEND DAILY REPORT (EMAILJS)
 // -------------------------------
