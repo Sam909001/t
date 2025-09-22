@@ -416,3 +416,18 @@ window.previewReport = previewReport;
 window.closeEmailModal = closeEmailModal;
 window.generateDailyReport = generateDailyReport; // if you have a "Generate" button
 
+
+
+// Attach buttons using DOMContentLoaded
+// --------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    const sendBtn = document.getElementById('sendReportBtn');
+    const previewBtn = document.getElementById('previewReportBtn');
+    const closeBtn = document.getElementById('closeModalBtn');
+    const generateBtn = document.getElementById('generateReportBtn');
+
+    if (sendBtn) sendBtn.addEventListener('click', sendDailyReport);
+    if (previewBtn) previewBtn.addEventListener('click', previewReport);
+    if (closeBtn) closeBtn.addEventListener('click', closeEmailModal);
+    if (generateBtn) generateBtn.addEventListener('click', generateDailyReport);
+});
