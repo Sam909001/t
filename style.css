@@ -1,4 +1,5 @@
 :root {
+    /* Light theme variables */
     --primary: #2c3e50;
     --secondary: #3498db;
     --accent: #e74c3c;
@@ -8,6 +9,27 @@
     --dark: #34495e;
     --text: #2c3e50;
     --bg: #f5f7fa;
+    
+    /* New variables for dark mode */
+    --surface: #ffffff;
+    --border: #dee2e6;
+    --shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* Dark theme overrides */
+body.dark-mode {
+    --primary: #3498db;
+    --secondary: #2980b9;
+    --accent: #e74c3c;
+    --success: #27ae60;
+    --warning: #f39c12;
+    --light: #2c3e50;
+    --dark: #ecf0f1;
+    --text: #ecf0f1;
+    --bg: #1a1d23;
+    --surface: #2d3748;
+    --border: #4a5568;
+    --shadow: rgba(0, 0, 0, 0.3);
 }
 
 * { 
@@ -26,6 +48,7 @@ body {
     color: var(--text); 
     height: 100vh; 
     overflow: hidden; 
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Login Screen */
@@ -38,10 +61,10 @@ body {
 }
 
 .login-form { 
-    background: white; 
+    background: var(--surface); 
     padding: 2rem; 
     border-radius: 10px; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+    box-shadow: 0 10px 25px var(--shadow); 
     width: 100%; 
     max-width: 400px; 
 }
@@ -65,9 +88,11 @@ body {
 .form-group input { 
     width: 100%; 
     padding: 0.8rem; 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--border); 
     border-radius: 5px; 
     font-size: 1rem; 
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 .btn { 
@@ -187,7 +212,7 @@ body {
     justify-content: space-between; 
     margin-bottom: 1.2rem; 
     padding-bottom: 0.8rem; 
-    border-bottom: 1px solid #ddd; 
+    border-bottom: 1px solid var(--border); 
     align-items: center; 
 }
 
@@ -213,10 +238,12 @@ body {
 .info-group select, 
 .info-group input { 
     padding: 0.4rem; 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--border); 
     border-radius: 5px; 
     font-size: 0.8rem; 
     height: auto; 
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 .info-group span { 
@@ -238,29 +265,29 @@ body {
 .barcode-section { 
     flex: 0 0 25%; 
     min-width: 220px; 
-    background: white; 
+    background: var(--surface); 
     padding: 0.8rem; 
     border-radius: 8px; 
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    box-shadow: 0 2px 10px var(--shadow); 
 }
 
 .pending-packages { 
     flex: 0 0 50%; 
     min-width: 360px; 
-    background: white; 
+    background: var(--surface); 
     padding: 0.8rem; 
     border-radius: 8px; 
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    box-shadow: 0 2px 10px var(--shadow); 
     overflow: auto; 
 }
 
 .package-details { 
     flex: 0 0 25%; 
     min-width: 220px; 
-    background: white; 
+    background: var(--surface); 
     padding: 0.8rem; 
     border-radius: 8px; 
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    box-shadow: 0 2px 10px var(--shadow); 
     display: flex; 
     flex-direction: column; 
 }
@@ -273,14 +300,16 @@ body {
 .barcode-input input { 
     flex-grow: 1; 
     padding: 0.6rem; 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--border); 
     border-radius: 5px 0 0 5px; 
     font-size: 1rem; 
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 .barcode-input button { 
     padding: 0 0.8rem; 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--border); 
     background: var(--light); 
     cursor: pointer; 
 }
@@ -295,7 +324,7 @@ body {
 .package-table td { 
     padding: 0.5rem; 
     text-align: left; 
-    border-bottom: 1px solid #ddd; 
+    border-bottom: 1px solid var(--border); 
 }
 
 .package-table th { 
@@ -305,6 +334,10 @@ body {
 
 .package-table tr:hover { 
     background: #f9f9f9; 
+}
+
+body.dark-mode .package-table tr:hover { 
+    background: #2d3748; 
 }
 
 .quick-buttons { 
@@ -317,7 +350,7 @@ body {
 .quick-btn { 
     padding: 0.6rem 0.4rem; 
     background: var(--light); 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--border); 
     border-radius: 5px; 
     cursor: pointer; 
     text-align: center; 
@@ -439,7 +472,7 @@ body {
 }
 
 .modal-content { 
-    background: white; 
+    background: var(--surface); 
     padding: 1.5rem; 
     border-radius: 8px; 
     width: 90%; 
@@ -454,7 +487,7 @@ body {
     align-items: center; 
     margin-bottom: 1.2rem; 
     padding-bottom: 0.8rem; 
-    border-bottom: 1px solid #ddd; 
+    border-bottom: 1px solid var(--border); 
 }
 
 .modal-close { 
@@ -472,7 +505,7 @@ body {
 
 .customer-item { 
     padding: 0.8rem; 
-    border-bottom: 1px solid #eee; 
+    border-bottom: 1px solid var(--border); 
     cursor: pointer; 
     display: flex; 
     justify-content: space-between; 
@@ -483,8 +516,16 @@ body {
     background: #f5f5f5; 
 }
 
+body.dark-mode .customer-item:hover { 
+    background: #2d3748; 
+}
+
 .customer-item.selected { 
     background: #e3f2fd; 
+}
+
+body.dark-mode .customer-item.selected { 
+    background: #1e3a5f; 
 }
 
 .quantity-modal { 
@@ -501,7 +542,7 @@ body {
 }
 
 .quantity-content { 
-    background: white; 
+    background: var(--surface); 
     padding: 1.5rem; 
     border-radius: 8px; 
     width: 90%; 
@@ -513,10 +554,12 @@ body {
     width: 100%; 
     padding: 0.8rem; 
     margin: 1rem 0; 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--border); 
     border-radius: 5px; 
     font-size: 1.2rem; 
     text-align: center; 
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 .quantity-buttons { 
@@ -535,24 +578,26 @@ body {
 .stock-search input { 
     flex-grow: 1; 
     padding: 0.8rem; 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--border); 
     border-radius: 5px; 
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 .stock-table { 
     width: 100%; 
     border-collapse: collapse; 
-    background: white; 
+    background: var(--surface); 
     border-radius: 8px; 
     overflow: hidden; 
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    box-shadow: 0 2px 10px var(--shadow); 
 }
 
 .stock-table th, 
 .stock-table td { 
     padding: 0.8rem; 
     text-align: left; 
-    border-bottom: 1px solid #ddd; 
+    border-bottom: 1px solid var(--border); 
 }
 
 .stock-table th { 
@@ -564,12 +609,16 @@ body {
     background: #f9f9f9; 
 }
 
+body.dark-mode .stock-table tr:hover { 
+    background: #2d3748; 
+}
+
 .file-upload { 
     margin-top: 1.2rem; 
     padding: 1.2rem; 
-    background: white; 
+    background: var(--surface); 
     border-radius: 8px; 
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    box-shadow: 0 2px 10px var(--shadow); 
 }
 
 .upload-button { 
@@ -660,8 +709,16 @@ body {
     font-weight: bold;
 }
 
+body.dark-mode .package-table tr.selected {
+    background-color: #1e3a5f !important;
+}
+
 .package-table tr.selected:hover {
     background-color: #bbdefb !important;
+}
+
+body.dark-mode .package-table tr.selected:hover {
+    background-color: #2d4a7a !important;
 }
 
 .api-key-modal {
@@ -678,7 +735,7 @@ body {
 }
 
 .api-key-content {
-    background: white;
+    background: var(--surface);
     padding: 2rem;
     border-radius: 10px;
     width: 90%;
@@ -690,16 +747,18 @@ body {
     width: 100%;
     padding: 0.8rem;
     margin: 1rem 0;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 5px;
     font-size: 1rem;
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 /* Desktop app styling */
 .app-container {
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px var(--shadow);
     margin: 20px;
     height: calc(100vh - 40px);
 }
@@ -711,6 +770,10 @@ body {
 
 .tabs {
     background: linear-gradient(to bottom, #3a5169 0%, #2c3e50 100%);
+}
+
+body.dark-mode .tabs {
+    background: linear-gradient(to bottom, #2c3e50 0%, #1a252f 100%);
 }
 
 .tab {
@@ -731,11 +794,13 @@ body {
 
 /* Form elements styling */
 select, input {
-    border: 1px solid #d1d1d1;
+    border: 1px solid var(--border);
     border-radius: 4px;
     padding: 8px 12px;
     font-size: 14px;
     transition: all 0.3s;
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 select:focus, 
@@ -757,45 +822,45 @@ input:focus {
 
 .btn-primary {
     background: linear-gradient(to bottom, var(--secondary) 0%, #2980b9 100%);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--shadow);
 }
 
 .btn-primary:hover {
     background: linear-gradient(to bottom, #2980b9 0%, #2573a7 100%);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px var(--shadow);
     transform: translateY(-1px);
 }
 
 .btn-success {
     background: linear-gradient(to bottom, var(--success) 0%, #27ae60 100%);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--shadow);
 }
 
 .btn-success:hover {
     background: linear-gradient(to bottom, #27ae60 0%, #229954 100%);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px var(--shadow);
     transform: translateY(-1px);
 }
 
 .btn-warning {
     background: linear-gradient(to bottom, var(--warning) 0%, #e67e22 100%);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--shadow);
 }
 
 .btn-warning:hover {
     background: linear-gradient(to bottom, #e67e22 0%, #d35400 100%);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px var(--shadow);
     transform: translateY(-1px);
 }
 
 .btn-danger {
     background: linear-gradient(to bottom, var(--accent) 0%, #c0392b 100%);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--shadow);
 }
 
 .btn-danger:hover {
     background: linear-gradient(to bottom, #c0392b 0%, #a93226 100%);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px var(--shadow);
     transform: translateY(-1px);
 }
 
@@ -803,10 +868,10 @@ input:focus {
 .barcode-section, 
 .pending-packages, 
 .package-details {
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border);
     border-radius: 6px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-    background: white;
+    box-shadow: 0 2px 10px var(--shadow);
+    background: var(--surface);
 }
 
 /* Table styling */
@@ -816,7 +881,7 @@ input:focus {
     border-spacing: 0;
     border-radius: 6px;
     overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 10px var(--shadow);
 }
 
 .package-table th, 
@@ -827,10 +892,15 @@ input:focus {
     text-align: left;
 }
 
+body.dark-mode .package-table th,
+body.dark-mode .stock-table th {
+    background: linear-gradient(to bottom, #2d3748 0%, #4a5568 100%);
+}
+
 .package-table td, 
 .stock-table td {
     padding: 10px 15px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border);
 }
 
 .package-table tr:last-child td, 
@@ -840,14 +910,19 @@ input:focus {
 
 .package-table tr:hover, 
 .stock-table tr:hover {
-    background: #f8f9fa;
+    background: #f9f9f9;
+}
+
+body.dark-mode .package-table tr:hover,
+body.dark-mode .stock-table tr:hover {
+    background: #2d3748;
 }
 
 /* Modal styling */
 .modal-content {
     border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px var(--shadow);
+    border: 1px solid var(--border);
 }
 
 /* Scrollbar styling */
@@ -861,18 +936,25 @@ input:focus {
     border-radius: 4px;
 }
 
+body.dark-mode ::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
 ::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 4px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: #4a5568;
 }
 
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
 
-/* Admin only elements */
-.admin-only {
-    display: none;
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: #718096;
 }
 
 /* Shipping customer folders */
@@ -881,6 +963,10 @@ input:focus {
     border-left: 4px solid var(--secondary);
     margin-bottom: 8px;
     border-radius: 4px;
+}
+
+body.dark-mode .customer-folder {
+    background-color: #2d3748;
 }
 
 .folder-header {
@@ -899,6 +985,10 @@ input:focus {
     border-radius: 0 0 4px 4px;
 }
 
+body.dark-mode .folder-content {
+    background-color: #2d3748;
+}
+
 .folder-content table {
     width: 100%;
     font-size: 0.9em;
@@ -906,6 +996,10 @@ input:focus {
 
 .folder-content th {
     background-color: #e9ecef;
+}
+
+body.dark-mode .folder-content th {
+    background-color: #4a5568;
 }
 
 .folder-toggle {
@@ -924,8 +1018,10 @@ input:focus {
 .editable-cell input {
     width: 100%;
     padding: 4px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 3px;
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 .edit-buttons {
@@ -951,24 +1047,24 @@ input:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px var(--shadow);
     animation: slideIn 0.3s forwards;
 }
 
 .alert-success {
-    background-color: var(--success);
+    background: var(--success);
 }
 
 .alert-error {
-    background-color: var(--accent);
+    background: var(--accent);
 }
 
 .alert-warning {
-    background-color: var(--warning);
+    background: var(--warning);
 }
 
 .alert-info {
-    background-color: var(--secondary);
+    background: var(--secondary);
 }
 
 .alert-close {
@@ -1008,29 +1104,10 @@ select.invalid {
     box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
 }
 
-/* Print styles for barcode labels */
-@media print {
-    body * {
-        visibility: hidden;
-    }
-    
-    .print-label, 
-    .print-label * {
-        visibility: visible;
-    }
-    
-    .print-label {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-    }
-}
-
 /* Barcode scanner indicator */
 .scanner-active {
     animation: pulse 1.5s infinite;
-    border: 2px solid #3498db !important;
+    border: 2px solid var(--secondary) !important;
 }
 
 @keyframes pulse {
@@ -1048,17 +1125,17 @@ select.invalid {
 }
 
 .status-beklemede { 
-    background-color: #f39c12; 
+    background-color: var(--warning); 
     color: white; 
 }
 
 .status-sevk-edildi { 
-    background-color: #2ecc71; 
+    background-color: var(--success); 
     color: white; 
 }
 
 .status-hazirlaniyor { 
-    background-color: #3498db; 
+    background-color: var(--secondary); 
     color: white; 
 }
 
@@ -1066,7 +1143,7 @@ select.invalid {
 .settings-section {
     margin-bottom: 2rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border);
 }
 
 .settings-section h3 {
@@ -1080,7 +1157,7 @@ select.invalid {
     justify-content: space-between;
     align-items: center;
     padding: 0.8rem 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border);
 }
 
 .settings-option:last-child {
@@ -1147,6 +1224,10 @@ input:checked + .toggle-slider:before {
     font-size: 0.9rem;
 }
 
+body.dark-mode .system-info {
+    color: #a0aec0;
+}
+
 .status-indicator {
     padding: 4px 8px;
     border-radius: 4px;
@@ -1179,6 +1260,11 @@ input:checked + .toggle-slider:before {
     border: 1px solid #dee2e6;
 }
 
+body.dark-mode .printer-status {
+    background: #2d3748;
+    border-color: #4a5568;
+}
+
 .printer-status.connected {
     background: #d4edda;
     border-color: #c3e6cb;
@@ -1190,7 +1276,6 @@ input:checked + .toggle-slider:before {
     border-color: #f5c6cb;
     color: #721c24;
 }
-
 
 .status-badge {
     padding: 2px 8px;
@@ -1217,19 +1302,13 @@ input:checked + .toggle-slider:before {
 .stock-quantity-input {
     width: 80px;
     padding: 4px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
     border-radius: 4px;
+    background-color: var(--surface);
+    color: var(--text);
 }
 
-
-
-
-/* ---------- DARK THEME ---------- */
-body.dark-mode {
-    background-color: #121212;
-    color: #eee;
-}
-
+/* Keep your existing dark mode styles at the end */
 body.dark-mode header,
 body.dark-mode footer,
 body.dark-mode .card,
@@ -1251,17 +1330,6 @@ body.dark-mode textarea {
     background-color: #333;
     color: #eee;
     border-color: #555;
-}
-
-/* Tables */
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-table th, table td {
-    padding: 8px;
-    border: 1px solid #ccc;
 }
 
 body.dark-mode table th,
