@@ -87,18 +87,17 @@ function saveApiKey() {
 
 
         
-// FIXED: Supabase bağlantısını test et
 async function testConnection() {
     if (!supabase) {
         console.warn('Supabase client not initialized for connection test');
         showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
         return false;
     }
-    
+
     try {
         const { data, error } = await supabase.from('customers').select('*').limit(1);
         if (error) throw error;
-        
+
         console.log('Supabase connection test successful:', data);
         showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
         return true;
