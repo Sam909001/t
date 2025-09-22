@@ -407,3 +407,12 @@ async function sendDailyReport() {
         showAlert(`Rapor gönderilemedi: ${error.message}`, 'error');
     }
 }
+
+
+
+// Make report functions globally accessible for HTML onclick
+window.sendDailyReport = sendDailyReport;
+window.previewReport = previewReport;
+window.closeEmailModal = closeEmailModal;
+window.generateDailyReport = generateDailyReport; // if you have a "Generate" button
+
