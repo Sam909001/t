@@ -87,26 +87,41 @@ function saveApiKey() {
 
 
         
+let connectionAlertShown = false; // Prevent duplicate success alert
+
+// FIXED: Supabase bağlantısını test et
 async function testConnection() {
     if (!supabase) {
         console.warn('Supabase client not initialized for connection test');
-        showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+        if (!connectionAlertShown) {
+            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+            connectionAlertShown = true; // mark as shown to avoid repeating
+        }
         return false;
     }
-
+    
     try {
         const { data, error } = await supabase.from('customers').select('*').limit(1);
         if (error) throw error;
-
+        
         console.log('Supabase connection test successful:', data);
-        showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
+        
+        if (!connectionAlertShown) {
+            showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
+            connectionAlertShown = true; // ensure alert shows only once
+        }
+
         return true;
     } catch (e) {
         console.error('Supabase connection test failed:', e.message);
-        showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+        if (!connectionAlertShown) {
+            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+            connectionAlertShown = true;
+        }
         return false;
     }
 }
+
 
 
 
