@@ -600,56 +600,20 @@ function loadSettings() {
     }
 
 
+
+// ---------------- LOAD SETTINGS ----------------
 function loadPrinterSettings(settings) {
-    // Scaling / label size
-    if (settings.printerScaling) {
-        document.getElementById('printerScaling').value = settings.printerScaling;
-    } else {
-        document.getElementById('printerScaling').value = '100%';
-    }
-
-    // Copies
-    if (settings.copies) {
-        document.getElementById('copiesNumber').value = settings.copies;
-    } else {
-        document.getElementById('copiesNumber').value = 1;
-    }
-
-    // Font
-    if (settings.fontName) {
-        document.getElementById('fontName').value = settings.fontName;
-    } else {
-        document.getElementById('fontName').value = 'Arial';
-    }
-
-    // Font size
-    if (settings.fontSize) {
-        document.getElementById('fontSize').value = settings.fontSize;
-    } else {
-        document.getElementById('fontSize').value = 10;
-    }
-
-    // Orientation
-    if (settings.orientation) {
-        document.getElementById('orientation').value = settings.orientation;
-    } else {
-        document.getElementById('orientation').value = 'portrait';
-    }
-
-    // Margins
-    if (settings.marginTop !== undefined) {
-        document.getElementById('marginTop').value = settings.marginTop;
-    } else {
-        document.getElementById('marginTop').value = 5;
-    }
-
-    if (settings.marginBottom !== undefined) {
-        document.getElementById('marginBottom').value = settings.marginBottom;
-    } else {
-        document.getElementById('marginBottom').value = 5;
-    }
+    document.getElementById('printerScaling').value = settings.printerScaling || '100%';
+    document.getElementById('copiesNumber').value = settings.copies || 1;
+    document.getElementById('fontName').value = settings.fontName || 'Arial';
+    document.getElementById('fontSize').value = settings.fontSize || 10;
+    document.getElementById('orientation').value = settings.orientation || 'portrait';
+    document.getElementById('marginTop').value = settings.marginTop ?? 5;
+    document.getElementById('marginBottom').value = settings.marginBottom ?? 5;
+    document.getElementById('labelHeader').value = settings.labelHeader || 'Yeditepe';
 }
 
+// ---------------- SAVE SETTINGS ----------------
 function savePrinterSettings() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
@@ -660,22 +624,20 @@ function savePrinterSettings() {
     settings.orientation = document.getElementById('orientation').value;
     settings.marginTop = parseInt(document.getElementById('marginTop').value, 10);
     settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
+    settings.labelHeader = document.getElementById('labelHeader').value || 'Yeditepe';
 
     localStorage.setItem('procleanSettings', JSON.stringify(settings));
     console.log('Printer settings saved', settings);
 }
 
-    
-
-// Attach Test Yazdır button to use the current settings
+// ---------------- INIT ----------------
 document.addEventListener('DOMContentLoaded', () => {
-    // Load all settings first
-    loadSettings();
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    loadPrinterSettings(settings);
 
-    // Attach change listeners to save settings automatically
     const inputIds = [
         'printerScaling', 'copiesNumber', 'fontName',
-        'fontSize', 'orientation', 'marginTop', 'marginBottom'
+        'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
     ];
 
     inputIds.forEach(id => {
@@ -683,14 +645,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.addEventListener('change', savePrinterSettings);
     });
 
-    // Attach Test Yazdır button
     const testBtn = document.getElementById('test-printer-yazdir');
     if (testBtn) {
         testBtn.addEventListener('click', async () => {
-            // Save current settings first
             savePrinterSettings();
-            
-            // Get the current settings
             const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
             const printerInstance = getPrinter();
 
@@ -699,8 +657,8 @@ document.addEventListener('DOMContentLoaded', () => {
             testBtn.textContent = 'Test Ediliyor...';
 
             try {
-                // Call the testPrint function with the current settings
-                await printerInstance.testPrint(settings);
+                // Use labelHeader for test print
+                await printerInstance.testPrint(settings, settings.labelHeader);
             } catch (error) {
                 console.error('Test print error:', error);
                 showAlert('Test yazdırma başarısız: ' + error.message, 'error');
@@ -712,23 +670,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-
-    // Function to print a package with current settings
+// ---------------- PRINT PACKAGE WITH SETTINGS ----------------
 async function printPackageWithSettings(packageData) {
     try {
         const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
         const printerInstance = getPrinter();
-        
+
         const barcode = packageData.package_no;
         const labelText = `${packageData.customer_name} - ${packageData.product}`;
-        
-        return await printerInstance.printBarcode(barcode, labelText, packageData, settings);
+        const header = settings.labelHeader || 'Yeditepe';
+
+        return await printerInstance.printBarcode(barcode, labelText, packageData, settings, header);
     } catch (error) {
         console.error('Print with settings error:', error);
         showAlert('Yazdırma hatası: ' + error.message, 'error');
         return false;
     }
 }
+
+
+    
     
     // Language
     if (settings.language) {
