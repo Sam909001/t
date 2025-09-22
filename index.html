@@ -19,6 +19,23 @@
 <script src="libs/xlsx.full.min.js"></script>
 <script src="libs/roboto-vfs.js"></script>
 
+    <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const doc = new jsPDF();
+
+    // Set font to Roboto Bold (from VFS)
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(16);
+
+    // Test Turkish letters
+    const testText = "Ç, Ş, İ, Ö, Ü, ğ, ü, ş, ö, ç";
+    doc.text(testText, 10, 20);
+
+    // Save PDF
+    doc.save("test-turkish-font.pdf");
+});
+</script>
+
     </head>
 <body>
     <!-- API Key Giriş Modalı -->
