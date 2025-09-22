@@ -271,6 +271,8 @@ function blobToBase64(blob) {
 // -------------------------------
 // Upload report PDF to Supabase Storage
 // -------------------------------
+// Upload report PDF to Supabase Storage
+// -------------------------------
 async function uploadReportToStorage(pdfBlob, reportData) {
     if (!supabase.storage) throw new Error('Supabase Storage yüklenmemiş');
 
@@ -279,20 +281,21 @@ async function uploadReportToStorage(pdfBlob, reportData) {
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
         // Upload or overwrite
-        const { data, error } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
             .from('reports') // Your bucket name
             .upload(fileName, file, { upsert: true });
 
-        if (error) throw error;
+        if (uploadError) throw uploadError;
 
         // Generate public URL
-        const { publicUrl, error: urlError } = supabase.storage
+        const { data: urlData, error: urlError } = supabase.storage
             .from('reports')
             .getPublicUrl(fileName);
 
         if (urlError) throw urlError;
 
-        return publicUrl;
+        return urlData.publicUrl;
+
     } catch (err) {
         console.warn('PDF storage upload failed:', err);
         throw err;
