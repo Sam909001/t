@@ -75,170 +75,156 @@ class PrinterService {
 
 
     
-    async printLabel(pkg, settings = {}) {
-        if (!this.isConnected) {
-            showAlert('Yazıcı servisi bağlı değil.', 'error');
-            return false;
-        }
-
-        try {
-            const { jsPDF } = window.jspdf;
-
-            // ---------------- LABEL SIZE ----------------
-            const labelWidth = 100;  // mm, 10 cm
-            const labelHeight = 80;  // mm, 8 cm
-            
-            // Create PDF with proper encoding for Turkish characters
-           const doc = new jsPDF({
-    unit: 'mm',
-    format: [labelWidth, labelHeight],
-    compress: true
-});
-
-// 3. Register the font from Roboto-Bold.js
-doc.addFileToVFS("Roboto-Bold.ttf", RobotoBold);   // RobotoBold comes from Roboto-Bold.js
-doc.addFont("Roboto-Bold.ttf", "Roboto-Bold", "bold");
-
-// 4. Use it
-doc.setFont("Roboto-Bold", "bold");
-doc.setFontSize(12); // adjust size
-doc.text("YEDITEPE", 5, 10);  // Example text
-
-            // Add custom font that supports Turkish characters if available
-            doc.setLanguage("tr");
-            doc.setProperties({
-                title: 'Etiket',
-                subject: 'Paket Etiketi',
-                author: 'Yeditepe Laundry',
-                keywords: 'etiket, paket',
-                creator: 'Yeditepe Laundry System'
-            });
-
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-
-            const margin = 10;
-            let y = margin + 5;
-
-            // ---------------- HEADER ----------------
-            const headerText = 'Yeditepe Laundry';
-            const headerFontSize = 18;
-           doc.setFont("Roboto-Bold", "bold");
-            doc.setFontSize(headerFontSize);
-            doc.text(headerText, pageWidth / 2, y, { align: 'center' });
-            y += headerFontSize * 0.5;
-
-            // Underline
-            doc.setLineWidth(0.5);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 8;
-
-            // ---------------- PACKAGE INFO ----------------
-            // Use Turkish labels
-            const infoLines = [
-                `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
-                `Ürün: ${pkg.product || 'Bilinmiyor'}`,
-                `Tarih: ${pkg.created_at || new Date().toLocaleDateString('tr-TR')}`
-            ];
-            
-            const infoFontSize = 11;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(infoFontSize);
-            const lineSpacing = 7;
-
-            infoLines.forEach(line => {
-                // Center each line
-                doc.text(line, pageWidth / 2, y, { align: 'center' });
-                y += lineSpacing;
-            });
-
-            y += 5; // Extra spacing before barcode
-
-            // ---------------- BARCODE ----------------
-            // Sanitize package number for barcode (remove Turkish characters)
-            const packageNo = pkg.package_no || 'NO_BARCODE';
-            const sanitizedPackageNo = this.sanitizeBarcodeText(packageNo);
-            
-            // Create canvas for barcode
-            const canvas = document.createElement('canvas');
-            
-            try {
-                JsBarcode(canvas, sanitizedPackageNo, {
-                    format: 'CODE128',
-                    lineColor: '#000',
-                    width: 2.5,
-                    height: 40,
-                    displayValue: false, // We'll add the text separately to handle Turkish chars
-                    fontSize: 14,
-                    margin: 0,
-                    textMargin: 0
-                });
-
-                // Calculate barcode position to center it
-                const barcodeWidth = 65; // Adjusted width
-                const barcodeHeight = 20; // Adjusted height
-                const barcodeX = (pageWidth - barcodeWidth) / 2;
-                
-                // Add barcode image
-                doc.addImage(canvas.toDataURL('image/png'), 'PNG', barcodeX, y, barcodeWidth, barcodeHeight);
-                
-                // Add barcode text separately (with original Turkish characters)
-                y += barcodeHeight + 3;
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(12);
-                doc.text(`Barkod: ${packageNo}`, pageWidth / 2, y, { align: 'center' });
-                
-            } catch (barcodeError) {
-                console.error('Barcode generation error:', barcodeError);
-                // Fallback: just print the text
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(14);
-                doc.text(`Barkod: ${packageNo}`, pageWidth / 2, y + 10, { align: 'center' });
-            }
-
-            // ---------------- ADD BORDER (OPTIONAL) ----------------
-            // Draw a border around the entire label for better visibility
-            doc.setLineWidth(0.2);
-            doc.rect(2, 2, labelWidth - 4, labelHeight - 4);
-
-            // ---------------- SEND TO PRINTER ----------------
-            const pdfBase64 = doc.output('datauristring');
-            const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    pdfData: pdfBase64,
-                    copies: settings.copies || 1,
-                    scaling: settings.printerScaling || 'fit',
-                    centered: true // Ensure the content is centered on the page
-                }),
-                signal: AbortSignal.timeout(15000)
-            });
-
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('text/html')) {
-                const htmlResponse = await response.text();
-                console.error('Server returned HTML:', htmlResponse.substring(0, 500));
-                throw new Error('Server returned HTML instead of JSON.');
-            }
-
-            const result = await response.json();
-            if (result.success) {
-                console.log(`✅ Label printed: ${packageNo}`);
-                return true;
-            } else {
-                console.error(`❌ Print failed: ${result.error}`);
-                showAlert(`Yazdırma hatası: ${result.error}`, 'error');
-                return false;
-            }
-
-        } catch (error) {
-            console.error('❌ Print error:', error);
-            const msg = error.name === 'AbortError' ? 'İstek zaman aşımı. Sunucu yanıt vermiyor.' : error.message;
-            showAlert(`Yazdırma hatası: ${msg}`, 'error');
-            return false;
-        }
+async printLabel(pkg, settings = {}) {
+    if (!this.isConnected) {
+        showAlert('Yazıcı servisi bağlı değil.', 'error');
+        return false;
     }
+
+    try {
+        const { jsPDF } = window.jspdf;
+
+        // ---------------- LABEL SIZE ----------------
+        const labelWidth = 100;  // mm
+        const labelHeight = 80;  // mm
+        
+        const doc = new jsPDF({
+            unit: 'mm',
+            format: [labelWidth, labelHeight],
+            compress: true
+        });
+
+        // ---------------- FONT SETUP ----------------
+        if (typeof RobotoBold !== 'undefined') {
+            // Roboto-Bold base64 font mevcut
+            doc.addFileToVFS("Roboto-Bold.ttf", RobotoBold);
+            doc.addFont("Roboto-Bold.ttf", "Roboto-Bold", "bold");
+            doc.setFont("Roboto-Bold", "bold");
+        } else {
+            console.warn('RobotoBold undefined, default font kullanılacak.');
+            doc.setFont('helvetica', 'bold');
+        }
+
+        doc.setFontSize(12);
+        doc.text("YEDITEPE", 5, 10);
+
+        // ---------------- LABEL PROPERTIES ----------------
+        doc.setProperties({
+            title: 'Etiket',
+            subject: 'Paket Etiketi',
+            author: 'Yeditepe Laundry',
+            keywords: 'etiket, paket',
+            creator: 'Yeditepe Laundry System'
+        });
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 10;
+        let y = margin + 5;
+
+        // ---------------- HEADER ----------------
+        const headerText = 'Yeditepe Laundry';
+        const headerFontSize = 18;
+        doc.setFontSize(headerFontSize);
+        doc.text(headerText, pageWidth / 2, y, { align: 'center' });
+        y += headerFontSize * 0.5;
+
+        // Underline
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 8;
+
+        // ---------------- PACKAGE INFO ----------------
+        const infoLines = [
+            `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
+            `Ürün: ${pkg.product || 'Bilinmiyor'}`,
+            `Tarih: ${pkg.created_at || new Date().toLocaleDateString('tr-TR')}`
+        ];
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        const lineSpacing = 7;
+        infoLines.forEach(line => {
+            doc.text(line, pageWidth / 2, y, { align: 'center' });
+            y += lineSpacing;
+        });
+
+        y += 5;
+
+        // ---------------- BARCODE ----------------
+        const packageNo = pkg.package_no || 'NO_BARCODE';
+        const sanitizedPackageNo = this.sanitizeBarcodeText(packageNo);
+
+        const canvas = document.createElement('canvas');
+        try {
+            JsBarcode(canvas, sanitizedPackageNo, {
+                format: 'CODE128',
+                lineColor: '#000',
+                width: 2.5,
+                height: 40,
+                displayValue: false,
+                fontSize: 14,
+                margin: 0,
+                textMargin: 0
+            });
+
+            const barcodeWidth = 65;
+            const barcodeHeight = 20;
+            const barcodeX = (pageWidth - barcodeWidth) / 2;
+            doc.addImage(canvas.toDataURL('image/png'), 'PNG', barcodeX, y, barcodeWidth, barcodeHeight);
+
+            y += barcodeHeight + 3;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(12);
+            doc.text(`Barkod: ${packageNo}`, pageWidth / 2, y, { align: 'center' });
+
+        } catch (barcodeError) {
+            console.error('Barcode generation error:', barcodeError);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.text(`Barkod: ${packageNo}`, pageWidth / 2, y + 10, { align: 'center' });
+        }
+
+        // ---------------- BORDER ----------------
+        doc.setLineWidth(0.2);
+        doc.rect(2, 2, labelWidth - 4, labelHeight - 4);
+
+        // ---------------- SEND TO PRINTER ----------------
+        const pdfBase64 = doc.output('datauristring');
+        const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pdfData: pdfBase64,
+                copies: settings.copies || 1,
+                scaling: settings.printerScaling || 'fit',
+                centered: true
+            }),
+            signal: AbortSignal.timeout(15000)
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+            const htmlResponse = await response.text();
+            console.error('Server returned HTML:', htmlResponse.substring(0, 500));
+            throw new Error('Server returned HTML instead of JSON.');
+        }
+
+        const result = await response.json();
+        if (result.success) {
+            console.log(`✅ Label printed: ${packageNo}`);
+            return true;
+        } else {
+            console.error(`❌ Print failed: ${result.error}`);
+            showAlert(`Yazdırma hatası: ${result.error}`, 'error');
+            return false;
+        }
+
+    } catch (error) {
+        console.error('❌ Print error:', error);
+        const msg = error.name === 'AbortError' ? 'İstek zaman aşımı. Sunucu yanıt vermiyor.' : error.message;
+        showAlert(`Yazdırma hatası: ${msg}`, 'error');
+        return false;
+    }
+}
 
     
 
