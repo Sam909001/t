@@ -73,165 +73,127 @@ class PrinterService {
     }
 
     async printLabel(pkg, settings = {}) {
-        if (!this.isConnected) {
-            showAlert('Yazıcı servisi bağlı değil.', 'error');
-            return false;
-        }
+    if (!this.isConnected) {
+        console.warn('Yazıcı servisi bağlı değil, atlanıyor.');
+        return false; // bypass error
+    }
+
+    try {
+        const { jsPDF } = window.jspdf;
+
+        // Label size: 10x8cm
+        const labelWidth = 100;
+        const labelHeight = 80;
+        const doc = new jsPDF({ unit: 'mm', format: [labelWidth, labelHeight], compress: true });
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 2; // very small margin
+        let y = margin;
+
+        // ---------------- HEADER ----------------
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('YEDITEPE LAUNDRY', pageWidth / 2, y, { align: 'center' });
+        y += 6;
+
+        // underline
+        doc.setLineWidth(0.3);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 5;
+
+        // ---------------- PACKAGE INFO ----------------
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        const infoLines = [
+            `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
+            `Ürün: ${pkg.product || 'Bilinmiyor'}`,
+            `Tarih: ${pkg.created_at || new Date().toLocaleDateString('tr-TR')}`
+        ];
+
+        infoLines.forEach(line => {
+            const splitText = doc.splitTextToSize(line, pageWidth - 2 * margin);
+            splitText.forEach(splitLine => {
+                doc.text(splitLine, margin, y);
+                y += 5;
+            });
+        });
+
+        y += 2;
+
+        // ---------------- BARCODE ----------------
+        const packageNo = pkg.package_no || 'NO_BARCODE';
+        const sanitized = this.sanitizeBarcodeText(packageNo);
+        const canvas = document.createElement('canvas');
 
         try {
-            const { jsPDF } = window.jspdf;
-
-            // ---------------- EXACT LABEL SIZE: 10cm x 8cm ----------------
-            const labelWidth = 100;  // 10cm in mm
-            const labelHeight = 80;  // 8cm in mm
-            
-            const doc = new jsPDF({
-                unit: 'mm',
-                format: [labelWidth, labelHeight],
-                compress: true
+            JsBarcode(canvas, sanitized, {
+                format: 'CODE128',
+                width: 1.8,
+                height: 25,
+                displayValue: false,
+                margin: 0,
+                textMargin: 0
             });
+            const barcodeWidth = 55;
+            const barcodeHeight = 15;
+            const barcodeX = (pageWidth - barcodeWidth) / 2;
 
-            // ---------------- FONT SETUP FOR TURKISH CHARACTERS ----------------
-            doc.setFont('helvetica', 'normal');
-            
-            // Set document properties
-            doc.setProperties({
-                title: 'Etiket',
-                subject: 'Paket Etiketi',
-                author: 'Yeditepe Laundry',
-                keywords: 'etiket, paket',
-                creator: 'Yeditepe Laundry System'
-            });
-
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const margin = 3; // Smaller margin for 10x8cm
-            let y = margin + 3;
-
-            // ---------------- COMPANY HEADER ----------------
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(14);
-            const headerText = 'YEDITEPE LAUNDRY';
-            doc.text(headerText, pageWidth / 2, y, { align: 'center' });
-            y += 6;
-
-            // Underline
-            doc.setLineWidth(0.3);
-            doc.line(margin + 5, y, pageWidth - margin - 5, y);
-            y += 8;
-
-            // ---------------- PACKAGE INFORMATION ----------------
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            
-            const infoLines = [
-                `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
-                `Ürün: ${pkg.product || 'Bilinmiyor'}`,
-                `Tarih: ${pkg.created_at || new Date().toLocaleDateString('tr-TR')}`
-            ];
-
-            const lineSpacing = 5;
-            infoLines.forEach(line => {
-                // Check if text fits within label width
-                const textWidth = doc.getTextWidth(line);
-                if (textWidth > (pageWidth - 2 * margin)) {
-                    // Split long text into multiple lines
-                    const splitText = doc.splitTextToSize(line, pageWidth - 2 * margin);
-                    splitText.forEach(splitLine => {
-                        doc.text(splitLine, margin, y);
-                        y += lineSpacing;
-                    });
-                } else {
-                    doc.text(line, margin, y);
-                    y += lineSpacing;
-                }
-            });
-
-            y += 3;
-
-            // ---------------- BARCODE SECTION ----------------
-            const packageNo = pkg.package_no || 'NO_BARCODE';
-            const sanitizedPackageNo = this.sanitizeBarcodeText(packageNo);
-
-            const canvas = document.createElement('canvas');
-            try {
-                JsBarcode(canvas, sanitizedPackageNo, {
-                    format: 'CODE128',
-                    lineColor: '#000',
-                    width: 1.8, // Smaller width for 10x8cm
-                    height: 25,  // Smaller height for 10x8cm
-                    displayValue: false,
-                    fontSize: 12,
-                    margin: 0,
-                    textMargin: 0
-                });
-
-                const barcodeWidth = 55; // Fit within 10cm width
-                const barcodeHeight = 15; // Fit within 8cm height
-                const barcodeX = (pageWidth - barcodeWidth) / 2;
-                
-                // Ensure barcode fits within remaining space
-                if (y + barcodeHeight + 10 < pageHeight - margin) {
-                    doc.addImage(canvas.toDataURL('image/png'), 'PNG', barcodeX, y, barcodeWidth, barcodeHeight);
-                    y += barcodeHeight + 3;
-                    
-                    // Barcode number below
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(9);
-                    doc.text(packageNo, pageWidth / 2, y, { align: 'center' });
-                }
-
-            } catch (barcodeError) {
-                console.error('Barcode generation error:', barcodeError);
-                // Fallback: just show package number
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(12);
-                doc.text(`Paket No: ${packageNo}`, pageWidth / 2, y, { align: 'center' });
+            if (y + barcodeHeight + 5 < pageHeight - margin) {
+                doc.addImage(canvas.toDataURL('image/png'), 'PNG', barcodeX, y, barcodeWidth, barcodeHeight);
+                y += barcodeHeight + 3;
+                doc.setFontSize(9);
+                doc.text(packageNo, pageWidth / 2, y, { align: 'center' });
             }
+        } catch (barcodeError) {
+            console.warn('Barcode error bypassed:', barcodeError);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text(packageNo, pageWidth / 2, y, { align: 'center' });
+            y += 5;
+        }
 
-            // ---------------- BORDER FOR EXACT 10x8cm ----------------
-            doc.setLineWidth(0.5);
-            doc.rect(1, 1, labelWidth - 2, labelHeight - 2);
+        // ---------------- BORDER ----------------
+        doc.setLineWidth(0.5);
+        doc.rect(1, 1, labelWidth - 2, labelHeight - 2);
 
-            // ---------------- SEND TO PRINTER ----------------
-            const pdfBase64 = doc.output('datauristring');
+        // ---------------- SEND TO PRINTER ----------------
+        const pdfBase64 = doc.output('datauristring');
+        try {
             const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     pdfData: pdfBase64,
                     copies: settings.copies || 1,
-                    scaling: 'noscale', // No scaling to maintain exact 10x8cm
-                    centered: true
+                    scaling: 'none', // no scaling
+                    centered: false   // start from top-left
                 }),
-                signal: AbortSignal.timeout(15000)
+                signal: AbortSignal.timeout(10000)
             });
 
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('text/html')) {
-                const htmlResponse = await response.text();
-                console.error('Server returned HTML:', htmlResponse.substring(0, 500));
-                throw new Error('Server returned HTML instead of JSON.');
-            }
-
-            const result = await response.json();
-            if (result.success) {
-                console.log(`✅ Label printed: ${packageNo}`);
-                return true;
-            } else {
-                console.error(`❌ Print failed: ${result.error}`);
-                showAlert(`Yazdırma hatası: ${result.error}`, 'error');
+            if (!response.ok) {
+                console.warn('Printer server returned non-OK status:', response.status);
                 return false;
             }
 
-        } catch (error) {
-            console.error('❌ Print error:', error);
-            const msg = error.name === 'AbortError' ? 'İstek zaman aşımı. Sunucu yanıt vermiyor.' : error.message;
-            showAlert(`Yazdırma hatası: ${msg}`, 'error');
-            return false;
-        }
-    }
+            const result = await response.json().catch(() => ({ success: false }));
+            return result.success || false;
 
+        } catch (fetchError) {
+            console.warn('Printer request failed, bypassed:', fetchError);
+            return false; // bypass error
+        }
+
+    } catch (error) {
+        console.error('PrintLabel error bypassed:', error);
+        return false; // bypass error
+    }
+}
+
+
+
+    
     // Test print function with settings
     async testPrint(settings = {}) {
         const testPackage = {
@@ -333,35 +295,34 @@ async function printAllLabels() {
                 total_quantity: '1'
             };
 
+            // Try to print label, bypass errors
             const result = await printerInstance.printLabel(pkg, settings);
 
             if (result) {
                 successCount++;
-                // Visual feedback
-                row.style.backgroundColor = '#e8f5e8';
-                setTimeout(() => {
-                    row.style.backgroundColor = '';
-                }, 2000);
+                row.style.backgroundColor = '#e8f5e8'; // green feedback
             } else {
                 errorCount++;
-                row.style.backgroundColor = '#ffebee';
-                setTimeout(() => {
-                    row.style.backgroundColor = '';
-                }, 2000);
+                row.style.backgroundColor = '#ffebee'; // red feedback
             }
 
-            // Small delay between prints to prevent overwhelming the printer
+            // Reset row background after short delay
+            setTimeout(() => {
+                row.style.backgroundColor = '';
+            }, 2000);
+
+            // Small delay to avoid overwhelming the printer
             if (i < checkboxes.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 300));
             }
 
         } catch (error) {
-            console.error(`Error printing label ${i + 1}:`, error);
+            console.warn(`Label ${i + 1} printing bypassed due to error:`, error);
             errorCount++;
         }
     }
 
-    // Show final result
+    // ---------------- SHOW FINAL RESULT ----------------
     if (successCount > 0 && errorCount === 0) {
         showAlert(`✅ Tüm etiketler başarıyla yazdırıldı (${successCount} adet)`, 'success');
     } else if (successCount > 0 && errorCount > 0) {
