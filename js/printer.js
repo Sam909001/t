@@ -63,63 +63,69 @@ class PrinterService {
 
         try {
             const { jsPDF } = window.jspdf;
+// ---------------- LABEL SIZE ----------------
+const labelWidth = settings.labelWidth || 100; // 10 cm in mm
+const labelHeight = settings.labelHeight || 80; // 8 cm in mm
+const doc = new jsPDF({
+    unit: 'mm',
+    format: [labelWidth, labelHeight],
+    orientation: settings.orientation || 'portrait'
+});
 
-            // ---------------- LABEL SIZE ----------------
-            const labelWidth = settings.labelWidth || 100; // mm
-            const labelHeight = settings.labelHeight || 80; // mm
-            const doc = new jsPDF({
-                unit: 'mm',
-                format: [labelWidth, labelHeight],
-                orientation: settings.orientation || 'portrait'
-            });
+const pageWidth = doc.internal.pageSize.getWidth();
+const pageHeight = doc.internal.pageSize.getHeight();
+let y = settings.marginTop !== undefined ? settings.marginTop : 8;
 
-            const pageWidth = doc.internal.pageSize.getWidth();
-            let y = settings.marginTop !== undefined ? settings.marginTop : 8;
+// ---------------- FONT SETUP ----------------
+if (settings.base64Font) {
+    doc.addFileToVFS("Roboto-Regular.ttf", settings.base64Font);
+    doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+    doc.setFont("Roboto", "normal");
+}
+doc.setFontSize(settings.fontSize || 12);
 
-            // ---------------- FONT SETUP ----------------
-            if (settings.base64Font) {
-                doc.addFileToVFS("Roboto-Regular.ttf", settings.base64Font);
-                doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
-                doc.setFont("Roboto", "normal");
-            }
-            doc.setFontSize(settings.fontSize || 12);
+// ---------------- HEADER ----------------
+const headerText = settings.headerText || 'Yeditep Laundry';
+doc.setFont("Roboto", "bold");
+doc.setFontSize(settings.headerFontSize || 14);
+doc.text(headerText, pageWidth / 2, y, { align: 'center' });
+y += (settings.headerFontSize || 14) + 6;
 
-            // ---------------- HEADER ----------------
-            const headerText = settings.headerText || 'Yeditep Laundry';
-            doc.setFont("Roboto", "bold");
-            doc.setFontSize(settings.headerFontSize || 14);
-            doc.text(headerText, pageWidth / 2, y, { align: 'center' });
-            y += (settings.headerFontSize || 14) + 6;
+// ---------------- PACKAGE INFO ----------------
+doc.setFont("Roboto", "normal");
+doc.setFontSize(settings.fontSize || 12);
+const infoLines = [
+    `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
+    `Ürün: ${pkg.product || 'Bilinmiyor'}`,
+    `Tarih: ${pkg.created_at || new Date().toLocaleDateString()}`
+];
 
-            // ---------------- PACKAGE INFO ----------------
-            doc.setFont("Roboto", "normal");
-            doc.setFontSize(settings.fontSize || 12);
-            const infoLines = [
-                `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
-                `Ürün: ${pkg.product || 'Bilinmiyor'}`,
-                `Tarih: ${pkg.created_at || new Date().toLocaleDateString()}`
-            ];
-            infoLines.forEach(line => {
-                doc.text(line, pageWidth / 2, y, { align: 'center' });
-                y += 6;
-            });
-            y += 4; // spacing before barcode
+// Add info lines
+infoLines.forEach(line => {
+    doc.text(line, pageWidth / 2, y, { align: 'center' });
+    y += 6;
+});
+y += 4; // spacing before barcode
 
-            // ---------------- BARCODE ----------------
-            const canvas = document.createElement('canvas');
-            const packageNo = pkg.package_no || 'NO_BARCODE';
-            JsBarcode(canvas, packageNo, {
-                format: "CODE128",
-                lineColor: "#000",
-                width: settings.barcodeWidthFactor || 2,
-                height: settings.barcodeHeight || 35,
-                displayValue: true,
-                fontSize: settings.barcodeFontSize || 12,
-                margin: 0
-            });
-            const barcodeDataUrl = canvas.toDataURL('image/png');
-            const barcodeWidth = settings.barcodePrintWidth || (pageWidth * 0.8);
-            doc.addImage(barcodeDataUrl, 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, settings.barcodeHeight || 70);
+// ---------------- BARCODE ----------------
+const canvas = document.createElement('canvas');
+const packageNo = pkg.package_no || 'NO_BARCODE';
+JsBarcode(canvas, packageNo, {
+    format: "CODE128",
+    lineColor: "#000",
+    width: settings.barcodeWidthFactor || 2,
+    height: settings.barcodeHeight || 35,
+    displayValue: true,
+    fontSize: settings.barcodeFontSize || 12,
+    margin: 0
+});
+const barcodeDataUrl = canvas.toDataURL('image/png');
+
+// Make barcode width wider (7 cm = 70 mm)
+const barcodeWidth = settings.barcodePrintWidth || 70;
+const barcodeHeight = settings.barcodeHeight || 35;
+doc.addImage(barcodeDataUrl, 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, barcodeHeight);
+
 
             // ---------------- SEND TO PRINTER ----------------
             const pdfBase64 = doc.output('datauristring');
