@@ -72,6 +72,9 @@ class PrinterService {
         return text.replace(/[ıİğĞüÜşŞöÖçÇ]/g, char => replacements[char] || char);
     }
 
+
+
+    
     async printLabel(pkg, settings = {}) {
         if (!this.isConnected) {
             showAlert('Yazıcı servisi bağlı değil.', 'error');
@@ -86,11 +89,20 @@ class PrinterService {
             const labelHeight = 80;  // mm, 8 cm
             
             // Create PDF with proper encoding for Turkish characters
-            const doc = new jsPDF({ 
-                unit: 'mm', 
-                format: [labelWidth, labelHeight],
-                compress: true
-            });
+           const doc = new jsPDF({
+    unit: 'mm',
+    format: [labelWidth, labelHeight],
+    compress: true
+});
+
+// 3. Register the font from Roboto-Bold.js
+doc.addFileToVFS("Roboto-Bold.ttf", RobotoBold);   // RobotoBold comes from Roboto-Bold.js
+doc.addFont("Roboto-Bold.ttf", "Roboto-Bold", "bold");
+
+// 4. Use it
+doc.setFont("Roboto-Bold", "bold");
+doc.setFontSize(12); // adjust size
+doc.text("YEDITEPE", 5, 10);  // Example text
 
             // Add custom font that supports Turkish characters if available
             doc.setLanguage("tr");
@@ -111,7 +123,7 @@ class PrinterService {
             // ---------------- HEADER ----------------
             const headerText = 'Yeditepe Laundry';
             const headerFontSize = 18;
-            doc.setFont('helvetica', 'bold');
+           doc.setFont("Roboto-Bold", "bold");
             doc.setFontSize(headerFontSize);
             doc.text(headerText, pageWidth / 2, y, { align: 'center' });
             y += headerFontSize * 0.5;
@@ -227,6 +239,8 @@ class PrinterService {
             return false;
         }
     }
+
+    
 
     // Test print function with settings
     async testPrint(settings = {}) {
