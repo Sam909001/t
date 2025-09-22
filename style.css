@@ -1336,3 +1336,22 @@ body.dark-mode table th,
 body.dark-mode table td {
     border-color: #555;
 }
+
+
+
+/* Tables */
+table {
+    width: 100% !important;
+    border-collapse: collapse !important; /* ensures borders between cells are merged */
+}
+
+table th, table td {
+    padding: 8px !important;
+    border: 1px solid #ccc !important;   /* THIS LINE creates the visible lines */
+}
+
+/* Dark mode table borders */
+body.dark-mode table th,
+body.dark-mode table td {
+    border-color: #555 !important;       /* changes line color in dark mode */
+}
