@@ -67,123 +67,109 @@ class PrinterService {
 
 
 
-    async printBarcode(barcode, text = '', packageInfo = null, settings = null) {
+async printLabel(pkg, settings = null) {
     if (!this.isConnected) {
         console.error('❌ Printer not connected');
         showAlert('Yazıcı servisi bağlı değil. Lütfen Node.js sunucusunun çalıştığından emin olun.', 'error');
         return false;
     }
-    
-    // Load settings if not provided
+
+    // Load settings from localStorage if not passed
     if (!settings) {
         settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     }
-    
+
     try {
-        console.log(`🖨️ Printing: ${barcode} - ${text}`);
-        
-        // Use settings for PDF generation
-        const scaling = parseInt(settings.printerScaling || '100') / 100;
-        const fontSize = settings.fontSize || 10;
-        const fontName = settings.fontName || 'helvetica';
-        const marginTop = settings.marginTop !== undefined ? settings.marginTop : 5;
-        const marginBottom = settings.marginBottom !== undefined ? settings.marginBottom : 5;
-        
-        // Generate a professional PDF label with user settings
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ 
-            unit: 'mm', 
-            format: [70, 90], // 8x10 cm
+
+        // Label size
+        const labelWidth = settings.labelWidth || 70;  // mm
+        const labelHeight = settings.labelHeight || 90; // mm
+        const doc = new jsPDF({
+            unit: 'mm',
+            format: [labelWidth, labelHeight],
             orientation: settings.orientation || 'portrait'
         });
-        
-        // Set margins from settings
-        const margin = marginTop;
-        let yPosition = margin;
-        
-        // Set font from settings
-        doc.setFont(fontName);
-        
-        // Company header with larger font
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text('Yeditep Laundry', 40, yPosition, { align: 'center' });
-        yPosition += 8;
-        
-       // After your Yeditep Laundry header
-doc.setFontSize(fontSize);
-doc.setFont(undefined, 'normal');
 
-// Add package info
-if (packageInfo) {
-    doc.text(`Müşteri: ${packageInfo.customer_name || ''}`, 5, yPosition); yPosition += 6;
-    doc.text(`Ürün: ${packageInfo.product || ''}`, 5, yPosition); yPosition += 6;
-    doc.text(`Tarih: ${packageInfo.created_at || ''}`, 5, yPosition); yPosition += 10;
-}
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let yPosition = settings.marginTop !== undefined ? settings.marginTop : 8;
 
-// Generate barcode
-const canvas = document.createElement('canvas');
-JsBarcode(canvas, barcode, {
-    format: "CODE128",
-    lineColor: "#000",
-    width: 2,
-    height: 25,
-    displayValue: true,
-    fontSize: 10,
-    margin: 0
-});
-const barcodeDataUrl = canvas.toDataURL('image/png');
-doc.addImage(barcodeDataUrl, 'PNG', 10, yPosition, 50, 20);
+        // --- Header ---
+        const headerText = settings.headerText || 'Yeditep Laundry';
+        doc.setFont(settings.fontName || 'helvetica', 'bold');
+        doc.setFontSize(settings.headerFontSize || 12);
+        doc.text(headerText, pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += (settings.headerFontSize || 12) + 4;
 
-        
-        // Apply scaling to the entire document
+        // --- Package info ---
+        doc.setFont(settings.fontName || 'helvetica', 'normal');
+        doc.setFontSize(settings.fontSize || 11);
+        if (pkg) {
+            if (pkg.customer_name) doc.text(`Müşteri: ${pkg.customer_name}`, 5, yPosition);
+            yPosition += 6;
+            if (pkg.product) doc.text(`Ürün: ${pkg.product}`, 5, yPosition);
+            yPosition += 6;
+            if (pkg.created_at) doc.text(`Tarih: ${pkg.created_at}`, 5, yPosition);
+            yPosition += 10;
+        }
+
+        // --- Barcode ---
+        const canvas = document.createElement('canvas');
+        JsBarcode(canvas, pkg.package_no, {
+            format: "CODE128",
+            lineColor: "#000",
+            width: settings.barcodeWidthFactor || 2,   // user can tweak
+            height: settings.barcodeHeight || 25,
+            displayValue: true,
+            fontSize: settings.barcodeFontSize || 10,
+            margin: 0
+        });
+        const barcodeDataUrl = canvas.toDataURL('image/png');
+
+        const barcodeWidth = settings.barcodePrintWidth || (pageWidth - 10); // almost full width
+        doc.addImage(barcodeDataUrl, 'PNG', (pageWidth - barcodeWidth) / 2, yPosition, barcodeWidth, settings.barcodeHeight || 25);
+
+        // --- Generate PDF base64 ---
         const pdfBase64 = doc.output('datauristring');
-        
-        // Send to PDF print endpoint with user settings
+
+        // --- Send to printer ---
         const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 pdfData: pdfBase64,
                 copies: settings.copies || 1,
                 scaling: settings.printerScaling || '100%'
             }),
-            signal: AbortSignal.timeout(15000) // 15 second timeout
+            signal: AbortSignal.timeout(15000)
         });
-            
-            // Check if response is HTML instead of JSON
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('text/html')) {
-                const htmlResponse = await response.text();
-                console.error('Server returned HTML:', htmlResponse.substring(0, 500));
-                throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log(`✅ Print successful: ${barcode}`);
-                return true;
-            } else {
-                console.error(`❌ Print failed: ${result.error}`);
-                showAlert(`❌ Yazdırma hatası: ${result.error}`, 'error');
-                return false;
-            }
-            
-        } catch (error) {
-            console.error(`❌ Print error:`, error);
-            let userMessage = 'Yazdırma hatası: ';
-            if (error.name === 'AbortError') {
-                userMessage += 'İstek zaman aşımı. Sunucu yanıt vermiyor.';
-            } else {
-                userMessage += error.message;
-            }
-            showAlert(userMessage, 'error');
+
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+            const htmlResponse = await response.text();
+            console.error('Server returned HTML:', htmlResponse.substring(0, 500));
+            throw new Error('Server returned HTML instead of JSON. Check server endpoint.');
+        }
+
+        const result = await response.json();
+        if (result.success) {
+            console.log(`✅ Print successful: ${pkg.package_no}`);
+            return true;
+        } else {
+            console.error(`❌ Print failed: ${result.error}`);
+            showAlert(`❌ Yazdırma hatası: ${result.error}`, 'error');
             return false;
         }
+
+    } catch (error) {
+        console.error('❌ Print error:', error);
+        let userMessage = 'Yazdırma hatası: ';
+        if (error.name === 'AbortError') userMessage += 'İstek zaman aşımı. Sunucu yanıt vermiyor.';
+        else userMessage += error.message;
+        showAlert(userMessage, 'error');
+        return false;
     }
+}
 
 
 
@@ -234,61 +220,7 @@ doc.addImage(barcodeDataUrl, 'PNG', 10, yPosition, 50, 20);
 
     
     
-    async printPDFLabel(pkg) {
-        if (!this.isConnected) {
-            showAlert('Yazıcı servisi bağlı değil', 'error');
-            return false;
-        }
-
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ unit: 'mm', format: [100, 80] });
-
-            doc.setFont(undefined, 'bold');
-            doc.setFontSize(16);
-            doc.text('ProClean', 5, 10);
-
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'normal');
-
-            let y = 20;
-            doc.text(`Paket No: ${pkg.package_no}`, 5, y); y += 6;
-            doc.text(`Müşteri: ${pkg.customer_name}`, 5, y); y += 6;
-            doc.text(`Ürün: ${pkg.product}`, 5, y); y += 6;
-            doc.text(`Tarih: ${pkg.created_at}`, 5, y); y += 10;
-
-            const canvas = document.createElement('canvas');
-            JsBarcode(canvas, pkg.package_no, {
-                format: "CODE128",
-                lineColor: "#000",
-                width: 3,
-                height: 25,
-                displayValue: true,
-                fontSize: 10,
-                margin: 0
-            });
-            const barcodeDataUrl = canvas.toDataURL('image/png');
-            doc.addImage(barcodeDataUrl, 'PNG', 5, y, 90, 25);
-
-            const pdfBase64 = doc.output('datauristring');
-            const res = await fetch(`${this.serverUrl}/api/print/pdf`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pdfData: pdfBase64, copies: 1 })
-            });
-
-            const result = await res.json();
-            if (result.success) return true;
-            else throw new Error(result.error || 'Bilinmeyen PDF yazdırma hatası');
-
-        } catch (e) {
-            console.error('❌ PDF yazdırma hatası:', e);
-            showAlert(`❌ PDF yazdırma hatası: ${e.message}`, 'error');
-            return false;
-        }
-    }
-}
-
+   
 // ================== PRINTER FUNCTIONS ==================
 function initializePrinter() {
     if (!printer) {
@@ -298,6 +230,9 @@ function initializePrinter() {
     return printer;
 }
 
+
+
+    
 function getPrinter() {
     if (!printer) {
         return initializePrinter();
@@ -359,6 +294,9 @@ function checkPrinterStatus() {
     return printerInstance.isConnected;
 }
 
+
+
+
 async function printAllLabels() {
     console.log('🚀 Starting printAllLabels function...');
     
@@ -377,6 +315,9 @@ async function printAllLabels() {
         showAlert('Etiket yazdırmak için en az bir paket seçin', 'error');
         return;
     }
+
+    // Load user settings once
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
     let successCount = 0;
     let errorCount = 0;
@@ -403,11 +344,8 @@ async function printAllLabels() {
 
             console.log(`📦 Processing package ${i + 1}:`, pkg);
 
-            const labelText = `${pkg.customer_name} - ${pkg.product}`;
-            const barcode = pkg.package_no;
-
-            // Pass the package info to include in the label
-            const printResult = await printerInstance.printBarcode(barcode, labelText, pkg);
+            // Call the unified printLabel function with user settings
+            const printResult = await printerInstance.printLabel(pkg, settings);
 
             if (printResult) {
                 successCount++;
@@ -415,18 +353,14 @@ async function printAllLabels() {
                 
                 // Visual feedback - mark row as printed
                 row.style.backgroundColor = '#e8f5e8';
-                setTimeout(() => {
-                    row.style.backgroundColor = '';
-                }, 2000);
+                setTimeout(() => row.style.backgroundColor = '', 2000);
             } else {
                 errorCount++;
                 console.log(`❌ Failed to print label ${i + 1}`);
                 
                 // Visual feedback - mark row as error
                 row.style.backgroundColor = '#ffebee';
-                setTimeout(() => {
-                    row.style.backgroundColor = '';
-                }, 2000);
+                setTimeout(() => row.style.backgroundColor = '', 2000);
             }
 
             // Delay between prints
@@ -437,7 +371,6 @@ async function printAllLabels() {
         } catch (error) {
             console.error(`❌ Error processing label ${i + 1}:`, error);
             errorCount++;
-            continue;
         }
     }
 
@@ -451,6 +384,9 @@ async function printAllLabels() {
 
     console.log(`Print job completed: ${successCount} success, ${errorCount} errors`);
 }
+
+
+
 
 // ================== INITIALIZATION ==================
 function initializePrinterService() {
