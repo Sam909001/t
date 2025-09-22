@@ -115,7 +115,6 @@ async function generateProfessionalPDFReport(reportData) {
             const doc = new jsPDF();
 
             // ==================== FONTS ====================
-            // Use Roboto font (loaded via your roboto-bold.js VFS file)
             doc.setFont("Roboto", "normal");
 
             const pageWidth = doc.internal.pageSize.getWidth();
@@ -166,8 +165,8 @@ async function generateProfessionalPDFReport(reportData) {
 
             const summaryBoxes = [
                 { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219], icon: '📦' },
-                { title: 'Bekleyen', value: reportData.waitingPackages, color: [241, 196, 15], icon: '⏳' },
-                { title: 'Sevk Edilen', value: reportData.shippedPackages, color: [46, 204, 113], icon: '🚚' },
+                { title: 'Bekleyen Paket', value: reportData.waitingPackages, color: [241, 196, 15], icon: '⏳' },
+                { title: 'Sevk Edilen Paket', value: reportData.shippedPackages, color: [46, 204, 113], icon: '🚚' },
                 { title: 'Konteyner', value: reportData.containers, color: [155, 89, 182], icon: '📊' }
             ];
 
