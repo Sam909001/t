@@ -57,7 +57,7 @@ class PrinterService {
 
     
 
-    async printLabel(pkg, settings = {}) {
+   async printLabel(pkg, settings = {}) {
     if (!this.isConnected) {
         showAlert('Yazıcı servisi bağlı değil.', 'error');
         return false;
@@ -74,37 +74,30 @@ class PrinterService {
             format: [labelWidth, labelHeight],
             orientation: 'portrait'
         });
-
         const pageWidth = doc.internal.pageSize.getWidth();
-        let y = 8; // top margin
+        const pageHeight = doc.internal.pageSize.getHeight();
 
         // ---------------- FONT SETUP ----------------
         if (settings.base64Font) {
             doc.addFileToVFS("Roboto-Regular.ttf", settings.base64Font);
             doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
-            doc.setFont("Roboto", "normal");
         }
-        doc.setFont("Roboto", "bold");   // Bold header
-        doc.setFontSize(14);
 
         // ---------------- HEADER ----------------
         const headerText = "Yeditepe Laundry";
-        doc.text(headerText, pageWidth / 2, y, { align: 'center' }); // center horizontally
-        y += 14 + 4; // move below header (fontSize + spacing)
+        const headerFontSize = 14;
+        doc.setFont("Roboto", "bold");
+        doc.setFontSize(headerFontSize);
 
         // ---------------- PACKAGE INFO ----------------
-        doc.setFont("Roboto", "normal");
-        doc.setFontSize(12);
         const infoLines = [
             `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
             `Ürün: ${pkg.product || 'Bilinmiyor'}`,
             `Tarih: ${pkg.created_at || new Date().toLocaleDateString()}`
         ];
-        infoLines.forEach(line => {
-            doc.text(line, pageWidth / 2, y, { align: 'center' }); // center each line
-            y += 6;
-        });
-        y += 4; // spacing before barcode
+        const infoFontSize = 12;
+        doc.setFont("Roboto", "normal");
+        doc.setFontSize(infoFontSize);
 
         // ---------------- BARCODE ----------------
         const canvas = document.createElement('canvas');
@@ -118,10 +111,36 @@ class PrinterService {
             fontSize: 12,
             margin: 0
         });
+        const barcodeWidth = pageWidth * 0.8;
+        const barcodeHeight = 35;
 
-        const barcodeDataUrl = canvas.toDataURL('image/png');
-        const barcodeWidth = pageWidth * 0.8; // 80% of label width
-        doc.addImage(barcodeDataUrl, 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, 35);
+        // ---------------- CALCULATE TOTAL HEIGHT ----------------
+        const lineSpacing = 6;
+        const spacingBeforeBarcode = 4;
+        const headerHeight = headerFontSize;
+        const infoHeight = infoLines.length * lineSpacing;
+        const totalContentHeight = headerHeight + infoHeight + spacingBeforeBarcode + barcodeHeight;
+
+        // Start Y to vertically center everything
+        let y = (pageHeight - totalContentHeight) / 2 + headerFontSize;
+
+        // ---------------- DRAW HEADER ----------------
+        doc.setFont("Roboto", "bold");
+        doc.setFontSize(headerFontSize);
+        doc.text(headerText, pageWidth / 2, y - headerFontSize, { align: 'center' });
+
+        // ---------------- DRAW PACKAGE INFO ----------------
+        doc.setFont("Roboto", "normal");
+        doc.setFontSize(infoFontSize);
+        infoLines.forEach(line => {
+            y += lineSpacing;
+            doc.text(line, pageWidth / 2, y, { align: 'center' });
+        });
+
+        y += spacingBeforeBarcode;
+
+        // ---------------- DRAW BARCODE ----------------
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, barcodeHeight);
 
         // ---------------- SEND TO PRINTER ----------------
         const pdfBase64 = doc.output('datauristring');
@@ -161,6 +180,9 @@ class PrinterService {
     }
 }
 
+
+
+    
 
     
 
