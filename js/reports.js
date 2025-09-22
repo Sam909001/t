@@ -385,8 +385,8 @@ async function sendDailyReport() {
             attachment
         };
 
-        const serviceId = document.getElementById('emailjsServiceId')?.value;
-        const templateId = document.getElementById('emailjsTemplateId')?.value;
+        const serviceId = document.getElementById('service_4rt2w5g')?.value;
+        const templateId = document.getElementById('template_2jf8cvh')?.value;
         if (!serviceId || !templateId) throw new Error('EmailJS Service veya Template ID eksik');
 
         const result = await emailjs.send(serviceId, templateId, templateParams);
