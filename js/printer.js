@@ -53,7 +53,7 @@ class PrinterService {
     }
 
     // ================== PRINT LABEL ==================
-  async printLabel(pkg, settings = null) {
+ async printLabel(pkg, settings = null) {
     if (!this.isConnected) {
         showAlert('Yazıcı servisi bağlı değil.', 'error');
         return false;
@@ -76,13 +76,15 @@ class PrinterService {
         });
 
         const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
         let y = settings.marginTop !== undefined ? settings.marginTop : 8;
 
         // ---------------- FONT SETUP ----------------
-        // Add Turkish-compatible font
+        // Turkish-compatible font (Roboto example)
+        // Make sure to replace <BASE64_FONT_STRING> with actual Base64 of your font
         doc.addFileToVFS("Roboto-Regular.ttf", "<BASE64_FONT_STRING>");
         doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
-        doc.setFont(settings.fontName || "Roboto", "normal");
+        doc.setFont("Roboto", "normal");
         doc.setFontSize(settings.fontSize || 12);
 
         // ---------------- HEADER ----------------
@@ -90,15 +92,22 @@ class PrinterService {
         doc.setFont("Roboto", "bold");
         doc.setFontSize(settings.headerFontSize || 14);
         doc.text(headerText, pageWidth / 2, y, { align: 'center' });
-        y += (settings.headerFontSize || 14) + 4;
+        y += (settings.headerFontSize || 14) + 6;
 
         // ---------------- PACKAGE INFO ----------------
         doc.setFont("Roboto", "normal");
         doc.setFontSize(settings.fontSize || 12);
         if (pkg) {
-            if (pkg.customer_name) { doc.text(`Müşteri: ${pkg.customer_name}`, 5, y); y += 6; }
-            if (pkg.product) { doc.text(`Ürün: ${pkg.product}`, 5, y); y += 6; }
-            if (pkg.created_at) { doc.text(`Tarih: ${pkg.created_at}`, 5, y); y += 10; }
+            const infoLines = [
+                `Müşteri: ${pkg.customer_name || ''}`,
+                `Ürün: ${pkg.product || ''}`,
+                `Tarih: ${pkg.created_at || ''}`
+            ];
+            infoLines.forEach(line => {
+                doc.text(line, pageWidth / 2, y, { align: 'center' });
+                y += 6;
+            });
+            y += 4; // spacing before barcode
         }
 
         // ---------------- BARCODE ----------------
@@ -114,7 +123,7 @@ class PrinterService {
         });
 
         const barcodeDataUrl = canvas.toDataURL('image/png');
-        const barcodeWidth = settings.barcodePrintWidth || (pageWidth - 10); // almost full width
+        const barcodeWidth = settings.barcodePrintWidth || (pageWidth * 0.8);
         doc.addImage(barcodeDataUrl, 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, settings.barcodeHeight || 35);
 
         // ---------------- SEND TO PRINTER ----------------
@@ -149,13 +158,14 @@ class PrinterService {
 
     } catch (error) {
         console.error('❌ Print error:', error);
-        let msg = error.name === 'AbortError'
+        const msg = error.name === 'AbortError'
             ? 'İstek zaman aşımı. Sunucu yanıt vermiyor.'
             : error.message;
         showAlert(`Yazdırma hatası: ${msg}`, 'error');
         return false;
     }
 }
+
 
 
 
@@ -236,7 +246,19 @@ async function printAllLabels() {
 
 
 // ================== INITIALIZATION ==================
+// ================== INITIALIZATION ==================
 document.addEventListener('DOMContentLoaded', () => {
     initializePrinter();
-    document.getElementById('print-button')?.addEventListener('click', printAllLabels);
+
+    const printBtn = document.getElementById('print-button');
+    if (printBtn) {
+        printBtn.addEventListener('click', async () => {
+            try {
+                await printAllLabels();
+            } catch (e) {
+                console.error('❌ printAllLabels failed:', e);
+                showAlert('Etiket yazdırılırken bir hata oluştu.', 'error');
+            }
+        });
+    }
 });
