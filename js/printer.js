@@ -54,19 +54,6 @@ class PrinterService {
 
 
 
-      async testPrint(settings = null) {
-        if (!settings) settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        const testPackageInfo = {
-            package_no: '123456789',
-            customer_name: 'Test Müşteri',
-            product: 'Test Ürün',
-            created_at: new Date().toISOString()
-        };
-        return await this.printLabel(testPackageInfo, settings);
-    }
-}
-
-
 
     // ================== PRINT LABEL ==================
  async printLabel(pkg, settings = null) {
