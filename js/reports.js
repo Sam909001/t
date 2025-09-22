@@ -246,6 +246,7 @@ async function generatePDFReport(reportData) {
 }
 
 // Fixed Email Sending Function
+// Fixed Email Sending Function
 async function sendDailyReport() {
     const emailInput = document.getElementById('reportEmail');
     if (!emailInput) {
@@ -284,30 +285,35 @@ async function sendDailyReport() {
             console.log('PDF başarıyla oluşturuldu');
         } catch (pdfError) {
             console.error('PDF oluşturma hatası:', pdfError);
-            throw new Error('Rapor PDF\'i oluşturulamadı');
+            // Try simple PDF as fallback
+            pdfBlob = await generateSimplePDFReport(currentReportData);
         }
 
         // Convert PDF blob to base64 for email attachment
         const pdfBase64 = await blobToBase64(pdfBlob);
         const fileName = `proclean_rapor_${currentReportData.date.replace(/\./g, '_')}.pdf`;
 
-        // Prepare email parameters
+        // Prepare email parameters - SIMPLIFIED without conditionals
         const templateParams = {
             to_email: email,
             to_name: selectedCustomer?.name || 'Müşteri',
             report_date: currentReportData.date,
-            total_packages: currentReportData.totalPackages,
-            total_items: currentReportData.totalItems,
+            total_packages: currentReportData.totalPackages.toString(),
+            total_items: currentReportData.totalItems.toString(),
             operator_name: currentReportData.operator,
-            critical_stock_count: currentReportData.criticalStock ? currentReportData.criticalStock.length : 0,
+            critical_stock_count: (currentReportData.criticalStock ? currentReportData.criticalStock.length : 0).toString(),
             report_id: currentReportData.id || 'N/A',
             company_name: 'ProClean Çamaşırhane',
-            // Attachment data for EmailJS
-            attachment: pdfBase64,
-            attachment_name: fileName
+            // EmailJS attachment parameters
+            attachments: [
+                {
+                    name: fileName,
+                    data: pdfBase64
+                }
+            ]
         };
 
-        console.log('E-posta parametreleri hazırlandı:', templateParams);
+        console.log('E-posta parametreleri:', templateParams);
 
         // Send email using EmailJS
         showAlert('E-posta gönderiliyor...', 'info');
@@ -318,12 +324,11 @@ async function sendDailyReport() {
                 throw new Error('EmailJS kütüphanesi yüklenmemiş');
             }
 
-            // Send email with attachment
+            // Send email with attachment - USING CORRECT EmailJS PARAMETERS
             const response = await emailjs.send(
-                'service_4rt2w5g', // Replace with your EmailJS service ID
-                'template_2jf8cvh', // Replace with your EmailJS template ID
-                templateParams,
-                'jH-KlJ2ffs_lGwfsp' // Replace with your EmailJS public key
+                'service_4rt2w5g', // Replace with your actual service ID
+                'template_2jf8cvh', // Replace with your actual template ID
+                templateParams
             );
 
             console.log('EmailJS response:', response);
@@ -358,26 +363,32 @@ async function sendDailyReport() {
         } catch (emailError) {
             console.error('EmailJS hatası:', emailError);
             
-            // Fallback: Offer download option
-            const shouldDownload = confirm(
-                'E-posta gönderilemedi. Raporu bilgisayarınıza indirip manuel göndermek ister misiniz?'
-            );
+            // Fallback: Create a download link and show instructions
+            showAlert('E-posta gönderilemedi. Raporu manuel olarak göndermek için indirin.', 'warning');
             
-            if (shouldDownload) {
-                // Download PDF
-                const pdfUrl = URL.createObjectURL(pdfBlob);
-                const a = document.createElement('a');
-                a.href = pdfUrl;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(pdfUrl);
-                
-                showAlert('Rapor bilgisayarınıza indirildi', 'success');
-            }
+            // Create download link
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = pdfUrl;
+            a.download = fileName;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(pdfUrl);
             
-            throw new Error(`E-posta gönderilemedi: ${emailError.message}`);
+            // Show instructions for manual sending
+            const manualInstructions = `
+Rapor PDF'i bilgisayarınıza indirildi. Manuel olarak göndermek için:
+1. E-posta istemcinizi açın
+2. ${email} adresine gönderin
+3. Konu: "ProClean Günlük Rapor - ${currentReportData.date}"
+4. İndirilen PDF dosyasını ekleyin
+            `;
+            
+            setTimeout(() => {
+                alert(manualInstructions);
+            }, 1000);
         }
         
     } catch (error) {
@@ -385,6 +396,7 @@ async function sendDailyReport() {
         showAlert(`Rapor gönderilemedi: ${error.message}`, 'error');
     }
 }
+
 
 // Helper function to convert blob to base64
 function blobToBase64(blob) {
