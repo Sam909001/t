@@ -52,6 +52,22 @@ class PrinterService {
         console.log(`Printer status: ${status} - ${message}`);
     }
 
+
+
+      async testPrint(settings = null) {
+        if (!settings) settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+        const testPackageInfo = {
+            package_no: '123456789',
+            customer_name: 'Test Müşteri',
+            product: 'Test Ürün',
+            created_at: new Date().toISOString()
+        };
+        return await this.printLabel(testPackageInfo, settings);
+    }
+}
+
+
+
     // ================== PRINT LABEL ==================
  async printLabel(pkg, settings = null) {
     if (!this.isConnected) {
@@ -197,6 +213,7 @@ async function printAllLabels() {
 
     showAlert(`${checkboxes.length} paket etiketi yazdırılıyor...`, 'info', 5000);
 
+    // Loop through selected packages
     for (let i = 0; i < checkboxes.length; i++) {
         const row = checkboxes[i].closest('tr');
         if (!row) { error++; continue; }
@@ -208,7 +225,18 @@ async function printAllLabels() {
             created_at: row.cells[4]?.textContent?.trim() || new Date().toISOString()
         };
 
-        const result = await printerInstance.printLabel(pkg, settings);
+        // Adjust settings dynamically for each label if needed
+        const dynamicSettings = {
+            ...settings,
+            // Optionally scale font and barcode based on label size
+            fontSize: settings.fontSize || Math.max(10, settings.labelWidth / 10),
+            headerFontSize: settings.headerFontSize || Math.max(12, settings.labelWidth / 8),
+            barcodeHeight: settings.barcodeHeight || (settings.labelHeight / 3),
+            barcodePrintWidth: settings.barcodePrintWidth || (settings.labelWidth * 0.8)
+        };
+
+        const result = await printerInstance.printLabel(pkg, dynamicSettings);
+
         if (result) {
             success++;
             row.style.backgroundColor = '#e8f5e8';
@@ -219,9 +247,11 @@ async function printAllLabels() {
             setTimeout(() => row.style.backgroundColor = '', 2000);
         }
 
-        if (i < checkboxes.length - 1) await new Promise(r => setTimeout(r, 1500));
+        // Optional: small delay between prints to prevent printer overload
+        if (i < checkboxes.length - 1) await new Promise(r => setTimeout(r, 1000));
     }
 
+    // Final alert
     if (success > 0 && error === 0) showAlert(`✅ ${success} etiket başarıyla yazdırıldı!`, 'success');
     else if (success > 0) showAlert(`⚠️ ${success} etiket yazdırıldı, ${error} hata oluştu.`, 'warning');
     else showAlert(`❌ Hiçbir etiket yazdırılamadı. ${error} hata oluştu.`, 'error');
@@ -231,21 +261,7 @@ async function printAllLabels() {
 
 
 
-     async testPrint(settings = null) {
-        if (!settings) settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        const testPackageInfo = {
-            package_no: '123456789',
-            customer_name: 'Test Müşteri',
-            product: 'Test Ürün',
-            created_at: new Date().toISOString()
-        };
-        return await this.printLabel(testPackageInfo, settings);
-    }
-}
 
-
-
-// ================== INITIALIZATION ==================
 // ================== INITIALIZATION ==================
 document.addEventListener('DOMContentLoaded', () => {
     initializePrinter();
