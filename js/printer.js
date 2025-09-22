@@ -119,7 +119,7 @@ class PrinterService {
             });
             const barcodeDataUrl = canvas.toDataURL('image/png');
             const barcodeWidth = settings.barcodePrintWidth || (pageWidth * 0.8);
-            doc.addImage(barcodeDataUrl, 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, settings.barcodeHeight || 35);
+            doc.addImage(barcodeDataUrl, 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, settings.barcodeHeight || 70);
 
             // ---------------- SEND TO PRINTER ----------------
             const pdfBase64 = doc.output('datauristring');
