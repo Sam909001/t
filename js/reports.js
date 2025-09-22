@@ -173,16 +173,16 @@ async function generateProfessionalPDFReport(reportData) {
             const boxWidth = (pageWidth - 2 * margin - 15) / 4;
             summaryBoxes.forEach((box, index) => {
                 const x = margin + index * (boxWidth + 5);
-                
+
                 doc.setFillColor(...box.color);
                 doc.roundedRect(x, currentY, boxWidth, 35, 3, 3, 'F');
-                
+
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(9);
                 doc.setFont("Roboto", "bold");
                 doc.text(box.icon, x + boxWidth / 2, currentY + 10, { align: 'center' });
                 doc.text(box.title, x + boxWidth / 2, currentY + 18, { align: 'center' });
-                
+
                 doc.setFontSize(11);
                 doc.text(box.value.toString(), x + boxWidth / 2, currentY + 28, { align: 'center' });
             });
@@ -283,6 +283,92 @@ async function generateProfessionalPDFReport(reportData) {
                 currentY = doc.lastAutoTable.finalY + 15;
             }
 
+            // ==================== CONTAINER DETAILS ====================
+            if (reportData.containers && reportData.containers.length > 0 && doc.autoTable) {
+                if (currentY > pageHeight - 100) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont("Roboto", "bold");
+                doc.setTextColor(155, 89, 182);
+                doc.text('KONTEYNER DETAYLARI', margin, currentY);
+                currentY += 10;
+
+                const containerData = reportData.containers.map(container => [
+                    container.container_no || 'N/A',
+                    (container.package_count || 0).toString(),
+                    (container.total_quantity || 0).toString(),
+                    container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Hazırlanıyor',
+                    container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'
+                ]);
+
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Konteyner No', 'Paket Sayısı', 'Toplam Adet', 'Durum', 'Tarih']],
+                    body: containerData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [155, 89, 182],
+                        textColor: [255, 255, 255],
+                        font: 'Roboto',
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        font: 'Roboto',
+                        fontStyle: 'normal',
+                        fontSize: 8,
+                        cellPadding: 3
+                    },
+                    margin: { top: 10 },
+                    pageBreak: 'auto'
+                });
+
+                currentY = doc.lastAutoTable.finalY + 15;
+            }
+
+            // ==================== CRITICAL STOCK ====================
+            if (reportData.criticalStock && reportData.criticalStock.length > 0 && doc.autoTable) {
+                if (currentY > pageHeight - 80) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont("Roboto", "bold");
+                doc.setTextColor(231, 76, 60);
+                doc.text('KRİTİK STOK UYARILARI', margin, currentY);
+                currentY += 10;
+
+                const stockData = reportData.criticalStock.map(item => [
+                    item.code || 'N/A',
+                    item.name || 'N/A',
+                    (item.quantity || 0).toString(),
+                    item.quantity <= 0 ? 'STOK TÜKENDİ' : 'AZ STOK'
+                ]);
+
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Stok Kodu', 'Ürün Adı', 'Mevcut Adet', 'Durum']],
+                    body: stockData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [231, 76, 60],
+                        textColor: [255, 255, 255],
+                        font: 'Roboto',
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        font: 'Roboto',
+                        fontStyle: 'normal',
+                        fontSize: 8,
+                        cellPadding: 3
+                    },
+                    margin: { top: 10 }
+                });
+            }
+
             // ==================== FOOTER ====================
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
@@ -290,10 +376,10 @@ async function generateProfessionalPDFReport(reportData) {
                 doc.setFontSize(8);
                 doc.setFont("Roboto", "italic");
                 doc.setTextColor(100, 100, 100);
-                
+
                 doc.setDrawColor(200, 200, 200);
                 doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
-                
+
                 doc.text(`Sayfa ${i} / ${pageCount}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
                 doc.text('ProClean Rapor Sistemi', margin, pageHeight - 15);
                 doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin, pageHeight - 15, { align: 'right' });
@@ -308,6 +394,7 @@ async function generateProfessionalPDFReport(reportData) {
         }
     });
 }
+
 
 
 
