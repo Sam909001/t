@@ -116,6 +116,7 @@ async function generateProfessionalPDFReport(reportData) {
 
             // ==================== FONTS ====================
             doc.setFont("Roboto", "normal");
+            doc.setFont("Roboto", "bold");
 
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
@@ -622,6 +623,7 @@ async function generatePDFReport(reportData) {
             
             // Set default font
            doc.setFont("Roboto", "normal");
+           doc.setFont("Roboto", "bold");
             
             // Title
             doc.setFontSize(16);
