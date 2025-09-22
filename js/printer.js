@@ -72,161 +72,165 @@ class PrinterService {
         return text.replace(/[ıİğĞüÜşŞöÖçÇ]/g, char => replacements[char] || char);
     }
 
-
-
-    
-async printLabel(pkg, settings = {}) {
-    if (!this.isConnected) {
-        showAlert('Yazıcı servisi bağlı değil.', 'error');
-        return false;
-    }
-
-    try {
-        const { jsPDF } = window.jspdf;
-
-        // ---------------- LABEL SIZE ----------------
-        const labelWidth = 100;  // mm
-        const labelHeight = 80;  // mm
-        
-        const doc = new jsPDF({
-            unit: 'mm',
-            format: [labelWidth, labelHeight],
-            compress: true
-        });
-
-        // ---------------- FONT SETUP ----------------
-        if (typeof RobotoBold !== 'undefined') {
-            // Roboto-Bold base64 font mevcut
-            doc.addFileToVFS("Roboto-Bold.ttf", RobotoBold);
-            doc.addFont("Roboto-Bold.ttf", "Roboto-Bold", "bold");
-            doc.setFont("Roboto-Bold", "bold");
-        } else {
-            console.warn('RobotoBold undefined, default font kullanılacak.');
-            doc.setFont('helvetica', 'bold');
-        }
-
-        doc.setFontSize(12);
-        doc.text("YEDITEPE", 5, 10);
-
-        // ---------------- LABEL PROPERTIES ----------------
-        doc.setProperties({
-            title: 'Etiket',
-            subject: 'Paket Etiketi',
-            author: 'Yeditepe Laundry',
-            keywords: 'etiket, paket',
-            creator: 'Yeditepe Laundry System'
-        });
-
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 10;
-        let y = margin + 5;
-
-        // ---------------- HEADER ----------------
-        const headerText = 'Yeditepe Laundry';
-        const headerFontSize = 18;
-        doc.setFontSize(headerFontSize);
-        doc.text(headerText, pageWidth / 2, y, { align: 'center' });
-        y += headerFontSize * 0.5;
-
-        // Underline
-        doc.setLineWidth(0.5);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 8;
-
-        // ---------------- PACKAGE INFO ----------------
-        const infoLines = [
-            `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
-            `Ürün: ${pkg.product || 'Bilinmiyor'}`,
-            `Tarih: ${pkg.created_at || new Date().toLocaleDateString('tr-TR')}`
-        ];
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(11);
-        const lineSpacing = 7;
-        infoLines.forEach(line => {
-            doc.text(line, pageWidth / 2, y, { align: 'center' });
-            y += lineSpacing;
-        });
-
-        y += 5;
-
-        // ---------------- BARCODE ----------------
-        const packageNo = pkg.package_no || 'NO_BARCODE';
-        const sanitizedPackageNo = this.sanitizeBarcodeText(packageNo);
-
-        const canvas = document.createElement('canvas');
-        try {
-            JsBarcode(canvas, sanitizedPackageNo, {
-                format: 'CODE128',
-                lineColor: '#000',
-                width: 2.5,
-                height: 40,
-                displayValue: false,
-                fontSize: 14,
-                margin: 0,
-                textMargin: 0
-            });
-
-            const barcodeWidth = 65;
-            const barcodeHeight = 20;
-            const barcodeX = (pageWidth - barcodeWidth) / 2;
-            doc.addImage(canvas.toDataURL('image/png'), 'PNG', barcodeX, y, barcodeWidth, barcodeHeight);
-
-            y += barcodeHeight + 3;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(12);
-            doc.text(`Barkod: ${packageNo}`, pageWidth / 2, y, { align: 'center' });
-
-        } catch (barcodeError) {
-            console.error('Barcode generation error:', barcodeError);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(14);
-            doc.text(`Barkod: ${packageNo}`, pageWidth / 2, y + 10, { align: 'center' });
-        }
-
-        // ---------------- BORDER ----------------
-        doc.setLineWidth(0.2);
-        doc.rect(2, 2, labelWidth - 4, labelHeight - 4);
-
-        // ---------------- SEND TO PRINTER ----------------
-        const pdfBase64 = doc.output('datauristring');
-        const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                pdfData: pdfBase64,
-                copies: settings.copies || 1,
-                scaling: settings.printerScaling || 'fit',
-                centered: true
-            }),
-            signal: AbortSignal.timeout(15000)
-        });
-
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('text/html')) {
-            const htmlResponse = await response.text();
-            console.error('Server returned HTML:', htmlResponse.substring(0, 500));
-            throw new Error('Server returned HTML instead of JSON.');
-        }
-
-        const result = await response.json();
-        if (result.success) {
-            console.log(`✅ Label printed: ${packageNo}`);
-            return true;
-        } else {
-            console.error(`❌ Print failed: ${result.error}`);
-            showAlert(`Yazdırma hatası: ${result.error}`, 'error');
+    async printLabel(pkg, settings = {}) {
+        if (!this.isConnected) {
+            showAlert('Yazıcı servisi bağlı değil.', 'error');
             return false;
         }
 
-    } catch (error) {
-        console.error('❌ Print error:', error);
-        const msg = error.name === 'AbortError' ? 'İstek zaman aşımı. Sunucu yanıt vermiyor.' : error.message;
-        showAlert(`Yazdırma hatası: ${msg}`, 'error');
-        return false;
-    }
-}
+        try {
+            const { jsPDF } = window.jspdf;
 
-    
+            // ---------------- EXACT LABEL SIZE: 10cm x 8cm ----------------
+            const labelWidth = 100;  // 10cm in mm
+            const labelHeight = 80;  // 8cm in mm
+            
+            const doc = new jsPDF({
+                unit: 'mm',
+                format: [labelWidth, labelHeight],
+                compress: true
+            });
+
+            // ---------------- FONT SETUP FOR TURKISH CHARACTERS ----------------
+            doc.setFont('helvetica', 'normal');
+            
+            // Set document properties
+            doc.setProperties({
+                title: 'Etiket',
+                subject: 'Paket Etiketi',
+                author: 'Yeditepe Laundry',
+                keywords: 'etiket, paket',
+                creator: 'Yeditepe Laundry System'
+            });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 3; // Smaller margin for 10x8cm
+            let y = margin + 3;
+
+            // ---------------- COMPANY HEADER ----------------
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14);
+            const headerText = 'YEDITEPE LAUNDRY';
+            doc.text(headerText, pageWidth / 2, y, { align: 'center' });
+            y += 6;
+
+            // Underline
+            doc.setLineWidth(0.3);
+            doc.line(margin + 5, y, pageWidth - margin - 5, y);
+            y += 8;
+
+            // ---------------- PACKAGE INFORMATION ----------------
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            
+            const infoLines = [
+                `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
+                `Ürün: ${pkg.product || 'Bilinmiyor'}`,
+                `Tarih: ${pkg.created_at || new Date().toLocaleDateString('tr-TR')}`
+            ];
+
+            const lineSpacing = 5;
+            infoLines.forEach(line => {
+                // Check if text fits within label width
+                const textWidth = doc.getTextWidth(line);
+                if (textWidth > (pageWidth - 2 * margin)) {
+                    // Split long text into multiple lines
+                    const splitText = doc.splitTextToSize(line, pageWidth - 2 * margin);
+                    splitText.forEach(splitLine => {
+                        doc.text(splitLine, margin, y);
+                        y += lineSpacing;
+                    });
+                } else {
+                    doc.text(line, margin, y);
+                    y += lineSpacing;
+                }
+            });
+
+            y += 3;
+
+            // ---------------- BARCODE SECTION ----------------
+            const packageNo = pkg.package_no || 'NO_BARCODE';
+            const sanitizedPackageNo = this.sanitizeBarcodeText(packageNo);
+
+            const canvas = document.createElement('canvas');
+            try {
+                JsBarcode(canvas, sanitizedPackageNo, {
+                    format: 'CODE128',
+                    lineColor: '#000',
+                    width: 1.8, // Smaller width for 10x8cm
+                    height: 25,  // Smaller height for 10x8cm
+                    displayValue: false,
+                    fontSize: 12,
+                    margin: 0,
+                    textMargin: 0
+                });
+
+                const barcodeWidth = 55; // Fit within 10cm width
+                const barcodeHeight = 15; // Fit within 8cm height
+                const barcodeX = (pageWidth - barcodeWidth) / 2;
+                
+                // Ensure barcode fits within remaining space
+                if (y + barcodeHeight + 10 < pageHeight - margin) {
+                    doc.addImage(canvas.toDataURL('image/png'), 'PNG', barcodeX, y, barcodeWidth, barcodeHeight);
+                    y += barcodeHeight + 3;
+                    
+                    // Barcode number below
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.text(packageNo, pageWidth / 2, y, { align: 'center' });
+                }
+
+            } catch (barcodeError) {
+                console.error('Barcode generation error:', barcodeError);
+                // Fallback: just show package number
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text(`Paket No: ${packageNo}`, pageWidth / 2, y, { align: 'center' });
+            }
+
+            // ---------------- BORDER FOR EXACT 10x8cm ----------------
+            doc.setLineWidth(0.5);
+            doc.rect(1, 1, labelWidth - 2, labelHeight - 2);
+
+            // ---------------- SEND TO PRINTER ----------------
+            const pdfBase64 = doc.output('datauristring');
+            const response = await fetch(`${this.serverUrl}/api/print/pdf`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pdfData: pdfBase64,
+                    copies: settings.copies || 1,
+                    scaling: 'noscale', // No scaling to maintain exact 10x8cm
+                    centered: true
+                }),
+                signal: AbortSignal.timeout(15000)
+            });
+
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                const htmlResponse = await response.text();
+                console.error('Server returned HTML:', htmlResponse.substring(0, 500));
+                throw new Error('Server returned HTML instead of JSON.');
+            }
+
+            const result = await response.json();
+            if (result.success) {
+                console.log(`✅ Label printed: ${packageNo}`);
+                return true;
+            } else {
+                console.error(`❌ Print failed: ${result.error}`);
+                showAlert(`Yazdırma hatası: ${result.error}`, 'error');
+                return false;
+            }
+
+        } catch (error) {
+            console.error('❌ Print error:', error);
+            const msg = error.name === 'AbortError' ? 'İstek zaman aşımı. Sunucu yanıt vermiyor.' : error.message;
+            showAlert(`Yazdırma hatası: ${msg}`, 'error');
+            return false;
+        }
+    }
 
     // Test print function with settings
     async testPrint(settings = {}) {
@@ -326,7 +330,7 @@ async function printAllLabels() {
                 customer_name: row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri',
                 product: row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün',
                 created_at: row.cells[4]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR'),
-                total_quantity: '1' // You might want to extract this from your data
+                total_quantity: '1'
             };
 
             const result = await printerInstance.printLabel(pkg, settings);
@@ -359,55 +363,10 @@ async function printAllLabels() {
 
     // Show final result
     if (successCount > 0 && errorCount === 0) {
-        showAlert(`✅ ${successCount} etiket başarıyla yazdırıldı!`, 'success');
-    } else if (successCount > 0) {
-        showAlert(`⚠️ ${successCount} etiket yazdırıldı, ${errorCount} hata oluştu.`, 'warning');
+        showAlert(`✅ Tüm etiketler başarıyla yazdırıldı (${successCount} adet)`, 'success');
+    } else if (successCount > 0 && errorCount > 0) {
+        showAlert(`⚠️ ${successCount} etiket yazdırıldı, ${errorCount} etiket başarısız`, 'warning');
     } else {
-        showAlert(`❌ Hiçbir etiket yazdırılamadı. ${errorCount} hata oluştu.`, 'error');
+        showAlert(`❌ Hiçbir etiket yazdırılamadı (${errorCount} hata)`, 'error');
     }
 }
-
-// ================== TEST PRINT WITH SETTINGS ==================
-async function testPrintWithSettings() {
-    const printerInstance = getPrinter();
-    if (!printerInstance) {
-        showAlert('Yazıcı servisi başlatılamadı.', 'error');
-        return;
-    }
-
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    
-    const testButton = document.getElementById('test-printer-yazdir');
-    const originalText = testButton?.textContent;
-    
-    if (testButton) {
-        testButton.disabled = true;
-        testButton.textContent = 'Test Ediliyor...';
-    }
-
-    try {
-        await printerInstance.testPrint(settings);
-    } catch (error) {
-        console.error('Test print error:', error);
-        showAlert('Test yazdırma başarısız: ' + error.message, 'error');
-    } finally {
-        if (testButton) {
-            testButton.disabled = false;
-            testButton.textContent = originalText;
-        }
-    }
-}
-
-// ================== DOM EVENTS ==================
-document.addEventListener('DOMContentLoaded', () => {
-    initializePrinter();
-
-    // Attach event listeners
-    document.getElementById('print-button')?.addEventListener('click', printAllLabels);
-    document.getElementById('printer-status')?.addEventListener('click', checkPrinterStatus);
-    document.getElementById('test-printer-yazdir')?.addEventListener('click', testPrintWithSettings);
-
-    // Update system status periodically
-    checkSystemStatus();
-    setInterval(checkSystemStatus, 30000); // Check every 30 seconds
-});
