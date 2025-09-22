@@ -1,7 +1,7 @@
 // Report operations - Fixed version with PDF upload to Supabase
 async function generateDailyReport() {
     try {
-        showAlert('Günlük rapor oluşturuluyor...', 'info');
+        showAlert('Profesyonel günlük rapor oluşturuluyor...', 'info');
 
         // Fetch the authenticated user first
         const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -54,9 +54,9 @@ async function generateDailyReport() {
             user_id: user.id
         };
 
-        // Generate PDF first
-        showAlert('PDF oluşturuluyor...', 'info');
-        const pdfBlob = await generatePDFReport(currentReportData);
+        // Generate PDF with professional template
+        showAlert('Profesyonel PDF oluşturuluyor...', 'info');
+        const pdfBlob = await generateProfessionalPDFReport(currentReportData);
         const pdfUrl = await uploadPDFToSupabase(pdfBlob, currentReportData);
 
         // Save report to database with PDF URL
@@ -77,7 +77,7 @@ async function generateDailyReport() {
         currentReportData.id = report.id;
         currentReportData.pdf_url = pdfUrl; // Store PDF URL in current data
         
-        showAlert('Günlük rapor ve PDF başarıyla oluşturuldu', 'success');
+        showAlert('Profesyonel günlük rapor ve PDF başarıyla oluşturuldu', 'success');
         
         // Show email modal with customer email if available
         document.getElementById('reportEmail').value = selectedCustomer?.email || '';
@@ -88,6 +88,356 @@ async function generateDailyReport() {
         showAlert(`Rapor oluşturulamadı: ${error.message}`, 'error');
     }
 }
+
+// Professional PDF Generation Function with Turkish Support
+async function generateProfessionalPDFReport(reportData) {
+    return new Promise((resolve, reject) => {
+        try {
+            // Check if jsPDF is available
+            if (typeof window.jspdf === 'undefined') {
+                throw new Error('jsPDF kütüphanesi yüklenmemiş');
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Set font for Turkish characters
+            doc.setFont("helvetica");
+            
+            // Page dimensions
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 15;
+            let currentY = margin;
+
+            // ==================== COVER PAGE ====================
+            // Professional header with gradient effect
+            doc.setFillColor(41, 128, 185);
+            doc.rect(0, 0, pageWidth, 80, 'F');
+            
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(255, 255, 255);
+            doc.text('PROCLEAN ÇAMAŞIRHANE', pageWidth / 2, 35, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.text('Günlük Detaylı İş Raporu', pageWidth / 2, 50, { align: 'center' });
+            
+            doc.setFontSize(10);
+            doc.text(reportData.date, pageWidth / 2, 65, { align: 'center' });
+
+            // Report details box
+            currentY = 100;
+            doc.setFillColor(245, 245, 245);
+            doc.roundedRect(margin, currentY, pageWidth - 2 * margin, 50, 3, 3, 'F');
+            doc.setDrawColor(200, 200, 200);
+            doc.roundedRect(margin, currentY, pageWidth - 2 * margin, 50, 3, 3, 'D');
+            
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('RAPOR DETAYLARI', margin + 10, currentY + 15);
+            
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+            doc.text(`Rapor Tarihi: ${reportData.date}`, margin + 10, currentY + 25);
+            doc.text(`Rapor No: ${reportData.id || 'Yerel Kayıt'}`, margin + 10, currentY + 35);
+            doc.text(`Operatör: ${reportData.operator}`, pageWidth - margin - 10, currentY + 25, { align: 'right' });
+            doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin - 10, currentY + 35, { align: 'right' });
+
+            currentY += 70;
+
+            // ==================== EXECUTIVE SUMMARY ====================
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(41, 128, 185);
+            doc.text('Günlük Faaliyet Özeti', margin, currentY);
+            
+            currentY += 10;
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, currentY, pageWidth - margin, currentY);
+            currentY += 15;
+
+            // Summary boxes
+            const summaryBoxes = [
+                { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219], icon: '📦' },
+                { title: 'Toplam Ürün', value: reportData.totalItems, color: [46, 204, 113], icon: '👕' },
+                { title: 'Konteyner', value: reportData.containers || 0, color: [155, 89, 182], icon: '🚢' },
+                { title: 'Müşteri', value: reportData.customers || 0, color: [241, 196, 15], icon: '👥' }
+            ];
+
+            const boxWidth = (pageWidth - 2 * margin - 15) / 4;
+            summaryBoxes.forEach((box, index) => {
+                const x = margin + index * (boxWidth + 5);
+                
+                // Box background
+                doc.setFillColor(...box.color);
+                doc.roundedRect(x, currentY, boxWidth, 35, 3, 3, 'F');
+                
+                // Text
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'bold');
+                doc.text(box.icon, x + boxWidth / 2, currentY + 10, { align: 'center' });
+                doc.text(box.title, x + boxWidth / 2, currentY + 18, { align: 'center' });
+                
+                doc.setFontSize(11);
+                doc.text(box.value.toString(), x + boxWidth / 2, currentY + 28, { align: 'center' });
+            });
+
+            currentY += 50;
+
+            // ==================== DETAILED BREAKDOWN ====================
+            // Check if we need a new page
+            if (currentY > pageHeight - 100) {
+                doc.addPage();
+                currentY = margin;
+            }
+
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(41, 128, 185);
+            doc.text('Detaylı Günlük Döküm', margin, currentY);
+            currentY += 15;
+
+            // Package Statistics
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text('📊 PAKET İSTATİSTİKLERİ:', margin, currentY);
+            currentY += 8;
+
+            doc.setFont(undefined, 'normal');
+            const avgPackagesPerCustomer = reportData.customers > 0 ? (reportData.totalPackages / reportData.customers).toFixed(1) : 0;
+            const avgItemsPerPackage = reportData.totalPackages > 0 ? (reportData.totalItems / reportData.totalPackages).toFixed(1) : 0;
+
+            const packageStats = [
+                `• Toplam işlenen paket: ${reportData.totalPackages} adet`,
+                `• Toplam ürün miktarı: ${reportData.totalItems} adet`,
+                `• Hizmet verilen müşteri sayısı: ${reportData.customers || 0} firma`,
+                `• Ortalama paket/müşteri: ${avgPackagesPerCustomer}`,
+                `• Ortalama ürün/paket: ${avgItemsPerPackage}`
+            ];
+
+            packageStats.forEach(stat => {
+                if (currentY > pageHeight - 20) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+                doc.text(stat, margin + 5, currentY);
+                currentY += 6;
+            });
+
+            currentY += 10;
+
+            // ==================== PACKAGE DETAILS TABLE ====================
+            if (reportData.packages && reportData.packages.length > 0) {
+                if (currentY > pageHeight - 100) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(41, 128, 185);
+                doc.text('📋 PAKET DETAYLARI', margin, currentY);
+                currentY += 10;
+
+                // Use autoTable if available for professional tables
+                if (doc.autoTable) {
+                    const packageData = reportData.packages.map(pkg => [
+                        pkg.package_no || 'N/A',
+                        pkg.customers?.name || 'N/A',
+                        pkg.total_quantity?.toString() || '0',
+                        pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A',
+                        pkg.packer || 'Bilinmiyor'
+                    ]);
+
+                    doc.autoTable({
+                        startY: currentY,
+                        head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Paketleyen']],
+                        body: packageData,
+                        theme: 'grid',
+                        headStyles: { 
+                            fillColor: [41, 128, 185],
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold'
+                        },
+                        styles: {
+                            fontSize: 8,
+                            cellPadding: 3,
+                            font: 'helvetica'
+                        },
+                        margin: { top: 10 },
+                        pageBreak: 'auto'
+                    });
+
+                    currentY = doc.lastAutoTable.finalY + 15;
+                } else {
+                    // Fallback to manual table
+                    // Table header
+                    doc.setFillColor(52, 152, 219);
+                    doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(9);
+                    doc.text('Paket No', margin + 5, currentY + 5);
+                    doc.text('Müşteri', margin + 40, currentY + 5);
+                    doc.text('Adet', pageWidth - margin - 30, currentY + 5, { align: 'right' });
+                    doc.text('Tarih', pageWidth - margin - 10, currentY + 5, { align: 'right' });
+
+                    currentY += 12;
+
+                    // Table rows
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    doc.setFontSize(8);
+
+                    reportData.packages.forEach((pkg, index) => {
+                        if (currentY > pageHeight - 15) {
+                            doc.addPage();
+                            currentY = margin;
+                            // Add header to new page
+                            doc.setFillColor(52, 152, 219);
+                            doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
+                            doc.setTextColor(255, 255, 255);
+                            doc.text('Paket No', margin + 5, currentY + 5);
+                            doc.text('Müşteri', margin + 40, currentY + 5);
+                            doc.text('Adet', pageWidth - margin - 30, currentY + 5, { align: 'right' });
+                            doc.text('Tarih', pageWidth - margin - 10, currentY + 5, { align: 'right' });
+                            currentY += 12;
+                        }
+
+                        // Alternate row colors
+                        if (index % 2 === 0) {
+                            doc.setFillColor(245, 245, 245);
+                            doc.rect(margin, currentY - 2, pageWidth - 2 * margin, 6, 'F');
+                        }
+
+                        const packageNo = pkg.package_no || 'N/A';
+                        const customerName = pkg.customers?.name || 'N/A';
+                        const quantity = pkg.total_quantity || 0;
+                        const date = pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A';
+
+                        // Truncate long text
+                        const truncatedPackageNo = packageNo.length > 12 ? packageNo.substring(0, 9) + '...' : packageNo;
+                        const truncatedCustomer = customerName.length > 20 ? customerName.substring(0, 17) + '...' : customerName;
+
+                        doc.text(truncatedPackageNo, margin + 5, currentY);
+                        doc.text(truncatedCustomer, margin + 40, currentY);
+                        doc.text(quantity.toString(), pageWidth - margin - 30, currentY, { align: 'right' });
+                        doc.text(date, pageWidth - margin - 10, currentY, { align: 'right' });
+
+                        currentY += 6;
+                    });
+
+                    currentY += 15;
+                }
+            }
+
+            // ==================== CRITICAL STOCK ALERTS ====================
+            if (reportData.criticalStock && reportData.criticalStock.length > 0) {
+                if (currentY > pageHeight - 80) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(231, 76, 60);
+                doc.text('⚠️ KRİTİK STOK UYARILARI', margin, currentY);
+                currentY += 10;
+
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(0, 0, 0);
+
+                reportData.criticalStock.forEach((item, index) => {
+                    if (currentY > pageHeight - 15) {
+                        doc.addPage();
+                        currentY = margin;
+                    }
+
+                    const status = item.quantity <= 0 ? 'STOK TÜKENDİ' : 'AZ STOK';
+                    doc.text(`🔴 ${item.name} (${item.code}) - ${item.quantity} adet - ${status}`, margin, currentY);
+                    currentY += 5;
+                });
+
+                currentY += 10;
+            }
+
+            // ==================== CONTAINER SUMMARY ====================
+            if (reportData.containers && reportData.containers.length > 0) {
+                if (currentY > pageHeight - 60) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(46, 204, 113);
+                doc.text('🚢 KONTEYNER ÖZETİ', margin, currentY);
+                currentY += 10;
+
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(0, 0, 0);
+
+                reportData.containers.forEach(container => {
+                    if (currentY > pageHeight - 15) {
+                        doc.addPage();
+                        currentY = margin;
+                    }
+
+                    doc.text(`📦 ${container.container_no} - ${container.package_count || 0} paket - ${container.total_quantity || 0} adet`, margin, currentY);
+                    currentY += 5;
+                });
+
+                currentY += 10;
+            }
+
+            // ==================== FOOTER ====================
+            const addFooter = (doc) => {
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'italic');
+                    doc.setTextColor(100, 100, 100);
+                    
+                    // Footer line
+                    doc.setDrawColor(200, 200, 200);
+                    doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+                    
+                    // Footer text
+                    doc.text(`Sayfa ${i} / ${pageCount}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
+                    doc.text('ProClean Profesyonel Rapor Sistemi', margin, pageHeight - 15);
+                    doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - margin, pageHeight - 15, { align: 'right' });
+                }
+            };
+
+            // Add footer to all pages
+            addFooter(doc);
+
+            // ==================== FINAL TOUCHES ====================
+            // Add watermark on first page
+            doc.setPage(1);
+            doc.setFontSize(60);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(240, 240, 240);
+            doc.text('PROCLEAN', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+
+            // Generate PDF blob
+            const pdfBlob = doc.output('blob');
+            resolve(pdfBlob);
+            
+        } catch (error) {
+            console.error('Profesyonel PDF oluşturma hatası:', error);
+            reject(new Error(`Profesyonel PDF oluşturulamadı: ${error.message}`));
+        }
+    });
+}
+
+
 
 // Upload PDF to Supabase Storage
 async function uploadPDFToSupabase(pdfBlob, reportData) {
