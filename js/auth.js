@@ -1,4 +1,7 @@
 // FIXED: Kullanıcı girişi
+let connectionTested = false; // Flag to prevent duplicate connection tests
+
+// FIXED: Kullanıcı girişi
 async function login() {
     // Supabase client'ı kontrol et ve gerekirse başlat
     if (!supabase) {
@@ -44,39 +47,34 @@ async function login() {
                 .eq('email', data.user.email)
                 .single();
 
-            if (!userError && userData) {
-                currentUser = {
-                    email: data.user.email,
-                    uid: data.user.id,
-                    name: userData.name || data.user.email.split('@')[0],
-                    role: userData.role
-                };
-            } else {
-                currentUser = {
-                    email: data.user.email,
-                    uid: data.user.id,
-                    name: data.user.email.split('@')[0],
-                    role: 'operator' // Varsayılan rol
-                };
-            }
+            currentUser = {
+                email: data.user.email,
+                uid: data.user.id,
+                name: userData?.name || data.user.email.split('@')[0],
+                role: userData?.role || 'operator'
+            };
 
             const userRoleElement = document.getElementById('userRole');
             if (userRoleElement) {
                 userRoleElement.textContent = 
                     `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
             }
-            
-            // Rol bazlı yetkilendirme (eğer fonksiyon mevcutsa)
+
+            // Rol bazlı yetkilendirme
             if (typeof applyRoleBasedPermissions === 'function') {
                 applyRoleBasedPermissions(currentUser.role);
             }
-            
+
             showAlert('Giriş başarılı!', 'success');
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
-            
-            // Bağlantı testini arka planda yap
-            testConnection();
+
+            // Test connection only once after login
+            if (!connectionTested) {
+                await testConnection();
+                connectionTested = true;
+            }
+
         } else {
             showAlert('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
         }
@@ -89,6 +87,7 @@ async function login() {
         loginBtn.textContent = 'Giriş Yap';
     }
 }
+
 
 
 
