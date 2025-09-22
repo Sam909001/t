@@ -64,23 +64,12 @@ class PrinterService {
         try {
             const { jsPDF } = window.jspdf;
 // ---------------- LABEL SIZE ----------------
-// ---------------- LABEL SIZE ----------------
 const labelWidth = 100; // 10 cm
 const labelHeight = 80; // 8 cm
-const doc = new jsPDF({
-    unit: 'mm',
-    format: [labelWidth, labelHeight],
-    orientation: 'portrait'
-});
+const doc = new jsPDF({ unit: 'mm', format: [labelWidth, labelHeight] });
 
 const pageWidth = doc.internal.pageSize.getWidth();
 const pageHeight = doc.internal.pageSize.getHeight();
-
-// ---------------- FONT SETUP ----------------
-if (settings.base64Font) {
-    doc.addFileToVFS("Roboto-Regular.ttf", settings.base64Font);
-    doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
-}
 
 // ---------------- HEADER + INFO ----------------
 const headerText = 'Yeditepe Laundry';
@@ -97,32 +86,34 @@ const spacingBeforeBarcode = 4;
 // ---------------- BARCODE ----------------
 const canvas = document.createElement('canvas');
 const packageNo = pkg.package_no || 'NO_BARCODE';
-JsBarcode(canvas, packageNo, {
-    format: "CODE128",
-    lineColor: "#000",
-    width: 2,
-    height: 35,
-    displayValue: true,
-    fontSize: 12,
-    margin: 0
-});
-const barcodeWidth = 70; // 7 cm
-const barcodeHeight = 35;
+
+// JsBarcode must exist
+if (typeof JsBarcode === 'undefined') {
+    console.error('JsBarcode is not loaded!');
+} else {
+    JsBarcode(canvas, packageNo, {
+        format: "CODE128",
+        lineColor: "#000",
+        width: 2,
+        height: 35,
+        displayValue: true,
+        fontSize: 12,
+        margin: 0
+    });
+}
 
 // ---------------- TOTAL HEIGHT ----------------
-const totalContentHeight = headerFontSize + (infoLines.length * lineSpacing) + spacingBeforeBarcode + barcodeHeight;
-
-// ---------------- START Y ----------------
-let y = (pageHeight - totalContentHeight) / 2;
+const totalContentHeight = headerFontSize + (infoLines.length * lineSpacing) + spacingBeforeBarcode + 35; // 35 barcode height
+let y = Math.max(5, (pageHeight - totalContentHeight) / 2); // safety: don't go negative
 
 // ---------------- DRAW HEADER ----------------
-doc.setFont("Roboto", "bold");
+doc.setFont("helvetica", "bold");
 doc.setFontSize(headerFontSize);
 doc.text(headerText, pageWidth / 2, y, { align: 'center' });
 y += headerFontSize + 2;
 
 // ---------------- DRAW INFO ----------------
-doc.setFont("Roboto", "normal");
+doc.setFont("helvetica", "normal");
 doc.setFontSize(infoFontSize);
 infoLines.forEach(line => {
     doc.text(line, pageWidth / 2, y, { align: 'center' });
@@ -132,30 +123,9 @@ infoLines.forEach(line => {
 y += spacingBeforeBarcode;
 
 // ---------------- DRAW BARCODE ----------------
-doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, barcodeHeight);
-
-
-// Start Y so that everything is vertically centered
-let y = (pageHeight - totalContentHeight) / 2;
-
-// ---------------- DRAW HEADER ----------------
-doc.setFont("Roboto", "bold");
-doc.setFontSize(headerFontSize);
-doc.text(headerText, pageWidth / 2, y, { align: 'center' });
-y += headerFontSize + 2;
-
-// ---------------- DRAW PACKAGE INFO ----------------
-doc.setFont("Roboto", "normal");
-doc.setFontSize(infoFontSize);
-infoLines.forEach(line => {
-    doc.text(line, pageWidth / 2, y, { align: 'center' });
-    y += lineSpacing;
-});
-
-y += spacingBeforeBarcode;
-
-// ---------------- DRAW BARCODE ----------------
-doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, barcodeHeight);
+if (canvas.toDataURL) {
+    doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - 70) / 2, y, 70, 35);
+}
 
 
             // ---------------- SEND TO PRINTER ----------------
