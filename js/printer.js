@@ -65,12 +65,12 @@ class PrinterService {
             const { jsPDF } = window.jspdf;
 // ---------------- LABEL SIZE ----------------
 // ---------------- LABEL SIZE ----------------
-const labelWidth = settings.labelWidth || 100; // 10 cm in mm
-const labelHeight = settings.labelHeight || 80; // 8 cm in mm
+const labelWidth = 100; // 10 cm
+const labelHeight = 80; // 8 cm
 const doc = new jsPDF({
     unit: 'mm',
     format: [labelWidth, labelHeight],
-    orientation: settings.orientation || 'portrait'
+    orientation: 'portrait'
 });
 
 const pageWidth = doc.internal.pageSize.getWidth();
@@ -81,23 +81,16 @@ if (settings.base64Font) {
     doc.addFileToVFS("Roboto-Regular.ttf", settings.base64Font);
     doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
 }
-doc.setFontSize(settings.fontSize || 12);
 
-// ---------------- HEADER ----------------
-const headerText = settings.headerText || 'Yeditepe Laundry';
-const headerFontSize = settings.headerFontSize || 14;
-doc.setFont("Roboto", "bold");
-doc.setFontSize(headerFontSize);
-
-// ---------------- PACKAGE INFO ----------------
-doc.setFont("Roboto", "normal");
+// ---------------- HEADER + INFO ----------------
+const headerText = 'Yeditepe Laundry';
+const headerFontSize = 14;
 const infoLines = [
     `Müşteri: ${pkg.customer_name || 'Bilinmiyor'}`,
     `Ürün: ${pkg.product || 'Bilinmiyor'}`,
     `Tarih: ${pkg.created_at || new Date().toLocaleDateString()}`
 ];
-const infoFontSize = settings.fontSize || 12;
-doc.setFontSize(infoFontSize);
+const infoFontSize = 12;
 const lineSpacing = 6;
 const spacingBeforeBarcode = 4;
 
@@ -107,17 +100,40 @@ const packageNo = pkg.package_no || 'NO_BARCODE';
 JsBarcode(canvas, packageNo, {
     format: "CODE128",
     lineColor: "#000",
-    width: settings.barcodeWidthFactor || 2,
-    height: settings.barcodeHeight || 35,
+    width: 2,
+    height: 35,
     displayValue: true,
-    fontSize: settings.barcodeFontSize || 12,
+    fontSize: 12,
     margin: 0
 });
-const barcodeWidth = settings.barcodePrintWidth || 70; // 7 cm wide
-const barcodeHeight = settings.barcodeHeight || 35;
+const barcodeWidth = 70; // 7 cm
+const barcodeHeight = 35;
 
-// ---------------- CALCULATE TOTAL HEIGHT FOR CENTERING ----------------
+// ---------------- TOTAL HEIGHT ----------------
 const totalContentHeight = headerFontSize + (infoLines.length * lineSpacing) + spacingBeforeBarcode + barcodeHeight;
+
+// ---------------- START Y ----------------
+let y = (pageHeight - totalContentHeight) / 2;
+
+// ---------------- DRAW HEADER ----------------
+doc.setFont("Roboto", "bold");
+doc.setFontSize(headerFontSize);
+doc.text(headerText, pageWidth / 2, y, { align: 'center' });
+y += headerFontSize + 2;
+
+// ---------------- DRAW INFO ----------------
+doc.setFont("Roboto", "normal");
+doc.setFontSize(infoFontSize);
+infoLines.forEach(line => {
+    doc.text(line, pageWidth / 2, y, { align: 'center' });
+    y += lineSpacing;
+});
+
+y += spacingBeforeBarcode;
+
+// ---------------- DRAW BARCODE ----------------
+doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - barcodeWidth) / 2, y, barcodeWidth, barcodeHeight);
+
 
 // Start Y so that everything is vertically centered
 let y = (pageHeight - totalContentHeight) / 2;
