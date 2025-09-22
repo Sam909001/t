@@ -506,11 +506,11 @@ function showEmailJSConfigModal() {
             <p>E-posta göndermek için EmailJS yapılandırmanız gerekiyor.</p>
             <div style="margin: 15px 0;">
                 <label style="display: block; margin-bottom: 5px;">EmailJS Service ID:</label>
-                <input type="text" id="emailjsServiceId" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                <input type="text" id="service_4rt2w5g" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
             </div>
             <div style="margin: 15px 0;">
                 <label style="display: block; margin-bottom: 5px;">EmailJS Template ID:</label>
-                <input type="text" id="emailjsTemplateId" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                <input type="text" id="template_2jf8cvh" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button onclick="document.body.removeChild(this.parentElement.parentElement.parentElement)" style="padding: 8px 16px; background: #ccc; border: none; border-radius: 5px;">İptal</button>
