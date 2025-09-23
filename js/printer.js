@@ -35,53 +35,48 @@ class PrinterServiceElectron {
              const style = `
                 <style>
                     @page {
-                        size: 100mm 80mm landscape;
-                        margin: 0;
-                    }
-                    
-                    * {
-                        box-sizing: border-box;
-                        margin: 0;
-                        padding: 0;
-                    }
-                    
-                    body { 
-                        font-family: Arial, Helvetica, sans-serif; 
-                        margin: 0; 
-                        padding: 0;
-                        width: 100mm;
-                        height: 80mm;
-                        overflow: hidden;
-                    }
-                    
-                    .label {
-                        width: 100mm;
-                        height: 80mm;
-                        border: 1px solid #000;
-                        padding: 2mm;
-                        box-sizing: border-box;
-                        margin: 0;
-                        page-break-after: always;
-                        display: grid;
-                        grid-template-columns: 1fr auto;
-                        grid-template-rows: auto 1fr;
-                        gap: 1mm;
-                        overflow: hidden;
-                    }
-                    
-                    .label:last-child {
-                        page-break-after: avoid;
-                    }
- 
-                    .header { 
-                        font-weight: bold; 
-                        font-size: 18px; 
-                        text-align: center; 
-                        grid-column: 1 / -1;
-                        margin-bottom: 1mm;
-                        line-height: 1.1;
-                        padding: 1mm 0;
-                    }
+    size: 80mm 100mm portrait; /* vertical page */
+    margin: 0;
+}
+
+body {
+    width: 80mm;
+    height: 100mm;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.label {
+    width: 80mm;
+    height: 100mm;
+    border: 1px solid #000;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 2mm;
+    page-break-after: always;
+
+    /* rotate content 90 degrees clockwise */
+    transform: rotate(90deg);
+    transform-origin: top left;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto 1fr;
+    gap: 1mm;
+}
+
+.header {
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+    grid-column: 1 / -1;
+    margin-bottom: 1mm;
+    padding: 1mm 0;
+
+    /* push header to rotated right (original top) */
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+}
                     
                     .info-section {
                         display: flex;
