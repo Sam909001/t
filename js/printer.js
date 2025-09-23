@@ -19,7 +19,6 @@ class PrinterServiceElectron {
     // ---------------- PRINT SINGLE LABEL ----------------
     async printLabel(pkg) {
         try {
-            // Create a temporary window for printing
             const printWindow = window.open('', '', 'width=400,height=400');
             if (!printWindow) throw new Error('Popup blocked');
 
@@ -49,7 +48,6 @@ class PrinterServiceElectron {
             printWindow.document.write(html);
             printWindow.document.close();
 
-            // Generate barcode using JsBarcode inside the popup
             const canvas = printWindow.document.getElementById('barcodeCanvas');
             JsBarcode(canvas, pkg.package_no || '', {
                 format: 'CODE128',
@@ -59,10 +57,8 @@ class PrinterServiceElectron {
                 margin: 0
             });
 
-            // Wait a moment to render barcode
             await new Promise(resolve => setTimeout(resolve, 200));
 
-            // Trigger printing
             printWindow.focus();
             printWindow.print();
             printWindow.close();
@@ -76,86 +72,76 @@ class PrinterServiceElectron {
     }
 
     // ---------------- PRINT MULTIPLE LABELS ----------------
-  async printAllLabels(packages) {
-    if (!packages || packages.length === 0) {
-        showAlert("No packages selected for printing.", "error");
-        return false;
-    }
-
-    try {
-        // Create a hidden container for bulk printing
-        const printWindow = window.open("", "_blank");
-        printWindow.document.write(`
-            <html>
-            <head>
-                <style>
-                    body { font-family: Roboto, Arial, sans-serif; margin: 0; padding: 0; }
-                    .label {
-                        width: 100mm;
-                        height: 80mm;
-                        padding: 5mm;
-                        border: 1px dashed #000;
-                        margin: 10px auto;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: space-between;
-                        page-break-after: always;
-                    }
-                    .label h3 { margin: 0; font-size: 14pt; text-align: center; }
-                    .label p { margin: 2px 0; font-size: 11pt; }
-                    .barcode { margin-top: 5px; text-align: center; }
-                </style>
-            </head>
-            <body>
-        `);
-
-        // Loop through packages and build labels
-        for (let pkg of packages) {
-            printWindow.document.write(`
-                <div class="label">
-                    <h3>Package Label</h3>
-                    <p><strong>ID:</strong> ${pkg.id}</p>
-                    <p><strong>Customer:</strong> ${pkg.customer}</p>
-                    <p><strong>Service:</strong> ${pkg.service}</p>
-                    <p><strong>Date:</strong> ${pkg.date}</p>
-                    <div class="barcode">
-                        <svg id="barcode-${pkg.id}"></svg>
-                    </div>
-                </div>
-            `);
+    async printAllLabels(packages) {
+        if (!packages || packages.length === 0) {
+            alert("No packages selected for printing.");
+            return false;
         }
 
-        printWindow.document.write(`
-            </body>
-            </html>
-        `);
+        try {
+            const printWindow = window.open("", "_blank");
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <style>
+                        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; }
+                        .label {
+                            width: 100mm;
+                            height: 80mm;
+                            padding: 5mm;
+                            border: 1px dashed #000;
+                            margin: 10px auto;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: space-between;
+                            page-break-after: always;
+                        }
+                        .header { font-weight:bold; font-size:14px; text-align:center; margin-bottom:5px; }
+                        .info { font-size:11px; margin-bottom:4px; text-align:left; }
+                        .barcode { margin-top: 5px; text-align: center; }
+                    </style>
+                </head>
+                <body>
+            `);
 
-        printWindow.document.close();
-
-        // Wait until page is loaded, then generate barcodes
-        printWindow.onload = () => {
             for (let pkg of packages) {
-                const svgElement = printWindow.document.getElementById(`barcode-${pkg.id}`);
-                JsBarcode(svgElement, pkg.id, {
-                    format: "CODE128",
-                    displayValue: true,
-                    font: "Roboto",
-                    fontSize: 14,
-                    height: 40,
-                });
+                printWindow.document.write(`
+                    <div class="label">
+                        <div class="header">YEDITEPE LAUNDRY</div>
+                        <div class="info">Müşteri: ${pkg.customer_name || ''}</div>
+                        <div class="info">Ürün: ${pkg.product || ''}</div>
+                        <div class="info">Tarih: ${pkg.created_at || ''}</div>
+                        <div class="barcode">
+                            <svg id="barcode-${pkg.package_no}"></svg>
+                        </div>
+                        <div class="barcode-text">${pkg.package_no || ''}</div>
+                    </div>
+                `);
             }
 
-            // Trigger printing once all barcodes are rendered
-            printWindow.focus();
-            printWindow.print();
-        };
+            printWindow.document.write(`</body></html>`);
+            printWindow.document.close();
 
-        return true;
+            printWindow.onload = () => {
+                for (let pkg of packages) {
+                    const svgElement = printWindow.document.getElementById(`barcode-${pkg.package_no}`);
+                    JsBarcode(svgElement, pkg.package_no, {
+                        format: "CODE128",
+                        displayValue: false,
+                        fontSize: 14,
+                        height: 40,
+                    });
+                }
+                printWindow.focus();
+                printWindow.print();
+            };
 
-    } catch (error) {
-        console.error("Bulk print failed:", error);
-        showAlert("Bulk print failed: " + error.message, "error");
-        return false;
+            return true;
+        } catch (error) {
+            console.error("Bulk print failed:", error);
+            alert("Bulk print failed: " + error.message);
+            return false;
+        }
     }
 }
 
@@ -165,10 +151,8 @@ function getPrinterElectron() {
     return printerElectron;
 }
 
-// ================== HTML BUTTON EXAMPLES ==================
-// <button onclick="printSelectedElectron()">Yazdır</button>
-
-async function printSelectedElectron() {
+// ================== GLOBAL PRINT BUTTON ==================
+window.printSelectedElectron = async function () {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     if (checkboxes.length === 0) return alert('En az bir paket seçin');
 
@@ -183,4 +167,4 @@ async function printSelectedElectron() {
     });
 
     await printerElectron.printAllLabels(packages);
-}
+};
