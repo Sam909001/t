@@ -1251,25 +1251,6 @@ function getSelectedPackage() {
 
 
 
-// ================== Barcode Generator ==================
-function generateBarcode(text) {
-    try {
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        JsBarcode(svg, text, {
-            format: "CODE128",
-            lineColor: "#000",
-            width: 3,
-            height: 25,
-            displayValue: true,
-            fontSize: 10,
-            margin: 0
-        });
-        return svg.outerHTML;
-    } catch (error) {
-        console.error('Barkod oluşturma hatası:', error);
-        return `<div style="color:red; border:1px solid red; padding:5px;">Barkod oluşturulamadı: ${text}</div>`;
-    }
-}
 
 
 
