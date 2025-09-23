@@ -167,13 +167,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-        size: 150mm 105mm portrait;
+        size: 100mm 80mm landscape;
         margin: 0;
     }
 
                 body {
-                     width: 150mm !important;
-                     height: 105mm !important;
+                     width: 100mm !important;
+                     height: 80mm !important;
                      margin: 0 !important;
                      padding: 0 !important;
                     overflow: hidden;
