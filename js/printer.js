@@ -167,13 +167,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-                    size: 100mm 110mm portrait;
+                    size: 110mm 100mm landscape;
                     margin: 0;
                 }
 
                 body {
-                    width: 100mm;
-                    height: 110mm;
+                    width: 110mm;
+                    height: 100mm;
                     margin: 0;
                     padding: 0;
                     overflow: hidden;
@@ -230,13 +230,18 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     flex-shrink: 0;
                 }
 
+                .barcode {
+                    max-width: 35mm;
+                    height: auto;
+                }
+
                 .barcode-text {
-                    font-size: 11px;
+                    font-size: 10px;
                     font-weight: 700;
-                    margin-top: 2mm;
+                    margin-top: 1mm;
                     color: #000;
                     font-family: 'Courier New', monospace;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 0.3px;
                 }
 
                 /* === CUSTOMER SECTION === */
@@ -248,14 +253,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     text-align: center;
                     border-radius: 3mm;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                }
-
-                .customer-label {
-                    font-size: 10px;
-                    opacity: 0.8;
-                    margin-bottom: 1mm;
-                    font-weight: 400;
-                    letter-spacing: 0.5px;
                 }
 
                 .customer-name {
@@ -271,15 +268,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 .items-section {
                     flex: 1;
                     margin: 3mm 0;
-                }
-
-                .items-title {
-                    font-size: 12px;
-                    font-weight: 700;
-                    margin-bottom: 2mm;
-                    color: #000;
-                    border-bottom: 1px solid #ddd;
-                    padding-bottom: 1mm;
                 }
 
                 .item-list {
@@ -393,13 +381,11 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
 
                         <!-- CUSTOMER SECTION -->
                         <div class="customer-section">
-                            <div class="customer-label">CUSTOMER / MÜŞTERİ</div>
                             <h2 class="customer-name">${customerName}</h2>
                         </div>
 
                         <!-- ITEMS SECTION -->
                         <div class="items-section">
-                            <div class="items-title">LAUNDRY ITEMS / ÇAMAŞIR LİSTESİ</div>
                             <div class="item-list">
                                 ${items.map((item, idx) => `
                                     <div class="item">
@@ -429,8 +415,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         try {
                             JsBarcode(canvas, pkg.package_no || '', {
                                 format: 'CODE128',
-                                width: 1.8,
-                                height: barcodeHeight,
+                                width: 1.2,
+                                height: 25,
                                 displayValue: false,
                                 margin: 0,
                                 fontSize: Math.max(8, fontSize - 4)
