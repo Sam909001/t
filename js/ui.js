@@ -689,12 +689,22 @@ async function printPackageWithSettings(packageData) {
 }
 
 
+
+    // Language
+    if (settings.language) {
+        document.getElementById('languageSelect').value = settings.language;
+    }
+    
+    function changeLanguage(lang) {
+    console.log('Simulated language change:', lang);
+    // You can extend this later to actually change UI texts
+}
+
     
     
     // Auto-save
     document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
 }
-
 
 
 
