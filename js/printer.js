@@ -31,7 +31,7 @@ class PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-                size: 100mm 80mm;
+                size: 100mm 80mm landscape;
                 margin: 0;
                 }
 
