@@ -167,13 +167,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-                    size: 110mm 100mm landscape;
+                    size: 100mm 80mm portrait;
                     margin: 0;
                 }
 
                 body {
-                    width: 110mm;
-                    height: 100mm;
+                    width: 100mm;
+                    height: 80mm;
                     margin: 0;
                     padding: 0;
                     overflow: hidden;
@@ -190,7 +190,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     display: flex;
                     flex-direction: column;
                     justify-content: space-between;
-                    border: 4px solid #000;
+                    border: 2px solid #000;
                     position: relative;
                 }
 
@@ -201,28 +201,28 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     align-items: flex-start;
                     margin-bottom: 5mm;
                     padding-bottom: 3mm;
-                    border-bottom: 4px solid #000;
+                    border-bottom: 2px solid #000;
                 }
 
                 .company-info {
-                    flex: 3;
+                    flex: 1;
                 }
 
                 .company-name {
-                    font-size: 22px;
+                    font-size: 18px;
                     font-weight: 900;
                     color: #000;
-                    letter-spacing: 1px;
+                    letter-spacing: 0.5px;
                     margin: 0;
                     line-height: 1.1;
                 }
 
                 .company-subtitle {
-                    font-size: 15px;
+                    font-size: 10px;
                     color: #666;
                     margin: 1mm 0 0 0;
                     font-weight: 500;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 0.3px;
                 }
 
                 .barcode-section {
@@ -236,30 +236,27 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode-text {
-                    font-size: 14px;
+                    font-size: 10px;
                     font-weight: 700;
                     margin-top: 1mm;
                     color: #000;
                     font-family: 'Courier New', monospace;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 0.3px;
                 }
 
                 /* === CUSTOMER SECTION === */
-               .customer-section {
-    background: #000; /* solid black for printing */
-    color: #fff;
-    padding: 4mm;
-    margin: 3mm 0;
-    text-align: center;
-    border-radius: 3mm;
-    box-shadow: 0 3px 5px rgba(0,0,0,0.2);
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-}
-
+                .customer-section {
+                    background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+                    color: #fff;
+                    padding: 4mm;
+                    margin: 3mm 0;
+                    text-align: center;
+                    border-radius: 3mm;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
 
                 .customer-name {
-                    font-size: 22px;
+                    font-size: 16px;
                     font-weight: 700;
                     margin: 0;
                     line-height: 1.2;
@@ -277,7 +274,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     background: #f8f9fa;
                     padding: 3mm;
                     border-radius: 2mm;
-                    border: 2px solid #e9ecef;
+                    border: 1px solid #e9ecef;
                 }
 
                 .item {
@@ -286,7 +283,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     align-items: center;
                     padding: 1.5mm 0;
                     border-bottom: 1px dotted #ccc;
-                    font-size: 17px;
+                    font-size: 12px;
                 }
 
                 .item:last-child {
@@ -304,8 +301,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     background: #fff;
                     padding: 1mm 2mm;
                     border-radius: 2mm;
-                    border: 2px solid #ddd;
-                    font-size: 15px;
+                    border: 1px solid #ddd;
+                    font-size: 11px;
                     min-width: 15mm;
                     text-align: center;
                 }
@@ -317,8 +314,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     align-items: center;
                     margin-top: auto;
                     padding-top: 3mm;
-                    border-top: 2px solid #ddd;
-                    font-size: 15px;
+                    border-top: 1px solid #ddd;
+                    font-size: 11px;
                     color: #666;
                 }
 
@@ -332,7 +329,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     background: #f0f0f0;
                     padding: 1mm 3mm;
                     border-radius: 2mm;
-                    border: 2px solid #ddd;
+                    border: 1px solid #ddd;
                 }
 
                 /* === PROFESSIONAL TOUCHES === */
@@ -342,7 +339,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     top: 0;
                     left: 0;
                     right: 0;
-                    height: 5px;
+                    height: 3px;
                     background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
                 }
 
@@ -418,8 +415,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         try {
                             JsBarcode(canvas, pkg.package_no || '', {
                                 format: 'CODE128',
-                                width: 1.2,
-                                height: 25,
+                                width: 1.0,
+                                height: 20,
                                 displayValue: false,
                                 margin: 0,
                                 fontSize: Math.max(8, fontSize - 4)
