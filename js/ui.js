@@ -1139,44 +1139,65 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 function clearFrontendData() {
-    const password = prompt('Tüm yerel veriler silinecek. Lütfen şifreyi girin:');
-    
+    const password = prompt('Tüm frontend veriler silinecek. Lütfen şifreyi girin:');
+
     if (password !== '8823') {
         alert('⚠️ Şifre yanlış! İşlem iptal edildi.');
         return;
     }
 
-    // Clear all frontend/local data
+    // ------------------- LOCALSTORAGE -------------------
     localStorage.removeItem('procleanState');
     localStorage.removeItem('procleanOfflineData');
     localStorage.removeItem('procleanSettings');
 
-    // Clear UI tables, containers, and inputs
+    // ------------------- TABLES -------------------
     const tables = document.querySelectorAll('table');
     tables.forEach(table => {
         const tbody = table.querySelector('tbody');
         if (tbody) tbody.innerHTML = '';
     });
 
+    // ------------------- INPUTS & TEXTAREAS -------------------
     const inputs = document.querySelectorAll('input, textarea');
     inputs.forEach(input => input.value = '');
 
+    // ------------------- SELECTS -------------------
     const selects = document.querySelectorAll('select');
     selects.forEach(select => select.selectedIndex = 0);
 
-    const containers = document.querySelectorAll('.container, .packages-container, .reports-container');
+    // ------------------- CONTAINERS -------------------
+    const containers = document.querySelectorAll(
+        '.container, .packages-container, .reports-container, .stock-container, .stock-items'
+    );
     containers.forEach(container => container.innerHTML = '');
+
+    // ------------------- CHECKBOXES / TOGGLES -------------------
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+
+    const toggles = document.querySelectorAll('input[type="radio"]');
+    toggles.forEach(toggle => toggle.checked = false);
 
     showAlert('Tüm frontend veriler temizlendi', 'success');
 }
 
 
 
-// Initialize settings on app load
+
 function initializeSettings() {
-    const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    applySettings(savedSettings);
+    try {
+        const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+        if (savedSettings && typeof applySettings === 'function') {
+            applySettings(savedSettings);
+        }
+    } catch (error) {
+        console.error('⚠️ Error loading settings:', error);
+    }
 }
+
+
+
 
 
 
@@ -1215,6 +1236,9 @@ function selectPackage(pkg) {
         showAlert('Paket seçilirken hata oluştu', 'error');
     }
 }
+
+
+
 
 function updatePackageDetails(pkg, container) {
     // Safe date formatting
