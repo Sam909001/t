@@ -113,12 +113,11 @@ async function generateProfessionalPDFReport(reportData) {
 
             const { jsPDF } = window.jspdf;
             
-            // Create PDF with UTF-8 support
+            // Create PDF with proper encoding for Turkish characters
             const doc = new jsPDF({
                 orientation: 'portrait',
                 unit: 'mm',
-                format: 'a4',
-                hotfixes: ['px_scaling'] // Important for character rendering
+                format: 'a4'
             });
 
             const pageWidth = doc.internal.pageSize.getWidth();
@@ -126,32 +125,31 @@ async function generateProfessionalPDFReport(reportData) {
             const margin = 15;
             let currentY = margin;
 
-            // ==================== TURKISH CHARACTER SOLUTION ====================
-            // Use a more comprehensive Turkish character handler
-            function fixTurkishText(text) {
+            // ==================== TURKISH CHARACTER FIX ====================
+            // Use a font that supports Turkish characters
+            // First, let's use the standard font but encode Turkish characters properly
+            
+            // Helper function to encode Turkish text
+            function encodeTurkishText(text) {
                 if (typeof text !== 'string') return String(text);
                 
-                // Comprehensive Turkish character mapping
+                // Turkish character mappings
                 const turkishMap = {
-                    // Lowercase
-                    'ğ': 'g', 'ü': 'u', 'ş': 's', 'ı': 'i', 'ö': 'o', 'ç': 'c',
-                    // Uppercase  
-                    'Ğ': 'G', 'Ü': 'U', 'Ş': 'S', 'İ': 'I', 'Ö': 'O', 'Ç': 'C',
-                    // Sometimes these appear in different encodings
-                    'Ð': 'G', 'Þ': 'S', 'ð': 'g', 'þ': 's'
+                    'ğ': 'g', 'Ğ': 'G',
+                    'ü': 'u', 'Ü': 'U',
+                    'ş': 's', 'Ş': 'S',
+                    'ı': 'i', 'İ': 'I',
+                    'ö': 'o', 'Ö': 'O',
+                    'ç': 'c', 'Ç': 'C'
                 };
                 
-                // Replace Turkish characters
-                let result = text.replace(/[ğüşıöçĞÜŞİÖÇÐÞðþ]/g, char => turkishMap[char] || char);
-                
-                // Remove any remaining non-ASCII characters that might cause issues
-                result = result.replace(/[^\x00-\x7F]/g, '');
-                
-                return result;
+                // Replace Turkish characters with ASCII equivalents
+                return text.replace(/[ğĞüÜşŞıİöÖçÇ]/g, char => turkishMap[char] || char);
             }
 
-            // Use basic fonts that have better compatibility
-            const currentFont = 'times'; // 'times' has better international support
+            // Alternative: Use built-in fonts that might work better
+            const availableFonts = ['helvetica', 'times', 'courier'];
+            const currentFont = 'helvetica'; // Try different fonts
             
             doc.setFont(currentFont);
             doc.setFontSize(10);
@@ -160,17 +158,17 @@ async function generateProfessionalPDFReport(reportData) {
             doc.setFillColor(41, 128, 185);
             doc.rect(0, 0, pageWidth, 80, 'F');
 
-            // Title with comprehensive Turkish fix
+            // Title with Turkish character fix
             doc.setFontSize(20);
             doc.setFont(currentFont, 'bold');
             doc.setTextColor(255, 255, 255);
-            doc.text(fixTurkishText('PROCLEAN CAMASIRHANE'), pageWidth / 2, 35, { align: 'center' });
+            doc.text(encodeTurkishText('PROCLEAN ÇAMAŞIRHANE'), pageWidth / 2, 35, { align: 'center' });
 
             doc.setFontSize(14);
-            doc.text(fixTurkishText('Gunluk Detayli Is Raporu'), pageWidth / 2, 50, { align: 'center' });
+            doc.text(encodeTurkishText('Günlük Detaylı İş Raporu'), pageWidth / 2, 50, { align: 'center' });
 
             doc.setFontSize(10);
-            doc.text(fixTurkishText(reportData.date), pageWidth / 2, 65, { align: 'center' });
+            doc.text(encodeTurkishText(reportData.date), pageWidth / 2, 65, { align: 'center' });
 
             currentY = 100;
             doc.setFillColor(245, 245, 245);
@@ -179,14 +177,14 @@ async function generateProfessionalPDFReport(reportData) {
             doc.setFontSize(12);
             doc.setFont(currentFont, 'bold');
             doc.setTextColor(0, 0, 0);
-            doc.text(fixTurkishText('RAPOR DETAYLARI'), margin + 10, currentY + 15);
+            doc.text(encodeTurkishText('RAPOR DETAYLARI'), margin + 10, currentY + 15);
 
             doc.setFontSize(10);
             doc.setFont(currentFont, 'normal');
-            doc.text(fixTurkishText(`Rapor Tarihi: ${reportData.date}`), margin + 10, currentY + 25);
-            doc.text(fixTurkishText(`Rapor No: ${reportData.id || 'Yerel Kayit'}`), margin + 10, currentY + 35);
-            doc.text(fixTurkishText(`Operator: ${reportData.operator}`), pageWidth - margin - 10, currentY + 25, { align: 'right' });
-            doc.text(fixTurkishText(`Olusturulma: ${new Date().toLocaleString('tr-TR')}`), pageWidth - margin - 10, currentY + 35, { align: 'right' });
+            doc.text(encodeTurkishText(`Rapor Tarihi: ${reportData.date}`), margin + 10, currentY + 25);
+            doc.text(encodeTurkishText(`Rapor No: ${reportData.id || 'Yerel Kayıt'}`), margin + 10, currentY + 35);
+            doc.text(encodeTurkishText(`Operatör: ${reportData.operator}`), pageWidth - margin - 10, currentY + 25, { align: 'right' });
+            doc.text(encodeTurkishText(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`), pageWidth - margin - 10, currentY + 35, { align: 'right' });
 
             currentY += 70;
 
@@ -194,14 +192,14 @@ async function generateProfessionalPDFReport(reportData) {
             doc.setFontSize(16);
             doc.setFont(currentFont, 'bold');
             doc.setTextColor(41, 128, 185);
-            doc.text(fixTurkishText('GUNLUK OZET'), margin, currentY);
+            doc.text(encodeTurkishText('GÜNLÜK ÖZET'), margin, currentY);
             currentY += 15;
 
             const summaryBoxes = [
-                { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219] },
-                { title: 'Bekleyen Paket', value: reportData.waitingPackages, color: [241, 196, 15] },
-                { title: 'Sevk Edilen Paket', value: reportData.shippedPackages, color: [46, 204, 113] },
-                { title: 'Konteyner', value: reportData.containers, color: [155, 89, 182] }
+                { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219], icon: '📦' },
+                { title: 'Bekleyen Paket', value: reportData.waitingPackages, color: [241, 196, 15], icon: '⏳' },
+                { title: 'Sevk Edilen Paket', value: reportData.shippedPackages, color: [46, 204, 113], icon: '🚚' },
+                { title: 'Konteyner', value: reportData.containers, color: [155, 89, 182], icon: '📊' }
             ];
 
             const boxWidth = (pageWidth - 2 * margin - 15) / 4;
@@ -214,7 +212,8 @@ async function generateProfessionalPDFReport(reportData) {
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(9);
                 doc.setFont(currentFont, 'bold');
-                doc.text(fixTurkishText(box.title), x + boxWidth / 2, currentY + 18, { align: 'center' });
+                doc.text(box.icon, x + boxWidth / 2, currentY + 10, { align: 'center' });
+                doc.text(encodeTurkishText(box.title), x + boxWidth / 2, currentY + 18, { align: 'center' });
 
                 doc.setFontSize(11);
                 doc.text(box.value.toString(), x + boxWidth / 2, currentY + 28, { align: 'center' });
@@ -222,8 +221,219 @@ async function generateProfessionalPDFReport(reportData) {
 
             currentY += 50;
 
-            // Continue with the rest of your PDF generation...
-            // Apply fixTurkishText() to ALL text content
+            // ==================== DETAILED STATISTICS ====================
+            if (currentY > pageHeight - 100) {
+                doc.addPage();
+                currentY = margin;
+            }
+
+            doc.setFontSize(14);
+            doc.setFont(currentFont, 'bold');
+            doc.setTextColor(41, 128, 185);
+            doc.text(encodeTurkishText('DETAYLI İSTATİSTİKLER'), margin, currentY);
+            currentY += 15;
+
+            const stats = [
+                `Toplam işlenen paket: ${reportData.totalPackages} adet`,
+                `Bekleyen paketler: ${reportData.waitingPackages} adet`,
+                `Sevk edilen paketler: ${reportData.shippedPackages} adet`,
+                `Toplam ürün miktarı: ${reportData.totalItems} adet`,
+                `Bekleyen ürünler: ${reportData.waitingItems} adet`,
+                `Sevk edilen ürünler: ${reportData.shippedItems} adet`,
+                `Hazırlanan konteyner: ${reportData.containers} adet`,
+                `Hizmet verilen müşteri: ${reportData.customers} firma`
+            ];
+
+            doc.setFontSize(10);
+            doc.setFont(currentFont, 'normal');
+            doc.setTextColor(0, 0, 0);
+
+            stats.forEach(stat => {
+                if (currentY > pageHeight - 20) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+                doc.text(`• ${encodeTurkishText(stat)}`, margin + 5, currentY);
+                currentY += 6;
+            });
+
+            currentY += 15;
+
+            // ==================== PACKAGE DETAILS ====================
+            if (reportData.allPackages && reportData.allPackages.length > 0 && doc.autoTable) {
+                if (currentY > pageHeight - 100) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont(currentFont, 'bold');
+                doc.setTextColor(41, 128, 185);
+                doc.text(encodeTurkishText('TÜM PAKET DETAYLARI'), margin, currentY);
+                currentY += 10;
+
+                // Encode Turkish text in package data
+                const packageData = reportData.allPackages.map(pkg => [
+                    pkg.package_no || 'N/A',
+                    encodeTurkishText(pkg.customers?.name || 'N/A'),
+                    (pkg.total_quantity || 0).toString(),
+                    pkg.container_id ? 'Sevk Edildi' : 'Bekliyor',
+                    pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'
+                ]);
+
+                doc.autoTable({
+                    startY: currentY,
+                    head: [[
+                        encodeTurkishText('Paket No'), 
+                        encodeTurkishText('Müşteri'), 
+                        encodeTurkishText('Adet'), 
+                        encodeTurkishText('Durum'), 
+                        encodeTurkishText('Tarih')
+                    ]],
+                    body: packageData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [41, 128, 185],
+                        textColor: [255, 255, 255],
+                        font: currentFont,
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        font: currentFont,
+                        fontStyle: 'normal',
+                        fontSize: 8,
+                        cellPadding: 3
+                    },
+                    margin: { top: 10 },
+                    pageBreak: 'auto',
+                    didDrawCell: (data) => {
+                        if (data.column.index === 3 && data.cell.raw === 'Sevk Edildi') {
+                            doc.setFillColor(46, 204, 113);
+                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            doc.setTextColor(255, 255, 255);
+                        } else if (data.column.index === 3 && data.cell.raw === 'Bekliyor') {
+                            doc.setFillColor(241, 196, 15);
+                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                            doc.setTextColor(0, 0, 0);
+                        }
+                    }
+                });
+
+                currentY = doc.lastAutoTable.finalY + 15;
+            }
+
+            // ==================== CONTAINER DETAILS ====================
+            if (reportData.containers && reportData.containers.length > 0 && doc.autoTable) {
+                if (currentY > pageHeight - 100) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont(currentFont, 'bold');
+                doc.setTextColor(155, 89, 182);
+                doc.text(encodeTurkishText('KONTEYNER DETAYLARI'), margin, currentY);
+                currentY += 10;
+
+                const containerData = reportData.containers.map(container => [
+                    container.container_no || 'N/A',
+                    (container.package_count || 0).toString(),
+                    (container.total_quantity || 0).toString(),
+                    container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Hazırlanıyor',
+                    container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'
+                ]);
+
+                doc.autoTable({
+                    startY: currentY,
+                    head: [[
+                        encodeTurkishText('Konteyner No'), 
+                        encodeTurkishText('Paket Sayısı'), 
+                        encodeTurkishText('Toplam Adet'), 
+                        encodeTurkishText('Durum'), 
+                        encodeTurkishText('Tarih')
+                    ]],
+                    body: containerData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [155, 89, 182],
+                        textColor: [255, 255, 255],
+                        font: currentFont,
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        font: currentFont,
+                        fontStyle: 'normal',
+                        fontSize: 8,
+                        cellPadding: 3
+                    },
+                    margin: { top: 10 },
+                    pageBreak: 'auto'
+                });
+
+                currentY = doc.lastAutoTable.finalY + 15;
+            }
+
+            // ==================== CRITICAL STOCK ====================
+            if (reportData.criticalStock && reportData.criticalStock.length > 0 && doc.autoTable) {
+                if (currentY > pageHeight - 80) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont(currentFont, 'bold');
+                doc.setTextColor(231, 76, 60);
+                doc.text(encodeTurkishText('KRİTİK STOK UYARILARI'), margin, currentY);
+                currentY += 10;
+
+                const stockData = reportData.criticalStock.map(item => [
+                    item.code || 'N/A',
+                    encodeTurkishText(item.name || 'N/A'),
+                    (item.quantity || 0).toString(),
+                    item.quantity <= 0 ? 'STOK TÜKENDİ' : 'AZ STOK'
+                ]);
+
+                doc.autoTable({
+                    startY: currentY,
+                    head: [[
+                        encodeTurkishText('Stok Kodu'), 
+                        encodeTurkishText('Ürün Adı'), 
+                        encodeTurkishText('Mevcut Adet'), 
+                        encodeTurkishText('Durum')
+                    ]],
+                    body: stockData,
+                    theme: 'grid',
+                    headStyles: { 
+                        fillColor: [231, 76, 60],
+                        textColor: [255, 255, 255],
+                        font: currentFont,
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        font: currentFont,
+                        fontStyle: 'normal',
+                        fontSize: 8,
+                        cellPadding: 3
+                    },
+                    margin: { top: 10 }
+                });
+            }
+
+            // ==================== FOOTER ====================
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setFont(currentFont, 'italic');
+                doc.setTextColor(100, 100, 100);
+
+                doc.setDrawColor(200, 200, 200);
+                doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+
+                doc.text(encodeTurkishText(`Sayfa ${i} / ${pageCount}`), pageWidth / 2, pageHeight - 15, { align: 'center' });
+                doc.text(encodeTurkishText('ProClean Rapor Sistemi'), margin, pageHeight - 15);
+                doc.text(encodeTurkishText(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`), pageWidth - margin, pageHeight - 15, { align: 'right' });
+            }
 
             const pdfBlob = doc.output('blob');
             resolve(pdfBlob);
@@ -234,6 +444,60 @@ async function generateProfessionalPDFReport(reportData) {
         }
     });
 }
+
+// Alternative solution with better Turkish character support
+async function generateProfessionalPDFReportV2(reportData) {
+    return new Promise((resolve, reject) => {
+        try {
+            const { jsPDF } = window.jspdf;
+            
+            // Create PDF with better encoding support
+            const doc = new jsPDF();
+            
+            // Better Turkish character solution using text encoding
+            function fixTurkishText(text) {
+                if (typeof text !== 'string') return String(text);
+                
+                // Direct character replacement for Turkish letters
+                return text
+                    .replace(/ğ/g, 'g')
+                    .replace(/Ğ/g, 'G')
+                    .replace(/ü/g, 'u')
+                    .replace(/Ü/g, 'U')
+                    .replace(/ş/g, 's')
+                    .replace(/Ş/g, 'S')
+                    .replace(/ı/g, 'i')
+                    .replace(/İ/g, 'I')
+                    .replace(/ö/g, 'o')
+                    .replace(/Ö/g, 'O')
+                    .replace(/ç/g, 'c')
+                    .replace(/Ç/g, 'C');
+            }
+
+            // Use a simple font that handles basic characters better
+            doc.setFont('helvetica');
+            doc.setFontSize(12);
+
+            // Add content with fixed Turkish text
+            doc.text(fixTurkishText('PROCLEAN ÇAMAŞIRHANE'), 20, 20);
+            doc.text(fixTurkishText('Günlük Rapor'), 20, 30);
+            doc.text(fixTurkishText(`Tarih: ${reportData.date}`), 20, 40);
+            doc.text(fixTurkishText(`Operatör: ${reportData.operator}`), 20, 50);
+
+            // Add summary
+            doc.text(fixTurkishText(`Toplam Paket: ${reportData.totalPackages}`), 20, 70);
+            doc.text(fixTurkishText(`Bekleyen Paket: ${reportData.waitingPackages}`), 20, 80);
+            doc.text(fixTurkishText(`Sevk Edilen: ${reportData.shippedPackages}`), 20, 90);
+
+            const pdfBlob = doc.output('blob');
+            resolve(pdfBlob);
+
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
 
 
 
