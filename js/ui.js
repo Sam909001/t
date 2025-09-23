@@ -763,7 +763,7 @@ function checkSystemStatus() {
 
 
 
-function exportData(format) {
+async function exportData(format) {
     if (!format) {
         showAlert('⚠️ Format belirtilmedi!', 'error');
         return;
@@ -771,60 +771,365 @@ function exportData(format) {
 
     format = format.toLowerCase().trim();
 
-    const table = document.getElementById('stockTableBody');
-    if (!table) {
-        showAlert('⚠️ Stok tablosu bulunamadı!', 'error');
-        return;
-    }
+    try {
+        showAlert('📊 Veriler toplanıyor...', 'info');
 
-    const rows = Array.from(table.querySelectorAll('tr')).map(tr =>
-        Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim())
-    );
+        // Collect all data from the app
+        const allData = await collectAllAppData();
 
-    if (rows.length === 0) {
-        showAlert('⚠️ Tablo boş, veri yok!', 'info');
-        return;
-    }
-
-    if (format === 'json') {
-        // Convert table to JSON array
-        const headers = Array.from(document.querySelectorAll('.stock-table thead th')).map(th => th.textContent.trim());
-        const jsonData = rows.map(row => {
-            const obj = {};
-            row.forEach((cell, i) => {
-                obj[headers[i]] = cell;
-            });
-            return obj;
-        });
-
-        const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `stok_${new Date().toISOString().slice(0,10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        showAlert('✅ JSON dosyası indirildi!', 'success');
-    }
-
-    else if (format === 'excel') {
-        if (typeof XLSX === 'undefined') {
-            showAlert('⚠️ XLSX kütüphanesi bulunamadı! Yükleyin.', 'error');
+        if (Object.keys(allData).length === 0) {
+            showAlert('⚠️ Dışa aktarılacak veri bulunamadı!', 'info');
             return;
         }
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Stoklar');
-        XLSX.writeFile(wb, `stok_${new Date().toISOString().slice(0,10)}.xlsx`);
-        showAlert('✅ Excel dosyası indirildi!', 'success');
-    }
 
-    else {
-        showAlert('⚠️ Geçersiz format seçildi!', 'error');
+        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const filename = `proclean_full_backup_${timestamp}`;
+
+        if (format === 'json') {
+            await exportToJSON(allData, filename);
+        } else if (format === 'excel') {
+            await exportToExcel(allData, filename);
+        } else {
+            showAlert('⚠️ Geçersiz format seçildi! Sadece JSON veya Excel desteklenir.', 'error');
+        }
+
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert(`❌ Dışa aktarma hatası: ${error.message}`, 'error');
     }
 }
 
+// Collect all data from the application
+async function collectAllAppData() {
+    const allData = {
+        metadata: {
+            exportDate: new Date().toISOString(),
+            appVersion: '1.0.0',
+            totalRecords: 0
+        },
+        settings: {},
+        customers: [],
+        packages: [],
+        containers: [],
+        stock: [],
+        personnel: [],
+        reports: [],
+        shipping: [],
+        users: [],
+        auditLogs: []
+    };
+
+    try {
+        // 1. Export Settings and Local Storage
+        allData.settings = {
+            theme: localStorage.getItem('procleanTheme'),
+            apiKey: localStorage.getItem('procleanApiKey') ? '***HIDDEN***' : null,
+            appState: JSON.parse(localStorage.getItem('procleanState') || '{}'),
+            userPreferences: JSON.parse(localStorage.getItem('procleanPreferences') || '{}')
+        };
+
+        // 2. Export Customers
+        if (window.packages && window.packages.length > 0) {
+            const uniqueCustomers = [...new Set(window.packages.map(p => p.customer_name))].filter(Boolean);
+            allData.customers = uniqueCustomers.map(name => ({
+                name: name,
+                totalPackages: window.packages.filter(p => p.customer_name === name).length,
+                totalItems: window.packages.filter(p => p.customer_name === name)
+                    .reduce((sum, p) => sum + (p.total_quantity || 0), 0)
+            }));
+        }
+
+        // 3. Export Packages (Current Session)
+        if (window.packages) {
+            allData.packages = window.packages.map(pkg => ({
+                package_no: pkg.package_no,
+                customer_name: pkg.customer_name,
+                product: pkg.product,
+                total_quantity: pkg.total_quantity,
+                status: pkg.status,
+                container_id: pkg.container_id,
+                created_at: pkg.created_at,
+                packer: pkg.packer,
+                barcode: pkg.barcode
+            }));
+        }
+
+        // 4. Export Containers
+        if (window.containers) {
+            allData.containers = window.containers.map(container => ({
+                container_no: container.container_no,
+                customer: container.customer,
+                package_count: container.package_count,
+                total_quantity: container.total_quantity,
+                status: container.status,
+                created_at: container.created_at,
+                shipped_at: container.shipped_at
+            }));
+        }
+
+        // 5. Export Stock Items
+        const stockTable = document.getElementById('stockTableBody');
+        if (stockTable) {
+            const stockRows = Array.from(stockTable.querySelectorAll('tr'));
+            allData.stock = stockRows.map(tr => {
+                const tds = tr.querySelectorAll('td');
+                return {
+                    code: tds[0]?.textContent.trim(),
+                    name: tds[1]?.textContent.trim(),
+                    quantity: parseInt(tds[2]?.textContent) || 0,
+                    unit: tds[3]?.textContent.trim(),
+                    category: tds[4]?.textContent.trim(),
+                    critical_level: parseInt(tds[5]?.textContent) || 0
+                };
+            }).filter(item => item.code && item.name);
+        }
+
+        // 6. Export Personnel
+        const personnelSelect = document.getElementById('personnelSelect');
+        if (personnelSelect) {
+            allData.personnel = Array.from(personnelSelect.options).map(option => ({
+                id: option.value,
+                name: option.textContent.trim(),
+                isActive: option.value === personnelSelect.value
+            })).filter(p => p.id); // Remove empty options
+        }
+
+        // 7. Export Current Session State
+        allData.currentSession = {
+            selectedCustomer: window.selectedCustomer,
+            currentContainer: window.currentContainer,
+            currentPackage: window.currentPackage,
+            currentUser: window.currentUser,
+            connectionStatus: navigator.onLine ? 'online' : 'offline'
+        };
+
+        // 8. Export Shipping/Container Data
+        const shippingTable = document.getElementById('shippingTableBody');
+        if (shippingTable) {
+            const shippingRows = Array.from(shippingTable.querySelectorAll('tr'));
+            allData.shipping = shippingRows.map(tr => {
+                const tds = tr.querySelectorAll('td');
+                const checkbox = tr.querySelector('input[type="checkbox"]');
+                return {
+                    selected: checkbox?.checked || false,
+                    container_no: tds[1]?.textContent.trim(),
+                    customer: tds[2]?.textContent.trim(),
+                    package_count: parseInt(tds[3]?.textContent) || 0,
+                    total_quantity: parseInt(tds[4]?.textContent) || 0,
+                    status: tds[5]?.textContent.trim(),
+                    created_date: tds[6]?.textContent.trim()
+                };
+            }).filter(item => item.container_no);
+        }
+
+        // 9. Try to fetch additional data from Supabase if available
+        if (window.supabase) {
+            try {
+                // Export users data
+                const { data: users } = await supabase
+                    .from('users')
+                    .select('*')
+                    .limit(100); // Limit for safety
+                if (users) allData.users = users;
+
+                // Export reports data
+                const { data: reports } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .limit(50);
+                if (reports) allData.reports = reports;
+
+            } catch (dbError) {
+                console.warn('Database export limited:', dbError);
+                allData.databaseExport = 'partial - some tables unavailable';
+            }
+        }
+
+        // 10. Export UI State and Statistics
+        allData.uiState = {
+            activeTab: document.querySelector('.tab.active')?.getAttribute('data-tab') || 'unknown',
+            totalPackagesCount: window.packages ? window.packages.length : 0,
+            totalContainersCount: window.containers ? window.containers.length : 0,
+            waitingPackages: window.packages ? window.packages.filter(p => !p.container_id).length : 0,
+            shippedPackages: window.packages ? window.packages.filter(p => p.container_id).length : 0,
+            criticalStockItems: allData.stock.filter(item => item.quantity <= item.critical_level).length
+        };
+
+        // Calculate total records
+        allData.metadata.totalRecords = 
+            allData.packages.length +
+            allData.containers.length +
+            allData.stock.length +
+            allData.customers.length +
+            allData.personnel.length +
+            allData.users.length +
+            allData.reports.length;
+
+        return allData;
+
+    } catch (error) {
+        console.error('Data collection error:', error);
+        throw new Error(`Veri toplama hatası: ${error.message}`);
+    }
+}
+
+// Export to JSON function
+async function exportToJSON(data, filename) {
+    try {
+        // Create a pretty-printed JSON string
+        const jsonString = JSON.stringify(data, null, 2);
+        
+        // Create blob and download
+        const blob = new Blob([jsonString], { 
+            type: 'application/json;charset=utf-8' 
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showAlert(`✅ Tüm veriler JSON formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt)`, 'success');
+        
+        // Optional: Log export summary
+        console.log('📊 Export Summary:', {
+            packages: data.packages.length,
+            containers: data.containers.length,
+            stock: data.stock.length,
+            customers: data.customers.length,
+            personnel: data.personnel.length
+        });
+
+    } catch (error) {
+        throw new Error(`JSON export failed: ${error.message}`);
+    }
+}
+
+// Export to Excel function
+async function exportToExcel(data, filename) {
+    if (typeof XLSX === 'undefined') {
+        throw new Error('XLSX kütüphanesi bulunamadı! Lütfen SheetJS kütüphanesini yükleyin.');
+    }
+
+    try {
+        const wb = XLSX.utils.book_new();
+        
+        // Create worksheets for each data type
+        const sheets = [
+            { name: 'Paketler', data: data.packages },
+            { name: 'Konteynerler', data: data.containers },
+            { name: 'Stok', data: data.stock },
+            { name: 'Müşteriler', data: data.customers },
+            { name: 'Personel', data: data.personnel },
+            { name: 'Raporlar', data: data.reports },
+            { name: 'Kullanıcılar', data: data.users },
+            { name: 'Ayarlar', data: [data.settings] },
+            { name: 'Oturum', data: [data.currentSession] },
+            { name: 'UI_Durum', data: [data.uiState] },
+            { name: 'Metadata', data: [data.metadata] }
+        ];
+
+        // Add each sheet to workbook
+        sheets.forEach(sheet => {
+            if (sheet.data && sheet.data.length > 0) {
+                const ws = XLSX.utils.json_to_sheet(sheet.data);
+                XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+            }
+        });
+
+        // Export to Excel file
+        XLSX.writeFile(wb, `${filename}.xlsx`);
+        
+        showAlert(`✅ Tüm veriler Excel formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt, ${sheets.filter(s => s.data.length > 0).length} sayfa)`, 'success');
+
+    } catch (error) {
+        throw new Error(`Excel export failed: ${error.message}`);
+    }
+}
+
+// Quick export functions for specific data types
+async function exportPackages(format) {
+    if (!window.packages || window.packages.length === 0) {
+        showAlert('⚠️ Dışa aktarılacak paket bulunamadı!', 'info');
+        return;
+    }
+
+    const data = {
+        packages: window.packages.map(pkg => ({
+            package_no: pkg.package_no,
+            customer_name: pkg.customer_name,
+            product: pkg.product,
+            total_quantity: pkg.total_quantity,
+            status: pkg.status,
+            container_id: pkg.container_id,
+            created_at: pkg.created_at,
+            packer: pkg.packer
+        })),
+        metadata: {
+            exportDate: new Date().toISOString(),
+            totalPackages: window.packages.length,
+            waitingPackages: window.packages.filter(p => !p.container_id).length,
+            shippedPackages: window.packages.filter(p => p.container_id).length
+        }
+    };
+
+    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    
+    if (format === 'json') {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `proclean_packages_${timestamp}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showAlert(`✅ Paketler dışa aktarıldı! (${data.packages.length} paket)`, 'success');
+    } else if (format === 'excel') {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data.packages);
+        XLSX.utils.book_append_sheet(wb, ws, 'Paketler');
+        XLSX.writeFile(wb, `proclean_packages_${timestamp}.xlsx`);
+        showAlert(`✅ Paketler Excel formatında dışa aktarıldı!`, 'success');
+    }
+}
+
+// Add to your HTML for easy access:
+function addExportButtons() {
+    // Create export buttons container if it doesn't exist
+    let exportContainer = document.getElementById('export-buttons-container');
+    if (!exportContainer) {
+        exportContainer = document.createElement('div');
+        exportContainer.id = 'export-buttons-container';
+        exportContainer.style.margin = '10px 0';
+        exportContainer.style.padding = '10px';
+        exportContainer.style.border = '1px solid #ddd';
+        exportContainer.style.borderRadius = '5px';
+        
+        // Add to settings panel or wherever appropriate
+        const settingsPanel = document.querySelector('.settings-panel') || document.body;
+        settingsPanel.appendChild(exportContainer);
+    }
+
+    exportContainer.innerHTML = `
+        <h4>📊 Veri Dışa Aktarma</h4>
+        <button onclick="exportData('json')" class="btn btn-success">📁 Tüm Veriyi JSON Olarak İndir</button>
+        <button onclick="exportData('excel')" class="btn btn-primary">📊 Tüm Veriyi Excel Olarak İndir</button>
+        <button onclick="exportPackages('json')" class="btn btn-outline-success">📦 Sadece Paketleri JSON İndir</button>
+        <button onclick="exportPackages('excel')" class="btn btn-outline-primary">📦 Sadece Paketleri Excel İndir</button>
+        <p style="font-size:12px; color:#666; margin-top:5px;">
+            Tüm veri: Paketler, konteynerler, stok, müşteriler, personel, ayarlar ve daha fazlası
+        </p>
+    `;
+}
+
+// Initialize export buttons when app loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(addExportButtons, 2000); // Add after app initializes
+});
 
 
 
