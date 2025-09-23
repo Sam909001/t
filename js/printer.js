@@ -33,7 +33,6 @@ class PrinterServiceElectron {
             if (!printWindow) throw new Error("Popup blocked");
 
              const style = `
-                <style>
                 @page {
     size: 100mm 110mm portrait; /* width x height */
     margin: 0;
@@ -49,66 +48,79 @@ body {
 }
 
 .label {
-    width: 105%;
-    height: 105%;
-    border: 3px solid #000;
+    width: 100%;
+    height: 100%;
     box-sizing: border-box;
     padding: 4mm;
-    page-break-after: always;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* === HEADER === */
+.header {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-.header {
-    font-weight: bold;
-    font-size: 25px;
-    text-align: center;
     margin-bottom: 4mm;
 }
 
-.info-section {
-    width: 105%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 1.5mm;
-    font-size: 25px;
-    text-align: center;
-    margin-bottom: 4mm;
-}
-
-.info {
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.barcode-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-}
-
-.barcode {
-    max-width: 90%;
-    max-height: 80mm;
-    width: 100%;
-}
-
-.barcode-text {
-    font-size: 22px;
+.header .laundry-name {
     font-weight: bold;
-    text-align: center;
+    font-size: 16px;
+    text-align: left;
+}
+
+.header .barcode {
+    text-align: right;
+}
+
+.header .barcode img {
+    max-height: 15mm;
+    width: auto;
+}
+
+.header .barcode-text {
+    font-size: 12px;
+    font-weight: bold;
     margin-top: 1mm;
-    word-break: break-all;
 }
 
-                </style>
+/* === HOTEL NAME === */
+.hotel-name {
+    background: #000;
+    color: #fff;
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+    padding: 2mm;
+    margin-bottom: 4mm;
+}
+
+/* === ITEM LIST === */
+.item-list {
+    width: 100%;
+    margin-bottom: 4mm;
+    font-size: 14px;
+    border-top: 1px dashed #000;
+    border-bottom: 1px dashed #000;
+    padding: 2mm 0;
+}
+
+.item {
+    display: flex;
+    justify-content: space-between;
+    padding: 1mm 0;
+}
+
+/* === FOOTER === */
+.footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-top: auto;
+}
+        </style>
             `;
 
             printWindow.document.write(`<html><head>${style}</head><body>`);
@@ -197,7 +209,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
 
             const style = `
                 <style>
-                @page {
+               @page {
     size: 100mm 110mm portrait; /* width x height */
     margin: 0;
 }
@@ -212,63 +224,77 @@ body {
 }
 
 .label {
-    width: 105%;
-    height: 105%;
-    border: 3px solid #000;
+    width: 100%;
+    height: 100%;
     box-sizing: border-box;
     padding: 4mm;
-    page-break-after: always;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* === HEADER === */
+.header {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-.header {
-    font-weight: bold;
-    font-size: 25px;
-    text-align: center;
     margin-bottom: 4mm;
 }
 
-.info-section {
-    width: 105%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 1.5mm;
-    font-size: 25px;
+.header .laundry-name {
+    font-weight: bold;
+    font-size: 16px;
     text-align: left;
+}
+
+.header .barcode {
+    text-align: right;
+}
+
+.header .barcode img {
+    max-height: 15mm;
+    width: auto;
+}
+
+.header .barcode-text {
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 1mm;
+}
+
+/* === HOTEL NAME === */
+.hotel-name {
+    background: #000;
+    color: #fff;
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+    padding: 2mm;
     margin-bottom: 4mm;
 }
 
-.info {
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+/* === ITEM LIST === */
+.item-list {
+    width: 100%;
+    margin-bottom: 4mm;
+    font-size: 14px;
+    border-top: 1px dashed #000;
+    border-bottom: 1px dashed #000;
+    padding: 2mm 0;
 }
 
-.barcode-container {
+.item {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
+    justify-content: space-between;
+    padding: 1mm 0;
 }
 
-.barcode {
-    max-width: 90%;
-    max-height: 80mm;
-    width: 100%;
-}
-
-.barcode-text {
-    font-size: 22px;
-    font-weight: bold;
-    text-align: center;
-    margin-top: 1mm;
-    word-break: break-all;
+/* === FOOTER === */
+.footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-top: auto;
 }
 
                 </style>
