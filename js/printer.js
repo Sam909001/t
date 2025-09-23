@@ -34,14 +34,14 @@ class PrinterServiceElectron {
 
              const style = `
                 <style>
-                  @page {
-    size: 80mm 100mm portrait;
+                @page {
+    size: 110mm 130mm portrait; /* width x height */
     margin: 0;
 }
 
 body {
-    width: 80mm;
-    height: 100mm;
+    width: 110mm;
+    height: 130mm;
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -53,7 +53,7 @@ body {
     height: 100%;
     border: 1px solid #000;
     box-sizing: border-box;
-    padding: 3mm;
+    padding: 4mm;
     page-break-after: always;
     display: flex;
     flex-direction: column;
@@ -63,9 +63,9 @@ body {
 
 .header {
     font-weight: bold;
-    font-size: 18px;
+    font-size: 22px;
     text-align: center;
-    margin-bottom: 2mm;
+    margin-bottom: 4mm;
 }
 
 .info-section {
@@ -73,10 +73,10 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 1mm;
-    font-size: 14px;
+    gap: 1.5mm;
+    font-size: 16px;
     text-align: left;
-    margin-bottom: 2mm;
+    margin-bottom: 4mm;
 }
 
 .info {
@@ -95,18 +95,19 @@ body {
 }
 
 .barcode {
-    max-width: 70%;
-    max-height: 35mm;
+    max-width: 90%;
+    max-height: 55mm;
     width: 100%;
 }
 
 .barcode-text {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: bold;
     text-align: center;
     margin-top: 1mm;
     word-break: break-all;
 }
+
                 </style>
             `;
 
@@ -196,14 +197,14 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
 
             const style = `
                 <style>
-                  @page {
-    size: 80mm 100mm portrait;
+                @page {
+    size: 110mm 130mm portrait; /* width x height */
     margin: 0;
 }
 
 body {
-    width: 80mm;
-    height: 100mm;
+    width: 110mm;
+    height: 130mm;
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -215,7 +216,7 @@ body {
     height: 100%;
     border: 1px solid #000;
     box-sizing: border-box;
-    padding: 3mm;
+    padding: 4mm;
     page-break-after: always;
     display: flex;
     flex-direction: column;
@@ -225,9 +226,9 @@ body {
 
 .header {
     font-weight: bold;
-    font-size: 18px;
+    font-size: 22px;
     text-align: center;
-    margin-bottom: 2mm;
+    margin-bottom: 4mm;
 }
 
 .info-section {
@@ -235,10 +236,10 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 1mm;
-    font-size: 14px;
+    gap: 1.5mm;
+    font-size: 16px;
     text-align: left;
-    margin-bottom: 2mm;
+    margin-bottom: 4mm;
 }
 
 .info {
@@ -257,13 +258,13 @@ body {
 }
 
 .barcode {
-    max-width: 70%;
-    max-height: 35mm;
+    max-width: 90%;
+    max-height: 55mm;
     width: 100%;
 }
 
 .barcode-text {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: bold;
     text-align: center;
     margin-top: 1mm;
