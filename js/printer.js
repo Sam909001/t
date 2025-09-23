@@ -166,17 +166,16 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
 
             const style = `
                 <style>
-               @page {
-            size: 100mm 80mm;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
+                @page {
+                    size: 110mm 100mm landscape;
+                    margin: 0;
+                }
 
                 body {
-                   width: 100mm !important;
-            height: 80mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
+                    width: 110mm;
+                    height: 100mm;
+                    margin: 0;
+                    padding: 0;
                     overflow: hidden;
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     background: #fff;
