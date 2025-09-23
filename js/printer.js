@@ -49,8 +49,8 @@ body {
 }
 
 .label {
-    width: 120%;
-    height: 120%;
+    width: 105%;
+    height: 105%;
     border: 3px solid #000;
     box-sizing: border-box;
     padding: 4mm;
@@ -69,7 +69,7 @@ body {
 }
 
 .info-section {
-    width: 120%;
+    width: 105%;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -212,8 +212,8 @@ body {
 }
 
 .label {
-    width: 120%;
-    height: 120%;
+    width: 105%;
+    height: 105%;
     border: 3px solid #000;
     box-sizing: border-box;
     padding: 4mm;
@@ -232,7 +232,7 @@ body {
 }
 
 .info-section {
-    width: 120%;
+    width: 105%;
     display: flex;
     flex-direction: column;
     justify-content: center;
