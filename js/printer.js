@@ -245,15 +245,18 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 /* === CUSTOMER SECTION === */
-                .customer-section {
-                    background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
-                    color: #fff;
-                    padding: 4mm;
-                    margin: 3mm 0;
-                    text-align: center;
-                    border-radius: 3mm;
-                    box-shadow: 0 3px 5px rgba(0,0,0,0.2);
-                }
+               .customer-section {
+    background: #000; /* solid black for printing */
+    color: #fff;
+    padding: 4mm;
+    margin: 3mm 0;
+    text-align: center;
+    border-radius: 3mm;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
 
                 .customer-name {
                     font-size: 22px;
