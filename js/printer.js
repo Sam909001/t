@@ -35,13 +35,13 @@ class PrinterServiceElectron {
              const style = `
                 <style>
                 @page {
-    size: 110mm 130mm portrait; /* width x height */
+    size: 95mm 110mm portrait; /* width x height */
     margin: 0;
 }
 
 body {
-    width: 110mm;
-    height: 130mm;
+    width: 95mm;
+    height: 110mm;
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -49,8 +49,8 @@ body {
 }
 
 .label {
-    width: 100%;
-    height: 100%;
+    width: 95%;
+    height: 95%;
     border: 1px solid #000;
     box-sizing: border-box;
     padding: 4mm;
@@ -69,7 +69,7 @@ body {
 }
 
 .info-section {
-    width: 100%;
+    width: 95%;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -91,13 +91,13 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    width: 100%;
+    width: 95%;
 }
 
 .barcode {
     max-width: 90%;
     max-height: 55mm;
-    width: 100%;
+    width: 95%;
 }
 
 .barcode-text {
@@ -198,13 +198,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-    size: 110mm 130mm portrait; /* width x height */
+    size: 95mm 110mm portrait; /* width x height */
     margin: 0;
 }
 
 body {
-    width: 110mm;
-    height: 130mm;
+    width: 95mm;
+    height: 110mm;
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -212,8 +212,8 @@ body {
 }
 
 .label {
-    width: 100%;
-    height: 100%;
+    width: 95%;
+    height: 95%;
     border: 1px solid #000;
     box-sizing: border-box;
     padding: 4mm;
@@ -232,7 +232,7 @@ body {
 }
 
 .info-section {
-    width: 100%;
+    width: 95%;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -254,13 +254,13 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    width: 100%;
+    width: 95%;
 }
 
 .barcode {
     max-width: 90%;
     max-height: 55mm;
-    width: 100%;
+    width: 95%;
 }
 
 .barcode-text {
