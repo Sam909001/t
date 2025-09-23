@@ -257,40 +257,47 @@ body {
                 </style>
             `;
 
-           printWindow.document.write(`
-    <div class="label">
-        <!-- HEADER -->
-        <div class="header">
-            <div class="laundry-name">YEDITEPE LAUNDRY</div>
-            <div class="barcode">
-                <canvas id="barcode-${i}" class="barcode"></canvas>
-                <div class="barcode-text">${packageNo}</div>
-            </div>
-        </div>
+            printWindow.document.write(`<html><head>${style}</head><body>`);
 
-        <!-- HOTEL NAME -->
-        <div class="hotel-name">${pkg.customer_name || 'OTEL ADI'}</div>
+            // FIXED: Loop through packages to write HTML (moved the template inside forEach)
+            packages.forEach((pkg, i) => {
+                const packageNo = pkg.package_no || `PKG-${Date.now()}-${i}`;
+                const customerName = pkg.customer_name || 'Bilinmeyen Müşteri';
+                const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
+                const items = pkg.items || [pkg.product || 'Bilinmeyen Ürün'];
 
-        <!-- ITEM LIST -->
-        <div class="item-list">
-            ${(pkg.items || [pkg.product || 'Bilinmeyen Ürün']).map((item, idx) => `
-                <div class="item">
-                    <span>${item.name || item}</span>
-                    <span>${item.qty || '1 AD'}</span>
-                </div>
-            `).join('')}
-        </div>
+                printWindow.document.write(`
+                    <div class="label">
+                        <!-- HEADER -->
+                        <div class="header">
+                            <div class="laundry-name">YEDITEPE LAUNDRY</div>
+                            <div class="barcode">
+                                <canvas id="barcode-${i}" class="barcode"></canvas>
+                                <div class="barcode-text">${packageNo}</div>
+                            </div>
+                        </div>
 
-        <!-- FOOTER -->
-        <div class="footer">
-            <span>${date}</span>
-            <span>${'paket' + (i + 1)}</span>
-        </div>
-    </div>
-`);
+                        <!-- HOTEL NAME -->
+                        <div class="hotel-name">${customerName}</div>
 
+                        <!-- ITEM LIST -->
+                        <div class="item-list">
+                            ${items.map((item, idx) => `
+                                <div class="item">
+                                    <span>${item.name || item}</span>
+                                    <span>${item.qty || '1 AD'}</span>
+                                </div>
+                            `).join('')}
+                        </div>
 
-            
+                        <!-- FOOTER -->
+                        <div class="footer">
+                            <span>${date}</span>
+                            <span>paket ${i + 1}</span>
+                        </div>
+                    </div>
+                `);
+            });
 
             printWindow.document.write("</body></html>");
             printWindow.document.close();
@@ -327,11 +334,6 @@ body {
             return false;
         }
     }
-
-
-
-
-    
 
     // Test print with settings
     async testPrint(settings = {}) {
