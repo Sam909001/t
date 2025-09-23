@@ -29,19 +29,22 @@ class PrinterServiceElectron {
         }
 
         try {
-             const printWindow = window.open("", "_blank");
+            const printWindow = window.open("", "_blank");
             if (!printWindow) throw new Error("Popup blocked");
+
             const style = `
                 <style>
                     @page {
                         size: 80mm 100mm portrait; /* 8x10 cm sticker size */
                         margin: 2mm; /* Small margin to prevent edge cutoff */
                     }
+
                     * {
                         box-sizing: border-box;
                         margin: 0;
                         padding: 0;
                     }
+
                     body {
                         width: 80mm;
                         height: 100mm;
@@ -50,6 +53,7 @@ class PrinterServiceElectron {
                         font-family: 'Arial', sans-serif;
                         overflow: hidden;
                     }
+
                     .label {
                         width: 76mm; /* Account for page margins */
                         height: 96mm; /* Account for page margins */
@@ -63,9 +67,11 @@ class PrinterServiceElectron {
                         position: relative;
                         background: white;
                     }
+
                     .label:last-child {
                         page-break-after: avoid;
                     }
+
                     .header {
                         font-weight: bold;
                         font-size: 16px;
@@ -103,6 +109,7 @@ class PrinterServiceElectron {
                         word-wrap: break-word;
                         overflow-wrap: break-word;
                     }
+
                     .info strong {
                         font-weight: 700;
                         color: #000;
@@ -136,6 +143,7 @@ class PrinterServiceElectron {
                         line-height: 1.1;
                         color: #333;
                     }
+
                     /* Professional styling touches */
                     .label::before {
                         content: '';
@@ -148,13 +156,16 @@ class PrinterServiceElectron {
                     }
                 </style>
             `;
+
             printWindow.document.write(`<html><head>${style}</head><body>`);
+
             packages.forEach((pkg, i) => {
                 // Proper text length limits for the label size
                 const customerName = (pkg.customer_name || '').substring(0, 25);
                 const product = (pkg.product || '').substring(0, 20);
                 const packageNo = pkg.package_no || '';
                 const date = pkg.created_at || '';
+
                 printWindow.document.write(`
                     <div class="label">
                         <div class="header">YEDITEPE LAUNDRY</div>
@@ -172,8 +183,10 @@ class PrinterServiceElectron {
                     </div>
                 `);
             });
+
             printWindow.document.write("</body></html>");
             printWindow.document.close();
+
             // Wait until the new window loads, then render barcodes
             printWindow.onload = () => {
                 packages.forEach((pkg, i) => {
@@ -193,12 +206,14 @@ class PrinterServiceElectron {
                         }
                     }
                 });
+
                 // Small delay to ensure rendering is complete
                 setTimeout(() => {
                     printWindow.focus();
                     printWindow.print();
                 }, 500);
             };
+
             return true;
         } catch (error) {
             console.error("❌ Bulk print error:", error);
@@ -207,9 +222,6 @@ class PrinterServiceElectron {
         }
     }
 }
-
-
-
 
 // ================== ENHANCED PRINTER WITH SETTINGS SUPPORT ==================
 class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
@@ -220,13 +232,15 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
         }
 
         try {
-           const printWindow = window.open("", "_blank");
+            const printWindow = window.open("", "_blank");
             if (!printWindow) throw new Error("Popup blocked");
+
             // Apply settings or use defaults
             const fontSize = settings.fontSize || 12;
             const headerSize = Math.max(14, fontSize + 4);
             const barcodeHeight = settings.barcodeHeight || 35;
             const margin = settings.margin || 3;
+
             const style = `
                 <style>
                     @page {
@@ -305,6 +319,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         word-wrap: break-word;
                         overflow-wrap: break-word;
                     }
+
                     .info strong {
                         font-weight: 700;
                         color: #000;
@@ -338,6 +353,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         line-height: 1.1;
                         color: #333;
                     }
+
                     /* Professional styling touches */
                     .label::before {
                         content: '';
@@ -350,12 +366,15 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     }
                 </style>
             `;
+
             printWindow.document.write(`<html><head>${style}</head><body>`);
+
             packages.forEach((pkg, i) => {
                 const customerName = (pkg.customer_name || '').substring(0, 25);
                 const product = (pkg.product || '').substring(0, 20);
                 const packageNo = pkg.package_no || '';
                 const date = pkg.created_at || '';
+
                 printWindow.document.write(`
                     <div class="label">
                         <div class="header">YEDITEPE LAUNDRY</div>
@@ -373,8 +392,10 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     </div>
                 `);
             });
+
             printWindow.document.write("</body></html>");
             printWindow.document.close();
+
             printWindow.onload = () => {
                 packages.forEach((pkg, i) => {
                     const canvas = printWindow.document.getElementById(`barcode-${i}`);
@@ -393,11 +414,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         }
                     }
                 });
+
                 setTimeout(() => {
                     printWindow.focus();
                     printWindow.print();
                 }, 500);
             };
+
             return true;
         } catch (error) {
             console.error("❌ Bulk print error:", error);
@@ -405,52 +428,4 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             return false;
         }
     }
-}
-
-
-
-    
-
-    // Test print with settings
-    async testPrint(settings = {}) {
-        const testPackage = {
-            package_no: 'TEST123456',
-            customer_name: 'Test Müşteri',
-            product: 'Test Ürün',
-            created_at: new Date().toLocaleDateString('tr-TR')
-        };
-        return await this.printAllLabels([testPackage], settings);
-    }
-}
-
-// ================== PRINTER INITIALIZATION ==================
-let printerElectron = new PrinterServiceElectronWithSettings();
-
-function getPrinterElectron() {
-    return printerElectron;
-}
-
-// ================== USAGE EXAMPLES ==================
-async function printSelectedElectron() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) return alert('En az bir paket seçin');
-
-    const packages = Array.from(checkboxes).map((checkbox, i) => {
-        const row = checkbox.closest('tr');
-        return {
-            package_no: row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}-${i}`,
-            customer_name: row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri',
-            product: row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün',
-            created_at: row.cells[4]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
-        };
-    });
-
-    // Get saved settings
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    await printerElectron.printAllLabels(packages, settings);
-}
-
-async function testPrintWithSettings() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    await printerElectron.testPrint(settings);
 }
