@@ -109,44 +109,44 @@ class PrinterServiceElectron {
             printWindow.document.write(`<html><head>${style}</head><body>`);
 
             // Loop through packages
-            packages.forEach((pkg, i) => {
-                const packageNo = pkg.package_no || `PKG-${Date.now()}-${i}`;
-                const customerName = pkg.customer_name || 'Bilinmeyen Müşteri';
-                const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
-                const items = pkg.items || [pkg.product || 'Bilinmeyen Ürün'];
+           packages.forEach((pkg, i) => {
+    const packageNo = pkg.package_no || `PKG-${Date.now()}-${i}`;
+    const customerName = pkg.customer_name || 'Bilinmeyen Müşteri';
+    const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
+    const items = pkg.items || [pkg.product || 'Bilinmeyen Ürün'];
 
-                printWindow.document.write(`
-                    <div class="label">
-                        <!-- HEADER -->
-                        <div class="header">
-                            <div>${customerName}</div>
-                            <div>
-                                <canvas id="barcode-${i}" class="barcode"></canvas>
-                                <div class="barcode-text">${packageNo}</div>
-                            </div>
-                        </div>
+    printWindow.document.write(`
+        <div class="label">
+            <!-- HEADER -->
+            <div class="header">
+                <div>${customerName}</div>
+                <div>
+                    <canvas id="barcode-${i}" class="barcode"></canvas>
+                    <div class="barcode-text">${packageNo}</div>
+                </div>
+            </div>
 
-                        <!-- HOTEL NAME -->
-                        <div class="hotel-name">${customerName}</div>
+            <!-- HOTEL NAME -->
+            <div class="hotel-name">${customerName}</div>
 
-                        <!-- ITEM LIST -->
-                        <div class="item-list">
-                            ${items.map(item => `
-                                <div class="item">
-                                    <span>${item.name || item}</span>
-                                    <span>${item.qty || '1'}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-
-                        <!-- FOOTER -->
-                        <div class="footer">
-                            <span>${date}</span>
-                            <span>Paket ${i + 1}</span>
-                        </div>
+            <!-- ITEM LIST -->
+            <div class="item-list">
+                ${items.map(item => `
+                    <div class="item">
+                        <span>${item.name || item}</span>
+                        <span>${item.qty || '1'}</span>
                     </div>
-                `);
-            });
+                `).join('')}
+            </div>
+
+            <!-- FOOTER -->
+            <div class="footer">
+                <span>${date}</span>
+                <span>Paket ${i + 1}</span>
+            </div>
+        </div>
+    `);
+});
 
             printWindow.document.write("</body></html>");
             printWindow.document.close();
