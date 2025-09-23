@@ -1138,14 +1138,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-function clearLocalData() {
-    if (confirm('Tüm yerel veriler silinecek. Emin misiniz?')) {
-        localStorage.removeItem('procleanState');
-        localStorage.removeItem('procleanOfflineData');
-        localStorage.removeItem('procleanSettings');
-        showAlert('Yerel veriler temizlendi', 'success');
+function clearFrontendData() {
+    const password = prompt('Tüm yerel veriler silinecek. Lütfen şifreyi girin:');
+    
+    if (password !== '8823') {
+        alert('⚠️ Şifre yanlış! İşlem iptal edildi.');
+        return;
     }
+
+    // Clear all frontend/local data
+    localStorage.removeItem('procleanState');
+    localStorage.removeItem('procleanOfflineData');
+    localStorage.removeItem('procleanSettings');
+
+    // Clear UI tables, containers, and inputs
+    const tables = document.querySelectorAll('table');
+    tables.forEach(table => {
+        const tbody = table.querySelector('tbody');
+        if (tbody) tbody.innerHTML = '';
+    });
+
+    const inputs = document.querySelectorAll('input, textarea');
+    inputs.forEach(input => input.value = '');
+
+    const selects = document.querySelectorAll('select');
+    selects.forEach(select => select.selectedIndex = 0);
+
+    const containers = document.querySelectorAll('.container, .packages-container, .reports-container');
+    containers.forEach(container => container.innerHTML = '');
+
+    showAlert('Tüm frontend veriler temizlendi', 'success');
 }
+
+
 
 // Initialize settings on app load
 function initializeSettings() {
