@@ -367,7 +367,14 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
     }
 
 
-    // ================== USAGE EXAMPLES ==================
+ // ================== PRINTER INITIALIZATION ==================
+let printerElectron = new PrinterServiceElectronWithSettings();
+
+function getPrinterElectron() {
+    return printerElectron;
+}
+
+// ================== USAGE EXAMPLES ==================
 async function printSelectedElectron() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     if (checkboxes.length === 0) return alert('En az bir paket seçin');
@@ -386,12 +393,6 @@ async function printSelectedElectron() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     await printerElectron.printAllLabels(packages, settings);
 }
-
-async function testPrintWithSettings() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    await printerElectron.testPrint(settings);
-}
-
 
 
     
