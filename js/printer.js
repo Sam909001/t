@@ -167,41 +167,32 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-    size: 115mm 140mm portrait;
-    margin: 0;
-}
-
+                    size: 110mm 100mm landscape;
+                    margin: 0;
+                }
 
                 body {
-    width: 120mm;
-    height: 100mm;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #fff;
-    color: #000;
-}
-
+                    width: 110mm;
+                    height: 100mm;
+                    margin: 0;
+                    padding: 0;
+                    overflow: hidden;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #fff;
+                    color: #000;
+                }
 
                 .label {
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    padding: 6mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    border: 4px solid #000;
-
-    /* rotate content 90° clockwise */
-    transform: rotate(90deg);
-    transform-origin: top left;
-    position: absolute;
-    top: 0;
-    left: -100%; /* shift back into view */
-}
-
+                    width: 100%;
+                    height: 100%;
+                    box-sizing: border-box;
+                    padding: 6mm;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    border: 4px solid #000;
+                    position: relative;
+                }
 
                 /* === HEADER SECTION === */
                 .header {
