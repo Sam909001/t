@@ -172,7 +172,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
     }
 
                 body {
-                     width: 120mm !important;
+                     width: 150mm !important;
                      height: 105mm !important;
                      margin: 0 !important;
                      padding: 0 !important;
