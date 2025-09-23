@@ -174,8 +174,7 @@ class PrinterServiceElectron {
         }
     }
 }
-
-// ================== ENHANCED HORIZONTAL PRINTER WITH SETTINGS SUPPORT ==================
+// ================== HORIZONTAL PRINTER SERVICE ==================
 class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
     async printAllLabels(packages, settings = {}) {
         if (!packages || packages.length === 0) {
@@ -187,86 +186,65 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const printWindow = window.open("", "_blank");
             if (!printWindow) throw new Error("Popup blocked");
 
-            // Apply settings or use defaults (adjusted for horizontal format)
-            const fontSize = settings.fontSize || 8;
-            const headerSize = Math.max(9, fontSize + 2);
-            const barcodeHeight = settings.barcodeHeight || 18;
-            const margin = settings.margin || 3;
+            // Default settings (larger fonts for full sticker)
+            const fontName = settings.fontName || 'Arial';
+            const headerSize = settings.headerSize || 16; // big header
+            const infoSize = settings.infoSize || 12;     // big info
+            const barcodeHeight = settings.barcodeHeight || 25;
+            const margin = settings.margin || 3;          // 3mm margin
 
             const style = `
                 <style>
                     @page {
-                        size: 100mm 80mm;
+                        size: 100mm 80mm; /* 10cm x 8cm */
                         margin: 0;
                     }
-                    
-                    * {
-                        box-sizing: border-box;
-                        margin: 0;
-                        padding: 0;
-                    }
-                    
+                    * { box-sizing: border-box; margin: 0; padding: 0; }
                     body { 
-                        font-family: ${settings.fontName || 'Arial'}, Helvetica, sans-serif; 
+                        font-family: ${fontName}, Helvetica, sans-serif;
                         margin: 0; 
                         padding: 0;
                         width: 100mm;
                         height: 80mm;
                     }
-                    
                     .label {
                         width: 100mm;
                         height: 80mm;
                         border: 1px solid #000;
                         padding: ${margin}mm;
-                        box-sizing: border-box;
-                        margin: 0;
-                        page-break-after: always;
                         display: flex;
                         flex-direction: column;
                         justify-content: space-between;
-                        overflow: hidden;
+                        page-break-after: always;
                     }
-                    
-                    .label:last-child {
-                        page-break-after: avoid;
-                    }
- 
+                    .label:last-child { page-break-after: avoid; }
+
                     .header { 
-                        font-weight: bold; 
-                        font-size: ${headerSize}px; 
-                        text-align: center; 
-                        margin-bottom: 2mm;
+                        font-weight: bold;
+                        font-size: ${headerSize}px;
+                        text-align: center;
                         line-height: 1.2;
                     }
-                    
                     .info { 
-                        font-size: ${fontSize}px; 
-                        margin-bottom: 1mm; 
-                        text-align: left;
-                        line-height: 1.1;
+                        font-size: ${infoSize}px;
+                        margin-top: 2mm;
+                        line-height: 1.2;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
                     }
-                    
                     .barcode-container {
                         flex: 1;
                         display: flex;
                         flex-direction: column;
                         justify-content: center;
                         align-items: center;
-                        margin: 3mm 0;
+                        margin-top: 4mm;
                     }
-                    
-                    .barcode { 
-                        max-width: 90mm;
-                        max-height: ${barcodeHeight + 5}mm;
-                    }
-                    
+                    .barcode { max-width: 90mm; max-height: ${barcodeHeight}mm; }
                     .barcode-text { 
                         text-align: center; 
-                        font-size: ${Math.max(6, fontSize - 2)}px; 
+                        font-size: ${infoSize - 2}px; 
                         margin-top: 1mm;
                         font-weight: bold;
                     }
@@ -276,9 +254,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             printWindow.document.write(`<html><head>${style}</head><body>`);
 
             packages.forEach((pkg, i) => {
-                // Shorter text limits for horizontal format
-                const customerName = (pkg.customer_name || '').substring(0, 20);
-                const product = (pkg.product || '').substring(0, 18);
+                const customerName = (pkg.customer_name || '').substring(0, 30);
+                const product = (pkg.product || '').substring(0, 30);
                 const packageNo = pkg.package_no || '';
                 const date = pkg.created_at || '';
 
@@ -306,11 +283,10 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         try {
                             JsBarcode(canvas, pkg.package_no || '', {
                                 format: 'CODE128',
-                                width: 1.2,
+                                width: 2,           // slightly thicker bars
                                 height: barcodeHeight,
                                 displayValue: false,
                                 margin: 0,
-                                fontSize: Math.max(6, fontSize - 2)
                             });
                         } catch (error) {
                             console.error('Barcode generation error:', error);
@@ -332,7 +308,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
         }
     }
 
-    // Test print with settings
     async testPrint(settings = {}) {
         const testPackage = {
             package_no: 'TEST123456',
@@ -343,6 +318,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
         return await this.printAllLabels([testPackage], settings);
     }
 }
+
+
 
 // ================== PRINTER INITIALIZATION ==================
 let printerElectron = new PrinterServiceElectronWithSettings();
