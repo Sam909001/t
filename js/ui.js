@@ -691,26 +691,8 @@ async function printPackageWithSettings(packageData) {
 
     
     
-    // Language
-if (settings.language) {
-    const languageSelect = document.getElementById('languageSelect');
-    if (languageSelect) {
-        languageSelect.value = settings.language;
-    } else {
-        console.warn('⚠️ languageSelect element not found, skipping language assignment.');
-    }
-}
-
-
-    
-    
-// Auto-save
-const autoSaveToggle = document.getElementById('autoSaveToggle');
-if (autoSaveToggle) {
-    // Default to true if settings.autoSave is undefined
-    autoSaveToggle.checked = settings.autoSave !== false;
-} else {
-    console.warn('⚠️ autoSaveToggle element not found, skipping auto-save assignment.');
+    // Auto-save
+    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
 }
 
 
