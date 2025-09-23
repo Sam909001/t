@@ -41,13 +41,13 @@ class PrinterServiceElectron {
             const style = `
                 <style>
                 @page { 
-                    size: 80mm 120mm portrait;  /* PORTRAIT: Taller than wide */
+                    size: 100mm 80mm portrait;  /* PORTRAIT: Taller than wide */
                     margin: 0; 
                 }
                 
                 body { 
-                    width: 80mm;     /* Narrow width for portrait */
-                    height: 120mm;   /* Tall height for portrait */
+                    width: 100mm;     /* Narrow width for portrait */
+                    height: 80mm;   /* Tall height for portrait */
                     margin: 0; 
                     padding: 0; 
                     font-family: Arial, Helvetica, sans-serif; 
@@ -111,7 +111,7 @@ class PrinterServiceElectron {
                 }
                 
                 .item-list {
-                    border: 1px solid #000;
+                    border: 3px solid #000;
                     padding: 2mm;
                     border-radius: 2mm;
                 }
