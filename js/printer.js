@@ -167,9 +167,10 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-                    size: 110mm 100mm landscape;
-                    margin: 0;
-                }
+    size: 110mm 100mm; /* width x height */
+    margin: 0;
+}
+
 
                 body {
                     width: 110mm;
@@ -191,11 +192,18 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
     flex-direction: column;
     justify-content: space-between;
     border: 4px solid #000;
-    position: relative;
+    position: absolute;
 
-    /* ROTATE 90° */
+    /* ROTATE 90° clockwise */
     transform: rotate(90deg);
     transform-origin: top left;
+
+    /* SHIFT into view */
+    top: 0;
+    left: -100%; /* move left by full width */
+}
+.label {
+    transform: rotate(90deg) scale(0.95);
 }
 
 
