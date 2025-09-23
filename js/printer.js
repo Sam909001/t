@@ -63,7 +63,7 @@ body {
 
 .header {
     font-weight: bold;
-    font-size: 22px;
+    font-size: 25px;
     text-align: center;
     margin-bottom: 4mm;
 }
@@ -74,7 +74,7 @@ body {
     flex-direction: column;
     justify-content: center;
     gap: 1.5mm;
-    font-size: 20px;
+    font-size: 25px;
     text-align: left;
     margin-bottom: 4mm;
 }
@@ -96,12 +96,12 @@ body {
 
 .barcode {
     max-width: 90%;
-    max-height: 65mm;
+    max-height: 80mm;
     width: 100%;
 }
 
 .barcode-text {
-    font-size: 16px;
+    font-size: 22px;
     font-weight: bold;
     text-align: center;
     margin-top: 1mm;
@@ -214,7 +214,7 @@ body {
 .label {
     width: 100%;
     height: 100%;
-    border: 1px solid #000;
+    border: 3px solid #000;
     box-sizing: border-box;
     padding: 4mm;
     page-break-after: always;
@@ -226,7 +226,7 @@ body {
 
 .header {
     font-weight: bold;
-    font-size: 22px;
+    font-size: 25px;
     text-align: center;
     margin-bottom: 4mm;
 }
@@ -237,7 +237,7 @@ body {
     flex-direction: column;
     justify-content: center;
     gap: 1.5mm;
-    font-size: 20px;
+    font-size: 25px;
     text-align: left;
     margin-bottom: 4mm;
 }
@@ -259,12 +259,12 @@ body {
 
 .barcode {
     max-width: 90%;
-    max-height: 65mm;
+    max-height: 80mm;
     width: 100%;
 }
 
 .barcode-text {
-    font-size: 16px;
+    font-size: 22px;
     font-weight: bold;
     text-align: center;
     margin-top: 1mm;
