@@ -49,9 +49,9 @@ body {
 }
 
 .label {
-    width: 100%;
-    height: 100%;
-    border: 2px solid #000;
+    width: 120%;
+    height: 120%;
+    border: 3px solid #000;
     box-sizing: border-box;
     padding: 4mm;
     page-break-after: always;
@@ -69,13 +69,13 @@ body {
 }
 
 .info-section {
-    width: 100%;
+    width: 120%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: 1.5mm;
     font-size: 25px;
-    text-align: left;
+    text-align: center;
     margin-bottom: 4mm;
 }
 
@@ -212,8 +212,8 @@ body {
 }
 
 .label {
-    width: 100%;
-    height: 100%;
+    width: 120%;
+    height: 120%;
     border: 3px solid #000;
     box-sizing: border-box;
     padding: 4mm;
@@ -232,7 +232,7 @@ body {
 }
 
 .info-section {
-    width: 100%;
+    width: 120%;
     display: flex;
     flex-direction: column;
     justify-content: center;
