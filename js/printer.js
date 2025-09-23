@@ -50,13 +50,13 @@ class PrinterServiceElectron {
                         font-family: Arial, Helvetica, sans-serif; 
                         margin: 0; 
                         padding: 0;
-                        width: 80mm;
-                        height: 100mm;
+                        width: 100mm;
+                        height: 80mm;
                     }
                     
                     .label {
-                        width: 80mm;
-                        height: 100mm;
+                        width: 100mm;
+                        height: 80mm;
                         border: 1px solid #000;
                         padding: 3mm;
                         box-sizing: border-box;
@@ -196,7 +196,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                     @page {
-                        size: 80mm 100mm;
+                        size: 100mm 80mm;
                         margin: 0;
                     }
                     
@@ -210,13 +210,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         font-family: ${settings.fontName || 'Arial'}, Helvetica, sans-serif; 
                         margin: 0; 
                         padding: 0;
-                        width: 80mm;
-                        height: 100mm;
+                        width: 100mm;
+                        height: 80mm;
                     }
                     
                     .label {
-                        width: 80mm;
-                        height: 100mm;
+                        width: 100mm;
+                        height: 80mm;
                         border: 1px solid #000;
                         padding: ${margin}mm;
                         box-sizing: border-box;
@@ -260,7 +260,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     }
                     
                     .barcode { 
-                        max-width: 70mm;
+                        max-width: 90mm;
                         max-height: ${barcodeHeight + 5}mm;
                     }
                     
