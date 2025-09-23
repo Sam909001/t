@@ -36,12 +36,15 @@ class PrinterServiceElectron {
                 <style>
                     body { font-family: Arial, Helvetica, sans-serif; margin:0; padding:5px; }
                     .label {
-                        width: 100mm; height: 80mm;
-                        border: 1px solid #000;
-                        padding:5px; box-sizing:border-box;
-                        margin: 10px auto;
-                        page-break-after: always;
+                    width: 100mm;
+                    height: 80mm;
+                    border: 1px solid #000;
+                    padding: 5px;
+                    box-sizing: border-box;
+                    margin: 0;
+                    page-break-after: always;
                     }
+ 
                     .header { font-weight:bold; font-size:14px; text-align:center; margin-bottom:5px; }
                     .info { font-size:11px; margin-bottom:4px; text-align:left; }
                     .barcode { display:block; margin:5px auto; }
