@@ -29,101 +29,97 @@ class PrinterServiceElectron {
         }
 
         try {
-            const printWindow = window.open("", "_blank");
+                     const printWindow = window.open("", "_blank");
             if (!printWindow) throw new Error("Popup blocked");
 
-             const style = `
+            const style = `
                 <style>
                     @page {
-                        size: 100mm 80mm landscape;
+                        size: 80mm 100mm;
                         margin: 0;
                     }
-                    
+
                     * {
                         box-sizing: border-box;
                         margin: 0;
                         padding: 0;
                     }
-                    
+
                     body { 
                         font-family: Arial, Helvetica, sans-serif; 
                         margin: 0; 
                         padding: 0;
-                        width: 100mm;
-                        height: 80mm;
+                        width: 80mm;
+                        height: 100mm;
                         overflow: hidden;
                     }
-                    
+
                     .label {
-                        width: 100mm;
-                        height: 80mm;
+                        width: 80mm;
+                        height: 100mm;
                         border: 1px solid #000;
-                        padding: 2mm;
+                        padding: 3mm;
                         box-sizing: border-box;
                         margin: 0;
                         page-break-after: always;
-                        display: grid;
-                        grid-template-columns: 1fr auto;
-                        grid-template-rows: auto 1fr;
-                        gap: 1mm;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        align-items: center;
                         overflow: hidden;
                     }
-                    
+
                     .label:last-child {
                         page-break-after: avoid;
                     }
- 
+
                     .header { 
                         font-weight: bold; 
                         font-size: 18px; 
                         text-align: center; 
-                        grid-column: 1 / -1;
-                        margin-bottom: 1mm;
-                        line-height: 1.1;
-                        padding: 1mm 0;
+                        margin-bottom: 3mm;
                     }
-                    
+
                     .info-section {
                         display: flex;
                         flex-direction: column;
-                        justify-content: space-evenly;
-                        padding-right: 2mm;
-                        min-height: 0;
+                        align-items: flex-start;
+                        width: 100%;
+                        flex: 1;
+                        justify-content: center;
                     }
-                    
+
                     .info { 
-                        font-size: 15px; 
-                        text-align: left;
-                        line-height: 1.2;
+                        font-size: 14px; 
                         margin: 1mm 0;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
                         font-weight: 500;
                     }
-                    
+
                     .barcode-container {
                         display: flex;
                         flex-direction: column;
                         justify-content: center;
                         align-items: center;
-                        min-width: 35mm;
-                        padding-left: 2mm;
+                        width: 100%;
+                        margin-top: 2mm;
                     }
-                    
+
                     .barcode { 
-                        max-width: 32mm;
-                        max-height: 45mm;
+                        max-width: 70mm;
+                        max-height: 50mm;
                         width: 100%;
                     }
-                    
+
                     .barcode-text { 
                         text-align: center; 
-                        font-size: 11px; 
+                        font-size: 12px; 
                         margin-top: 1mm;
                         font-weight: bold;
                         word-break: break-all;
-                        max-width: 32mm;
+                        max-width: 70mm;
                     }
                 </style>
             `;
@@ -131,9 +127,8 @@ class PrinterServiceElectron {
             printWindow.document.write(`<html><head>${style}</head><body>`);
 
             packages.forEach((pkg, i) => {
-                // Adjust text lengths for horizontal layout
-                const customerName = (pkg.customer_name || '').substring(0, 35);
-                const product = (pkg.product || '').substring(0, 30);
+                const customerName = (pkg.customer_name || '').substring(0, 30);
+                const product = (pkg.product || '').substring(0, 25);
                 const packageNo = pkg.package_no || '';
                 const date = pkg.created_at || '';
 
@@ -156,7 +151,7 @@ class PrinterServiceElectron {
             printWindow.document.write("</body></html>");
             printWindow.document.close();
 
-            // Wait until the new window loads, then render barcodes
+            // Render barcodes after window load
             printWindow.onload = () => {
                 packages.forEach((pkg, i) => {
                     const canvas = printWindow.document.getElementById(`barcode-${i}`);
@@ -164,7 +159,7 @@ class PrinterServiceElectron {
                         try {
                             JsBarcode(canvas, pkg.package_no || '', {
                                 format: 'CODE128',
-                                width: 1.8,
+                                width: 1.5,
                                 height: 40,
                                 displayValue: false,
                                 margin: 0,
@@ -176,7 +171,6 @@ class PrinterServiceElectron {
                     }
                 });
 
-                // Small delay to ensure rendering is complete
                 setTimeout(() => {
                     printWindow.focus();
                     printWindow.print();
@@ -206,104 +200,100 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const printWindow = window.open("", "_blank");
             if (!printWindow) throw new Error("Popup blocked");
 
-            // Apply settings or use defaults
+            // Apply settings
             const fontSize = settings.fontSize || 14;
             const headerSize = Math.max(16, fontSize + 4);
             const barcodeHeight = settings.barcodeHeight || 40;
-            const margin = settings.margin || 2;
+            const margin = settings.margin || 3;
 
             const style = `
                 <style>
                     @page {
-                        size: 100mm 80mm landscape;
+                        size: 80mm 100mm;
                         margin: 0;
                     }
-                    
+
                     * {
                         box-sizing: border-box;
                         margin: 0;
                         padding: 0;
                     }
-                    
+
                     body { 
                         font-family: ${settings.fontName || 'Arial'}, Helvetica, sans-serif; 
                         margin: 0; 
                         padding: 0;
-                        width: 100mm;
-                        height: 80mm;
+                        width: 80mm;
+                        height: 100mm;
                         overflow: hidden;
                     }
-                    
+
                     .label {
-                        width: 100mm;
-                        height: 80mm;
+                        width: 80mm;
+                        height: 100mm;
                         border: 1px solid #000;
                         padding: ${margin}mm;
                         box-sizing: border-box;
                         margin: 0;
                         page-break-after: always;
-                        display: grid;
-                        grid-template-columns: 1fr auto;
-                        grid-template-rows: auto 1fr;
-                        gap: 1mm;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        align-items: center;
                         overflow: hidden;
                     }
-                    
+
                     .label:last-child {
                         page-break-after: avoid;
                     }
- 
+
                     .header { 
                         font-weight: bold; 
                         font-size: ${headerSize}px; 
                         text-align: center; 
-                        grid-column: 1 / -1;
-                        margin-bottom: 1mm;
-                        line-height: 1.1;
-                        padding: 1mm 0;
+                        margin-bottom: 3mm;
                     }
-                    
+
                     .info-section {
                         display: flex;
                         flex-direction: column;
-                        justify-content: space-evenly;
-                        padding-right: 2mm;
-                        min-height: 0;
+                        align-items: flex-start;
+                        width: 100%;
+                        flex: 1;
+                        justify-content: center;
                     }
-                    
+
                     .info { 
                         font-size: ${fontSize}px; 
-                        text-align: left;
-                        line-height: 1.2;
                         margin: 1mm 0;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
                         font-weight: 500;
                     }
-                    
+
                     .barcode-container {
                         display: flex;
                         flex-direction: column;
                         justify-content: center;
                         align-items: center;
-                        min-width: 35mm;
-                        padding-left: 2mm;
+                        width: 100%;
+                        margin-top: 2mm;
                     }
-                    
+
                     .barcode { 
-                        max-width: 32mm;
+                        max-width: 70mm;
                         max-height: ${barcodeHeight + 5}mm;
                         width: 100%;
                     }
-                    
+
                     .barcode-text { 
                         text-align: center; 
                         font-size: ${Math.max(9, fontSize - 3)}px; 
                         margin-top: 1mm;
                         font-weight: bold;
                         word-break: break-all;
-                        max-width: 32mm;
+                        max-width: 70mm;
                     }
                 </style>
             `;
@@ -311,8 +301,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             printWindow.document.write(`<html><head>${style}</head><body>`);
 
             packages.forEach((pkg, i) => {
-                const customerName = (pkg.customer_name || '').substring(0, 35);
-                const product = (pkg.product || '').substring(0, 30);
+                const customerName = (pkg.customer_name || '').substring(0, 30);
+                const product = (pkg.product || '').substring(0, 25);
                 const packageNo = pkg.package_no || '';
                 const date = pkg.created_at || '';
 
@@ -342,7 +332,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         try {
                             JsBarcode(canvas, pkg.package_no || '', {
                                 format: 'CODE128',
-                                width: 1.8,
+                                width: 1.5,
                                 height: barcodeHeight,
                                 displayValue: false,
                                 margin: 0,
@@ -367,7 +357,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             return false;
         }
     }
-
 
 
 
