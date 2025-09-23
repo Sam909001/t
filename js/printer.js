@@ -166,93 +166,204 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
 
             const style = `
                 <style>
-               @page {
-    size: 100mm 110mm portrait; /* width x height */
-    margin: 0;
-}
+                @page {
+                    size: 100mm 110mm portrait;
+                    margin: 0;
+                }
 
-body {
-    width: 100mm;
-    height: 110mm;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    font-family: Arial, Helvetica, sans-serif;
-}
+                body {
+                    width: 100mm;
+                    height: 110mm;
+                    margin: 0;
+                    padding: 0;
+                    overflow: hidden;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #fff;
+                    color: #000;
+                }
 
-.label {
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    padding: 4mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-}
+                .label {
+                    width: 100%;
+                    height: 100%;
+                    box-sizing: border-box;
+                    padding: 6mm;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    border: 2px solid #000;
+                    position: relative;
+                }
 
-/* === HEADER === */
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4mm;
-}
+                /* === HEADER SECTION === */
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 5mm;
+                    padding-bottom: 3mm;
+                    border-bottom: 2px solid #000;
+                }
 
-.header .laundry-name {
-    font-weight: bold;
-    font-size: 16px;
-    text-align: left;
-}
+                .company-info {
+                    flex: 1;
+                }
 
-.header .barcode {
-    text-align: right;
-}
+                .company-name {
+                    font-size: 18px;
+                    font-weight: 900;
+                    color: #000;
+                    letter-spacing: 0.5px;
+                    margin: 0;
+                    line-height: 1.1;
+                }
 
-.header .barcode img {
-    max-height: 15mm;
-    width: auto;
-}
+                .company-subtitle {
+                    font-size: 10px;
+                    color: #666;
+                    margin: 1mm 0 0 0;
+                    font-weight: 500;
+                    letter-spacing: 0.3px;
+                }
 
-.header .barcode-text {
-    font-size: 12px;
-    font-weight: bold;
-    margin-top: 1mm;
-}
+                .barcode-section {
+                    text-align: right;
+                    flex-shrink: 0;
+                }
 
-/* === HOTEL NAME === */
-.hotel-name {
-    background: #000;
-    color: #fff;
-    font-weight: bold;
-    font-size: 18px;
-    text-align: center;
-    padding: 2mm;
-    margin-bottom: 4mm;
-}
+                .barcode-text {
+                    font-size: 11px;
+                    font-weight: 700;
+                    margin-top: 2mm;
+                    color: #000;
+                    font-family: 'Courier New', monospace;
+                    letter-spacing: 0.5px;
+                }
 
-/* === ITEM LIST === */
-.item-list {
-    width: 100%;
-    margin-bottom: 4mm;
-    font-size: 14px;
-    border-top: 1px dashed #000;
-    border-bottom: 1px dashed #000;
-    padding: 2mm 0;
-}
+                /* === CUSTOMER SECTION === */
+                .customer-section {
+                    background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+                    color: #fff;
+                    padding: 4mm;
+                    margin: 3mm 0;
+                    text-align: center;
+                    border-radius: 3mm;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
 
-.item {
-    display: flex;
-    justify-content: space-between;
-    padding: 1mm 0;
-}
+                .customer-label {
+                    font-size: 10px;
+                    opacity: 0.8;
+                    margin-bottom: 1mm;
+                    font-weight: 400;
+                    letter-spacing: 0.5px;
+                }
 
-/* === FOOTER === */
-.footer {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    margin-top: auto;
-}
+                .customer-name {
+                    font-size: 16px;
+                    font-weight: 700;
+                    margin: 0;
+                    line-height: 1.2;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+
+                /* === ITEMS SECTION === */
+                .items-section {
+                    flex: 1;
+                    margin: 3mm 0;
+                }
+
+                .items-title {
+                    font-size: 12px;
+                    font-weight: 700;
+                    margin-bottom: 2mm;
+                    color: #000;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 1mm;
+                }
+
+                .item-list {
+                    background: #f8f9fa;
+                    padding: 3mm;
+                    border-radius: 2mm;
+                    border: 1px solid #e9ecef;
+                }
+
+                .item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 1.5mm 0;
+                    border-bottom: 1px dotted #ccc;
+                    font-size: 12px;
+                }
+
+                .item:last-child {
+                    border-bottom: none;
+                }
+
+                .item-name {
+                    font-weight: 600;
+                    color: #333;
+                }
+
+                .item-qty {
+                    font-weight: 700;
+                    color: #000;
+                    background: #fff;
+                    padding: 1mm 2mm;
+                    border-radius: 2mm;
+                    border: 1px solid #ddd;
+                    font-size: 11px;
+                    min-width: 15mm;
+                    text-align: center;
+                }
+
+                /* === FOOTER === */
+                .footer {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-top: auto;
+                    padding-top: 3mm;
+                    border-top: 1px solid #ddd;
+                    font-size: 11px;
+                    color: #666;
+                }
+
+                .date-info {
+                    font-weight: 500;
+                }
+
+                .package-info {
+                    font-weight: 700;
+                    color: #000;
+                    background: #f0f0f0;
+                    padding: 1mm 3mm;
+                    border-radius: 2mm;
+                    border: 1px solid #ddd;
+                }
+
+                /* === PROFESSIONAL TOUCHES === */
+                .label::before {
+                    content: "";
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
+                }
+
+                .label::after {
+                    content: "";
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
+                }
 
                 </style>
             `;
@@ -268,32 +379,41 @@ body {
 
                 printWindow.document.write(`
                     <div class="label">
-                        <!-- HEADER -->
+                        <!-- HEADER SECTION -->
                         <div class="header">
-                            <div class="laundry-name">YEDITEPE LAUNDRY</div>
-                            <div class="barcode">
+                            <div class="company-info">
+                                <h1 class="company-name">YEDITEPE LAUNDRY</h1>
+                                <p class="company-subtitle">Professional Laundry Services</p>
+                            </div>
+                            <div class="barcode-section">
                                 <canvas id="barcode-${i}" class="barcode"></canvas>
                                 <div class="barcode-text">${packageNo}</div>
                             </div>
                         </div>
 
-                        <!-- HOTEL NAME -->
-                        <div class="hotel-name">${customerName}</div>
+                        <!-- CUSTOMER SECTION -->
+                        <div class="customer-section">
+                            <div class="customer-label">CUSTOMER / MÜŞTERİ</div>
+                            <h2 class="customer-name">${customerName}</h2>
+                        </div>
 
-                        <!-- ITEM LIST -->
-                        <div class="item-list">
-                            ${items.map((item, idx) => `
-                                <div class="item">
-                                    <span>${item.name || item}</span>
-                                    <span>${item.qty || '1 AD'}</span>
-                                </div>
-                            `).join('')}
+                        <!-- ITEMS SECTION -->
+                        <div class="items-section">
+                            <div class="items-title">LAUNDRY ITEMS / ÇAMAŞIR LİSTESİ</div>
+                            <div class="item-list">
+                                ${items.map((item, idx) => `
+                                    <div class="item">
+                                        <span class="item-name">${item.name || item}</span>
+                                        <span class="item-qty">${item.qty || '1 AD'}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
 
                         <!-- FOOTER -->
                         <div class="footer">
-                            <span>${date}</span>
-                            <span>paket ${i + 1}</span>
+                            <span class="date-info">${date}</span>
+                            <span class="package-info">PAKET #${i + 1}</span>
                         </div>
                     </div>
                 `);
