@@ -73,14 +73,14 @@ class PrinterServiceElectron {
  
                     .header { 
                         font-weight: bold; 
-                        font-size: 12px; 
+                        font-size: 17px; 
                         text-align: center; 
                         margin-bottom: 2mm;
                         line-height: 1.2;
                     }
                     
                     .info { 
-                        font-size: 9px; 
+                        font-size: 14px; 
                         margin-bottom: 1mm; 
                         text-align: left;
                         line-height: 1.1;
@@ -99,13 +99,13 @@ class PrinterServiceElectron {
                     }
                     
                     .barcode { 
-                        max-width: 90mm;
-                        max-height: 20mm;
+                        max-width: 70mm;
+                        max-height: 35mm;
                     }
                     
                     .barcode-text { 
                         text-align: center; 
-                        font-size: 8px; 
+                        font-size: 12px; 
                         margin-top: 1mm;
                         font-weight: bold;
                     }
@@ -146,11 +146,11 @@ class PrinterServiceElectron {
                         try {
                             JsBarcode(canvas, pkg.package_no || '', {
                                 format: 'CODE128',
-                                width: 1.5,
-                                height: 15,
+                                width: 2.5,
+                                height: 25,
                                 displayValue: false,
                                 margin: 0,
-                                fontSize: 8
+                                fontSize: 12
                             });
                         } catch (error) {
                             console.error('Barcode generation error:', error);
@@ -187,9 +187,9 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             if (!printWindow) throw new Error("Popup blocked");
 
             // Apply settings or use defaults
-            const fontSize = settings.fontSize || 9;
-            const headerSize = Math.max(10, fontSize + 3);
-            const barcodeHeight = settings.barcodeHeight || 15;
+            const fontSize = settings.fontSize || 13;
+            const headerSize = Math.max(14, fontSize + 4);
+            const barcodeHeight = settings.barcodeHeight || 25;
             const margin = settings.margin || 3;
 
             const style = `
@@ -259,13 +259,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     }
                     
                     .barcode { 
-                        max-width: 90mm;
+                        max-width: 70mm;
                         max-height: ${barcodeHeight + 5}mm;
                     }
                     
                     .barcode-text { 
                         text-align: center; 
-                        font-size: ${Math.max(6, fontSize - 2)}px; 
+                        font-size: ${Math.max(8, fontSize - 2)}px; 
                         margin-top: 1mm;
                         font-weight: bold;
                     }
@@ -304,11 +304,11 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         try {
                             JsBarcode(canvas, pkg.package_no || '', {
                                 format: 'CODE128',
-                                width: 1.5,
+                                width: 2.5,
                                 height: barcodeHeight,
                                 displayValue: false,
                                 margin: 0,
-                                fontSize: Math.max(6, fontSize - 2)
+                                fontSize: Math.max(9, fontSize - 2)
                             });
                         } catch (error) {
                             console.error('Barcode generation error:', error);
