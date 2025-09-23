@@ -183,16 +183,21 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .label {
-                    width: 100%;
-                    height: 100%;
-                    box-sizing: border-box;
-                    padding: 6mm;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                    border: 4px solid #000;
-                    position: relative;
-                }
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 6mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 4px solid #000;
+    position: relative;
+
+    /* ROTATE 90° */
+    transform: rotate(90deg);
+    transform-origin: top left;
+}
+
 
                 /* === HEADER SECTION === */
                 .header {
