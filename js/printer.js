@@ -1,4 +1,4 @@
-// ================== FIXED PRINTER SERVICE FOR ELECTRON - HORIZONTAL LAYOUT ==================
+// ================== FIXED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectron {
     constructor() {
         console.log('🖨️ Electron printer service initialized');
@@ -32,7 +32,7 @@ class PrinterServiceElectron {
             const printWindow = window.open("", "_blank");
             if (!printWindow) throw new Error("Popup blocked");
 
-            const style = `
+             const style = `
                 <style>
                     @page {
                         size: 100mm 80mm landscape;
@@ -192,7 +192,9 @@ class PrinterServiceElectron {
     }
 }
 
-// ================== ENHANCED PRINTER WITH SETTINGS SUPPORT - HORIZONTAL LAYOUT ==================
+
+
+// ================== ENHANCED PRINTER WITH SETTINGS SUPPORT ==================
 class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
     async printAllLabels(packages, settings = {}) {
         if (!packages || packages.length === 0) {
@@ -367,7 +369,23 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
     }
 
 
- // ================== PRINTER INITIALIZATION ==================
+
+
+    
+
+    // Test print with settings
+    async testPrint(settings = {}) {
+        const testPackage = {
+            package_no: 'TEST123456',
+            customer_name: 'Test Müşteri',
+            product: 'Test Ürün',
+            created_at: new Date().toLocaleDateString('tr-TR')
+        };
+        return await this.printAllLabels([testPackage], settings);
+    }
+}
+
+// ================== PRINTER INITIALIZATION ==================
 let printerElectron = new PrinterServiceElectronWithSettings();
 
 function getPrinterElectron() {
@@ -394,21 +412,7 @@ async function printSelectedElectron() {
     await printerElectron.printAllLabels(packages, settings);
 }
 
-
-    
-    // Test print with settings
-    async testPrint(settings = {}) {
-        const testPackage = {
-            package_no: 'TEST123456',
-            customer_name: 'Test Müşteri',
-            product: 'Test Ürün',
-            created_at: new Date().toLocaleDateString('tr-TR')
-        };
-        return await this.printAllLabels([testPackage], settings);
-    }
-}
-
-// Export for use
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { PrinterServiceElectron, PrinterServiceElectronWithSettings };
+async function testPrintWithSettings() {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    await printerElectron.testPrint(settings);
 }
