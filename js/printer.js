@@ -366,6 +366,35 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
         }
     }
 
+
+    // ================== USAGE EXAMPLES ==================
+async function printSelectedElectron() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) return alert('En az bir paket seçin');
+
+    const packages = Array.from(checkboxes).map((checkbox, i) => {
+        const row = checkbox.closest('tr');
+        return {
+            package_no: row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}-${i}`,
+            customer_name: row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri',
+            product: row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün',
+            created_at: row.cells[4]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
+        };
+    });
+
+    // Get saved settings
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    await printerElectron.printAllLabels(packages, settings);
+}
+
+async function testPrintWithSettings() {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    await printerElectron.testPrint(settings);
+}
+
+
+
+    
     // Test print with settings
     async testPrint(settings = {}) {
         const testPackage = {
