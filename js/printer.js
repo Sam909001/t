@@ -167,13 +167,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-                    size: 100mm 80mm portrait;
+                    size: 110mm 100mm portrait;
                     margin: 0;
                 }
 
                 body {
-                    width: 100mm;
-                    height: 80mm;
+                    width: 110mm;
+                    height: 100mm;
                     margin: 0;
                     padding: 0;
                     overflow: hidden;
@@ -186,11 +186,11 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     width: 100%;
                     height: 100%;
                     box-sizing: border-box;
-                    padding: 12mm;
+                    padding: 6mm;
                     display: flex;
                     flex-direction: column;
                     justify-content: space-between;
-                    border: 6px solid #000;
+                    border: 4px solid #000;
                     position: relative;
                 }
 
@@ -218,7 +218,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .company-subtitle {
-                    font-size: 18px;
+                    font-size: 15px;
                     color: #666;
                     margin: 1mm 0 0 0;
                     font-weight: 500;
@@ -231,12 +231,12 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode {
-                    max-width: 45mm;
-                    height: 20mm;
+                    max-width: 35mm;
+                    height: auto;
                 }
 
                 .barcode-text {
-                    font-size: 16px;
+                    font-size: 14px;
                     font-weight: 700;
                     margin-top: 1mm;
                     color: #000;
@@ -269,7 +269,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
 
                 /* === ITEMS SECTION === */
                 .items-section {
-                    flex: 3;
+                    flex: 1;
                     margin: 3mm 0;
                 }
 
@@ -277,7 +277,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     background: #f8f9fa;
                     padding: 3mm;
                     border-radius: 2mm;
-                    border: 5px solid #e9ecef;
+                    border: 2px solid #e9ecef;
                 }
 
                 .item {
@@ -285,7 +285,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     justify-content: space-between;
                     align-items: center;
                     padding: 1.5mm 0;
-                    border-bottom: 2px dotted #ccc;
+                    border-bottom: 1px dotted #ccc;
                     font-size: 17px;
                 }
 
@@ -304,9 +304,9 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     background: #fff;
                     padding: 1mm 2mm;
                     border-radius: 2mm;
-                    border: 4px solid #ddd;
-                    font-size: 17px;
-                    min-width: 20mm;
+                    border: 2px solid #ddd;
+                    font-size: 15px;
+                    min-width: 15mm;
                     text-align: center;
                 }
 
@@ -317,8 +317,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     align-items: center;
                     margin-top: auto;
                     padding-top: 3mm;
-                    border-top: 4px solid #ddd;
-                    font-size: 18px;
+                    border-top: 2px solid #ddd;
+                    font-size: 15px;
                     color: #666;
                 }
 
@@ -332,11 +332,11 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     background: #f0f0f0;
                     padding: 1mm 3mm;
                     border-radius: 2mm;
-                    border: 4px solid #ddd;
+                    border: 2px solid #ddd;
                 }
 
                 /* === PROFESSIONAL TOUCHES === */
-                    .label::before {
+                .label::before {
                     content: "";
                     position: absolute;
                     top: 0;
@@ -355,8 +355,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     height: 3px;
                     background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
                 }
-
-
 
                 </style>
             `;
