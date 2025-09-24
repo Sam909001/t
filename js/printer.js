@@ -146,7 +146,6 @@ class PrinterServiceElectron {
 
 
 // ================== ENHANCED PRINTER WITH SETTINGS SUPPORT ==================
-// ================== ENHANCED PRINTER WITH REAL ITEM QUANTITIES ==================
 class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
     async printAllLabels(packages, settings = {}) {
         if (!packages || packages.length === 0) {
@@ -158,61 +157,249 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const printWindow = window.open("", "_blank");
             if (!printWindow) throw new Error("Popup blocked");
 
+            // Apply settings or use defaults
             const fontSize = settings.fontSize || 14;
             const headerSize = Math.max(16, fontSize + 4);
             const barcodeHeight = settings.barcodeHeight || 40;
+            const margin = settings.margin || 2;
 
             const style = `
                 <style>
-                    @page { size: 150mm 110mm portrait; margin: 0; }
-                    body { width: 150mm; height: 110mm; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
-                    .label { width: 100%; height: 100%; padding: 10mm; display: flex; flex-direction: column; justify-content: space-between; border: 2px solid #000; position: relative; }
-                    .header { display: flex; justify-content: space-between; margin-bottom: 5mm; }
-                    .customer-section { background: #000; color: #fff; text-align: center; padding: 4mm; margin: 3mm 0; }
-                    .items-section { margin: 3mm 0; }
-                    .item-list { border: 1px solid #ddd; border-radius: 2mm; padding: 2mm; }
-                    .item { display: flex; justify-content: space-between; padding: 1mm 0; border-bottom: 1px dotted #ccc; }
-                    .item:last-child { border-bottom: none; }
-                    .item-name { font-weight: 600; }
-                    .item-qty { font-weight: 700; text-align: center; min-width: 15mm; }
-                    .footer { margin-top: auto; border-top: 1px solid #ddd; padding-top: 2mm; font-size: 12px; color: #666; display: flex; justify-content: space-between; }
+                @page {
+                    size: 150mm 110mm portrait;
+                    margin: 0;
+                }
+
+                body {
+                    width: 150mm;
+                    height: 110mm;
+                    margin: 0;
+                    padding: 0;
+                    overflow: hidden;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #fff;
+                    color: #000;
+                }
+
+                .label {
+                    width: 100%;
+                    height: 100%;
+                    box-sizing: border-box;
+                    padding: 10mm;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    border: 4px solid #000;
+                    position: relative;
+                }
+
+                /* === HEADER SECTION === */
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 5mm;
+                    padding-bottom: 3mm;
+                    border-bottom: 4px solid #000;
+                }
+
+                .company-info {
+                    flex: 3;
+                }
+
+                .company-name {
+                    font-size: 22px;
+                    font-weight: 900;
+                    color: #000;
+                    letter-spacing: 1px;
+                    margin: 0;
+                    line-height: 1.1;
+                }
+
+                .company-subtitle {
+                    font-size: 20px;
+                    color: #666;
+                    margin: 1mm 0 0 0;
+                    font-weight: 500;
+                    letter-spacing: 0.5px;
+                }
+
+                .barcode-section {
+                    text-align: right;
+                    flex-shrink: 0;
+                }
+
+                .barcode {
+                    max-width: 50mm;
+                    height: 15mm;
+                }
+
+                .barcode-text {
+                    font-size: 17px;
+                    font-weight: 700;
+                    margin-top: 1mm;
+                    color: #000;
+                    font-family: 'Courier New', monospace;
+                    letter-spacing: 0.5px;
+                }
+
+                /* === CUSTOMER SECTION === */
+               .customer-section {
+    background: #000; /* solid black for printing */
+    color: #fff;
+    padding: 4mm;
+    margin: 3mm 0;
+    text-align: center;
+    border-radius: 3mm;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+
+                .customer-name {
+                    font-size: 22px;
+                    font-weight: 700;
+                    margin: 0;
+                    line-height: 1.2;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+
+                /* === ITEMS SECTION === */
+                .items-section {
+                    flex: 1;
+                    margin: 3mm 0;
+                }
+
+                .item-list {
+                    background: #f8f9fa;
+                    padding: 3mm;
+                    border-radius: 2mm;
+                    border: 2px solid #e9ecef;
+                }
+
+                .item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 1.5mm 0;
+                    border-bottom: 1px dotted #ccc;
+                    font-size: 22px;
+                }
+
+                .item:last-child {
+                    border-bottom: none;
+                }
+
+                .item-name {
+                    font-weight: 600;
+                    color: #333;
+                }
+
+                .item-qty {
+                    font-weight: 700;
+                    color: #000;
+                    background: #fff;
+                    padding: 1mm 2mm;
+                    border-radius: 2mm;
+                    border: 2px solid #ddd;
+                    font-size: 15px;
+                    min-width: 15mm;
+                    text-align: center;
+                }
+
+                /* === FOOTER === */
+                .footer {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-top: auto;
+                    padding-top: 3mm;
+                    border-top: 2px solid #ddd;
+                    font-size: 15px;
+                    color: #666;
+                }
+
+                .date-info {
+                    font-weight: 500;
+                }
+
+                .package-info {
+                    font-weight: 700;
+                    color: #000;
+                    background: #f0f0f0;
+                    padding: 1mm 3mm;
+                    border-radius: 2mm;
+                    border: 2px solid #ddd;
+                }
+
+                /* === PROFESSIONAL TOUCHES === */
+                .label::before {
+                    content: "";
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 5px;
+                    background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
+                }
+
+                .label::after {
+                    content: "";
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
+                }
+
                 </style>
             `;
 
             printWindow.document.write(`<html><head>${style}</head><body>`);
 
+            // FIXED: Loop through packages to write HTML (moved the template inside forEach)
             packages.forEach((pkg, i) => {
                 const packageNo = pkg.package_no || `PKG-${Date.now()}-${i}`;
                 const customerName = pkg.customer_name || 'Bilinmeyen Müşteri';
                 const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
-
-                // Ensure items array structure
-                const items = Array.isArray(pkg.items) ? pkg.items : [{ name: pkg.product || 'Bilinmeyen Ürün', qty: 1 }];
+                const items = pkg.items || [pkg.product || 'Bilinmeyen Ürün'];
 
                 printWindow.document.write(`
                     <div class="label">
+                        <!-- HEADER SECTION -->
                         <div class="header">
-                            <div>${customerName}</div>
-                            <div>
+                            <div class="company-info">
+                                <h1 class="company-name">YEDITEPE LAUNDRY</h1>
+                                <p class="company-subtitle">Professional Laundry Services</p>
+                            </div>
+                            <div class="barcode-section">
                                 <canvas id="barcode-${i}" class="barcode"></canvas>
                                 <div class="barcode-text">${packageNo}</div>
                             </div>
                         </div>
 
-                        <div class="customer-section">${customerName}</div>
+                        <!-- CUSTOMER SECTION -->
+                        <div class="customer-section">
+                            <h2 class="customer-name">${customerName}</h2>
+                        </div>
 
+                        <!-- ITEMS SECTION -->
                         <div class="items-section">
                             <div class="item-list">
                                 ${items.map(item => {
-                                    const name = item?.name || item; // fallback
-                                    const qty = item?.qty != null ? item.qty : 1; // safe fallback
-                                    return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
+                                const name = item?.name || item;         // fallback to item itself if name missing
+                                const qty = item?.qty != null ? item.qty : 1;  // fallback to 1 if qty missing
+                                return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
                                 }).join('')}
                             </div>
                         </div>
 
+                        <!-- FOOTER -->
                         <div class="footer">
-                            <span>${date}</span>
+                            <span class="date-info">${date}</span>
                         </div>
                     </div>
                 `);
@@ -229,7 +416,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                             JsBarcode(canvas, pkg.package_no || '', {
                                 format: 'CODE128',
                                 width: 1.2,
-                                height: barcodeHeight,
+                                height: 25,
                                 displayValue: false,
                                 margin: 0,
                                 fontSize: Math.max(8, fontSize - 4)
@@ -253,8 +440,18 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             return false;
         }
     }
-}
 
+    // Test print with settings
+    async testPrint(settings = {}) {
+        const testPackage = {
+            package_no: 'TEST123456',
+            customer_name: 'Test Müşteri',
+            product: 'Test Ürün',
+            created_at: new Date().toLocaleDateString('tr-TR')
+        };
+        return await this.printAllLabels([testPackage], settings);
+    }
+}
 
 // ================== PRINTER INITIALIZATION ==================
 let printerElectron = new PrinterServiceElectronWithSettings();
