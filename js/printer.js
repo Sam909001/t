@@ -167,12 +167,12 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-                    size: 125mm 110mm landscape;
+                    size: 155mm 110mm landscape;
                     margin: 0;
                 }
 
                 body {
-                    width: 125mm;
+                    width: 155mm;
                     height: 110mm;
                     margin: 0;
                     padding: 0;
@@ -231,7 +231,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode {
-                    max-width: 50mm;
+                    max-width: 45mm;
                     height: 20mm;
                 }
 
@@ -336,13 +336,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 /* === PROFESSIONAL TOUCHES === */
-                .label::before {
+                    .label::before {
                     content: "";
                     position: absolute;
                     top: 0;
                     left: 0;
                     right: 0;
-                    height: 7px;
+                    height: 5px;
                     background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
                 }
 
@@ -352,9 +352,11 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     bottom: 0;
                     left: 0;
                     right: 0;
-                    height: 5px;
+                    height: 3px;
                     background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
                 }
+
+
 
                 </style>
             `;
