@@ -355,14 +355,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
                 }
 
-                .laundry-logo {
-    width: 25mm;      /* adjust to sticker size */
-    height: auto;
-    display: block;
-    margin: 0 auto 2mm auto;
-}
-
-
                 </style>
             `;
 
@@ -389,12 +381,10 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                             </div>
                         </div>
 
-                        <!-- CUSTOMER SECTION WITH DYNAMIC LOGO -->
-<div class="customer-section">
-    ${settings.logoPath ? `<img src="${settings.logoPath}" alt="Laundry Logo" class="laundry-logo" />` : ''}
-    <h2 class="customer-name">${customerName}</h2>
-</div>
-
+                        <!-- CUSTOMER SECTION -->
+                        <div class="customer-section">
+                            <h2 class="customer-name">${customerName}</h2>
+                        </div>
 
                         <!-- ITEMS SECTION -->
                         <div class="items-section">
