@@ -168,13 +168,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-                    size: 150mm 115mm portrait;
+                    size: 150mm 120mm portrait;
                     margin: 0;
                 }
 
                 body {
                     width: 150mm;
-                    height: 115mm;
+                    height: 120mm;
                     margin: 0;
                     padding: 0;
                     overflow: hidden;
@@ -232,7 +232,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode {
-                    max-width: 75mm;
+                    max-width: 85mm;
                     height: 20mm;
                 }
 
