@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -6,12 +6,13 @@ function createWindow() {
         width: 1200,
         height: 800,
         webPreferences: {
-            nodeIntegration: true,  // allows require() in renderer.js
-            contextIsolation: false
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,  // safe
+            nodeIntegration: false
         }
     });
 
-    win.loadFile('index.html'); // your web app's HTML
+    win.loadFile('index.html'); // load your web app HTML
 }
 
 app.whenReady().then(createWindow);
@@ -24,20 +25,18 @@ app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-
-const { ipcMain } = require('electron');
-
-// Handle direct printing request from frontend
+// ----------------- PRINT HANDLER -----------------
 ipcMain.handle('print-barcode', async (event, htmlContent) => {
-  const { BrowserWindow } = require('electron');
-  const win = new BrowserWindow({ show: false }); // hidden window
-  await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+    const printWin = new BrowserWindow({ show: false });
+    await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
-  win.webContents.on('did-finish-load', () => {
-    win.webContents.print({ silent: true, printBackground: true }, (success, errorType) => {
-      if (!success) console.log('Print failed:', errorType);
-      win.close();
+    printWin.webContents.on('did-finish-load', () => {
+        printWin.webContents.print(
+            { silent: true, printBackground: true },
+            (success, errorType) => {
+                if (!success) console.error('Print failed:', errorType);
+                printWin.close();
+            }
+        );
     });
-  });
 });
-
