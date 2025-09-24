@@ -1218,65 +1218,65 @@ async function deleteSelectedPackages() {
 
 // Shipping operations
         async function sendToRamp(containerNo = null) {
-            try {
-                const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
-                    .map(cb => cb.value);
-                
-                if (selectedPackages.length === 0) {
-                    showAlert('Rampaya göndermek için paket seçin', 'error');
-                    return;
-                }
-
-                // Use existing container or create a new one
-                let containerId;
-                if (containerNo && currentContainer) {
-                    containerId = currentContainer;
-                } else {
-                    const timestamp = new Date().getTime();
-                    containerNo = `CONT-${timestamp.toString().slice(-6)}`;
-                    
-                    const { data: newContainer, error } = await supabase
-                        .from('containers')
-                        .insert([{
-                            container_no: containerNo,
-                            customer: selectedCustomer?.name || '',
-                            package_count: selectedPackages.length,
-                            total_quantity: await calculateTotalQuantity(selectedPackages),
-                            status: 'beklemede',
-                            created_at: new Date().toISOString()
-                        }])
-                        .select();
-
-                    if (error) throw error;
-                    
-                    containerId = newContainer[0].id;
-                    currentContainer = containerNo;
-                    elements.containerNumber.textContent = containerNo;
-                    saveAppState();
-                }
-
-                // Update packages with container reference
-                const { error: updateError } = await supabase
-                    .from('packages')
-                    .update({ 
-                        container_id: containerId,
-                        status: 'sevk-edildi'
-                    })
-                    .in('id', selectedPackages);
-
-                if (updateError) throw updateError;
-
-                showAlert(`${selectedPackages.length} paket konteynere eklendi: ${containerNo}`, 'success');
-                
-                // Refresh tables
-                await populatePackagesTable();
-                await populateShippingTable();
-                
-            } catch (error) {
-                console.error('Error sending to ramp:', error);
-                showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
-            }
+    try {
+        const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
+            .map(cb => cb.value);
+        
+        if (selectedPackages.length === 0) {
+            showAlert('Sevk etmek için paket seçin', 'error');
+            return;
         }
+
+        // Use existing container or create a new one
+        let containerId;
+        if (containerNo && currentContainer) {
+            containerId = currentContainer;
+        } else {
+            const timestamp = new Date().getTime();
+            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+            
+            const { data: newContainer, error } = await supabase
+                .from('containers')
+                .insert([{
+                    container_no: containerNo,
+                    customer: selectedCustomer?.name || '',
+                    package_count: selectedPackages.length,
+                    total_quantity: await calculateTotalQuantity(selectedPackages),
+                    status: 'sevk-edildi',  // ✅ direkt sevk edildi
+                    created_at: new Date().toISOString()
+                }])
+                .select();
+
+            if (error) throw error;
+            
+            containerId = newContainer[0].id;
+            currentContainer = containerNo;
+            elements.containerNumber.textContent = containerNo;
+            saveAppState();
+        }
+
+        // Update packages directly to sevk-edildi
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ 
+                container_id: containerId,
+                status: 'sevk-edildi'
+            })
+            .in('id', selectedPackages);
+
+        if (updateError) throw updateError;
+
+        showAlert(`${selectedPackages.length} paket doğrudan sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        
+        // Refresh tables
+        await populatePackagesTable();
+        await populateShippingTable();
+        
+    } catch (error) {
+        console.error('Error sending to ramp:', error);
+        showAlert('Paketler sevk edilirken hata oluştu: ' + error.message, 'error');
+    }
+}
 
 
 
