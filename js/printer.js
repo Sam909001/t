@@ -232,8 +232,8 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode {
-                    max-width: 50mm;
-                    height: 15mm;
+                    max-width: 75mm;
+                    height: 20mm;
                 }
 
                 .barcode-text {
@@ -374,7 +374,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                        <!-- HEADER SECTION -->
 <div class="header">
     <div class="company-info">
-        <img src="${logoPath}" alt="Laundry Logo" style="height:60px; margin-bottom:8px;">
+        <img src="${logoPath}" alt="Laundry Logo" style="height:75px; margin-bottom:10px;">
         <h1 class="company-name">YEDITEPE LAUNDRY</h1>
         <p class="company-subtitle">Professional Laundry Services</p>
     </div>
