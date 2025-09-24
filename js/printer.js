@@ -460,3 +460,39 @@ async function testPrintWithSettings() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     await printerElectron.testPrint(settings);
 }
+
+
+
+// ================== BUTTON BINDINGS ==================
+document.addEventListener("DOMContentLoaded", () => {
+    const btnTestPrinter = document.getElementById("test-printer");
+    const btnTestYazdir = document.getElementById("test-printer-yazdir");
+
+    if (btnTestPrinter) {
+        btnTestPrinter.addEventListener("click", async () => {
+            console.log("🖨️ Test Printer clicked");
+            try {
+                const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+                await printerElectron.testPrint(settings);
+                showAlert("Test etiketi başarıyla yazdırıldı ✅", "success");
+            } catch (err) {
+                console.error("❌ Test print failed", err);
+                showAlert("Test yazdırma hatası ❌", "error");
+            }
+        });
+    }
+
+    if (btnTestYazdir) {
+        btnTestYazdir.addEventListener("click", async () => {
+            console.log("🖨️ Test Yazdır clicked");
+            try {
+                const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+                await printerElectron.testPrint(settings);
+                showAlert("Test etiketi başarıyla yazdırıldı ✅", "success");
+            } catch (err) {
+                console.error("❌ Test Yazdır failed", err);
+                showAlert("Test yazdırma hatası ❌", "error");
+            }
+        });
+    }
+});
