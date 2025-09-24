@@ -298,65 +298,45 @@ async function populatePersonnel() {
 
 
 async function populatePackagesTable() {
-    // Prevent multiple simultaneous calls
     if (packagesTableLoading) {
         console.log('Package table already loading, skipping...');
         return;
     }
     
     packagesTableLoading = true;
-    
+
     try {
-        // Ensure elements are initialized
         const tableBody = elements.packagesTableBody || document.getElementById('packagesTableBody');
         const totalPackagesElement = elements.totalPackages || document.getElementById('totalPackages');
-        
-        if (!tableBody) {
-            console.error('Package table body not found');
-            return;
-        }
 
-        // Clear existing content
+        if (!tableBody) throw new Error('Package table body not found');
+
         tableBody.innerHTML = '';
-        if (totalPackagesElement) {
-            totalPackagesElement.textContent = '0';
-        }
+        if (totalPackagesElement) totalPackagesElement.textContent = '0';
 
-        // Check Supabase connection
-        if (!supabase) {
-            console.error('Supabase not initialized');
-            showAlert('Veritabanı bağlantısı yok', 'error');
-            return;
-        }
+        if (!supabase) throw new Error('Supabase not initialized');
 
-        // Only fetch packages that are NOT shipped (status = 'beklemede')
+        // Fetch packages that are NOT shipped (status = 'beklemede')
         const { data: packages, error } = await supabase
             .from('packages')
             .select(`*, customers (name, code)`)
             .is('container_id', null)
-            .eq('status', 'beklemede')  // Only show packages with 'beklemede' status
+            .eq('status', 'beklemede')
             .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('Error loading packages:', error);
-            showAlert('Paket verileri yüklenemedi: ' + error.message, 'error');
-            return;
-        }
+        if (error) throw error;
 
         if (!packages || packages.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
             tableBody.appendChild(row);
-            if (totalPackagesElement) {
-                totalPackagesElement.textContent = '0';
-            }
+            if (totalPackagesElement) totalPackagesElement.textContent = '0';
             return;
         }
 
-        // ✅ CRITICAL: Deduplicate packages by ID to prevent duplicates
+        // Deduplicate packages by ID
         const uniquePackages = [];
         const seenIds = new Set();
-        
         packages.forEach(pkg => {
             if (!seenIds.has(pkg.id)) {
                 seenIds.add(pkg.id);
@@ -364,23 +344,32 @@ async function populatePackagesTable() {
             }
         });
 
-        console.log(`Original packages: ${packages.length}, Unique packages: ${uniquePackages.length}`);
-
-        // Render unique packages
+        // Render table rows
         uniquePackages.forEach(pkg => {
             const row = document.createElement('tr');
 
-            let productInfo = 'N/A';
+            // Ensure items is an array of objects { name, qty }
+            let itemsArray = [];
             if (pkg.items && typeof pkg.items === 'object') {
-                const items = Object.entries(pkg.items)
-                    .map(([product, quantity]) => `${product}: ${quantity}`)
-                    .join(', ');
-                productInfo = items || 'N/A';
+                if (Array.isArray(pkg.items)) {
+                    itemsArray = pkg.items.map(it => ({
+                        name: it.name || it,
+                        qty: it.qty || 1
+                    }));
+                } else {
+                    itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ name, qty }));
+                }
+            } else {
+                itemsArray = [{ name: pkg.product || 'Bilinmeyen Ürün', qty: 1 }];
             }
 
-            // Escape JSON for HTML attribute
+            pkg.items = itemsArray; // overwrite pkg.items for printer use
+
+            // Build product info for table tooltip and preview
+            const productInfo = itemsArray.map(it => `${it.name}: ${it.qty}`).join(', ');
+
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-            
+
             row.innerHTML = `
                 <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
                 <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
@@ -390,28 +379,20 @@ async function populatePackagesTable() {
                 <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
             `;
 
-            // Add click handler for row selection (not on checkbox)
             row.addEventListener('click', (e) => {
-                if (e.target.type !== 'checkbox') {
-                    selectPackage(pkg);
-                }
+                if (e.target.type !== 'checkbox') selectPackage(pkg);
             });
 
             tableBody.appendChild(row);
         });
 
-        // Update total count
-        if (totalPackagesElement) {
-            totalPackagesElement.textContent = uniquePackages.length.toString();
-        }
-
+        if (totalPackagesElement) totalPackagesElement.textContent = uniquePackages.length.toString();
         console.log(`✅ Package table populated with ${uniquePackages.length} unique packages`);
 
     } catch (error) {
         console.error('Error in populatePackagesTable:', error);
         showAlert('Paket tablosu yükleme hatası: ' + error.message, 'error');
     } finally {
-        // Always reset loading state
         packagesTableLoading = false;
     }
 }
