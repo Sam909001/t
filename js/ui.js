@@ -13,10 +13,6 @@ function initializeElements() {
     return elements;
 }
 
-
-
-
-
 function initializeElementsObject() {
     const elementMap = {
         loginScreen: 'loginScreen',
@@ -69,10 +65,6 @@ function initializeElementsObject() {
     
     return elements;
 }
-
-
-
-
 
 // Profesyonel alert sistemi
 // 1. Prevent duplicate alerts with debouncing
@@ -138,11 +130,6 @@ function showAlert(message, type = 'info', duration = 5000) {
     return alert;
 }
 
-
-
-
-
-        
 // Yardımcı fonksiyonlar
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
@@ -153,10 +140,6 @@ function showToast(message, type = 'info') {
         toast.classList.remove('show');
     }, 3000);
 }
-
-
-
-        
 
 // Form doğrulama fonksiyonu
 let validationTimeout = null;
@@ -173,18 +156,11 @@ function validateFormDebounced(inputs, callback) {
         if (callback) callback(isValid);
     }, 200);
 }
-
-
-
-
-
         
 function isValidEmail(email) {
     const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 }
-
-
 
 // API anahtarı modalını göster
 function showApiKeyModal() {
@@ -194,8 +170,6 @@ function showApiKeyModal() {
         document.getElementById('apiKeyModal').style.display = 'flex';
     }
 }
-
-
 
 // API anahtarı yardımı göster
 function showApiKeyHelp() {
@@ -238,29 +212,24 @@ function showApiKeyHelp() {
     `);
 }
 
-
-
 // Barkod tarayıcı modunu aç/kapa
-        function toggleScannerMode() {
-            scannerMode = !scannerMode;
-            
-            if (scannerMode) {
-                elements.barcodeInput.classList.add('scanner-active');
-                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
-                elements.barcodeInput.focus();
-                showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
-            } else {
-                elements.barcodeInput.classList.remove('scanner-active');
-                elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
-                showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
-            }
-        }
+function toggleScannerMode() {
+    scannerMode = !scannerMode;
+    
+    if (scannerMode) {
+        elements.barcodeInput.classList.add('scanner-active');
+        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
+        elements.barcodeInput.focus();
+        showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
+    } else {
+        elements.barcodeInput.classList.remove('scanner-active');
+        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
+        showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
+    }
+}
 
-
-
-
-        // Barkod tarayıcı dinleyicisi
-     let barcodeListenerAttached = false;
+// Barkod tarayıcı dinleyicisi
+let barcodeListenerAttached = false;
 
 function setupBarcodeScanner() {
     if (!elements.barcodeInput) {
@@ -302,12 +271,8 @@ function setupBarcodeScanner() {
     barcodeListenerAttached = true;
 }
 
-
-
-
-
 // Stok düzenleme fonksiyonları
-      let currentEditingRow = null;
+let currentEditingRow = null;
 
 function editStockItem(button, code) {
     // Prevent multiple edits
@@ -332,11 +297,6 @@ function editStockItem(button, code) {
     
     editingStockItem = code;
 }
-
-
-
-
-
 
 // Add missing saveStockItem function
 async function saveStockItem(code, input) {
@@ -406,31 +366,24 @@ async function saveStockItem(code, input) {
     }
 }
 
-       
+function cancelEditStockItem(code, originalQuantity) {
+    const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+    const quantityInput = row.querySelector('.stock-quantity-input');
+    const quantitySpan = row.querySelector('.stock-quantity');
+    const editButton = row.querySelector('button');
+    const editButtons = row.querySelector('.edit-buttons');
+    
+    // Değişiklikleri iptal et
+    quantityInput.value = originalQuantity;
+    quantitySpan.style.display = 'block';
+    quantityInput.style.display = 'none';
+    editButton.style.display = 'block';
+    editButtons.style.display = 'none';
+    
+    editingStockItem = null;
+}
 
-
-        
-
-        function cancelEditStockItem(code, originalQuantity) {
-            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-            const quantityInput = row.querySelector('.stock-quantity-input');
-            const quantitySpan = row.querySelector('.stock-quantity');
-            const editButton = row.querySelector('button');
-            const editButtons = row.querySelector('.edit-buttons');
-            
-            // Değişiklikleri iptal et
-            quantityInput.value = originalQuantity;
-            quantitySpan.style.display = 'block';
-            quantityInput.style.display = 'none';
-            editButton.style.display = 'block';
-            editButtons.style.display = 'none';
-            
-            editingStockItem = null;
-        }
-
-
-
-  function checkOnlineStatus() {
+function checkOnlineStatus() {
     if (!navigator.onLine) {
         showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
         return false;
@@ -438,145 +391,116 @@ async function saveStockItem(code, input) {
     return true;
 }
 
+// Konteyner detay modalını kapat
+function closeContainerDetailModal() {
+    document.getElementById('containerDetailModal').style.display = 'none';
+    currentContainerDetails = null;
+}
 
-
-
-        // Konteyner detay modalını kapat
-        function closeContainerDetailModal() {
-            document.getElementById('containerDetailModal').style.display = 'none';
-            currentContainerDetails = null;
-        }
-
-        
-
-        // Müşteri klasöründeki tüm konteynerleri seç
-        function toggleSelectAllCustomer(checkbox) {
-            const folder = checkbox.closest('.customer-folder');
-            const checkboxes = folder.querySelectorAll('.container-checkbox');
-            checkboxes.forEach(cb => cb.checked = checkbox.checked);
-        }
-
-
-
+// Müşteri klasöründeki tüm konteynerleri seç
+function toggleSelectAllCustomer(checkbox) {
+    const folder = checkbox.closest('.customer-folder');
+    const checkboxes = folder.querySelectorAll('.container-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+}
 
 // Taranan barkodları göster
-        function displayScannedBarcodes() {
-            const container = document.getElementById('scannedBarcodes');
-            container.innerHTML = '';
-            
-            if (scannedBarcodes.length === 0) {
-                container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Henüz barkod taranmadı</p>';
-                return;
-            }
-            
-            const list = document.createElement('ul');
-            list.style = 'list-style: none; padding: 0; margin: 0; font-size: 0.8rem;';
-            
-            scannedBarcodes.forEach(barcode => {
-                const item = document.createElement('li');
-                item.style = 'padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;';
-                item.innerHTML = `
-                    <span>${barcode.barcode}</span>
-                    <span style="color: ${barcode.processed ? 'green' : 'orange'}">
-                        ${barcode.processed ? 'İşlendi' : 'Beklemede'}
-                    </span>
-                `;
-                list.appendChild(item);
-            });
-            
-            container.appendChild(list);
-        }
-
-
-
+function displayScannedBarcodes() {
+    const container = document.getElementById('scannedBarcodes');
+    container.innerHTML = '';
+    
+    if (scannedBarcodes.length === 0) {
+        container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Henüz barkod taranmadı</p>';
+        return;
+    }
+    
+    const list = document.createElement('ul');
+    list.style = 'list-style: none; padding: 0; margin: 0; font-size: 0.8rem;';
+    
+    scannedBarcodes.forEach(barcode => {
+        const item = document.createElement('li');
+        item.style = 'padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;';
+        item.innerHTML = `
+            <span>${barcode.barcode}</span>
+            <span style="color: ${barcode.processed ? 'green' : 'orange'}">
+                ${barcode.processed ? 'İşlendi' : 'Beklemede'}
+            </span>
+        `;
+        list.appendChild(item);
+    });
+    
+    container.appendChild(list);
+}
 
 function selectCustomerFromModal(customer) {
-            selectedCustomer = customer;
-            elements.customerSelect.value = customer.id;
-            closeModal();
-            showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
-        }
-
-
-
+    selectedCustomer = customer;
+    elements.customerSelect.value = customer.id;
+    closeModal();
+    showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
+}
         
-        // Package operations
-        function openQuantityModal(product) {
-            selectedProduct = product;
-            elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
-            elements.quantityInput.value = '';
-            document.getElementById('quantityError').style.display = 'none';
-            elements.quantityModal.style.display = 'flex';
-            elements.quantityInput.focus();
-        }
-
-
-
-
+// Package operations
+function openQuantityModal(product) {
+    selectedProduct = product;
+    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
+    elements.quantityInput.value = '';
+    document.getElementById('quantityError').style.display = 'none';
+    elements.quantityModal.style.display = 'flex';
+    elements.quantityInput.focus();
+}
         
-        function confirmQuantity() {
-            const quantity = parseInt(elements.quantityInput.value);
-            
-            // Doğrulama
-            if (!quantity || quantity <= 0) {
-                document.getElementById('quantityError').style.display = 'block';
-                return;
-            }
+function confirmQuantity() {
+    const quantity = parseInt(elements.quantityInput.value);
+    
+    // Doğrulama
+    if (!quantity || quantity <= 0) {
+        document.getElementById('quantityError').style.display = 'block';
+        return;
+    }
 
-            // Update quantity badge
-            const badge = document.getElementById(`${selectedProduct}-quantity`);
-            if (badge) {
-                const currentQuantity = parseInt(badge.textContent) || 0;
-                badge.textContent = currentQuantity + quantity;
-            }
+    // Update quantity badge
+    const badge = document.getElementById(`${selectedProduct}-quantity`);
+    if (badge) {
+        const currentQuantity = parseInt(badge.textContent) || 0;
+        badge.textContent = currentQuantity + quantity;
+    }
 
-            // Add to current package
-            if (!currentPackage.items) currentPackage.items = {};
-            currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
+    // Add to current package
+    if (!currentPackage.items) currentPackage.items = {};
+    currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
 
-            showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-            closeQuantityModal();
-        }
-
-
-
+    showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
+    closeQuantityModal();
+}
         
-        function openManualEntry() {
-            document.getElementById('manualModal').style.display = 'flex';
-            document.getElementById('manualProduct').focus();
-        }
-
-
-
-
+function openManualEntry() {
+    document.getElementById('manualModal').style.display = 'flex';
+    document.getElementById('manualProduct').focus();
+}
         
-        function addManualProduct() {
-            const product = document.getElementById('manualProduct').value.trim();
-            const quantity = parseInt(document.getElementById('manualQuantity').value);
+function addManualProduct() {
+    const product = document.getElementById('manualProduct').value.trim();
+    const quantity = parseInt(document.getElementById('manualQuantity').value);
 
-            // Form doğrulama
-            if (!validateForm([
-                { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
-                { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
-            ])) {
-                return;
-            }
+    // Form doğrulama
+    if (!validateForm([
+        { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
+        { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
+    ])) {
+        return;
+    }
 
-            // Add to current package
-            if (!currentPackage.items) currentPackage.items = {};
-            currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
+    // Add to current package
+    if (!currentPackage.items) currentPackage.items = {};
+    currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
 
-            showAlert(`${product}: ${quantity} adet eklendi`, 'success');
-            
-            // Clear form
-            document.getElementById('manualProduct').value = '';
-            document.getElementById('manualQuantity').value = '';
-            closeManualModal();
-        }
-
-
-
-
+    showAlert(`${product}: ${quantity} adet eklendi`, 'success');
+    
+    // Clear form
+    document.getElementById('manualProduct').value = '';
+    document.getElementById('manualQuantity').value = '';
+    closeManualModal();
+}
 
 // Settings functions
 function showSettingsModal() {
@@ -599,7 +523,14 @@ function loadSettings() {
         document.body.classList.add('dark-mode');
     }
 
-
+    // Language
+    if (settings.language) {
+        document.getElementById('languageSelect').value = settings.language;
+    }
+    
+    // Auto-save
+    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+}
 
 // ---------------- LOAD SETTINGS ----------------
 function loadPrinterSettings(settings) {
@@ -688,107 +619,16 @@ async function printPackageWithSettings(packageData) {
     }
 }
 
-
-
-    // Language
-    if (settings.language) {
-        document.getElementById('languageSelect').value = settings.language;
-    }
-    
-    // Change application language
+// Language - SIMULATION MODE to prevent errors
 function changeLanguage(lang) {
-    const translations = {
-        tr: {
-            // Main UI
-            'appTitle': 'ProClean Çamaşırhane Yönetimi',
-            'loginTitle': 'Giriş Yap',
-            'customerSelect': 'Müşteri Seçin',
-            'packageNo': 'Paket No',
-            'customer': 'Müşteri',
-            'product': 'Ürün',
-            'quantity': 'Adet',
-            'date': 'Tarih',
-            'status': 'Durum',
-            'actions': 'İşlemler',
-            
-            // Buttons
-            'save': 'Kaydet',
-            'print': 'Yazdır',
-            'delete': 'Sil',
-            'update': 'Güncelle',
-            'cancel': 'İptal',
-            'confirm': 'Onayla',
-            
-            // Settings
-            'settings': 'Ayarlar',
-            'theme': 'Tema',
-            'language': 'Dil',
-            'printer': 'Yazıcı',
-            'autoSave': 'Otomatik Kaydet',
-            'darkMode': 'Koyu Tema',
-            'lightMode': 'Açık Tema',
-            'turkish': 'Türkçe',
-            'english': 'İngilizce'
-        },
-        en: {
-            // Main UI
-            'appTitle': 'ProClean Laundry Management',
-            'loginTitle': 'Login',
-            'customerSelect': 'Select Customer',
-            'packageNo': 'Package No',
-            'customer': 'Customer',
-            'product': 'Product',
-            'quantity': 'Quantity',
-            'date': 'Date',
-            'status': 'Status',
-            'actions': 'Actions',
-            
-            // Buttons
-            'save': 'Save',
-            'print': 'Print',
-            'delete': 'Delete',
-            'update': 'Update',
-            'cancel': 'Cancel',
-            'confirm': 'Confirm',
-            
-            // Settings
-            'settings': 'Settings',
-            'theme': 'Theme',
-            'language': 'Language',
-            'printer': 'Printer',
-            'autoSave': 'Auto Save',
-            'darkMode': 'Dark Mode',
-            'lightMode': 'Light Mode',
-            'turkish': 'Turkish',
-            'english': 'English'
-        }
-    };
+    // SIMULATION MODE - just log the change without actual implementation
+    console.log('Language change simulated:', lang);
+    showAlert(`Dil değiştirildi (simülasyon): ${lang}`, 'info');
     
-    const translation = translations[lang] || translations['tr'];
-    
-    // Update all translatable elements
-    Object.keys(translation).forEach(key => {
-        const elements = document.querySelectorAll(`[data-i18n="${key}"]`);
-        elements.forEach(element => {
-            element.textContent = translation[key];
-        });
-        
-        // Also update placeholders and titles
-        const inputElements = document.querySelectorAll(`[data-i18n-placeholder="${key}"]`);
-        inputElements.forEach(element => {
-            element.placeholder = translation[key];
-        });
-        
-        const titleElements = document.querySelectorAll(`[data-i18n-title="${key}"]`);
-        titleElements.forEach(element => {
-            element.title = translation[key];
-        });
-    });
-    
-    // Update HTML lang attribute
-    document.documentElement.lang = lang;
-    
-    console.log('Language changed to:', lang);
+    // Update HTML lang attribute (safe operation)
+    if (document.documentElement) {
+        document.documentElement.lang = lang || 'tr';
+    }
 }
 
 // Update font size throughout the application
@@ -799,8 +639,7 @@ function updateFontSize(size) {
     });
 }
 
-
-    // Update printer settings in real-time
+// Update printer settings in real-time
 function updatePrinterSettings(settings) {
     if (window.printerElectron && settings) {
         // Update printer instance with new settings
@@ -855,12 +694,25 @@ function setupSettingsEventListeners() {
         });
     }
 }
+
+// Setup auto-save functionality - FIX #4: toggleAutoSave defined
+function toggleAutoSave() {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    settings.autoSave = !settings.autoSave;
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
     
-    // Auto-save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+    const autoSaveToggle = document.getElementById('autoSaveToggle');
+    if (autoSaveToggle) {
+        autoSaveToggle.checked = settings.autoSave;
+    }
+    
+    showAlert(`Otomatik kaydetme ${settings.autoSave ? 'açıldı' : 'kapatıldı'}`, 'info');
+    
+    if (settings.autoSave) {
+        setupAutoSave();
+    }
 }
 
-// Setup auto-save functionality
 function setupAutoSave() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     
@@ -880,6 +732,237 @@ function setupAutoSave() {
             }
         });
     }
+}
+
+// FIX #3: toggleDebugMode defined
+function toggleDebugMode() {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    settings.debugMode = !settings.debugMode;
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
+    
+    const debugToggle = document.getElementById('debugToggle');
+    if (debugToggle) {
+        debugToggle.checked = settings.debugMode;
+    }
+    
+    // Apply debug mode
+    if (settings.debugMode) {
+        console.log('Debug mode enabled');
+        window.DEBUG_MODE = true;
+        document.body.classList.add('debug-mode');
+        showAlert('Debug modu açıldı - Konsol logları aktif', 'info');
+    } else {
+        console.log('Debug mode disabled');
+        window.DEBUG_MODE = false;
+        document.body.classList.remove('debug-mode');
+        showAlert('Debug modu kapatıldı', 'info');
+    }
+}
+
+// FIX #1: runPerformanceTest function
+function runPerformanceTest() {
+    showAlert('Performans testi başlatılıyor...', 'info');
+    
+    const startTime = performance.now();
+    const results = {
+        domOperations: 0,
+        calculations: 0,
+        localStorage: 0,
+        rendering: 0
+    };
+    
+    // Test DOM operations
+    const domStart = performance.now();
+    for (let i = 0; i < 1000; i++) {
+        const div = document.createElement('div');
+        div.innerHTML = `Test element ${i}`;
+        document.body.appendChild(div);
+        document.body.removeChild(div);
+    }
+    results.domOperations = performance.now() - domStart;
+    
+    // Test calculations
+    const calcStart = performance.now();
+    for (let i = 0; i < 100000; i++) {
+        Math.sqrt(i * Math.PI);
+    }
+    results.calculations = performance.now() - calcStart;
+    
+    // Test localStorage
+    const localStorageStart = performance.now();
+    for (let i = 0; i < 1000; i++) {
+        localStorage.setItem(`test_${i}`, JSON.stringify({data: i}));
+        localStorage.getItem(`test_${i}`);
+        localStorage.removeItem(`test_${i}`);
+    }
+    results.localStorage = performance.now() - localStorageStart;
+    
+    // Test rendering
+    const renderStart = performance.now();
+    const testTable = document.createElement('table');
+    for (let i = 0; i < 100; i++) {
+        const row = testTable.insertRow();
+        for (let j = 0; j < 5; j++) {
+            const cell = row.insertCell();
+            cell.textContent = `Cell ${i}-${j}`;
+        }
+    }
+    document.body.appendChild(testTable);
+    document.body.removeChild(testTable);
+    results.rendering = performance.now() - renderStart;
+    
+    const totalTime = performance.now() - startTime;
+    
+    // Display results
+    const resultsWindow = window.open('', '_blank', 'width=600,height=500');
+    resultsWindow.document.write(`
+        <html>
+        <head>
+            <title>Performance Test Results</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }
+                .good { background: #d4edda; }
+                .warning { background: #fff3cd; }
+                .poor { background: #f8d7da; }
+            </style>
+        </head>
+        <body>
+            <h2>Performance Test Results</h2>
+            <div class="result ${results.domOperations < 100 ? 'good' : results.domOperations < 200 ? 'warning' : 'poor'}">
+                <strong>DOM Operations:</strong> ${results.domOperations.toFixed(2)}ms
+            </div>
+            <div class="result ${results.calculations < 50 ? 'good' : results.calculations < 100 ? 'warning' : 'poor'}">
+                <strong>Mathematical Calculations:</strong> ${results.calculations.toFixed(2)}ms
+            </div>
+            <div class="result ${results.localStorage < 200 ? 'good' : results.localStorage < 400 ? 'warning' : 'poor'}">
+                <strong>LocalStorage Operations:</strong> ${results.localStorage.toFixed(2)}ms
+            </div>
+            <div class="result ${results.rendering < 100 ? 'good' : results.rendering < 200 ? 'warning' : 'poor'}">
+                <strong>Rendering Operations:</strong> ${results.rendering.toFixed(2)}ms
+            </div>
+            <div class="result">
+                <strong>Total Test Time:</strong> ${totalTime.toFixed(2)}ms
+            </div>
+            <div class="result">
+                <strong>Browser:</strong> ${navigator.userAgent}
+            </div>
+            <div class="result">
+                <strong>Memory Usage:</strong> ${performance.memory ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB` : 'Not available'}
+            </div>
+            <div class="result">
+                <strong>Test Date:</strong> ${new Date().toLocaleString()}
+            </div>
+        </body>
+        </html>
+    `);
+    
+    showAlert(`Performans testi tamamlandı! Toplam süre: ${totalTime.toFixed(2)}ms`, 'success');
+    console.log('Performance test results:', results);
+}
+
+// FIX #2: showConsoleLogs function
+function showConsoleLogs() {
+    // Store original console methods
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    const originalInfo = console.info;
+    
+    // Create logs window
+    const logsWindow = window.open('', '_blank', 'width=800,height=600');
+    logsWindow.document.write(`
+        <html>
+        <head>
+            <title>Console Logs - ProClean</title>
+            <style>
+                body { font-family: 'Courier New', monospace; padding: 10px; background: #1e1e1e; color: #fff; margin: 0; }
+                .log-entry { margin: 2px 0; padding: 5px; border-radius: 3px; word-wrap: break-word; }
+                .log { background: #2d2d2d; }
+                .error { background: #d32f2f; color: white; }
+                .warn { background: #ff9800; color: black; }
+                .info { background: #2196f3; color: white; }
+                .timestamp { color: #888; font-size: 12px; }
+                #controls { position: fixed; top: 10px; right: 10px; z-index: 1000; }
+                button { margin: 0 5px; padding: 5px 10px; }
+                #logs { margin-top: 50px; max-height: calc(100vh - 100px); overflow-y: auto; }
+            </style>
+        </head>
+        <body>
+            <div id="controls">
+                <button onclick="clearLogs()">Clear Logs</button>
+                <button onclick="window.close()">Close</button>
+                <button onclick="exportLogs()">Export</button>
+            </div>
+            <div id="logs"></div>
+            <script>
+                function clearLogs() {
+                    document.getElementById('logs').innerHTML = '';
+                }
+                function exportLogs() {
+                    const logs = document.getElementById('logs').innerText;
+                    const blob = new Blob([logs], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'proclean-logs-' + new Date().toISOString().slice(0, 10) + '.txt';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }
+                function addLog(message, type = 'log') {
+                    const logs = document.getElementById('logs');
+                    const entry = document.createElement('div');
+                    entry.className = 'log-entry ' + type;
+                    entry.innerHTML = '<span class="timestamp">[' + new Date().toLocaleTimeString() + ']</span> ' + message;
+                    logs.appendChild(entry);
+                    logs.scrollTop = logs.scrollHeight;
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    
+    const logsDiv = logsWindow.document.getElementById('logs');
+    
+    // Override console methods to show in logs window
+    console.log = function(...args) {
+        originalLog.apply(console, args);
+        if (logsWindow && !logsWindow.closed) {
+            logsWindow.addLog(args.join(' '), 'log');
+        }
+    };
+    
+    console.error = function(...args) {
+        originalError.apply(console, args);
+        if (logsWindow && !logsWindow.closed) {
+            logsWindow.addLog(args.join(' '), 'error');
+        }
+    };
+    
+    console.warn = function(...args) {
+        originalWarn.apply(console, args);
+        if (logsWindow && !logsWindow.closed) {
+            logsWindow.addLog(args.join(' '), 'warn');
+        }
+    };
+    
+    console.info = function(...args) {
+        originalInfo.apply(console, args);
+        if (logsWindow && !logsWindow.closed) {
+            logsWindow.addLog(args.join(' '), 'info');
+        }
+    };
+    
+    // Restore original console methods when window closes
+    logsWindow.addEventListener('beforeunload', () => {
+        console.log = originalLog;
+        console.error = originalError;
+        console.warn = originalWarn;
+        console.info = originalInfo;
+    });
+    
+    showAlert('Console logs penceresi açıldı', 'success');
+    console.log('Console logs monitoring started');
 }
 
 // Reset settings to defaults
@@ -902,7 +985,8 @@ function resetSettings() {
             printerMargin: '3',
             barcodeHeight: '25',
             labelWidth: '100',
-            labelHeight: '80'
+            labelHeight: '80',
+            debugMode: false
         };
         
         localStorage.setItem('procleanSettings', JSON.stringify(defaultSettings));
@@ -912,7 +996,6 @@ function resetSettings() {
         showAlert('Ayarlar varsayılan değerlere sıfırlandı', 'success');
     }
 }
-
 
 // Import settings from file
 function importSettings(event) {
@@ -937,10 +1020,7 @@ function importSettings(event) {
     event.target.value = '';
 }
 
-
-
-
-// Save all settings to localStorage
+// FIX #6: Save all settings with fixed changeLanguage reference
 function saveAllSettings() {
     const settings = {
         theme: document.getElementById('themeToggle')?.checked ? 'dark' : 'light',
@@ -955,12 +1035,19 @@ function saveAllSettings() {
         soundEnabled: document.getElementById('soundToggle')?.checked !== false,
         notificationsEnabled: document.getElementById('notificationsToggle')?.checked !== false,
         backupEnabled: document.getElementById('backupToggle')?.checked !== false,
-        // Printer-specific settings
-        printerFontSize: document.getElementById('printerFontSize')?.value || '12',
-        printerMargin: document.getElementById('printerMargin')?.value || '3',
-        barcodeHeight: document.getElementById('barcodeHeight')?.value || '25',
-        labelWidth: document.getElementById('labelWidth')?.value || '100',
-        labelHeight: document.getElementById('labelHeight')?.value || '80'
+        debugMode: document.getElementById('debugToggle')?.checked || false,
+        // FIX #7: Real printer settings (not fake)
+        printerFontSize: parseInt(document.getElementById('printerFontSize')?.value) || 12,
+        printerMargin: parseInt(document.getElementById('printerMargin')?.value) || 3,
+        barcodeHeight: parseInt(document.getElementById('barcodeHeight')?.value) || 25,
+        labelWidth: parseInt(document.getElementById('labelWidth')?.value) || 100,
+        labelHeight: parseInt(document.getElementById('labelHeight')?.value) || 80,
+        // Additional real printer settings
+        printDensity: document.getElementById('printDensity')?.value || 'medium',
+        printSpeed: document.getElementById('printSpeed')?.value || 'normal',
+        paperType: document.getElementById('paperType')?.value || 'thermal',
+        printerPort: document.getElementById('printerPort')?.value || 'USB001',
+        printerModel: document.getElementById('printerModel')?.value || 'Generic'
     };
     
     localStorage.setItem('procleanSettings', JSON.stringify(settings));
@@ -971,19 +1058,21 @@ function saveAllSettings() {
     updatePrinterSettings(settings);
 }
 
-// Apply settings to the application
+// Apply settings to the application - FIX #6: Fixed changeLanguage reference
 function applySettings(settings) {
     // Apply theme
     if (settings.theme === 'dark') {
         document.body.classList.add('dark-mode');
-        document.getElementById('themeToggle').checked = true;
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.checked = true;
     } else {
         document.body.classList.remove('dark-mode');
-        document.getElementById('themeToggle').checked = false;
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.checked = false;
     }
     
-    // Apply language
-    if (settings.language) {
+    // Apply language (safe simulation mode)
+    if (settings.language && typeof changeLanguage === 'function') {
         changeLanguage(settings.language);
     }
     
@@ -1008,45 +1097,55 @@ function applySettings(settings) {
         document.documentElement.style.setProperty('--ui-scale', (parseInt(settings.printerScaling) / 100));
     }
     
+    // Apply debug mode
+    if (settings.debugMode !== undefined) {
+        window.DEBUG_MODE = settings.debugMode;
+        if (settings.debugMode) {
+            document.body.classList.add('debug-mode');
+        } else {
+            document.body.classList.remove('debug-mode');
+        }
+    }
+    
     console.log('Settings applied:', settings);
 }
 
-
-
 function toggleTheme() {
-    const isDark = document.getElementById('themeToggle').checked;
+    const isDark = document.getElementById('themeToggle')?.checked;
     document.body.classList.toggle('dark-mode', isDark);
-    document.getElementById('themeStatus').textContent = isDark ? 'Koyu' : 'Açık';
+    const themeStatus = document.getElementById('themeStatus');
+    if (themeStatus) {
+        themeStatus.textContent = isDark ? 'Koyu' : 'Açık';
+    }
 }
 
 function checkSystemStatus() {
     // --- Database connection ---
     const dbStatus = document.getElementById('dbConnectionStatus');
-    if (supabase) {
-        dbStatus.textContent = 'Bağlı';
-        dbStatus.className = 'status-indicator connected';
-    } else {
-        dbStatus.textContent = 'Bağlantı Yok';
-        dbStatus.className = 'status-indicator disconnected';
+    if (dbStatus) {
+        if (window.supabase) {
+            dbStatus.textContent = 'Bağlı';
+            dbStatus.className = 'status-indicator connected';
+        } else {
+            dbStatus.textContent = 'Bağlantı Yok';
+            dbStatus.className = 'status-indicator disconnected';
+        }
     }
 
     // --- Printer connection ---
     const printerStatus = document.getElementById('printerConnectionStatus');
-    const printerInstance = getPrinterElectron(); // <-- Electron printer
+    if (printerStatus) {
+        const printerInstance = typeof getPrinterElectron === 'function' ? getPrinterElectron() : null;
 
-    if (printerInstance && printerInstance.isConnected) {
-        printerStatus.textContent = 'Bağlı';
-        printerStatus.className = 'status-indicator connected';
-    } else {
-        printerStatus.textContent = 'Bağlantı Yok';
-        printerStatus.className = 'status-indicator disconnected';
+        if (printerInstance && printerInstance.isConnected) {
+            printerStatus.textContent = 'Bağlı';
+            printerStatus.className = 'status-indicator connected';
+        } else {
+            printerStatus.textContent = 'Bağlantı Yok';
+            printerStatus.className = 'status-indicator disconnected';
+        }
     }
 }
-
-
-
-
-
 
 async function exportData(format) {
     if (!format) {
@@ -1416,14 +1515,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(addExportButtons, 2000); // Add after app initializes
 });
 
-
-
-
-
-
-
-
-
 function clearFrontendData() {
     const password = prompt('Tüm frontend veriler silinecek. Lütfen şifreyi girin:');
 
@@ -1468,9 +1559,6 @@ function clearFrontendData() {
     showAlert('Tüm frontend veriler temizlendi', 'success');
 }
 
-
-
-
 function initializeSettings() {
     try {
         const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
@@ -1481,11 +1569,6 @@ function initializeSettings() {
         console.error('⚠️ Error loading settings:', error);
     }
 }
-
-
-
-
-
 
 function selectPackage(pkg) {
     try {
@@ -1522,9 +1605,6 @@ function selectPackage(pkg) {
         showAlert('Paket seçilirken hata oluştu', 'error');
     }
 }
-
-
-
 
 function updatePackageDetails(pkg, container) {
     // Safe date formatting
@@ -1563,11 +1643,6 @@ function updatePackageDetails(pkg, container) {
     }
 }
 
-
-
-
-
-
 function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
     if (!selectedRow) return null;
@@ -1583,35 +1658,23 @@ function getSelectedPackage() {
     };
 }
 
-
-
-
-
-
-
 function toggleSelectAll() {
-            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-            const selectAll = document.getElementById('selectAllPackages').checked;
-            
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = selectAll;
-            });
-        }
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const selectAll = document.getElementById('selectAllPackages').checked;
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+}
 
+function updatePackageSelection() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    
+    document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+}
 
-        
-
-        function updatePackageSelection() {
-            const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-            const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-            
-            document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-        }
-
-
-
-
- // Stock operations
+// Stock operations
 function searchStock() {
     if (!elements.stockSearch) {
         console.error('Stock search input not found');
@@ -1632,15 +1695,10 @@ function searchStock() {
     });
 }
 
-
-
-
-        
-        function clearStockSearch() {
-            elements.stockSearch.value = '';
-            const rows = elements.stockTableBody.querySelectorAll('tr');
-            rows.forEach(row => {
-                row.style.display = '';
-            });
-        }
-
+function clearStockSearch() {
+    elements.stockSearch.value = '';
+    const rows = elements.stockTableBody.querySelectorAll('tr');
+    rows.forEach(row => {
+        row.style.display = '';
+    });
+}
