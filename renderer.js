@@ -1,15 +1,42 @@
-const db = require('./db');
+// Remove old db/addUser example if not needed
+// const db = require('./db');
+// document.getElementById('addBtn').onclick = ...
 
-// Example: add user on button click
-document.getElementById('addBtn').onclick = () => {
-    const name = document.getElementById('nameInput').value;
-    db.addUser(name, (err) => {
-        if (err) alert(err);
-        else alert(`Added user: ${name}`);
-    });
-};
+// Barcode processing and one-click print
+function processBarcode() {
+    const input = document.getElementById('barcodeInput');
+    const barcodeArea = document.getElementById('barcode-area');
+    const value = input.value.trim();
+    if (!value) return;
 
+    // Add barcode to display
+    const div = document.createElement('div');
+    div.textContent = value;
+    barcodeArea.appendChild(div);
 
-// Send barcode HTML to Electron for direct print
-const barcodeHTML = `<html><body><h1>Barcode Example</h1></body></html>`;
-await window.electronAPI.printBarcode(barcodeHTML);
+    input.value = '';
+    input.focus();
+
+    // Prepare HTML for printing
+    const printHTML = `
+        <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    div { margin-bottom: 5px; font-size: 14px; }
+                </style>
+            </head>
+            <body>
+                ${barcodeArea.innerHTML}
+            </body>
+        </html>
+    `;
+
+    // Send to Electron main process
+    window.electronAPI.printBarcode(printHTML);
+}
+
+// Optional: handle Enter key
+document.getElementById('barcodeInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') processBarcode();
+});
