@@ -88,7 +88,6 @@ class PrinterServiceElectron {
                     <!-- FOOTER -->
                     <div class="footer">
                         <span>${date}</span>
-                        <span>Paket ${i + 1}</span>
                     </div>
                 </div>
             `);
