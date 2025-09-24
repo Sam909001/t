@@ -1336,3 +1336,64 @@ body.dark-mode table th,
 body.dark-mode table td {
     border-color: #555 !important;       /* changes line color in dark mode */
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ===== ONE PAGE LAYOUT - NO SCROLL ===== */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* block global scrolling */
+}
+
+/* Main wrapper takes full viewport */
+#app, .container, main {
+    height: 100%;
+    display: flex;
+    flex-direction: column; /* stack header, content, footer */
+}
+
+/* Header + footer fixed height */
+header, footer {
+    flex: 0 0 auto;
+}
+
+/* Content fills the rest of the screen */
+main, .content {
+    flex: 1 1 auto;
+    overflow: hidden; /* no outer scroll */
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* prevents flex overflow issues */
+}
+
+/* Cards, tabs, sections resize inside */
+.card, .tab-pane, .content-section {
+    flex: 1 1 auto;
+    overflow: auto; /* scroll internally if needed */
+    min-height: 0;
+}
+
+/* Tables inside content scroll instead of page */
+.table-container,
+table {
+    max-height: 100%;
+    overflow-y: auto;
+    display: block; /* so table can scroll inside */
+}
+
