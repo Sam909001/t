@@ -208,7 +208,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode {
-                    max-width: 70mm;
+                    max-width: 80mm;
                     height: 20mm;
                 }
 
