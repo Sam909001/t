@@ -389,11 +389,12 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         <!-- ITEMS SECTION -->
                         <div class="items-section">
                             <div class="item-list">
-                                ${items.map(item => {
-                                const name = item?.name || item;         // fallback to item itself if name missing
-                                const qty = item?.qty != null ? item.qty : 1;  // fallback to 1 if qty missing
-                                return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
-                                }).join('')}
+                                ${items.map((item, idx) => `
+                                    <div class="item">
+                                        <span class="item-name">${item.name || item}</span>
+                                        <span class="item-qty">${item.qty || '1 AD'}</span>
+                                    </div>
+                                `).join('')}
                             </div>
                         </div>
 
