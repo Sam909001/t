@@ -374,7 +374,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                        <!-- HEADER SECTION -->
 <div class="header">
     <div class="company-info">
-        <img src="${logoPath}" alt="Laundry Logo" style="height:40px; margin-bottom:5px;">
+        <img src="${logoPath}" alt="Laundry Logo" style="height:60px; margin-bottom:8px;">
         <h1 class="company-name">YEDITEPE LAUNDRY</h1>
         <p class="company-subtitle">Professional Laundry Services</p>
     </div>
