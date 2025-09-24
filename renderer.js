@@ -1,23 +1,24 @@
-// Remove old db/addUser example if not needed
-// const db = require('./db');
-// document.getElementById('addBtn').onclick = ...
+const db = require('./db'); // your local database module
 
-// Barcode processing and one-click print
+// ------------------ Process Barcode ------------------
 function processBarcode() {
     const input = document.getElementById('barcodeInput');
     const barcodeArea = document.getElementById('barcode-area');
     const value = input.value.trim();
     if (!value) return;
 
-    // Add barcode to display
+    // 1️⃣ Add barcode to UI
     const div = document.createElement('div');
     div.textContent = value;
     barcodeArea.appendChild(div);
 
-    input.value = '';
-    input.focus();
+    // 2️⃣ Save barcode to local DB
+    db.addBarcode(value, (err) => {
+        if (err) console.error('DB save error:', err);
+        else console.log('Saved barcode:', value);
+    });
 
-    // Prepare HTML for printing
+    // 3️⃣ Prepare HTML for direct print
     const printHTML = `
         <html>
             <head>
@@ -32,11 +33,18 @@ function processBarcode() {
         </html>
     `;
 
-    // Send to Electron main process
+    // 4️⃣ Send to Electron main process for direct printing
     window.electronAPI.printBarcode(printHTML);
+
+    // Reset input for next scan
+    input.value = '';
+    input.focus();
 }
 
-// Optional: handle Enter key
+// ------------------ Handle Enter key ------------------
 document.getElementById('barcodeInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') processBarcode();
 });
+
+// ------------------ Optional: Button click ------------------
+document.querySelector('.barcode-input button').addEventListener('click', processBarcode);
