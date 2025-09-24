@@ -366,10 +366,10 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         <div class="items-section">
                             <div class="item-list">
                             ${items.map(item => {
-                             const name = item?.name || item;         // fallback to item itself if name missing
-                             const qty = item?.qty != null ? item.qty : 1;  // fallback to 1 if qty missing
-                             return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
-                          }).join('')}
+  const name = item?.name || item;         
+  const qty = item?.qty != null ? item.qty : 1;  
+  return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
+}).join('')}
                             </div>
                         </div>
 
@@ -442,14 +442,18 @@ async function printSelectedElectron() {
     if (checkboxes.length === 0) return alert('En az bir paket seçin');
 
     const packages = Array.from(checkboxes).map((checkbox, i) => {
-        const row = checkbox.closest('tr');
-        return {
-            package_no: row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}-${i}`,
-            customer_name: row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri',
-            product: row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün',
-            created_at: row.cells[4]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
-        };
-    });
+    const row = checkbox.closest('tr');
+    // Build items array with name + qty
+    const itemName = row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
+    const itemQty = parseInt(row.cells[4]?.textContent?.trim()) || 1; // get actual quantity
+    
+    return {
+        package_no: row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}-${i}`,
+        customer_name: row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri',
+        items: [{ name: itemName, qty: itemQty }],  // <-- use items array
+        created_at: row.cells[5]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
+    };
+});
 
     // Get saved settings
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
