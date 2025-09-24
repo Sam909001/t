@@ -1,3 +1,5 @@
+const logoPath = 'laundry-logo.jpg'; 
+
 // ================== FIXED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectron {
     constructor() {
@@ -369,17 +371,19 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
 
                 printWindow.document.write(`
                     <div class="label">
-                        <!-- HEADER SECTION -->
-                        <div class="header">
-                            <div class="company-info">
-                                <h1 class="company-name">YEDITEPE LAUNDRY</h1>
-                                <p class="company-subtitle">Professional Laundry Services</p>
-                            </div>
-                            <div class="barcode-section">
-                                <canvas id="barcode-${i}" class="barcode"></canvas>
-                                <div class="barcode-text">${packageNo}</div>
-                            </div>
-                        </div>
+                       <!-- HEADER SECTION -->
+<div class="header">
+    <div class="company-info">
+        <img src="${logoPath}" alt="Laundry Logo" style="height:40px; margin-bottom:5px;">
+        <h1 class="company-name">YEDITEPE LAUNDRY</h1>
+        <p class="company-subtitle">Professional Laundry Services</p>
+    </div>
+    <div class="barcode-section">
+        <canvas id="barcode-${i}" class="barcode"></canvas>
+        <div class="barcode-text">${packageNo}</div>
+    </div>
+</div>
+
 
                         <!-- CUSTOMER SECTION -->
                         <div class="customer-section">
