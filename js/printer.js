@@ -168,13 +168,13 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
             const style = `
                 <style>
                 @page {
-                    size: 150mm 120mm portrait;
+                    size: 150mm 115mm portrait;
                     margin: 0;
                 }
 
                 body {
                     width: 150mm;
-                    height: 120mm;
+                    height: 115mm;
                     margin: 0;
                     padding: 0;
                     overflow: hidden;
@@ -232,7 +232,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode {
-                    max-width: 85mm;
+                    max-width: 40mm;
                     height: 20mm;
                 }
 
@@ -374,10 +374,10 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                        <!-- HEADER SECTION -->
 <div class="header">
     <div class="company-info">
-        <img src="${logoPath}" alt="Laundry Logo" style="height:60px; margin-bottom:7px;">
         <h1 class="company-name">YEDITEPE LAUNDRY</h1>
         <p class="company-subtitle">Professional Laundry Services</p>
     </div>
+    <img src="${logoPath}" alt="Laundry Logo" style="height:60px; margin-bottom:7px;">
     <div class="barcode-section">
         <canvas id="barcode-${i}" class="barcode"></canvas>
         <div class="barcode-text">${packageNo}</div>
