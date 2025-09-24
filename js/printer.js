@@ -349,7 +349,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     <div class="label">
                        <!-- HEADER SECTION -->
 <div class="header">
-    <img src="${logoPath}" alt="Laundry Logo" style="height:90px; margin-bottom:12px;">
+    <img src="${logoPath}" alt="Laundry Logo" style="height:120px; margin-bottom:12px;">
     <div class="barcode-section">
         <canvas id="barcode-${i}" class="barcode"></canvas>
         <div class="barcode-text">${packageNo}</div>
