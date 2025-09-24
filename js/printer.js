@@ -205,26 +205,30 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     border-bottom: 4px solid #000;
                 }
 
-                .company-info {
-                    flex: 3;
-                }
+               .company-info {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
 
-                .company-name {
-                    font-size: 22px;
-                    font-weight: 900;
-                    color: #000;
-                    letter-spacing: 1px;
-                    margin: 0;
-                    line-height: 1.1;
-                }
+.company-info img {
+    height: 75px;
+    margin-right: 5mm;
+}
 
-                .company-subtitle {
-                    font-size: 20px;
-                    color: #666;
-                    margin: 1mm 0 0 0;
-                    font-weight: 500;
-                    letter-spacing: 0.5px;
-                }
+.company-name {
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.company-subtitle {
+    font-size: 20px;
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+}
 
                 .barcode-section {
                     text-align: right;
@@ -371,18 +375,23 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
 
                 printWindow.document.write(`
                     <div class="label">
-                       <!-- HEADER SECTION -->
+                     <!-- HEADER SECTION -->
 <div class="header">
-    <div class="company-info">
-        <img src="${logoPath}" alt="Laundry Logo" style="height:75px; margin-bottom:10px;">
-        <h1 class="company-name">YEDITEPE LAUNDRY</h1>
-        <p class="company-subtitle">Professional Laundry Services</p>
+    <div class="company-info" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+        <!-- Left: Logo and Company Name -->
+        <div style="display:flex; align-items:center;">
+            <img src="${logoPath}" alt="Laundry Logo" style="height:75px; margin-right:5mm;">
+            <h1 class="company-name" style="margin:0;">YEDITEPE LAUNDRY</h1>
+        </div>
+        <!-- Right: Subtitle -->
+        <p class="company-subtitle" style="margin:0; font-size:20px;">Professional Laundry Services</p>
     </div>
     <div class="barcode-section">
         <canvas id="barcode-${i}" class="barcode"></canvas>
         <div class="barcode-text">${packageNo}</div>
     </div>
 </div>
+
 
 
                         <!-- CUSTOMER SECTION -->
