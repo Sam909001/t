@@ -1617,31 +1617,40 @@ function updatePackageDetails(pkg, container) {
             dateStr = 'Geçersiz tarih';
         }
     }
-    
-    // Create elements safely
+
     container.innerHTML = `
         <h4>Paket: ${pkg.package_no || 'N/A'}</h4>
         <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-        <p><strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}</p>
         <p><strong>Tarih:</strong> ${dateStr}</p>
         <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
+        <div class="items-section">
+            <div style="display:flex; justify-content:space-between; font-weight:bold; border-bottom:2px solid #000; padding-bottom:0.3rem;">
+                <span>Ürün</span>
+                <span>Adet</span>
+            </div>
+        </div>
     `;
-    
-    // Add items list if exists
-    if (pkg.items && typeof pkg.items === 'object' && Object.keys(pkg.items).length > 0) {
-        const itemsHeader = document.createElement('h5');
-        itemsHeader.textContent = 'Ürünler:';
-        container.appendChild(itemsHeader);
-        
-        const itemsList = document.createElement('ul');
-        Object.entries(pkg.items).forEach(([product, quantity]) => {
-            const li = document.createElement('li');
-            li.textContent = `${product}: ${quantity} adet`;
-            itemsList.appendChild(li);
+
+    if (Array.isArray(pkg.items) && pkg.items.length > 0) {
+        const itemsSection = container.querySelector('.items-section');
+        pkg.items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.style.display = 'flex';
+            itemDiv.style.justifyContent = 'space-between';
+            itemDiv.style.padding = '0.2rem 0';
+            itemDiv.textContent = ''; // We'll use spans
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = item.name || 'Bilinmeyen Ürün';
+            const qtySpan = document.createElement('span');
+            qtySpan.textContent = item.qty != null ? item.qty : 1;
+            itemDiv.appendChild(nameSpan);
+            itemDiv.appendChild(qtySpan);
+            itemsSection.appendChild(itemDiv);
         });
-        container.appendChild(itemsList);
     }
 }
+
+
 
 function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
