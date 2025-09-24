@@ -266,48 +266,48 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     letter-spacing: 0.5px;
                 }
 
-                /* === ITEMS SECTION === */
-                .items-section {
-                    flex: 1;
-                    margin: 3mm 0;
-                }
+              /* === ITEMS SECTION === */
+.items-section {
+    flex: 1;
+    margin: 3mm 0;
+}
 
-                .item-list {
-                    background: #f8f9fa;
-                    padding: 3mm;
-                    border-radius: 2mm;
-                    border: 2px solid #e9ecef;
-                }
+.item-list {
+    background: #fff;               /* Use white background for better contrast */
+    padding: 3mm;
+    border-radius: 2mm;
+    border: 1px solid #000;         /* Dark border to be visible on print */
+}
 
-                .item {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 1.5mm 0;
-                    border-bottom: 1px dotted #ccc;
-                    font-size: 22px;
-                }
+.item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5mm 0;
+    border-bottom: 1px solid #000;  /* Dark solid line instead of dotted light gray */
+    font-size: 22px;
+}
 
-                .item:last-child {
-                    border-bottom: none;
-                }
+.item:last-child {
+    border-bottom: none;
+}
 
-                .item-name {
-                    font-weight: 600;
-                    color: #333;
-                }
+.item-name {
+    font-weight: 600;
+    color: #000;                     /* Black text for visibility */
+}
 
-                .item-qty {
-                    font-weight: 700;
-                    color: #000;
-                    background: #fff;
-                    padding: 1mm 2mm;
-                    border-radius: 2mm;
-                    border: 2px solid #ddd;
-                    font-size: 15px;
-                    min-width: 15mm;
-                    text-align: center;
-                }
+.item-qty {
+    font-weight: 700;
+    color: #000;
+    background: #fff;
+    padding: 1mm 2mm;
+    border-radius: 2mm;
+    border: 1px solid #000;          /* Dark border around quantity */
+    font-size: 15px;
+    min-width: 15mm;
+    text-align: center;
+}
 
                 /* === FOOTER === */
                 .footer {
