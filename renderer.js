@@ -8,3 +8,8 @@ document.getElementById('addBtn').onclick = () => {
         else alert(`Added user: ${name}`);
     });
 };
+
+
+// Send barcode HTML to Electron for direct print
+const barcodeHTML = `<html><body><h1>Barcode Example</h1></body></html>`;
+await window.electronAPI.printBarcode(barcodeHTML);
