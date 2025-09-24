@@ -401,7 +401,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                         <!-- FOOTER -->
                         <div class="footer">
                             <span class="date-info">${date}</span>
-                            <span class="package-info">PAKET #${i + 1}</span>
                         </div>
                     </div>
                 `);
