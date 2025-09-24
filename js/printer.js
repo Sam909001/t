@@ -185,7 +185,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     width: 100%;
                     height: 100%;
                     box-sizing: border-box;
-                    padding: 6mm;
+                    padding: 10mm;
                     display: flex;
                     flex-direction: column;
                     justify-content: space-between;
@@ -217,7 +217,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .company-subtitle {
-                    font-size: 15px;
+                    font-size: 17px;
                     color: #666;
                     margin: 1mm 0 0 0;
                     font-weight: 500;
@@ -230,12 +230,12 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode {
-                    max-width: 35mm;
-                    height: auto;
+                    max-width: 40mm;
+                    height: 15mm;
                 }
 
                 .barcode-text {
-                    font-size: 14px;
+                    font-size: 17px;
                     font-weight: 700;
                     margin-top: 1mm;
                     color: #000;
@@ -285,7 +285,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     align-items: center;
                     padding: 1.5mm 0;
                     border-bottom: 1px dotted #ccc;
-                    font-size: 17px;
+                    font-size: 22px;
                 }
 
                 .item:last-child {
