@@ -192,7 +192,9 @@ document.addEventListener("DOMContentLoaded", function() {
                         </button>
                     </div>
 
-                    <div class="pending-packages">
+                    
+
+                  <div class="pending-packages">
     <h3>Bekleyen Paketler</h3>
     <table class="package-table">
         <thead>
@@ -203,20 +205,23 @@ document.addEventListener("DOMContentLoaded", function() {
                 <th>Paket No</th>
                 <th>Müşteri</th>
                 <th>Ürün</th>
+                <th>Adet</th> <!-- NEW COLUMN -->
                 <th>Tarih</th>
                 <th>Durum</th>
             </tr>
         </thead>
         <tbody id="packagesTableBody">
-            </tbody>
+        </tbody>
     </table>
 </div>
 
-                    <div class="package-details">
-                        <h3>Paket Detayları</h3>
-                        <div id="packageDetailContent">
-                            <p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>
-                        </div>
+<div class="package-details">
+    <h3>Paket Detayları</h3>
+    <div id="packageDetailContent">
+        <p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>
+    </div>
+</div>
+
                         
                         <div class="package-actions">
                             <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
