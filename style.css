@@ -290,20 +290,21 @@ body {
     box-shadow: 0 2px 10px var(--shadow); 
     display: flex; 
     flex-direction: column; 
-    justify-content: space-between; /* make buttons stick at bottom */
 }
 
 .package-actions {
     margin-top: 1rem;
     display: flex;
     gap: 0.5rem;
-    justify-content: space-between; /* buttons evenly spaced */
+    justify-content: flex-start; /* buttons start from left */
 }
+
 
 #packageDetailContent {
     overflow-y: auto;
-    max-height: calc(100% - 100px); /* adjust depending on header/buttons */
+    max-height: 300px; /* adjust as needed */
 }
+
 
 
 .barcode-input { 
