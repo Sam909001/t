@@ -1,1 +1,12 @@
-
+{
+  "name": "my-electron-webapp",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^26.0.0",
+    "sqlite3": "^5.1.6"
+  }
+}
