@@ -374,7 +374,12 @@ async function populatePackagesTable() {
                 <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
                 <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
                 <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
-                <td title="${escapeHtml(productInfo)}">${escapeHtml(productInfo.length > 50 ? productInfo.substring(0, 50) + '...' : productInfo)}</td>
+                <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+</td>
+<td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+</td>
                 <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                 <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
             `;
