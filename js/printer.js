@@ -217,7 +217,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .company-subtitle {
-                    font-size: 17px;
+                    font-size: 20px;
                     color: #666;
                     margin: 1mm 0 0 0;
                     font-weight: 500;
@@ -230,7 +230,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                 }
 
                 .barcode {
-                    max-width: 40mm;
+                    max-width: 50mm;
                     height: 15mm;
                 }
 
