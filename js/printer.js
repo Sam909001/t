@@ -205,27 +205,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     border-bottom: 4px solid #000;
                 }
 
-                .company-info {
-                    flex: 3;
-                }
-
-                .company-name {
-                    font-size: 22px;
-                    font-weight: 900;
-                    color: #000;
-                    letter-spacing: 1px;
-                    margin: 0;
-                    line-height: 1.1;
-                }
-
-                .company-subtitle {
-                    font-size: 20px;
-                    color: #666;
-                    margin: 1mm 0 0 0;
-                    font-weight: 500;
-                    letter-spacing: 0.5px;
-                }
-
                 .barcode-section {
                     text-align: right;
                     flex-shrink: 0;
@@ -373,10 +352,6 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     <div class="label">
                        <!-- HEADER SECTION -->
 <div class="header">
-    <div class="company-info">
-        <h1 class="company-name">YEDITEPE LAUNDRY</h1>
-        <p class="company-subtitle">Professional Laundry Services</p>
-    </div>
     <img src="${logoPath}" alt="Laundry Logo" style="height:60px; margin-bottom:7px;">
     <div class="barcode-section">
         <canvas id="barcode-${i}" class="barcode"></canvas>
