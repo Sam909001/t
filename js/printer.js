@@ -74,9 +74,6 @@ class PrinterServiceElectron {
                         </div>
                     </div>
 
-                    <!-- HOTEL NAME -->
-                    <div class="hotel-name">${customerName}</div>
-
                     <!-- ITEM LIST -->
                     <div class="item-list">
                         ${items.map(item => `
