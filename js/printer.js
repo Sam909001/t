@@ -461,6 +461,16 @@ async function testPrintWithSettings() {
     await printerElectron.testPrint(settings);
 }
 
+function checkPrinterStatus() {
+    const printer = getPrinterElectron(); // get your initialized printer instance
+    if (printer && printer.isConnected) {
+        alert('Printer is connected ✅');
+        console.log('Printer status:', printer.isConnected);
+    } else {
+        alert('Printer not connected ❌');
+        console.log('Printer status:', printer?.isConnected);
+    }
+}
 
 
 // ================== BUTTON BINDINGS ==================
