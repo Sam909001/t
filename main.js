@@ -17,7 +17,7 @@ app.on('ready', () => {
   mainWindow.loadFile('index.html');
 });
 
-// One-click print handler
+/// One-click print handler
 ipcMain.handle('print-barcode', async (event, htmlContent) => {
   // Create hidden window
   const printWindow = new BrowserWindow({ show: false });
