@@ -51,6 +51,7 @@ printBtn.addEventListener('click', async () => {
     }
 
     // Show loading state
+    const originalText = printBtn.innerHTML;
     printBtn.disabled = true;
     printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yazdırılıyor...';
 
@@ -65,30 +66,44 @@ printBtn.addEventListener('click', async () => {
                     <style>
                         body { 
                             margin: 0; 
-                            padding: 10mm; 
+                            padding: 20px; 
                             font-family: Arial, sans-serif;
                             text-align: center;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            min-height: 100vh;
                         }
                         svg { 
                             display: block; 
                             margin: 0 auto;
                             max-width: 100%;
+                            height: auto;
                         }
                         @media print {
-                            body { margin: 0; }
+                            body { 
+                                margin: 0;
+                                padding: 10mm;
+                            }
                         }
                     </style>
                 </head>
                 <body>
-                    ${barcodeArea.innerHTML}
+                    <div>${barcodeArea.innerHTML}</div>
                 </body>
             </html>
         `;
 
+        console.log('Sending print request...');
         const success = await window.electronAPI.printBarcode(printHTML);
         
-        if (!success) {
-            alert('Yazdırma başarısız oldu!');
+        if (success) {
+            console.log('Print completed successfully');
+            // Optional: Show success message
+            showToast('Etiket yazdırıldı!', 'success');
+        } else {
+            console.error('Print returned false');
+            alert('Yazdırma başarısız oldu! Lütfen yazıcıyı kontrol edin.');
         }
         
     } catch (error) {
@@ -97,6 +112,12 @@ printBtn.addEventListener('click', async () => {
     } finally {
         // Reset button state
         printBtn.disabled = false;
-        printBtn.innerHTML = 'Etiket Yazdır';
+        printBtn.innerHTML = originalText;
     }
 });
+
+// Add toast notification function
+function showToast(message, type = 'info') {
+    // You can implement a toast notification here
+    console.log(`${type}: ${message}`);
+}
