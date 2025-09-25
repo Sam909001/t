@@ -28,264 +28,156 @@ class PrinterServiceElectronWithSettings {
     }
 
     // ---------------- PRINT MULTIPLE LABELS ----------------
-    async printAllLabels(packages, settings = {}) {
-        if (!packages || packages.length === 0) {
-            alert("Yazdırılacak paket bulunamadı.");
-            return false;
-        }
+   async printAllLabels(packages, settings = {}) {
+    if (!packages || packages.length === 0) {
+        alert("Yazdırılacak paket bulunamadı.");
+        return false;
+    }
 
-        try {
-            // Apply settings or use defaults
-            const fontSize = settings.fontSize || 14;
-            const headerSize = Math.max(16, fontSize + 4);
+    try {
+        // Apply settings or use defaults
+        const fontSize = settings.fontSize || 14;
+        const headerSize = Math.max(16, fontSize + 4);
 
-            // Enhanced CSS styling matching your HTML structure
-            const style = `
-                <style>
-                    @page { 
-                        size: 100mm 80mm portrait;
-                        margin: 0;
-                    }
-                    body { 
-                        width: 95mm;
-                        height: 75mm;
-                        margin: 0;
-                        padding: 0;
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        background: #fff;
-                        color: #000;
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
-                    }
-                    .label {
-                        width: 100%;
-                        height: 100%;
-                        box-sizing: border-box;
-                        padding: 10mm;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: space-between;
-                        border: 2px solid #000;
-                        position: relative;
-                        page-break-after: always;
-                    }
-                    .header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-start;
-                        margin-bottom: 5mm;
-                        padding-bottom: 3mm;
-                        border-bottom: 2px solid #000;
-                    }
-                    .company-info {
-                        flex: 3;
-                    }
-                    .company-name {
-                        font-size: 17px;
-                        font-weight: 900;
-                        color: #000;
-                        letter-spacing: 1px;
-                        margin: 0;
-                        line-height: 1.1;
-                    }
-                    .company-subtitle {
-                        font-size: 14px;
-                        color: #666;
-                        margin: 1mm 0 0 0;
-                        font-weight: 500;
-                        letter-spacing: 0.5px;
-                    }
-                    .barcode-section {
-                        text-align: right;
-                        flex-shrink: 0;
-                    }
-                    .barcode {
-                        max-width: 40mm;
-                        height: 20mm;
-                    }
-                    .barcode-text {
-                        font-size: 13px;
-                        font-weight: 700;
-                        margin-top: 1mm;
-                        color: #000;
-                        font-family: 'Courier New', monospace;
-                        letter-spacing: 0.5px;
-                    }
-                    .barcode svg {
-    width: 100%;
-    height: auto;
-}
+        // Start HTML
+        let htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+${/* inline styles */''}
+<style>
+    @page { size: 96mm 78mm portrait; margin: 0; }
+    body { 
+        width: 96mm; height: 78mm; margin: 0; padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .label {
+        width: 100%; height: 100%;
+        padding: 6mm;
+        display: flex; flex-direction: column;
+        justify-content: space-between;
+        border: 2px solid #000;
+        box-sizing: border-box;
+        page-break-after: always;
+        position: relative;
+    }
+    .header {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        padding-bottom: 3mm; margin-bottom: 3mm;
+        border-bottom: 2px solid #000;
+    }
+    .logo-img { height: 55px; object-fit: contain; }
+    .barcode-section { text-align: right; }
+    .barcode { max-width: 40mm; height: 20mm; }
+    .barcode-text {
+        font-size: 13px; font-weight: 700;
+        margin-top: 1mm; color: #000;
+        font-family: 'Courier New', monospace;
+    }
+    .barcode svg { width: 100%; height: auto; }
+    .customer-section {
+        background: #000; color: #fff;
+        padding: 4mm 0; text-align: center;
+        border-radius: 2mm; margin: 3mm 0;
+    }
+    .customer-name {
+        margin: 0; font-size: 20px;
+        font-weight: 800; letter-spacing: 1px;
+    }
+    .items-section { flex: 1; margin: 3mm 0; }
+    .item-list { padding: 2mm 0; }
+    .item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1.5mm 0; border-bottom: 1px solid #000;
+        font-size: 15px;
+    }
+    .item:last-child { border-bottom: none; }
+    .item-name { font-weight: 600; }
+    .item-qty {
+        font-weight: 700; border: 1px solid #000;
+        padding: 1mm 3mm; border-radius: 2mm;
+        font-size: 13px; min-width: 14mm; text-align: center;
+    }
+    .footer {
+        display: flex; justify-content: flex-start; align-items: center;
+        margin-top: auto; padding-top: 3mm;
+        border-top: 2px solid #000;
+        font-size: 14px; color: #333;
+    }
+    .date-info { font-weight: 600; }
+</style>
+</head>
+<body>
+        `;
 
-                  .customer-section {
-    background: #000;
-    color: #fff;
-    padding: 4mm 0;
-    text-align: center;
-    font-size: 20px;
-    font-weight: bold;
-    border-radius: 2mm;
-    margin: 3mm 0;
-}
-.customer-name {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 800;
-    letter-spacing: 1px;
-}
+        // Loop packages
+        for (const pkg of packages) {
+            const packageNo = pkg.package_no || '';
+            const customerName = pkg.customer_name || '';
+            const items = pkg.items || [];
+            const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
 
-                    .items-section {
-                        flex: 1;
-                        margin: 3mm 0;
-                    }
-                    .item-list {
-                        background: #fff;
-                        padding: 3mm;
-                        border-radius: 2mm;
-                        border: 1px solid #000;
-                    }
-                    .item {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 1.5mm 0;
-                        border-bottom: 1px solid #000;
-                        font-size: 15px;
-                    }
-                    .item:last-child {
-                        border-bottom: none;
-                    }
-                    .item-name {
-                        font-weight: 600;
-                        color: #000;
-                    }
-                    .item-qty {
-                        font-weight: 700;
-                        color: #000;
-                        background: #fff;
-                        padding: 1mm 2mm;
-                        border-radius: 2mm;
-                        border: 1px solid #000;
-                        font-size: 13px;
-                        min-width: 15mm;
-                        text-align: center;
-                    }
-                    .footer {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-top: auto;
-                        padding-top: 3mm;
-                        border-top: 2px solid #ddd;
-                        font-size: 14px;
-                        color: #666;
-                    }
-                    .date-info {
-                        font-weight: 500;
-                    }
-                    .package-info {
-                        font-weight: 700;
-                        color: #000;
-                        background: #f0f0f0;
-                        padding: 1mm 3mm;
-                        border-radius: 2mm;
-                        border: 2px solid #ddd;
-                    }
-                    .label::before {
-                        content: "";
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        height: 5px;
-                        background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
-                    }
-                    .label::after {
-                        content: "";
-                        position: absolute;
-                        bottom: 0;
-                        left: 0;
-                        right: 0;
-                        height: 3px;
-                        background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
-                    }
-                    .logo-img { height: 60px; object-fit: contain; }
-                    }
-                </style>
-            `;
+            // generate barcode SVG for each package
+            const barcodeSVG = this.generateBarcodeSVG(packageNo, settings);
 
-            // Build HTML for all labels
-            let htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Barkod Etiketleri</title>${style}</head><body>`;
-
-            packages.forEach((pkg, i) => {
-                const packageNo = pkg.package_no || `PKG-${Date.now()}-${i}`;
-                const customerName = pkg.customer_name || 'Bilinmeyen Müşteri';
-                const items = pkg.items || [{ name: pkg.product || 'Bilinmeyen Ürün', qty: 1 }];
-                const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
-
-                // Generate barcode SVG
-                const barcodeSVG = this.generateBarcodeSVG(packageNo, settings);
-
-                htmlContent += `
-                    <div class="label">
-                        <!-- HEADER SECTION -->
-                      <div class="header">
-    <div class="logo-section">
-        <img src="${logoPath}" class="logo-img">
+            htmlContent += `
+<div class="label">
+    <!-- HEADER -->
+    <div class="header">
+        <div class="logo-section">
+            <img src="${logoPath}" class="logo-img">
+        </div>
+        <div class="barcode-section">
+            ${barcodeSVG}
+            <div class="barcode-text">${packageNo}</div>
+        </div>
     </div>
-    <div class="barcode-section">
-        ${barcodeSVG}
-        <div class="barcode-text">${packageNo}</div>
+
+    <!-- CUSTOMER STRIP -->
+    <div class="customer-section">
+        <h2 class="customer-name">${customerName}</h2>
+    </div>
+
+    <!-- ITEMS -->
+    <div class="items-section">
+        <div class="item-list">
+            ${items.map(item => {
+                const name = item?.name || item;
+                const qty = item?.qty != null ? item.qty : 1;
+                return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
+            }).join('')}
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <span class="date-info">${date}</span>
     </div>
 </div>
-
-                        <!-- CUSTOMER SECTION -->
-                        <div class="customer-section">
-                            <h2 class="customer-name">${customerName}</h2>
-                        </div>
-
-                        <!-- ITEMS SECTION -->
-                        <div class="items-section">
-                            <div class="item-list">
-                                ${items.map(item => {
-                                    const name = item?.name || item;
-                                    const qty = item?.qty != null ? item.qty : 1;
-                                    return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
-                                }).join('')}
-                            </div>
-                        </div>
-
-                        <!-- FOOTER -->
-                        <div class="footer">
-                      <span class="date-info">${date}</span>
-                        </div>
-                    </div>
-                `;
-            });
-
-            htmlContent += `</body></html>`;
-
-            // Use Electron API for printing
-            if (window.electronAPI && window.electronAPI.printBarcode) {
-                console.log('🖨️ Sending print request to Electron...');
-                const success = await window.electronAPI.printBarcode(htmlContent);
-                if (success) {
-                    console.log('✅ Print completed successfully');
-                } else {
-                    console.error('❌ Print failed');
-                }
-                return success;
-            } else {
-                // Fallback to browser printing
-                console.warn('⚠️ Electron API not available, using browser fallback');
-                return this.browserFallbackPrint(htmlContent);
-            }
-
-        } catch (error) {
-            console.error("❌ Print error:", error);
-            alert("Yazdırma hatası: " + error.message);
-            return false;
+            `;
         }
+
+        htmlContent += `</body></html>`;
+
+        // send to electron
+        if (window.electronAPI && window.electronAPI.printBarcode) {
+            console.log('🖨️ Sending print request to Electron...');
+            const success = await window.electronAPI.printBarcode(htmlContent);
+            return success;
+        } else {
+            console.warn('⚠️ Electron API not available, using browser fallback');
+            return this.browserFallbackPrint(htmlContent);
+        }
+
+    } catch (error) {
+        console.error("❌ Print error:", error);
+        alert("Yazdırma hatası: " + error.message);
+        return false;
     }
+}
+
 
     // ---------------- BROWSER FALLBACK PRINT ----------------
     browserFallbackPrint(htmlContent) {
