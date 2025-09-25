@@ -5,69 +5,55 @@ const db = require('./db'); // your local database module
 // =========================
 
 // Grab the print button and barcode input
-const printBtn = document.getElementById('printBarcodeBtn');
+// renderer.js
+
 const barcodeInput = document.getElementById('barcodeInput');
+const barcodeSearchBtn = document.getElementById('barcodeSearchBtn');
+const printBtn = document.getElementById('printBarcodeBtn');
 const barcodeArea = document.getElementById('barcode-area');
 
-// Helper function to send HTML to Electron
-function printBarcodeHTML(htmlContent) {
-  window.electronAPI.printBarcode(`
-    <html>
-      <head>
-        <title>Barcode</title>
-      </head>
-      <body>${htmlContent}</body>
-    </html>
-  `);
-}
+// ---------------- Process Barcode ----------------
+function processBarcode() {
+    const value = barcodeInput.value.trim();
+    if (!value) return;
 
-// -------------------------
-// Print Button Click
-// -------------------------
-printBtn.addEventListener('click', () => {
-  if (!barcodeArea || !barcodeArea.innerHTML.trim()) {
-    alert('Yazdırılacak barkod bulunamadı!');
-    return;
-  }
-  printBarcodeHTML(barcodeArea.outerHTML);
-});
+    // Clear previous content
+    barcodeArea.innerHTML = '';
 
-// -------------------------
-// Barcode Input Enter Key
-// -------------------------
-barcodeInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
+    // Generate barcode using JsBarcode
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    JsBarcode(svg, value, { format: "CODE128", width: 2, height: 50 });
+    barcodeArea.appendChild(svg);
 
-    // Optional: generate barcode HTML if not already in barcodeArea
-    const code = barcodeInput.value.trim();
-    if (!code) return;
-
-    barcodeArea.innerHTML = `<div style="font-size:16px; font-weight:bold;">${code}</div>`;
-
-    printBarcodeHTML(barcodeArea.outerHTML);
+    // Optional: auto-print on scan
+    window.electronAPI.printBarcode(`
+        <html>
+            <head><title>Barcode</title></head>
+            <body>${barcodeArea.outerHTML}</body>
+        </html>
+    `);
 
     // Clear input
     barcodeInput.value = '';
-  }
+}
+
+// ---------------- Event listeners ----------------
+barcodeSearchBtn.addEventListener('click', processBarcode);
+
+barcodeInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') processBarcode();
 });
 
-// -------------------------
-// Process Barcode Function
-// -------------------------
-function processBarcode() {
-  const code = barcodeInput.value.trim();
-  if (!code) {
-    alert('Barkod girin veya okutun!');
-    return;
-  }
+printBtn.addEventListener('click', () => {
+    if (!barcodeArea.innerHTML) {
+        alert('Barkod yok!');
+        return;
+    }
 
-  // Display in barcode area
-  barcodeArea.innerHTML = `<div style="font-size:16px; font-weight:bold;">${code}</div>`;
-
-  // Send directly to Electron
-  printBarcodeHTML(barcodeArea.outerHTML);
-
-  // Clear input
-  barcodeInput.value = '';
-}
+    window.electronAPI.printBarcode(`
+        <html>
+            <head><title>Barcode</title></head>
+            <body>${barcodeArea.outerHTML}</body>
+        </html>
+    `);
+});
