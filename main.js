@@ -1,42 +1,32 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
-function createWindow() {
-    const win = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true,  // safe
-            nodeIntegration: false
-        }
-    });
+let mainWindow;
 
-    win.loadFile('index.html'); // load your web app HTML
-}
+app.on('ready', () => {
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    }
+  });
 
-app.whenReady().then(createWindow);
-
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
+  mainWindow.loadFile('index.html');
 });
 
-app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
-
-// ----------------- PRINT HANDLER -----------------
+// One-click print handler
 ipcMain.handle('print-barcode', async (event, htmlContent) => {
-    const printWin = new BrowserWindow({ show: false });
-    await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+  // Create hidden window
+  const printWindow = new BrowserWindow({ show: false });
+  await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
-    printWin.webContents.on('did-finish-load', () => {
-        printWin.webContents.print(
-            { silent: true, printBackground: true },
-            (success, errorType) => {
-                if (!success) console.error('Print failed:', errorType);
-                printWin.close();
-            }
-        );
-    });
+  printWindow.webContents.print({}, (success, errorType) => {
+    if (!success) console.error('Print failed:', errorType);
+    printWindow.close();
+  });
+
+  return true;
 });
