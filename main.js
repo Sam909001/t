@@ -19,35 +19,69 @@ app.on('ready', () => {
 
 /// One-click print handler
 ipcMain.handle('print-barcode', async (event, htmlContent) => {
-  try {
-    // Use the main window's webContents to print instead of creating a new window
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      // Execute JavaScript in the renderer to create a print-friendly version
-      await mainWindow.webContents.executeJavaScript(`
-        // Create a temporary hidden iframe for printing
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = 'none';
-        iframe.srcdoc = \`${htmlContent.replace(/`/g, '\\`')}\`;
-        
-        document.body.appendChild(iframe);
-        
-        iframe.onload = () => {
-          iframe.contentWindow.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        };
-      `);
-      
-      return true;
+  console.log('Print request received');
+  
+  // Create a completely hidden window
+  const printWindow = new BrowserWindow({
+    show: false,
+    width: 800,
+    height: 600,
+    webPreferences: {
+      contextIsolation: false,
+      nodeIntegration: false,
+      webSecurity: false
     }
+  });
+
+  try {
+    // Use data URL to load content
+    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
+    console.log('Loading print content...');
+    
+    await printWindow.loadURL(dataUrl);
+    console.log('Content loaded, starting print...');
+
+    // Wait for content to render
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Print with silent option to avoid dialog (if desired)
+    const options = {
+      silent: false, // Set to true if you want to print without dialog
+      printBackground: true,
+      margins: {
+        marginType: 'custom',
+        top: 0.4,
+        bottom: 0.4,
+        left: 0.4,
+        right: 0.4
+      }
+    };
+
+    printWindow.webContents.print(options, (success, errorType) => {
+      console.log('Print callback:', success, errorType);
+      
+      if (!success) {
+        console.error('Print failed:', errorType);
+        event.sender.send('print-error', errorType);
+      } else {
+        console.log('Print successful');
+      }
+      
+      // Close the window after printing
+      setTimeout(() => {
+        if (!printWindow.isDestroyed()) {
+          printWindow.destroy();
+        }
+      }, 1000);
+    });
+
+    return true;
+
   } catch (error) {
-    console.error('Print error:', error);
+    console.error('Error in print process:', error);
+    if (!printWindow.isDestroyed()) {
+      printWindow.destroy();
+    }
     return false;
   }
 });
