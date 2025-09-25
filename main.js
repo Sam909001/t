@@ -40,7 +40,7 @@ ipcMain.handle('print-barcode', async (event, htmlContent) => {
       const options = {
         silent: true,
         printBackground: true,
-        deviceName: "Argox OS-214 plus series PPLA",  // change to your exact printer name
+        deviceName: "Argox OS-214EX PPLA",  // change to your exact printer name
         margins: { marginType: 'none' }
       };
 
