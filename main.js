@@ -18,70 +18,50 @@ app.on('ready', () => {
 });
 
 /// One-click print handler
-ipcMain.handle('print-barcode', async (event, htmlContent) => {
-  console.log('Print request received');
-  
-  // Create a completely hidden window
-  const printWindow = new BrowserWindow({
-    show: false,
-    width: 800,
-    height: 600,
-    webPreferences: {
-      contextIsolation: false,
-      nodeIntegration: false,
-      webSecurity: false
-    }
-  });
+ipcMain.handle('print-barcode', (event, htmlContent) => {
+  return new Promise((resolve, reject) => {
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        webSecurity: false // Necessary for data URLs in some contexts
+      }
+    });
 
-  try {
-    // Use data URL to load content
     const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
-    console.log('Loading print content...');
-    
-    await printWindow.loadURL(dataUrl);
-    console.log('Content loaded, starting print...');
+    printWindow.loadURL(dataUrl);
 
-    // Wait for content to render
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Print with silent option to avoid dialog (if desired)
-    const options = {
-      silent: true, // Set to true if you want to print without dialog
-      printBackground: true,
-      margins: {
-        marginType: 'custom',
-        top: 0.4,
-        bottom: 0.4,
-        left: 0.4,
-        right: 0.4
-      }
-    };
-
-    printWindow.webContents.print(options, (success, errorType) => {
-      console.log('Print callback:', success, errorType);
+    printWindow.webContents.on('did-finish-load', () => {
+      console.log('Content finished loading, initiating print.');
       
-      if (!success) {
-        console.error('Print failed:', errorType);
-        event.sender.send('print-error', errorType);
-      } else {
-        console.log('Print successful');
-      }
-      
-      // Close the window after printing
-      setTimeout(() => {
+      const options = {
+        silent: true,
+        printBackground: true,
+        margins: { marginType: 'none' } // No margins for labels
+      };
+
+      printWindow.webContents.print(options, (success, errorType) => {
+        console.log(`Print callback - Success: ${success}, Error: ${errorType}`);
+        
+        // Destroy the window regardless of success or failure
         if (!printWindow.isDestroyed()) {
           printWindow.destroy();
         }
-      }, 1000);
+
+        if (success) {
+          resolve(true); // Resolve the promise with true on success
+        } else {
+          console.error('Print failed:', errorType);
+          reject(new Error(errorType || 'Print failed for an unknown reason.')); // Reject the promise on failure
+        }
+      });
     });
 
-    return true;
-
-  } catch (error) {
-    console.error('Error in print process:', error);
-    if (!printWindow.isDestroyed()) {
-      printWindow.destroy();
-    }
-    return false;
-  }
+    printWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('Failed to load print content:', errorDescription);
+      if (!printWindow.isDestroyed()) {
+        printWindow.destroy();
+      }
+      reject(new Error('Failed to load content for printing.'));
+    });
+  });
 });
