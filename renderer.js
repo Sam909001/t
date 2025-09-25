@@ -64,46 +64,41 @@ printBtn.addEventListener('click', async () => {
                     <meta charset="UTF-8">
                     <title>Barkod Etiketi</title>
                     <style>
+                        @media print {
+                            body { 
+                                margin: 0 !important;
+                                padding: 0 !important;
+                            }
+                            svg { 
+                                display: block !important;
+                                margin: 0 auto !important;
+                                max-width: 100% !important;
+                                height: auto !important;
+                            }
+                        }
                         body { 
-                            margin: 0; 
-                            padding: 20px; 
-                            font-family: Arial, sans-serif;
-                            text-align: center;
+                            margin: 0;
+                            padding: 10mm;
                             display: flex;
                             justify-content: center;
                             align-items: center;
                             min-height: 100vh;
                         }
-                        svg { 
-                            display: block; 
-                            margin: 0 auto;
-                            max-width: 100%;
-                            height: auto;
-                        }
-                        @media print {
-                            body { 
-                                margin: 0;
-                                padding: 10mm;
-                            }
-                        }
                     </style>
                 </head>
                 <body>
-                    <div>${barcodeArea.innerHTML}</div>
+                    ${barcodeArea.innerHTML}
                 </body>
             </html>
         `;
 
-        console.log('Sending print request...');
+        console.log('Starting print process...');
         const success = await window.electronAPI.printBarcode(printHTML);
         
         if (success) {
             console.log('Print completed successfully');
-            // Optional: Show success message
-            showToast('Etiket yazdırıldı!', 'success');
         } else {
-            console.error('Print returned false');
-            alert('Yazdırma başarısız oldu! Lütfen yazıcıyı kontrol edin.');
+            alert('Yazdırma başarısız oldu! Yazıcıyı kontrol edin.');
         }
         
     } catch (error) {
@@ -114,22 +109,4 @@ printBtn.addEventListener('click', async () => {
         printBtn.disabled = false;
         printBtn.innerHTML = originalText;
     }
-});
-
-// Add toast notification function
-function showToast(message, type = 'info') {
-    // You can implement a toast notification here
-    console.log(`${type}: ${message}`);
-}
-
-// Test function to check if electronAPI is available
-function testElectronAPI() {
-    console.log('Testing electronAPI...');
-    console.log('window.electronAPI:', window.electronAPI);
-    console.log('window.electronAPI.printBarcode:', window.electronAPI?.printBarcode);
-}
-
-// Call this when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(testElectronAPI, 1000);
 });
