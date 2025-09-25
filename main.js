@@ -46,7 +46,7 @@ ipcMain.handle('print-barcode', async (event, htmlContent) => {
 
     // Print with silent option to avoid dialog (if desired)
     const options = {
-      silent: false, // Set to true if you want to print without dialog
+      silent: true, // Set to true if you want to print without dialog
       printBackground: true,
       margins: {
         marginType: 'custom',
