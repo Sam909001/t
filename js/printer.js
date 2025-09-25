@@ -111,23 +111,28 @@ class PrinterServiceElectronWithSettings {
                         font-family: 'Courier New', monospace;
                         letter-spacing: 0.5px;
                     }
-                    .customer-section {
-                        background: #000;
-                        color: #fff;
-                        padding: 4mm;
-                        margin: 3mm 0;
-                        text-align: center;
-                        border-radius: 3mm;
-                        box-shadow: 0 3px 5px rgba(0,0,0,0.2);
-                    }
-                    .customer-name {
-                        font-size: 18px;
-                        font-weight: 700;
-                        margin: 0;
-                        line-height: 1.2;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                    }
+                    .barcode svg {
+    width: 100%;
+    height: auto;
+}
+
+                  .customer-section {
+    background: #000;
+    color: #fff;
+    padding: 4mm 0;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 2mm;
+    margin: 3mm 0;
+}
+.customer-name {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
                     .items-section {
                         flex: 1;
                         margin: 3mm 0;
@@ -203,9 +208,7 @@ class PrinterServiceElectronWithSettings {
                         height: 3px;
                         background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
                     }
-                    .logo-img {
-                        height: 40px;
-                        margin-bottom: 7px;
+                    .logo-img { height: 60px; object-fit: contain; }
                     }
                 </style>
             `;
@@ -225,17 +228,15 @@ class PrinterServiceElectronWithSettings {
                 htmlContent += `
                     <div class="label">
                         <!-- HEADER SECTION -->
-                        <div class="header">
-                            <div class="company-info">
-                                <h1 class="company-name">YEDITEPE LAUNDRY</h1>
-                                <p class="company-subtitle">Professional Laundry Services</p>
-                            </div>
-                            <img src="${logoPath}" alt="Laundry Logo" class="logo-img">
-                            <div class="barcode-section">
-                                <div class="barcode">${barcodeSVG}</div>
-                                <div class="barcode-text">${packageNo}</div>
-                            </div>
-                        </div>
+                      <div class="header">
+    <div class="logo-section">
+        <img src="${logoPath}" class="logo-img">
+    </div>
+    <div class="barcode-section">
+        ${barcodeSVG}
+        <div class="barcode-text">${packageNo}</div>
+    </div>
+</div>
 
                         <!-- CUSTOMER SECTION -->
                         <div class="customer-section">
@@ -255,8 +256,7 @@ class PrinterServiceElectronWithSettings {
 
                         <!-- FOOTER -->
                         <div class="footer">
-                            <span class="date-info">${date}</span>
-                            <span class="package-info">${packageNo}</span>
+                      <span class="date-info">${date}</span>
                         </div>
                     </div>
                 `;
