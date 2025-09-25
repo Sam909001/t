@@ -121,3 +121,15 @@ function showToast(message, type = 'info') {
     // You can implement a toast notification here
     console.log(`${type}: ${message}`);
 }
+
+// Test function to check if electronAPI is available
+function testElectronAPI() {
+    console.log('Testing electronAPI...');
+    console.log('window.electronAPI:', window.electronAPI);
+    console.log('window.electronAPI.printBarcode:', window.electronAPI?.printBarcode);
+}
+
+// Call this when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(testElectronAPI, 1000);
+});
