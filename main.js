@@ -50,11 +50,11 @@ ipcMain.handle('print-barcode', async (event, htmlContent) => {
                 
                 // Print with silent mode (true one-click printing)
                 printWindow.webContents.print({
-                    silent: true, // Set to true for no dialog, false to see dialog
+                    silent: true, // no dialog
                     printBackground: true,
-                    margins: {
-                        marginType: 'none'
-                    }
+                    margins: { marginType: 'none' },
+                    // 👇 Change this to the exact name of your printer
+                    deviceName: "Argox OS-214EX PPLA"
                 }, (success, errorType) => {
                     console.log('Print completed:', success, errorType);
                     
@@ -67,8 +67,7 @@ ipcMain.handle('print-barcode', async (event, htmlContent) => {
                     
                     resolve(success);
                 });
-            }, 1000); // Increased delay for better rendering
-            
+            }, 1000); // wait to ensure render
         }).catch(error => {
             console.error('❌ Load error:', error);
             if (!printWindow.isDestroyed()) {
