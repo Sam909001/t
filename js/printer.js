@@ -318,8 +318,10 @@ async function printSelectedElectron() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     
     // Show loading state
-    const printBtn = document.getElementById('printBarcodeBtn');
-    if (printBtn) {
+    const printBtn = document.getElementById('printSelectedElectronBtn');
+if (printBtn) {
+    printBtn.addEventListener('click', printSelectedElectron);
+}
         const originalText = printBtn.innerHTML;
         printBtn.disabled = true;
         printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yazdırılıyor...';
