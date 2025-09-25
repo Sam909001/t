@@ -352,3 +352,10 @@ async function testPrintWithSettings() {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { PrinterServiceElectron, getPrinterElectron };
 }
+
+
+
+// Make functions accessible globally
+window.printSelectedElectron = printSelectedElectron;
+window.testPrintWithSettings = testPrintWithSettings;
+
