@@ -74,9 +74,6 @@ class PrinterServiceElectron {
                         </div>
                     </div>
 
-                    <!-- HOTEL NAME -->
-                    <div class="hotel-name">${customerName}</div>
-
                     <!-- ITEM LIST -->
                     <div class="item-list">
                         ${items.map(item => `
@@ -205,39 +202,18 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     border-bottom: 4px solid #000;
                 }
 
-                .company-info {
-                    flex: 3;
-                }
-
-                .company-name {
-                    font-size: 22px;
-                    font-weight: 900;
-                    color: #000;
-                    letter-spacing: 1px;
-                    margin: 0;
-                    line-height: 1.1;
-                }
-
-                .company-subtitle {
-                    font-size: 20px;
-                    color: #666;
-                    margin: 1mm 0 0 0;
-                    font-weight: 500;
-                    letter-spacing: 0.5px;
-                }
-
                 .barcode-section {
                     text-align: right;
                     flex-shrink: 0;
                 }
 
                 .barcode {
-                    max-width: 40mm;
+                    max-width: 80mm;
                     height: 20mm;
                 }
 
                 .barcode-text {
-                    font-size: 17px;
+                    font-size: 18px;
                     font-weight: 700;
                     margin-top: 1mm;
                     color: #000;
@@ -373,11 +349,7 @@ class PrinterServiceElectronWithSettings extends PrinterServiceElectron {
                     <div class="label">
                        <!-- HEADER SECTION -->
 <div class="header">
-    <div class="company-info">
-        <h1 class="company-name">YEDITEPE LAUNDRY</h1>
-        <p class="company-subtitle">Professional Laundry Services</p>
-    </div>
-    <img src="${logoPath}" alt="Laundry Logo" style="height:60px; margin-bottom:7px;">
+    <img src="${logoPath}" alt="Laundry Logo" style="height:120px; margin-bottom:12px;">
     <div class="barcode-section">
         <canvas id="barcode-${i}" class="barcode"></canvas>
         <div class="barcode-text">${packageNo}</div>
@@ -488,3 +460,39 @@ async function testPrintWithSettings() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     await printerElectron.testPrint(settings);
 }
+
+
+
+// ================== BUTTON BINDINGS ==================
+document.addEventListener("DOMContentLoaded", () => {
+    const btnTestPrinter = document.getElementById("test-printer");
+    const btnTestYazdir = document.getElementById("test-printer-yazdir");
+
+    if (btnTestPrinter) {
+        btnTestPrinter.addEventListener("click", async () => {
+            console.log("🖨️ Test Printer clicked");
+            try {
+                const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+                await printerElectron.testPrint(settings);
+                showAlert("Test etiketi başarıyla yazdırıldı ✅", "success");
+            } catch (err) {
+                console.error("❌ Test print failed", err);
+                showAlert("Test yazdırma hatası ❌", "error");
+            }
+        });
+    }
+
+    if (btnTestYazdir) {
+        btnTestYazdir.addEventListener("click", async () => {
+            console.log("🖨️ Test Yazdır clicked");
+            try {
+                const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+                await printerElectron.testPrint(settings);
+                showAlert("Test etiketi başarıyla yazdırıldı ✅", "success");
+            } catch (err) {
+                console.error("❌ Test Yazdır failed", err);
+                showAlert("Test yazdırma hatası ❌", "error");
+            }
+        });
+    }
+});
