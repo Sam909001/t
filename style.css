@@ -1465,3 +1465,48 @@ table {
     top: -5px;
     right: -5px;
 }
+
+
+
+/* Quantity Badges Styles */
+.quantity-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.status-btn {
+    position: relative;
+}
+
+/* Hide badges when quantity is 0 */
+.quantity-badge[data-quantity="0"],
+.quantity-badge:empty {
+    display: none !important;
+}
+
+/* Different badge colors based on quantity */
+.quantity-badge.low {
+    background: #ffc107;
+    color: black;
+}
+
+.quantity-badge.normal {
+    background: #28a745;
+}
+
+.quantity-badge.high {
+    background: #007bff;
+}
