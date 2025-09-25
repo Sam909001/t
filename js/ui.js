@@ -440,38 +440,35 @@ function selectCustomerFromModal(customer) {
 }
         
 // Package operations
-function openQuantityModal(product) {
-    selectedProduct = product;
-    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
+function openQuantityModal(productName) {
+    const quantityModal = document.getElementById("quantityModal");
+    const modalTitle = document.getElementById("quantityModalTitle");
+    const quantityInput = document.getElementById("quantityInput");
+
+    modalTitle.textContent = `${productName} Adet Girin`;
+    quantityInput.value = "";
+
+    quantityModal.dataset.currentProduct = productName;
+    delete quantityModal.dataset.currentStatus; // clear previous status if any
+
+    quantityModal.style.display = "flex";
 }
+
         
-function confirmQuantity() {
-    const quantity = parseInt(elements.quantityInput.value);
-    
-    // Doğrulama
-    if (!quantity || quantity <= 0) {
-        document.getElementById('quantityError').style.display = 'block';
-        return;
-    }
-
-    // Update quantity badge
-    const badge = document.getElementById(`${selectedProduct}-quantity`);
-    if (badge) {
-        const currentQuantity = parseInt(badge.textContent) || 0;
-        badge.textContent = currentQuantity + quantity;
-    }
-
-    // Add to current package
-    if (!currentPackage.items) currentPackage.items = {};
-    currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
-
-    showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-    closeQuantityModal();
+if (quantityModal.dataset.currentProduct) {
+    const product = quantityModal.dataset.currentProduct;
+    updateQuantityBadge(product, quantity);
+    delete quantityModal.dataset.currentProduct;
+    delete quantityModal.dataset.currentStatus;
+} else if (quantityModal.dataset.currentStatus) {
+    const status = quantityModal.dataset.currentStatus;
+    updateStatusBadge(status, quantity);
+    delete quantityModal.dataset.currentStatus;
+    delete quantityModal.dataset.currentProduct;
 }
+
+
+
         
 function openManualEntry() {
     document.getElementById('manualModal').style.display = 'flex';
