@@ -19,52 +19,35 @@ app.on('ready', () => {
 
 /// One-click print handler
 ipcMain.handle('print-barcode', async (event, htmlContent) => {
-  // Create a truly hidden window with better configuration
-  const printWindow = new BrowserWindow({
-    show: false,
-    width: 1,
-    height: 1,
-    x: -1000,
-    y: -1000,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      offscreen: true // This prevents any visual rendering
-    }
-  });
-
   try {
-    // Use a data URL to load the content
-    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
-    
-    // Wait for content to load completely
-    await printWindow.loadURL(dataUrl);
-    
-    // Wait a bit more to ensure content is rendered
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Print with error handling
-    printWindow.webContents.print({}, (success, errorType) => {
-      if (!success) {
-        console.error('Print failed:', errorType);
-        // Send error back to renderer
-        event.sender.send('print-error', errorType);
-      } else {
-        console.log('Print successful');
-      }
-      // Always close the window
-      setTimeout(() => {
-        if (!printWindow.isDestroyed()) {
-          printWindow.close();
-        }
-      }, 100);
-    });
-    
+    // Use the main window's webContents to print instead of creating a new window
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Execute JavaScript in the renderer to create a print-friendly version
+      await mainWindow.webContents.executeJavaScript(`
+        // Create a temporary hidden iframe for printing
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.srcdoc = \`${htmlContent.replace(/`/g, '\\`')}\`;
+        
+        document.body.appendChild(iframe);
+        
+        iframe.onload = () => {
+          iframe.contentWindow.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        };
+      `);
+      
+      return true;
+    }
   } catch (error) {
-    console.error('Error in print process:', error);
-    printWindow.close();
-    event.sender.send('print-error', error.message);
+    console.error('Print error:', error);
+    return false;
   }
-
-  return true;
 });
