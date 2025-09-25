@@ -186,7 +186,11 @@ document.addEventListener("DOMContentLoaded", function() {
                             </div>
                         </div>
                         
-                        <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="width:100%; margin-top:1rem;">Manuel Giriş</button>
+                       <div style="display: flex; gap: 10px; margin-top: 1rem;">
+    <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="flex: 1;">Manuel Giriş</button>
+    <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;">Extra</button>
+</div>
+
                         <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:0.5rem;" id="scannerToggle">
                             <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
                         </button>
@@ -479,6 +483,31 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
         </div>
     </div>
+
+
+            <!-- Extra Products Modal -->
+<div class="modal" id="extraModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Extra Ürünler</h3>
+            <button type="button" class="modal-close" onclick="closeExtraModal()">&times;</button>
+        </div>
+
+        <div class="quick-buttons">
+            <div class="quick-btn" onclick="openQuantityModal('Paspas Havlu')">Paspas Havlu</div>
+            <div class="quick-btn" onclick="openQuantityModal('Minik Havlu')">Minik Havlu</div>
+            <div class="quick-btn" onclick="openQuantityModal('Peştemal')">Peştemal</div>
+            <div class="quick-btn" onclick="openQuantityModal('Pornoz')">Pornoz</div>
+            <div class="quick-btn" onclick="openQuantityModal('Pike')">Pike</div>
+            <div class="quick-btn" onclick="openQuantityModal('Battaniye')">Battaniye</div>
+            <div class="quick-btn" onclick="openQuantityModal('Yatak Örtüsü')">Yatak Örtüsü</div>
+            <div class="quick-btn" onclick="openQuantityModal('Tül Perde')">Tül Perde</div>
+            <div class="quick-btn" onclick="openQuantityModal('Kumaş Perde')">Kumaş Perde</div>
+            <div class="quick-btn" onclick="openQuantityModal('Saten Perde')">Saten Perde</div>
+        </div>
+    </div>
+</div>
+
 
     <!-- Container Detail Modal -->
     <div class="modal" id="containerDetailModal">
