@@ -43,12 +43,12 @@ class PrinterServiceElectronWithSettings {
             const style = `
                 <style>
                     @page { 
-                        size: 150mm 115mm portrait;
+                        size: 100mm 80mm portrait;
                         margin: 0;
                     }
                     body { 
-                        width: 150mm;
-                        height: 115mm;
+                        width: 95mm;
+                        height: 75mm;
                         margin: 0;
                         padding: 0;
                         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -65,7 +65,7 @@ class PrinterServiceElectronWithSettings {
                         display: flex;
                         flex-direction: column;
                         justify-content: space-between;
-                        border: 4px solid #000;
+                        border: 2px solid #000;
                         position: relative;
                         page-break-after: always;
                     }
@@ -75,13 +75,13 @@ class PrinterServiceElectronWithSettings {
                         align-items: flex-start;
                         margin-bottom: 5mm;
                         padding-bottom: 3mm;
-                        border-bottom: 4px solid #000;
+                        border-bottom: 2px solid #000;
                     }
                     .company-info {
                         flex: 3;
                     }
                     .company-name {
-                        font-size: 22px;
+                        font-size: 17px;
                         font-weight: 900;
                         color: #000;
                         letter-spacing: 1px;
@@ -89,7 +89,7 @@ class PrinterServiceElectronWithSettings {
                         line-height: 1.1;
                     }
                     .company-subtitle {
-                        font-size: 20px;
+                        font-size: 14px;
                         color: #666;
                         margin: 1mm 0 0 0;
                         font-weight: 500;
@@ -104,7 +104,7 @@ class PrinterServiceElectronWithSettings {
                         height: 20mm;
                     }
                     .barcode-text {
-                        font-size: 17px;
+                        font-size: 13px;
                         font-weight: 700;
                         margin-top: 1mm;
                         color: #000;
@@ -121,7 +121,7 @@ class PrinterServiceElectronWithSettings {
                         box-shadow: 0 3px 5px rgba(0,0,0,0.2);
                     }
                     .customer-name {
-                        font-size: 22px;
+                        font-size: 18px;
                         font-weight: 700;
                         margin: 0;
                         line-height: 1.2;
@@ -144,7 +144,7 @@ class PrinterServiceElectronWithSettings {
                         align-items: center;
                         padding: 1.5mm 0;
                         border-bottom: 1px solid #000;
-                        font-size: 18px;
+                        font-size: 15px;
                     }
                     .item:last-child {
                         border-bottom: none;
@@ -160,7 +160,7 @@ class PrinterServiceElectronWithSettings {
                         padding: 1mm 2mm;
                         border-radius: 2mm;
                         border: 1px solid #000;
-                        font-size: 15px;
+                        font-size: 13px;
                         min-width: 15mm;
                         text-align: center;
                     }
@@ -171,7 +171,7 @@ class PrinterServiceElectronWithSettings {
                         margin-top: auto;
                         padding-top: 3mm;
                         border-top: 2px solid #ddd;
-                        font-size: 15px;
+                        font-size: 14px;
                         color: #666;
                     }
                     .date-info {
@@ -204,7 +204,7 @@ class PrinterServiceElectronWithSettings {
                         background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
                     }
                     .logo-img {
-                        height: 60px;
+                        height: 40px;
                         margin-bottom: 7px;
                     }
                 </style>
