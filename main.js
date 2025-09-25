@@ -30,3 +30,35 @@ ipcMain.handle('print-barcode', async (event, htmlContent) => {
 
   return true;
 });
+
+
+ipcMain.handle('print-barcode', async (event, htmlContent) => {
+  console.log('Print request received');
+  
+  const printWindow = new BrowserWindow({ 
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    }
+  });
+
+  try {
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+    console.log('HTML loaded for printing');
+
+    printWindow.webContents.print({}, (success, errorType) => {
+      if (!success) {
+        console.error('Print failed:', errorType);
+      } else {
+        console.log('Print successful');
+      }
+      printWindow.close();
+    });
+  } catch (error) {
+    console.error('Error in print process:', error);
+    printWindow.close();
+  }
+
+  return true;
+});
