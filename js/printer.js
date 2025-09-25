@@ -1,5 +1,5 @@
 // ----------------- LOGO PATHS -----------------
-const logoPath = 'file:///C:/Users/munze/OneDrive/Documents/ElectronApp/t/laundry-logo.jpg';
+const logoPath = 'file:///C:/Users/munze/OneDrive/Documents/ElectronApp/t/laundry-logo.png';
 const logoBase64 = "data:image/jpeg;base64,...";
 const logoPathFinal = (typeof window !== 'undefined' && window.electronAPI) ? logoPath : logoBase64;
 
@@ -63,9 +63,9 @@ class PrinterServiceElectronWithSettings {
 <head>
 <meta charset="UTF-8">
 <style>
-    @page { size: 105mm 80mm portrait; margin: 0; }
+    @page { size: 110mm 80mm portrait; margin: 0; }
     body { 
-        width: 105mm; height: 80mm; margin: 0; padding: 0;
+        width: 110mm; height: 80mm; margin: 0; padding: 0;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
@@ -109,7 +109,7 @@ class PrinterServiceElectronWithSettings {
         overflow: visible;               /* Allow text to show */
     }
     .barcode svg {
-        width: 45mm;
+        width: 50mm;
         height: 25mm !important;         /* Increased to accommodate text */
         display: block;
         margin: 0;
@@ -165,7 +165,25 @@ class PrinterServiceElectronWithSettings {
                 const packageNo = pkg.package_no || '';
                 const customerName = pkg.customer_name || '';
                 const items = pkg.items || [];
-                const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
+     const now = (() => {
+    if (pkg.created_at instanceof Date) return pkg.created_at;
+    if (!pkg.created_at) return new Date();
+    const parts = pkg.created_at.split('.');
+    if (parts.length === 3) {
+        const [day, month, year] = parts.map(p => parseInt(p, 10));
+        const current = new Date();
+        return new Date(year, month - 1, day, current.getHours(), current.getMinutes(), current.getSeconds());
+    }
+    const d = new Date(pkg.created_at);
+    return isNaN(d) ? new Date() : d;
+})();
+
+const dateStr = now.toLocaleDateString('tr-TR');
+const timeStr = now.toLocaleTimeString('tr-TR', { hour12: false });
+const dateTime = `${dateStr} ${timeStr}`;
+
+
+
                 const barcodeSVG = this.generateBarcodeSVG(packageNo, settings);
 
                 htmlContent += `
@@ -195,7 +213,7 @@ class PrinterServiceElectronWithSettings {
     </div>
 
     <div class="footer">
-        <span class="date-info">${date}</span>
+         <span class="date-info">${dateTime}</span>
     </div>
 </div>`;
             }
