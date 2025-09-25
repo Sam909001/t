@@ -18,15 +18,15 @@ app.on('ready', () => {
 });
 
 /// One-click print handler
-ipcMain.handle('print-barcode', (event, htmlContent) => {
+// ----------------- DIRECT ONE-CLICK PRINT -----------------
+ipcMain.handle('print-barcode', async (event, htmlContent) => {
   return new Promise((resolve, reject) => {
     const printWindow = new BrowserWindow({
-      show: false,               // don’t show window
-      autoHideMenuBar: true,     // no menu bar
-      frame: false,              // frameless
+      show: false,                // hidden window
       webPreferences: {
-        sandbox: true,
-        contextIsolation: true
+        offscreen: true,          // offscreen = never visible
+        contextIsolation: true,
+        nodeIntegration: false
       }
     });
 
@@ -34,38 +34,37 @@ ipcMain.handle('print-barcode', (event, htmlContent) => {
     printWindow.loadURL(dataUrl);
 
     printWindow.webContents.on('did-finish-load', () => {
-      console.log('Barcode content loaded, sending to printer...');
+      console.log('Loaded print content, starting silent print...');
 
+      // Choose your printer (use console.log in app to see available names)
       const options = {
         silent: true,
         printBackground: true,
-        margins: { marginType: 'none' },
-        deviceName: "Argox OS-214EX PPLA" // must exactly match your printer name
+        deviceName: "Argox OS-214 plus series PPLA",  // change to your exact printer name
+        margins: { marginType: 'none' }
       };
 
-      printWindow.webContents.print(options).then(success => {
-        if (success) {
-          console.log("✅ Print job sent silently");
-          resolve(true);
-        } else {
-          reject(new Error("❌ Print job failed"));
+      printWindow.webContents.print(options, (success, errorType) => {
+        if (!printWindow.isDestroyed()) {
+          printWindow.destroy();
         }
 
-        if (!printWindow.isDestroyed()) {
-          printWindow.close();  // close instead of destroy to avoid flicker
+        if (success) {
+          console.log("✅ Silent print successful");
+          resolve(true);
+        } else {
+          console.error("❌ Silent print failed:", errorType);
+          reject(new Error(errorType || "Print failed"));
         }
-      }).catch(err => {
-        console.error("❌ Print error:", err);
-        if (!printWindow.isDestroyed()) {
-          printWindow.close();
-        }
-        reject(err);
       });
     });
 
-    printWindow.on('ready-to-show', e => {
-      // Force it to stay hidden
-      e.preventDefault();
+    printWindow.webContents.on('did-fail-load', (e, code, desc) => {
+      console.error("❌ Failed to load print content:", desc);
+      if (!printWindow.isDestroyed()) {
+        printWindow.destroy();
+      }
+      reject(new Error("Failed to load content for printing."));
     });
   });
 });
