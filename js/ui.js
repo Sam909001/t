@@ -614,8 +614,13 @@ function showSettingsModal() {
     document.getElementById('settingsModal').style.display = 'flex';
 }
 
+
+// Add this function with your other modal functions
 function closeSettingsModal() {
-    document.getElementById('settingsModal').style.display = 'none';
+    const settingsModal = document.getElementById('settingsModal');
+    if (settingsModal) {
+        settingsModal.style.display = 'none';
+    }
 }
 
 function loadSettings() {
