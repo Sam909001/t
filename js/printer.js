@@ -16,24 +16,33 @@ class PrinterServiceElectronWithSettings {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             JsBarcode(svg, barcodeText, {
                 format: 'CODE128',
-                width: 1.0,                              // Thinner bars
-                height: 40,                              // Exactly 2cm when scaled
-                displayValue: false,
-                margin: 0,                               // No margin
+                width: 1.0,
+                height: 40,
+                displayValue: true,              // Show the text below barcode
+                text: barcodeText,               // The text to display
+                fontSize: 14,                    // Text size
+                textMargin: 2,                   // Minimal margin between barcode and text
+                fontOptions: "bold",             // Bold text
+                font: "Courier New",             // Monospace font
+                textAlign: "center",             // Center the text
+                textPosition: "bottom",          // Position text at bottom
+                margin: 0,
                 background: "transparent",
                 lineColor: "#000"
             });
             
-            // Force exact dimensions and remove all spacing
+            // Force exact dimensions
             svg.setAttribute('width', '45mm');
-            svg.setAttribute('height', '20mm');           // Exactly 2cm
-            svg.setAttribute('viewBox', `0 0 ${svg.getAttribute('width') || 200} ${svg.getAttribute('height') || 40}`);
+            svg.setAttribute('height', '25mm');           // Slightly taller for text
             svg.style.cssText = 'display:block;margin:0;padding:0;border:0;vertical-align:top;line-height:0;';
             
             return svg.outerHTML;
         } catch (error) {
             console.error('Barcode generation error:', error);
-            return `<div style="border:1px solid #000; padding:2px; text-align:center; font-family:monospace; margin:0; line-height:1; height:20mm;">${barcodeText}</div>`;
+            return `<div style="border:1px solid #000; padding:2px; text-align:center; font-family:monospace; margin:0; line-height:1; height:25mm;">
+                        <div style="height:20mm; background: repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px);"></div>
+                        <div style="font-size:14px; font-weight:bold; margin-top:2px;">${barcodeText}</div>
+                    </div>`;
         }
     }
 
@@ -54,9 +63,9 @@ class PrinterServiceElectronWithSettings {
 <head>
 <meta charset="UTF-8">
 <style>
-    @page { size: 100mm 78mm portrait; margin: 0; }
+    @page { size: 105mm 80mm portrait; margin: 0; }
     body { 
-        width: 100mm; height: 78mm; margin: 0; padding: 0;
+        width: 105mm; height: 80mm; margin: 0; padding: 0;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
@@ -77,7 +86,7 @@ class PrinterServiceElectronWithSettings {
         border-bottom: 2px solid #000;
     }
     .logo-img { 
-        width: 35mm;
+        width: 40mm;
         height: 20mm;
         object-fit: contain;
     }
@@ -89,7 +98,6 @@ class PrinterServiceElectronWithSettings {
         gap: 0;
         line-height: 0;
         font-size: 0;
-        position: relative;                 /* For absolute positioning */
     }
     .barcode {
         display: block;
@@ -97,37 +105,20 @@ class PrinterServiceElectronWithSettings {
         padding: 0;
         line-height: 0;
         font-size: 0;
-        height: 20mm;
-        overflow: hidden;
-        position: relative;
+        height: 25mm;                    /* Increased height for text */
+        overflow: visible;               /* Allow text to show */
     }
     .barcode svg {
         width: 45mm;
-        height: 20mm !important;
+        height: 25mm !important;         /* Increased to accommodate text */
         display: block;
         margin: 0;
         padding: 0;
         vertical-align: top;
         border: 0;
         outline: 0;
-        position: relative;
-        top: 0;
     }
-    .barcode-text {
-        font-size: 13px;
-        font-weight: 700;
-        margin: 0;
-        padding: 0;
-        color: #000;
-        font-family: 'Courier New', monospace;
-        line-height: 1;
-        display: block;
-        height: auto;
-        position: absolute;              /* Absolute positioning */
-        bottom: -15px;                   /* Position it at bottom of barcode */
-        right: 0;                        /* Align to right */
-        white-space: nowrap;             /* Prevent text wrapping */
-    }
+    /* Remove the separate barcode-text class since text is now part of SVG */
     .customer-section {
         background: #000; color: #fff;
         padding: 4mm 0; text-align: center;
@@ -139,16 +130,16 @@ class PrinterServiceElectronWithSettings {
     .item-list { padding: 2mm 0; }
     .item { 
         display: flex; justify-content: space-between; 
-        align-items: center; font-size: 15px; 
+        align-items: center; font-size: 20px; 
     }
     .item-name { font-weight: 600; }
     .item-qty { 
         font-weight: 700; border: 1px solid #000; 
-        font-size: 13px; min-width: 14mm; text-align: center; 
+        font-size: 20px; min-width: 18mm; text-align: center; 
     }
     .footer { 
         display: flex; justify-content: flex-start; 
-        align-items: center; font-size: 14px; color: #333; 
+        align-items: center; font-size: 18px; color: #333; 
     }
     .date-info { font-weight: 600; }
 </style>
