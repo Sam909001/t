@@ -12,7 +12,7 @@ class PrinterServiceElectronWithSettings {
         return await this.printAllLabels([pkg], settings); // reuse bulk method
     }
 
-    // ---------------- PRINT MULTIPLE LABELS WITH SETTINGS ----------------
+
     // ---------------- PRINT MULTIPLE LABELS WITH SETTINGS ----------------
 async printAllLabels(packages, settings = {}) {
     if (!packages || packages.length === 0) {
@@ -24,7 +24,7 @@ async printAllLabels(packages, settings = {}) {
         // Generate HTML content first
         let htmlContent = `<html>
         <head>
-        const style = `
+
                 <style>
                 @page {
                     size: 150mm 115mm portrait;
@@ -198,10 +198,81 @@ async printAllLabels(packages, settings = {}) {
                 </style>
                     </head>
                     <body>`;
+       // Loop through packages and generate full label structure
         packages.forEach((pkg, i) => {
-            htmlContent += `<div class="label"> ... </div>`; // same as before
+            const packageNo = pkg.package_no || `PKG-${Date.now()}-${i}`;
+            const customerName = pkg.customer_name || 'Bilinmeyen Müşteri';
+            const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
+            const items = pkg.items || [pkg.product || 'Bilinmeyen Ürün'];
+
+            printWindow.document.write(`
+                <div class="label">
+                    <!-- HEADER SECTION -->
+                    <div class="header">
+                        <img src="${logoPath}" alt="Laundry Logo" style="height:120px; margin-bottom:12px;">
+                        <div class="barcode-section">
+                            <canvas id="barcode-${i}" class="barcode"></canvas>
+                            <div class="barcode-text">${packageNo}</div>
+                        </div>
+                    </div>
+
+                    <!-- CUSTOMER SECTION -->
+                    <div class="customer-section">
+                        <h2 class="customer-name">${customerName}</h2>
+                    </div>
+
+                    <!-- ITEMS SECTION -->
+                    <div class="items-section">
+                        <div class="item-list">
+                            ${items.map(item => {
+                                const name = item?.name || item;
+                                const qty = item?.qty != null ? item.qty : 1;
+                                return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- FOOTER -->
+                    <div class="footer">
+                        <span class="date-info">${date}</span>
+                    </div>
+                </div>
+            `);
         });
-        htmlContent += `</body></html>`;
+
+        printWindow.document.write("</body></html>");
+        printWindow.document.close();
+
+        printWindow.onload = () => {
+            packages.forEach((pkg, i) => {
+                const canvas = printWindow.document.getElementById(`barcode-${i}`);
+                if (canvas) {
+                    try {
+                        JsBarcode(canvas, pkg.package_no || '', {
+                            format: 'CODE128',
+                            width: 1.2,
+                            height: 25,
+                            displayValue: false,
+                            margin: 0,
+                            fontSize: 12
+                        });
+                    } catch (error) {
+                        console.error('Barcode generation error:', error);
+                    }
+                }
+            });
+            setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
+        };
+
+        return true;
+    } catch (error) {
+        console.error("❌ Bulk print error:", error);
+        alert("Bulk print error: " + error.message);
+        return false;
+    }
+}
+
+    
 
         // If Electron API is available, use it to print directly
         if (window.electronAPI && window.electronAPI.printBarcode) {
