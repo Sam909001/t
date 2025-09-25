@@ -50,10 +50,29 @@ printBtn.addEventListener('click', () => {
         return;
     }
 
-    window.electronAPI.printBarcode(`
+    // Create a cleaner HTML for printing
+    const printHTML = `
         <html>
-            <head><title>Barcode</title></head>
-            <body>${barcodeArea.outerHTML}</body>
+            <head>
+                <title>Barkod Etiketi</title>
+                <style>
+                    body { 
+                        margin: 0; 
+                        padding: 10px; 
+                        font-family: Arial, sans-serif;
+                        text-align: center;
+                    }
+                    svg { 
+                        display: block; 
+                        margin: 0 auto;
+                    }
+                </style>
+            </head>
+            <body>
+                ${barcodeArea.innerHTML}
+            </body>
         </html>
-    `);
+    `;
+
+    window.electronAPI.printBarcode(printHTML);
 });
