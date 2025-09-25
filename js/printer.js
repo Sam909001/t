@@ -1,5 +1,14 @@
-// ----------------- LOGO PATH -----------------
+// ----------------- LOGO PATHS -----------------
+// Absolute file path for Electron (Windows)
 const logoPath = 'file:///C:/Users/munze/OneDrive/Documents/ElectronApp/t/laundry-logo.jpg';
+
+// Base64 fallback for browser printing
+const logoBase64 = "data:image/jpeg;base64,...";  // your full base64 string here
+
+// Choose the correct one depending on context
+const logoPathFinal = (typeof window !== 'undefined' && window.electronAPI) ? logoPath : logoBase64;
+
+
 
 
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
@@ -30,14 +39,14 @@ class PrinterServiceElectronWithSettings {
     }
 
     // ---------------- PRINT MULTIPLE LABELS ----------------
-   async printAllLabels(packages, settings = {}) {
+  // ---------------- PRINT MULTIPLE LABELS ----------------
+async printAllLabels(packages, settings = {}) {
     if (!packages || packages.length === 0) {
         alert("Yazdırılacak paket bulunamadı.");
         return false;
     }
 
     try {
-        // Apply settings or use defaults
         const fontSize = settings.fontSize || 14;
         const headerSize = Math.max(16, fontSize + 4);
 
@@ -47,7 +56,6 @@ class PrinterServiceElectronWithSettings {
 <html>
 <head>
 <meta charset="UTF-8">
-${/* inline styles */''}
 <style>
     @page { size: 96mm 78mm portrait; margin: 0; }
     body { 
@@ -60,7 +68,8 @@ ${/* inline styles */''}
         padding: 6mm;
         display: flex; flex-direction: column;
         justify-content: space-between;
-        border: 2px solid #000;
+        border-top: 2px solid #000;
+        border-bottom: 2px solid #000;
         box-sizing: border-box;
         page-break-after: always;
         position: relative;
@@ -70,49 +79,34 @@ ${/* inline styles */''}
         padding-bottom: 3mm; margin-bottom: 3mm;
         border-bottom: 2px solid #000;
     }
-    .logo-img { height: 55px; object-fit: contain; }
+    .logo-img { 
+        width: 25mm; /* fixed width */
+        height: auto; /* preserve aspect ratio */
+        object-fit: contain;
+    }
     .barcode-section { text-align: right; }
-    .barcode { max-width: 40mm; height: 20mm; }
+    .barcode svg { width: 45mm; height: 20mm; }
     .barcode-text {
         font-size: 13px; font-weight: 700;
         margin-top: 1mm; color: #000;
         font-family: 'Courier New', monospace;
     }
-    .barcode svg { width: 100%; height: auto; }
     .customer-section {
         background: #000; color: #fff;
         padding: 4mm 0; text-align: center;
-        border-radius: 2mm; margin: 3mm 0;
     }
-    .customer-name {
-        margin: 0; font-size: 20px;
-        font-weight: 800; letter-spacing: 1px;
-    }
+    .customer-name { margin:0; font-size:20px; font-weight:800; letter-spacing:1px; }
     .items-section { flex: 1; margin: 3mm 0; }
     .item-list { padding: 2mm 0; }
-    .item {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 1.5mm 0; border-bottom: 1px solid #000;
-        font-size: 15px;
-    }
-    .item:last-child { border-bottom: none; }
+    .item { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
     .item-name { font-weight: 600; }
-    .item-qty {
-        font-weight: 700; border: 1px solid #000;
-        padding: 1mm 3mm; border-radius: 2mm;
-        font-size: 13px; min-width: 14mm; text-align: center;
-    }
-    .footer {
-        display: flex; justify-content: flex-start; align-items: center;
-        margin-top: auto; padding-top: 3mm;
-        border-top: 2px solid #000;
-        font-size: 14px; color: #333;
-    }
+    .item-qty { font-weight: 700; border: 1px solid #000; font-size: 13px; min-width: 14mm; text-align: center; }
+    .footer { display: flex; justify-content: flex-start; align-items: center; font-size: 14px; color: #333; }
     .date-info { font-weight: 600; }
 </style>
 </head>
 <body>
-        `;
+`;
 
         // Loop packages
         for (const pkg of packages) {
@@ -120,29 +114,24 @@ ${/* inline styles */''}
             const customerName = pkg.customer_name || '';
             const items = pkg.items || [];
             const date = pkg.created_at || new Date().toLocaleDateString('tr-TR');
-
-            // generate barcode SVG for each package
             const barcodeSVG = this.generateBarcodeSVG(packageNo, settings);
 
             htmlContent += `
 <div class="label">
-    <!-- HEADER -->
     <div class="header">
         <div class="logo-section">
             <img src="${logoPath}" class="logo-img">
         </div>
         <div class="barcode-section">
-            ${barcodeSVG}
+            <div class="barcode">${barcodeSVG}</div>
             <div class="barcode-text">${packageNo}</div>
         </div>
     </div>
 
-    <!-- CUSTOMER STRIP -->
     <div class="customer-section">
         <h2 class="customer-name">${customerName}</h2>
     </div>
 
-    <!-- ITEMS -->
     <div class="items-section">
         <div class="item-list">
             ${items.map(item => {
@@ -153,24 +142,45 @@ ${/* inline styles */''}
         </div>
     </div>
 
-    <!-- FOOTER -->
     <div class="footer">
         <span class="date-info">${date}</span>
     </div>
 </div>
-            `;
+`;
         }
 
         htmlContent += `</body></html>`;
 
-        // send to electron
+        // ---------------- WAIT FOR IMAGES TO LOAD ----------------
+        const waitForImages = (html) => new Promise((resolve) => {
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) throw new Error("Popup blocked");
+            printWindow.document.write(html);
+            printWindow.document.close();
+
+            const imgs = printWindow.document.images;
+            if (imgs.length === 0) return resolve(printWindow);
+
+            let loadedCount = 0;
+            for (let img of imgs) {
+                if (img.complete) loadedCount++;
+                else img.onload = img.onerror = () => { loadedCount++; if (loadedCount === imgs.length) resolve(printWindow); };
+            }
+            if (loadedCount === imgs.length) resolve(printWindow);
+        });
+
+        const printWindow = await waitForImages(htmlContent);
+
+        // ---------------- PRINT ----------------
         if (window.electronAPI && window.electronAPI.printBarcode) {
             console.log('🖨️ Sending print request to Electron...');
-            const success = await window.electronAPI.printBarcode(htmlContent);
-            return success;
+            return await window.electronAPI.printBarcode(htmlContent);
         } else {
-            console.warn('⚠️ Electron API not available, using browser fallback');
-            return this.browserFallbackPrint(htmlContent);
+            console.log('⚠️ Using browser fallback print');
+            printWindow.focus();
+            printWindow.print();
+            setTimeout(() => printWindow.close(), 1000);
+            return true;
         }
 
     } catch (error) {
