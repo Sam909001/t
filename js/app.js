@@ -1,3 +1,15 @@
+// Add this at the top of app.js to ensure the function exists
+if (typeof closeSettingsModal === 'undefined') {
+    function closeSettingsModal() {
+        const settingsModal = document.getElementById('settingsModal');
+        if (settingsModal) {
+            settingsModal.style.display = 'none';
+        }
+    }
+    window.closeSettingsModal = closeSettingsModal;
+}
+
+
 // Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
 document.addEventListener('DOMContentLoaded', () => {
     const savedApiKey = localStorage.getItem('procleanApiKey');
