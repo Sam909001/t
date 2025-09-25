@@ -22,7 +22,182 @@ async printAllLabels(packages, settings = {}) {
 
     try {
         // Generate HTML content first
-        let htmlContent = `<html><head>...all your <style> here...</head><body>`;
+        let htmlContent = `<html>
+        <head>
+        const style = `
+                <style>
+                @page {
+                    size: 150mm 115mm portrait;
+                    margin: 0;
+                }
+
+                body {
+                    width: 150mm;
+                    height: 115mm;
+                    margin: 0;
+                    padding: 0;
+                    overflow: hidden;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #fff;
+                    color: #000;
+                }
+
+                .label {
+                    width: 100%;
+                    height: 100%;
+                    box-sizing: border-box;
+                    padding: 10mm;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    border: 4px solid #000;
+                    position: relative;
+                }
+
+                /* === HEADER SECTION === */
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 5mm;
+                    padding-bottom: 3mm;
+                    border-bottom: 4px solid #000;
+                }
+
+                .barcode-section {
+                    text-align: right;
+                    flex-shrink: 0;
+                }
+
+                .barcode {
+                    max-width: 80mm;
+                    height: 20mm;
+                }
+
+                .barcode-text {
+                    font-size: 18px;
+                    font-weight: 700;
+                    margin-top: 1mm;
+                    color: #000;
+                    font-family: 'Courier New', monospace;
+                    letter-spacing: 0.5px;
+                }
+
+                /* === CUSTOMER SECTION === */
+               .customer-section {
+    background: #000; /* solid black for printing */
+    color: #fff;
+    padding: 4mm;
+    margin: 3mm 0;
+    text-align: center;
+    border-radius: 3mm;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+
+                .customer-name {
+                    font-size: 22px;
+                    font-weight: 700;
+                    margin: 0;
+                    line-height: 1.2;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+
+              /* === ITEMS SECTION === */
+.items-section {
+    flex: 1;
+    margin: 3mm 0;
+}
+
+.item-list {
+    background: #fff;               /* Use white background for better contrast */
+    padding: 3mm;
+    border-radius: 2mm;
+    border: 1px solid #000;         /* Dark border to be visible on print */
+}
+
+.item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5mm 0;
+    border-bottom: 1px solid #000;  /* Dark solid line instead of dotted light gray */
+    font-size: 22px;
+}
+
+.item:last-child {
+    border-bottom: none;
+}
+
+.item-name {
+    font-weight: 600;
+    color: #000;                     /* Black text for visibility */
+}
+
+.item-qty {
+    font-weight: 700;
+    color: #000;
+    background: #fff;
+    padding: 1mm 2mm;
+    border-radius: 2mm;
+    border: 1px solid #000;          /* Dark border around quantity */
+    font-size: 15px;
+    min-width: 15mm;
+    text-align: center;
+}
+
+                /* === FOOTER === */
+                .footer {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-top: auto;
+                    padding-top: 3mm;
+                    border-top: 2px solid #ddd;
+                    font-size: 15px;
+                    color: #666;
+                }
+
+                .date-info {
+                    font-weight: 500;
+                }
+
+                .package-info {
+                    font-weight: 700;
+                    color: #000;
+                    background: #f0f0f0;
+                    padding: 1mm 3mm;
+                    border-radius: 2mm;
+                    border: 2px solid #ddd;
+                }
+
+                /* === PROFESSIONAL TOUCHES === */
+                .label::before {
+                    content: "";
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 5px;
+                    background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
+                }
+
+                .label::after {
+                    content: "";
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, #000 0%, #333 50%, #000 100%);
+                }
+
+                </style>
+                    </head>
+                    <body>`;
         packages.forEach((pkg, i) => {
             htmlContent += `<div class="label"> ... </div>`; // same as before
         });
