@@ -713,28 +713,5 @@ document.addEventListener("DOMContentLoaded", function() {
 <script src="js/darkMode.js"></script>
 <script src="renderer.js"></script>
 
-
-            <script>
-  const printBtn = document.getElementById('printBarcodeBtn');
-
-  printBtn.addEventListener('click', () => {
-    // Get the HTML of the barcode area
-    const barcodeArea = document.getElementById('barcode-area');
-    if (!barcodeArea) {
-      alert('No barcode found to print!');
-      return;
-    }
-
-    // Send HTML to Electron for direct printing
-    window.electronAPI.printBarcode(`
-      <html>
-        <head>
-          <title>Barcode</title>
-        </head>
-        <body>${barcodeArea.outerHTML}</body>
-      </html>
-    `);
-  });
-</script>
 </body>
 </html>
