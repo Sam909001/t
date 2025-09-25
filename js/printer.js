@@ -125,18 +125,31 @@ class PrinterServiceElectronWithSettings {
     }
     .customer-name { 
         margin:0; font-size:20px; font-weight:800; letter-spacing:1px; 
-    }
-    .items-section { flex: 1; margin: 3mm 0; }
-    .item-list { padding: 2mm 0; }
-    .item { 
-        display: flex; justify-content: space-between; 
-        align-items: center; font-size: 20px; 
-    }
-    .item-name { font-weight: 600; }
-    .item-qty { 
-        font-weight: 700; border: 1px solid #000; 
-        font-size: 20px; min-width: 18mm; text-align: center; 
-    }
+    }.items-section { flex: 1; margin: 3mm 0; }
+.item-list { padding: 0; margin: 0; }
+.item { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    font-size: 18px; 
+    margin-bottom: 1mm;              /* Small gap between items */
+    padding: 1mm;                     /* Inner spacing */
+    border: 1px solid #000;           /* Box around each item */
+    border-radius: 2px;               /* Slight rounding */
+    background: #fff;                 /* White background */
+}
+.item-name { font-weight: 600; }
+.item-qty { 
+    font-weight: 700; 
+    font-size: 16px; 
+    min-width: 14mm; 
+    text-align: center; 
+    border: 1px solid #000;           /* Separate box for quantity */
+    padding: 0.5mm;                   /* Small padding inside quantity box */
+    border-radius: 2px;
+    background: #f0f0f0;              /* Light grey background */
+}
+
     .footer { 
         display: flex; justify-content: flex-start; 
         align-items: center; font-size: 18px; color: #333; 
