@@ -32,26 +32,26 @@ ipcMain.handle('print-barcode', (event, htmlContent) => {
 
     printWindow.webContents.on('did-finish-load', () => {
       console.log('Content finished loading, initiating print.');
-      
+
       const options = {
         silent: true,
         printBackground: true,
-        margins: { marginType: 'none' } // No margins for labels
+        margins: { marginType: 'none' }, // No margins for labels
+        deviceName: "Argox OS-214EX PPLA" // ⚠️ must match your Windows printer name EXACTLY
       };
 
       printWindow.webContents.print(options, (success, errorType) => {
         console.log(`Print callback - Success: ${success}, Error: ${errorType}`);
-        
-        // Destroy the window regardless of success or failure
+
         if (!printWindow.isDestroyed()) {
           printWindow.destroy();
         }
 
         if (success) {
-          resolve(true); // Resolve the promise with true on success
+          resolve(true);
         } else {
           console.error('Print failed:', errorType);
-          reject(new Error(errorType || 'Print failed for an unknown reason.')); // Reject the promise on failure
+          reject(new Error(errorType || 'Print failed for an unknown reason.'));
         }
       });
     });
