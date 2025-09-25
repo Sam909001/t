@@ -1,7 +1,124 @@
-// ----------------- LOGO PATHS -----------------
+///////////// ----------------- LOGO PATHS -----------------
 const logoPath = 'file:///C:/Users/munze/OneDrive/Documents/ElectronApp/t/laundry-logo.png';
 const logoBase64 = "data:image/jpeg;base64,...";
 const logoPathFinal = (typeof window !== 'undefined' && window.electronAPI) ? logoPath : logoBase64;
+
+// ================== GLOBAL FUNCTIONS - DEFINED FIRST ==================
+
+// Define global functions immediately to avoid reference errors
+window.printSelectedElectron = async function() {
+    console.log('🖨️ printSelectedElectron called');
+    
+    // Check if printer instance exists, if not create it
+    if (!window.printerElectron) {
+        window.printerElectron = new PrinterServiceElectronWithSettings();
+    }
+    
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        alert('En az bir paket seçin');
+        return false;
+    }
+
+    const packages = Array.from(checkboxes).map((checkbox, i) => {
+        const row = checkbox.closest('tr');
+        
+        const packageNo = row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}-${i}`;
+        const customerName = row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri';
+        
+        let items = [];
+        
+        // Method 1: Check data attribute
+        const itemsData = row.getAttribute('data-items');
+        if (itemsData) {
+            try {
+                items = JSON.parse(itemsData);
+                console.log('✅ Found items in data attribute:', items);
+            } catch (e) {
+                console.error('Error parsing items data:', e);
+            }
+        }
+        
+        // Method 2: Extract from product and quantity columns
+        if (items.length === 0) {
+            const productText = row.cells[3]?.textContent?.trim();
+            const qtyText = row.cells[4]?.textContent?.trim();
+            
+            if (productText) {
+                const products = productText.split(/[,;]/).map(p => p.trim()).filter(p => p);
+                const quantities = qtyText ? qtyText.split(/[,;]/).map(q => parseInt(q.trim()) || 1) : [1];
+                
+                items = products.map((product, index) => ({
+                    name: product,
+                    qty: quantities[index] || 1
+                }));
+                
+                console.log('✅ Extracted items from columns:', items);
+            }
+        }
+        
+        // Method 3: Fallback to single item
+        if (items.length === 0) {
+            const productText = row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
+            const qtyText = row.cells[4]?.textContent?.trim();
+            const qty = qtyText ? parseInt(qtyText) : 1;
+            
+            items = [{ name: productText, qty: qty }];
+            console.log('✅ Using single item fallback:', items);
+        }
+
+        return {
+            package_no: packageNo,
+            customer_name: customerName,
+            items: items,
+            created_at: row.cells[5]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
+        };
+    });
+
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    
+    const printBtn = document.getElementById('printBarcodeBtn');
+    let originalText = '';
+    
+    if (printBtn) {
+        originalText = printBtn.innerHTML;
+        printBtn.disabled = true;
+        printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yazdırılıyor...';
+    }
+
+    try {
+        console.log('📦 Final packages to print:', packages);
+        const success = await window.printerElectron.printAllLabels(packages, settings);
+        return success;
+    } catch (error) {
+        console.error('Print error:', error);
+        alert('Yazdırma hatası: ' + error.message);
+        return false;
+    } finally {
+        if (printBtn) {
+            printBtn.disabled = false;
+            printBtn.innerHTML = originalText;
+        }
+    }
+};
+
+window.testPrintWithSettings = async function() {
+    console.log('🧪 testPrintWithSettings called');
+    
+    if (!window.printerElectron) {
+        window.printerElectron = new PrinterServiceElectronWithSettings();
+    }
+    
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    return await window.printerElectron.testPrint(settings);
+};
+
+window.getPrinterElectron = function() {
+    if (!window.printerElectron) {
+        window.printerElectron = new PrinterServiceElectronWithSettings();
+    }
+    return window.printerElectron;
+};
 
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
@@ -17,31 +134,30 @@ class PrinterServiceElectronWithSettings {
             JsBarcode(svg, barcodeText, {
                 format: 'CODE128',
                 width: 1.0,
-                height: 40,
-                displayValue: true,              // Show the text below barcode
-                text: barcodeText,               // The text to display
-                fontSize: 14,                    // Text size
-                textMargin: 2,                   // Minimal margin between barcode and text
-                fontOptions: "bold",             // Bold text
-                font: "Courier New",             // Monospace font
-                textAlign: "center",             // Center the text
-                textPosition: "bottom",          // Position text at bottom
+                height: 30,
+                displayValue: true,
+                text: barcodeText,
+                fontSize: 12,
+                textMargin: 1,
+                fontOptions: "bold",
+                font: "Courier New",
+                textAlign: "center",
+                textPosition: "bottom",
                 margin: 0,
                 background: "transparent",
                 lineColor: "#000"
             });
             
-            // Force exact dimensions
             svg.setAttribute('width', '45mm');
-            svg.setAttribute('height', '25mm');           // Slightly taller for text
+            svg.setAttribute('height', '18mm');
             svg.style.cssText = 'display:block;margin:0;padding:0;border:0;vertical-align:top;line-height:0;';
             
             return svg.outerHTML;
         } catch (error) {
             console.error('Barcode generation error:', error);
-            return `<div style="border:1px solid #000; padding:2px; text-align:center; font-family:monospace; margin:0; line-height:1; height:25mm;">
-                        <div style="height:20mm; background: repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px);"></div>
-                        <div style="font-size:14px; font-weight:bold; margin-top:2px;">${barcodeText}</div>
+            return `<div style="border:1px solid #000; padding:1px; text-align:center; font-family:monospace; margin:0; line-height:1; height:18mm; font-size:10px;">
+                        <div style="height:14mm; background: repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px);"></div>
+                        <div style="font-weight:bold;">${barcodeText}</div>
                     </div>`;
         }
     }
@@ -54,173 +170,241 @@ class PrinterServiceElectronWithSettings {
         }
 
         try {
-            const fontSize = settings.fontSize || 14;
+            const MAX_ITEMS_PER_LABEL = 8;
 
-            // Generate complete HTML
             let htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <style>
-    @page { size: 110mm 80mm portrait; margin: 0; }
+    @page { 
+        size: 110mm 70mm portrait; 
+        margin: 0; 
+    }
     body { 
-        width: 110mm; height: 80mm; margin: 0; padding: 0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        width: 110mm; 
+        height: 70mm; 
+        margin: 0; 
+        padding: 0; 
+        font-family: 'Arial', sans-serif;
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact; 
+        font-size: 10px;
+        line-height: 1.2;
     }
-    .label {
-        width: 100%; height: 100%;
-        padding: 6mm;
-        display: flex; flex-direction: column;
+    
+    .label { 
+        width: 100%; 
+        height: 100%; 
+        padding: 3mm;
+        display: flex; 
+        flex-direction: column;
         justify-content: space-between;
-        border-top: 2px solid #000;
-        border-bottom: 2px solid #000;
-        box-sizing: border-box;
-        page-break-after: always;
-        position: relative;
+        border: 1px solid #000;
+        box-sizing: border-box; 
+        page-break-after: always; 
     }
-    .header {
-        display: flex; justify-content: space-between; align-items: flex-start;
-        padding-bottom: 3mm; margin-bottom: 3mm;
-        border-bottom: 2px solid #000;
+    
+    .header { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: flex-start; 
+        padding-bottom: 1mm; 
+        margin-bottom: 1mm; 
+        border-bottom: 1px solid #000; 
     }
+    
     .logo-img { 
-        width: 40mm;
-        height: 20mm;
-        object-fit: contain;
+        width: 35mm;
+        height: 15mm; 
+        object-fit: contain; 
     }
-    .barcode-section {
-        text-align: right;
+    
+    .barcode-section { 
+        text-align: right; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: flex-end; 
+    }
+    
+    .barcode { 
+        display: block; 
+        margin: 0; 
+        padding: 0; 
+        line-height: 0; 
+    }
+    
+    .barcode svg { 
+        width: 45mm; 
+        height: 18mm !important; 
+        display: block; 
+        margin: 0; 
+        padding: 0; 
+    }
+    
+    .customer-section { 
+        background: #000; 
+        color: #fff; 
+        padding: 2mm 0;
+        text-align: center; 
+        margin: 0.5mm 0;
+        font-size: 11px;
+        line-height: 1.3;
+    }
+    
+    .customer-name { 
+        margin: 0; 
+        font-weight: bold; 
+        letter-spacing: 0.5px; 
+        padding: 0 2mm;
+    }
+    
+    .items-section { 
+        flex: 1; 
+        margin: 1mm 0;
         display: flex;
         flex-direction: column;
-        align-items: flex-end;
-        gap: 0;
-        line-height: 0;
-        font-size: 0;
+        gap: 0.5mm;
+        min-height: 25mm;
     }
-    .barcode {
-        display: block;
-        margin: 0;
-        padding: 0;
-        line-height: 0;
-        font-size: 0;
-        height: 25mm;                    /* Increased height for text */
-        overflow: visible;               /* Allow text to show */
+    
+    .item-row { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        width: 100%; 
+        padding: 0.5mm 1mm;
+        background: #f8f8f8; 
+        border: 0.5px solid #ccc; 
+        border-radius: 1px; 
+        font-size: 9px;
+        box-sizing: border-box;
+        min-height: 4mm;
+        page-break-inside: avoid;
     }
-    .barcode svg {
-        width: 50mm;
-        height: 25mm !important;         /* Increased to accommodate text */
-        display: block;
-        margin: 0;
-        padding: 0;
-        vertical-align: top;
-        border: 0;
-        outline: 0;
+    
+    .item-name { 
+        font-weight: 600; 
+        flex: 1;
+        text-align: left;
+        word-break: break-word;
+        padding-right: 1mm;
     }
-    /* Remove the separate barcode-text class since text is now part of SVG */
-    .customer-section {
-        background: #000; color: #fff;
-        padding: 4mm 0; text-align: center;
+    
+    .item-qty { 
+        font-weight: bold; 
+        font-size: 10px; 
+        min-width: 12mm; 
+        text-align: center; 
+        background: #e0e0e0; 
+        padding: 0.3mm 1mm; 
+        border-radius: 1px; 
+        border: 0.5px solid #999;
+        white-space: nowrap;
     }
-    .customer-name { 
-        margin:0; font-size:20px; font-weight:800; letter-spacing:1px; 
-    }.items-section { flex: 1; margin: 3mm 0; }
-.item-list { padding: 0; margin: 0; }
-.item { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    font-size: 18px; 
-    margin-bottom: 1mm;              /* Small gap between items */
-    padding: 1mm;                     /* Inner spacing */
-    border: 1px solid #000;           /* Box around each item */
-    border-radius: 2px;               /* Slight rounding */
-    background: #fff;                 /* White background */
-}
-.item-name { font-weight: 600; }
-.item-qty { 
-    font-weight: 700; 
-    font-size: 16px; 
-    min-width: 14mm; 
-    text-align: center; 
-    border: 1px solid #000;           /* Separate box for quantity */
-    padding: 0.5mm;                   /* Small padding inside quantity box */
-    border-radius: 2px;
-    background: #f0f0f0;              /* Light grey background */
-}
-
+    
     .footer { 
-        display: flex; justify-content: flex-start; 
-        align-items: center; font-size: 18px; color: #333; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        font-size: 9px;
+        color: #333; 
+        margin-top: 0.5mm; 
+        padding-top: 0.5mm;
+        border-top: 0.5px solid #ccc;
+        line-height: 1.3;
     }
-    .date-info { font-weight: 600; }
+    
+    .date-info { 
+        font-weight: 600; 
+    }
+    
+    .total-info {
+        font-weight: bold;
+        background: #333;
+        color: white;
+        padding: 0.3mm 1mm;
+        border-radius: 1px;
+    }
 </style>
 </head>
 <body>
 `;
 
-            // Loop through packages
             for (const pkg of packages) {
                 const packageNo = pkg.package_no || '';
                 const customerName = pkg.customer_name || '';
-                const items = pkg.items || [];
-     const now = (() => {
-    if (pkg.created_at instanceof Date) return pkg.created_at;
-    if (!pkg.created_at) return new Date();
-    const parts = pkg.created_at.split('.');
-    if (parts.length === 3) {
-        const [day, month, year] = parts.map(p => parseInt(p, 10));
-        const current = new Date();
-        return new Date(year, month - 1, day, current.getHours(), current.getMinutes(), current.getSeconds());
-    }
-    const d = new Date(pkg.created_at);
-    return isNaN(d) ? new Date() : d;
-})();
+                
+                console.log('📦 Package data received:', pkg);
+                
+                let items = [];
+                
+                if (pkg.items && Array.isArray(pkg.items)) {
+                    if (pkg.items.length > 0 && pkg.items[0].name) {
+                        items = pkg.items;
+                        console.log('✅ Using direct items array:', items);
+                    } else if (pkg.items.length > 0 && typeof pkg.items[0] === 'string') {
+                        items = pkg.items.map(item => ({ name: item, qty: 1 }));
+                        console.log('✅ Converted string array to items:', items);
+                    }
+                }
+                
+                if (items.length === 0 && pkg.product) {
+                    items = [{ name: pkg.product, qty: pkg.qty || 1 }];
+                    console.log('✅ Using product field:', items);
+                }
+                
+                if (items.length === 0) {
+                    items = [{ name: 'Ürün belirtilmemiş', qty: 1 }];
+                    console.log('⚠️ Using default item');
+                }
 
-const dateStr = now.toLocaleDateString('tr-TR');
-const timeStr = now.toLocaleTimeString('tr-TR', { hour12: false });
-const dateTime = `${dateStr} ${timeStr}`;
+                console.log('📋 Final items to print:', items);
 
-
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('tr-TR');
+                const timeStr = now.toLocaleTimeString('tr-TR', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                const dateTime = `${dateStr} ${timeStr}`;
 
                 const barcodeSVG = this.generateBarcodeSVG(packageNo, settings);
+                const totalItems = items.reduce((sum, item) => sum + (item.qty || 1), 0);
 
-                htmlContent += `
+                for (let i = 0; i < items.length; i += MAX_ITEMS_PER_LABEL) {
+                    const chunk = items.slice(i, i + MAX_ITEMS_PER_LABEL);
+                    
+                    const itemHTML = chunk.map((item, index) => {
+                        const totalQty = item.qty || 1;
+                        return `
+                        <div class="item-row">
+                            <span class="item-name">${item.name}</span>
+                            <span class="item-qty">${totalQty} AD</span>
+                        </div>`;
+                    }).join('');
+
+                    htmlContent += `
 <div class="label">
     <div class="header">
-        <div class="logo-section">
-            <img src="${logoPath}" class="logo-img">
-        </div>
-        <div class="barcode-section">
-            <div class="barcode">${barcodeSVG}</div>
-            <div class="barcode-text">${packageNo}</div>
-        </div>
+        <div class="logo-section"><img src="${logoPath}" class="logo-img" onerror="this.style.display='none'"></div>
+        <div class="barcode-section"><div class="barcode">${barcodeSVG}</div></div>
     </div>
-
     <div class="customer-section">
         <h2 class="customer-name">${customerName}</h2>
     </div>
-
     <div class="items-section">
-        <div class="item-list">
-            ${items.map(item => {
-                const name = item?.name || item;
-                const qty = item?.qty != null ? item.qty : 1;
-                return `<div class="item"><span class="item-name">${name}</span><span class="item-qty">${qty} AD</span></div>`;
-            }).join('')}
-        </div>
+        ${itemHTML}
     </div>
-
     <div class="footer">
-         <span class="date-info">${dateTime}</span>
+        <span class="date-info">${dateTime}</span>
+        <span class="total-info">Toplam: ${totalItems} adet</span>
     </div>
-</div>`;
+</div>
+                    `;
+                }
             }
 
             htmlContent += `</body></html>`;
 
-            // Print using Electron API or browser fallback
             if (window.electronAPI && window.electronAPI.printBarcode) {
                 console.log('🖨️ Using Electron printing...');
                 return await window.electronAPI.printBarcode(htmlContent);
@@ -274,16 +458,21 @@ const dateTime = `${dateStr} ${timeStr}`;
     async testPrint(settings = {}) {
         const testPackage = {
             package_no: 'TEST123456',
-            customer_name: 'Test Müşteri - ÇŞĞİÖÜ',
+            customer_name: 'GRAND HOTEL İSTANBUL',
             items: [
-                { name: 'Büyük Çarşaf - çşğıöü', qty: 2 },
-                { name: 'Havlu', qty: 5 },
-                { name: 'Yastık Kılıfı', qty: 3 }
+                { name: 'Büyük Çarşaf', qty: 10 },
+                { name: 'Havlu', qty: 20 },
+                { name: 'Yastık Kılıfı', qty: 15 },
+                { name: 'Nevresim Takımı', qty: 5 },
+                { name: 'Bornoz', qty: 8 },
+                { name: 'Küçük Havlu', qty: 12 },
+                { name: 'Peştemal', qty: 6 },
+                { name: 'Masa Örtüsü', qty: 4 }
             ],
             created_at: new Date().toLocaleDateString('tr-TR')
         };
         
-        console.log('🧪 Starting test print...');
+        console.log('🧪 Starting test print with multiple items...');
         const success = await this.printAllLabels([testPackage], settings);
         
         if (success) {
@@ -294,67 +483,6 @@ const dateTime = `${dateStr} ${timeStr}`;
         
         return success;
     }
-}
-
-// ================== PRINTER INITIALIZATION ==================
-let printerElectron = new PrinterServiceElectronWithSettings();
-
-function getPrinterElectron() {
-    return printerElectron;
-}
-
-// ================== USAGE FUNCTIONS (GLOBAL SCOPE) ==================
-async function printSelectedElectron() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) {
-        alert('En az bir paket seçin');
-        return false;
-    }
-
-    const packages = Array.from(checkboxes).map((checkbox, i) => {
-        const row = checkbox.closest('tr');
-        const productText = row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
-        const qtyText = row.cells[4]?.textContent?.trim();
-        const qty = qtyText ? parseInt(qtyText) : 1;
-        
-        return {
-            package_no: row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}-${i}`,
-            customer_name: row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri',
-            items: [{ name: productText, qty: qty }],
-            created_at: row.cells[5]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
-        };
-    });
-
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    
-    // Show loading state
-    const printBtn = document.getElementById('printBarcodeBtn');
-    let originalText = '';
-    
-    if (printBtn) {
-        originalText = printBtn.innerHTML;
-        printBtn.disabled = true;
-        printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yazdırılıyor...';
-    }
-
-    try {
-        const success = await printerElectron.printAllLabels(packages, settings);
-        return success;
-    } catch (error) {
-        console.error('Print error:', error);
-        alert('Yazdırma hatası: ' + error.message);
-        return false;
-    } finally {
-        if (printBtn) {
-            printBtn.disabled = false;
-            printBtn.innerHTML = originalText;
-        }
-    }
-}
-
-async function testPrintWithSettings() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    return await printerElectron.testPrint(settings);
 }
 
 // ================== HELPER FUNCTIONS ==================
@@ -382,29 +510,39 @@ function showAlert(message, type = "info") {
     }, 3000);
 }
 
-// ================== BUTTON BINDINGS ==================
-document.addEventListener("DOMContentLoaded", () => {
-    // Test printer button in printer status section
+// ================== INITIALIZATION ==================
+document.addEventListener("DOMContentLoaded", function() {
+    console.log("🖨️ Printer module initialized");
+    console.log("Global functions available:", {
+        printSelectedElectron: typeof window.printSelectedElectron,
+        testPrintWithSettings: typeof window.testPrintWithSettings,
+        getPrinterElectron: typeof window.getPrinterElectron
+    });
+    
+    // Initialize printer instance
+    window.printerElectron = new PrinterServiceElectronWithSettings();
+    
+    // Test printer button
     const btnTestPrinter = document.getElementById("test-printer");
     if (btnTestPrinter) {
-        btnTestPrinter.addEventListener("click", async () => {
-            btnTestPrinter.disabled = true;
-            btnTestPrinter.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Test Yazdırılıyor...';
+        btnTestPrinter.addEventListener("click", async function() {
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Test Yazdırılıyor...';
             
             try {
-                const success = await testPrintWithSettings();
-                
+                const success = await window.testPrintWithSettings();
                 if (success) {
-                    showAlert("Test etiketi başarıyla yazdırıldı", "success");
+                    showAlert("Test etiketi başarıyla yazdırıldı ✅", "success");
                 } else {
-                    showAlert("Test yazdırma başarısız oldu", "error");
+                    showAlert("Test yazdırma başarısız oldu ❌", "error");
                 }
             } catch (error) {
                 console.error('Test print error:', error);
                 showAlert("Test yazdırma hatası: " + error.message, "error");
             } finally {
-                btnTestPrinter.disabled = false;
-                btnTestPrinter.innerHTML = 'Test Printer';
+                this.disabled = false;
+                this.innerHTML = originalText;
             }
         });
     }
@@ -412,24 +550,24 @@ document.addEventListener("DOMContentLoaded", () => {
     // Test printer button in settings
     const btnTestYazdir = document.getElementById("test-printer-yazdir");
     if (btnTestYazdir) {
-        btnTestYazdir.addEventListener("click", async () => {
-            btnTestYazdir.disabled = true;
-            btnTestYazdir.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Test Yazdırılıyor...';
+        btnTestYazdir.addEventListener("click", async function() {
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Test Yazdırılıyor...';
             
             try {
-                const success = await testPrintWithSettings();
-                
+                const success = await window.testPrintWithSettings();
                 if (success) {
-                    showAlert("Test etiketi başarıyla yazdırıldı", "success");
+                    showAlert("Test etiketi başarıyla yazdırıldı ✅", "success");
                 } else {
-                    showAlert("Test yazdırma başarısız oldu", "error");
+                    showAlert("Test yazdırma başarısız oldu ❌", "error");
                 }
             } catch (error) {
                 console.error('Test print error:', error);
                 showAlert("Test yazdırma hatası: " + error.message, "error");
             } finally {
-                btnTestYazdir.disabled = false;
-                btnTestYazdir.innerHTML = 'Test Yazdır';
+                this.disabled = false;
+                this.innerHTML = originalText;
             }
         });
     }
@@ -437,18 +575,31 @@ document.addEventListener("DOMContentLoaded", () => {
     // Print barcode button
     const printBarcodeBtn = document.getElementById('printBarcodeBtn');
     if (printBarcodeBtn) {
-        printBarcodeBtn.addEventListener('click', printSelectedElectron);
+        printBarcodeBtn.addEventListener('click', function() {
+            console.log('🖨️ Print button clicked');
+            if (window.printSelectedElectron) {
+                window.printSelectedElectron();
+            } else {
+                alert('Print fonksiyonu yüklenmedi. Sayfayı yenileyin.');
+                console.error('printSelectedElectron not found on window');
+            }
+        });
     }
 });
 
-// ================== GLOBAL EXPORTS ==================
-window.printSelectedElectron = printSelectedElectron;
-window.testPrintWithSettings = testPrintWithSettings;
-window.getPrinterElectron = getPrinterElectron;
-
-// Debug log
+// Debug log to verify functions are loaded
 console.log('Printer functions loaded:', {
-    printSelectedElectron: typeof printSelectedElectron,
-    testPrintWithSettings: typeof testPrintWithSettings,
-    getPrinterElectron: typeof getPrinterElectron
+    printSelectedElectron: typeof window.printSelectedElectron,
+    testPrintWithSettings: typeof window.testPrintWithSettings,
+    getPrinterElectron: typeof window.getPrinterElectron
 });
+
+// Export for Node.js context
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { 
+        PrinterServiceElectronWithSettings, 
+        getPrinterElectron: window.getPrinterElectron,
+        printSelectedElectron: window.printSelectedElectron,
+        testPrintWithSettings: window.testPrintWithSettings
+    };
+}
