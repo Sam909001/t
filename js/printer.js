@@ -1,4 +1,6 @@
-const logoPath = 'laundry-logo.jpg';
+// ----------------- LOGO PATH -----------------
+const logoPath = 'file:///C:/Users/munze/OneDrive/Documents/ElectronApp/t/laundry-logo.jpg';
+
 
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
