@@ -16,20 +16,24 @@ class PrinterServiceElectronWithSettings {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             JsBarcode(svg, barcodeText, {
                 format: 'CODE128',
-                width: settings.barcodeWidth || 1.2,
-                height: settings.barcodeHeight || 20,    // Reduced height
+                width: 1.0,                              // Thinner bars
+                height: 40,                              // Exactly 2cm when scaled
                 displayValue: false,
-                margin: 0,
+                margin: 0,                               // No margin
                 background: "transparent",
                 lineColor: "#000"
             });
             
-            // Force remove any spacing
-            svg.setAttribute('style', 'display:block;margin:0;padding:0;vertical-align:top;');
+            // Force exact dimensions and remove all spacing
+            svg.setAttribute('width', '45mm');
+            svg.setAttribute('height', '20mm');           // Exactly 2cm
+            svg.setAttribute('viewBox', `0 0 ${svg.getAttribute('width') || 200} ${svg.getAttribute('height') || 40}`);
+            svg.style.cssText = 'display:block;margin:0;padding:0;border:0;vertical-align:top;line-height:0;';
+            
             return svg.outerHTML;
         } catch (error) {
             console.error('Barcode generation error:', error);
-            return `<div style="border:1px solid #000; padding:2px; text-align:center; font-family:monospace; margin:0; line-height:1;">${barcodeText}</div>`;
+            return `<div style="border:1px solid #000; padding:2px; text-align:center; font-family:monospace; margin:0; line-height:1; height:20mm;">${barcodeText}</div>`;
         }
     }
 
@@ -84,20 +88,30 @@ class PrinterServiceElectronWithSettings {
         align-items: flex-end;
         gap: 0;
         line-height: 0;
+        font-size: 0;
+        position: relative;                 /* For absolute positioning */
     }
     .barcode {
         display: block;
         margin: 0;
         padding: 0;
         line-height: 0;
+        font-size: 0;
+        height: 20mm;
+        overflow: hidden;
+        position: relative;
     }
     .barcode svg {
         width: 45mm;
-        height: 18mm;
+        height: 20mm !important;
         display: block;
         margin: 0;
         padding: 0;
         vertical-align: top;
+        border: 0;
+        outline: 0;
+        position: relative;
+        top: 0;
     }
     .barcode-text {
         font-size: 13px;
@@ -107,7 +121,12 @@ class PrinterServiceElectronWithSettings {
         color: #000;
         font-family: 'Courier New', monospace;
         line-height: 1;
-        margin-top: -1px;
+        display: block;
+        height: auto;
+        position: absolute;              /* Absolute positioning */
+        bottom: -15px;                   /* Position it at bottom of barcode */
+        right: 0;                        /* Align to right */
+        white-space: nowrap;             /* Prevent text wrapping */
     }
     .customer-section {
         background: #000; color: #fff;
