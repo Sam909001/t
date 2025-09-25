@@ -21,9 +21,12 @@ app.on('ready', () => {
 ipcMain.handle('print-barcode', (event, htmlContent) => {
   return new Promise((resolve, reject) => {
     const printWindow = new BrowserWindow({
-      show: false,
+      show: false,               // don’t show window
+      autoHideMenuBar: true,     // no menu bar
+      frame: false,              // frameless
       webPreferences: {
-        webSecurity: false // Necessary for data URLs in some contexts
+        sandbox: true,
+        contextIsolation: true
       }
     });
 
@@ -31,37 +34,38 @@ ipcMain.handle('print-barcode', (event, htmlContent) => {
     printWindow.loadURL(dataUrl);
 
     printWindow.webContents.on('did-finish-load', () => {
-      console.log('Content finished loading, initiating print.');
+      console.log('Barcode content loaded, sending to printer...');
 
       const options = {
         silent: true,
         printBackground: true,
-        margins: { marginType: 'none' }, // No margins for labels
-        deviceName: "Argox OS-214EX PPLA" // ⚠️ must match your Windows printer name EXACTLY
+        margins: { marginType: 'none' },
+        deviceName: "Argox OS-214EX PPLA" // must exactly match your printer name
       };
 
-      printWindow.webContents.print(options, (success, errorType) => {
-        console.log(`Print callback - Success: ${success}, Error: ${errorType}`);
-
-        if (!printWindow.isDestroyed()) {
-          printWindow.destroy();
-        }
-
+      printWindow.webContents.print(options).then(success => {
         if (success) {
+          console.log("✅ Print job sent silently");
           resolve(true);
         } else {
-          console.error('Print failed:', errorType);
-          reject(new Error(errorType || 'Print failed for an unknown reason.'));
+          reject(new Error("❌ Print job failed"));
         }
+
+        if (!printWindow.isDestroyed()) {
+          printWindow.close();  // close instead of destroy to avoid flicker
+        }
+      }).catch(err => {
+        console.error("❌ Print error:", err);
+        if (!printWindow.isDestroyed()) {
+          printWindow.close();
+        }
+        reject(err);
       });
     });
 
-    printWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-      console.error('Failed to load print content:', errorDescription);
-      if (!printWindow.isDestroyed()) {
-        printWindow.destroy();
-      }
-      reject(new Error('Failed to load content for printing.'));
+    printWindow.on('ready-to-show', e => {
+      // Force it to stay hidden
+      e.preventDefault();
     });
   });
 });
