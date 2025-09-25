@@ -17,54 +17,64 @@ app.on('ready', () => {
   mainWindow.loadFile('index.html');
 });
 
-/// One-click print handler
-// ----------------- DIRECT ONE-CLICK PRINT -----------------
+// One-click print handler
 ipcMain.handle('print-barcode', async (event, htmlContent) => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
+    // Create a completely hidden window
     const printWindow = new BrowserWindow({
-      show: false,                // hidden window
+      show: false,
+      width: 1,
+      height: 1,
+      x: -2000, // Position far off-screen
+      y: -2000,
       webPreferences: {
-        offscreen: true,          // offscreen = never visible
-        contextIsolation: true,
-        nodeIntegration: false
+        nodeIntegration: false,
+        contextIsolation: false
       }
     });
 
+    // Ensure window stays hidden
+    printWindow.setAlwaysOnTop(false);
+    printWindow.hide();
+
     const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
-    printWindow.loadURL(dataUrl);
-
-    printWindow.webContents.on('did-finish-load', () => {
-      console.log('Loaded print content, starting silent print...');
-
-      // Choose your printer (use console.log in app to see available names)
-      const options = {
-        silent: true,
-        printBackground: true,
-        deviceName: "Argox OS-214EX PPLA",  // change to your exact printer name
-        margins: { marginType: 'none' }
-      };
-
-      printWindow.webContents.print(options, (success, errorType) => {
-        if (!printWindow.isDestroyed()) {
-          printWindow.destroy();
-        }
-
-        if (success) {
-          console.log("✅ Silent print successful");
-          resolve(true);
-        } else {
-          console.error("❌ Silent print failed:", errorType);
-          reject(new Error(errorType || "Print failed"));
-        }
+    
+    printWindow.loadURL(dataUrl).then(() => {
+      // Wait for content to load completely
+      printWindow.webContents.once('did-finish-load', () => {
+        setTimeout(() => {
+          // Print with silent: true to avoid print dialog (one-click printing)
+          // Change to silent: false if you want to see the print dialog
+          printWindow.webContents.print({
+            silent: true, // Set to true for automatic printing without dialog
+            printBackground: true,
+            margins: {
+              marginType: 'none'
+            }
+          }, (success, errorType) => {
+            if (success) {
+              console.log('Print successful');
+              resolve(true);
+            } else {
+              console.error('Print failed:', errorType);
+              resolve(false);
+            }
+            
+            // Close the window immediately
+            setTimeout(() => {
+              if (!printWindow.isDestroyed()) {
+                printWindow.destroy();
+              }
+            }, 100);
+          });
+        }, 500);
       });
-    });
-
-    printWindow.webContents.on('did-fail-load', (e, code, desc) => {
-      console.error("❌ Failed to load print content:", desc);
+    }).catch(error => {
+      console.error('Load error:', error);
       if (!printWindow.isDestroyed()) {
         printWindow.destroy();
       }
-      reject(new Error("Failed to load content for printing."));
+      resolve(false);
     });
   });
 });
