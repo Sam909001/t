@@ -84,13 +84,29 @@ async printAllLabels(packages, settings = {}) {
         height: auto; /* preserve aspect ratio */
         object-fit: contain;
     }
-    .barcode-section { text-align: right; }
-    .barcode svg { width: 45mm; height: 20mm; }
-    .barcode-text {
-        font-size: 13px; font-weight: 700;
-        margin-top: 1mm; color: #000;
-        font-family: 'Courier New', monospace;
-    }
+   .barcode-section {
+    text-align: right;           /* keeps everything aligned right */
+    display: flex;               /* use flex for vertical stacking */
+    flex-direction: column;      /* stack barcode and text vertically */
+    align-items: flex-end;       /* align items to the right */
+    gap: 0;                      /* remove extra spacing between items */
+}
+
+.barcode svg {
+    width: 45mm;
+    height: 20mm;
+    display: block;              /* remove extra bottom space from inline SVG */
+}
+
+.barcode-text {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0;                   /* remove previous margin-top */
+    padding: 0;                  /* ensure no padding */
+    color: #000;
+    font-family: 'Courier New', monospace;
+}
+
     .customer-section {
         background: #000; color: #fff;
         padding: 4mm 0; text-align: center;
