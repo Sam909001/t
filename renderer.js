@@ -44,35 +44,59 @@ barcodeInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') processBarcode();
 });
 
-printBtn.addEventListener('click', () => {
+printBtn.addEventListener('click', async () => {
     if (!barcodeArea.innerHTML) {
         alert('Barkod yok!');
         return;
     }
 
-    // Create a cleaner HTML for printing
-    const printHTML = `
-        <html>
-            <head>
-                <title>Barkod Etiketi</title>
-                <style>
-                    body { 
-                        margin: 0; 
-                        padding: 10px; 
-                        font-family: Arial, sans-serif;
-                        text-align: center;
-                    }
-                    svg { 
-                        display: block; 
-                        margin: 0 auto;
-                    }
-                </style>
-            </head>
-            <body>
-                ${barcodeArea.innerHTML}
-            </body>
-        </html>
-    `;
+    // Show loading state
+    printBtn.disabled = true;
+    printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yazdırılıyor...';
 
-    window.electronAPI.printBarcode(printHTML);
+    try {
+        // Create a clean HTML for printing
+        const printHTML = `
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Barkod Etiketi</title>
+                    <style>
+                        body { 
+                            margin: 0; 
+                            padding: 10mm; 
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                        }
+                        svg { 
+                            display: block; 
+                            margin: 0 auto;
+                            max-width: 100%;
+                        }
+                        @media print {
+                            body { margin: 0; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${barcodeArea.innerHTML}
+                </body>
+            </html>
+        `;
+
+        const success = await window.electronAPI.printBarcode(printHTML);
+        
+        if (!success) {
+            alert('Yazdırma başarısız oldu!');
+        }
+        
+    } catch (error) {
+        console.error('Print error:', error);
+        alert('Yazdırma hatası: ' + error.message);
+    } finally {
+        // Reset button state
+        printBtn.disabled = false;
+        printBtn.innerHTML = 'Etiket Yazdır';
+    }
 });
