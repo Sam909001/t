@@ -622,6 +622,8 @@ function closeSettingsModal() {
         settingsModal.style.display = 'none';
     }
 }
+window.closeSettingsModal = closeSettingsModal;
+
 
 function loadSettings() {
     // Load saved settings from localStorage
