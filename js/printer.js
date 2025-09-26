@@ -179,12 +179,12 @@ class PrinterServiceElectronWithSettings {
 <meta charset="UTF-8">
 <style>
     @page { 
-        size: 110mm 78mm portrait; 
+        size: 105mm 80mm portrait; 
         margin: 0; 
     }
     body { 
-        width: 110mm; 
-        height: 78mm; 
+        width: 105mm; 
+        height: 80mm; 
         margin: 0; 
         padding: 0; 
         font-family: 'Arial', sans-serif;
@@ -217,7 +217,7 @@ class PrinterServiceElectronWithSettings {
     
     .logo-img { 
         width: 35mm;
-        height: 15mm; 
+        height: 25mm; 
         object-fit: contain; 
     }
     
@@ -236,8 +236,8 @@ class PrinterServiceElectronWithSettings {
     }
     
     .barcode svg { 
-        width: 45mm; 
-        height: 18mm !important; 
+        width: 43mm; 
+        height: 25mm !important; 
         display: block; 
         margin: 0; 
         padding: 0; 
@@ -249,7 +249,7 @@ class PrinterServiceElectronWithSettings {
         padding: 2mm 0;
         text-align: center; 
         margin: 0.5mm 0;
-        font-size: 11px;
+        font-size: 16px;
         line-height: 1.3;
     }
     
@@ -278,7 +278,7 @@ class PrinterServiceElectronWithSettings {
         background: #f8f8f8; 
         border: 0.5px solid #ccc; 
         border-radius: 1px; 
-        font-size: 9px;
+        font-size: 15px;
         box-sizing: border-box;
         min-height: 4mm;
         page-break-inside: avoid;
@@ -294,7 +294,7 @@ class PrinterServiceElectronWithSettings {
     
     .item-qty { 
         font-weight: bold; 
-        font-size: 10px; 
+        font-size: 15px; 
         min-width: 12mm; 
         text-align: center; 
         background: #e0e0e0; 
@@ -308,7 +308,7 @@ class PrinterServiceElectronWithSettings {
         display: flex; 
         justify-content: space-between; 
         align-items: center; 
-        font-size: 9px;
+        font-size: 15px;
         color: #333; 
         margin-top: 0.5mm; 
         padding-top: 0.5mm;
@@ -317,17 +317,18 @@ class PrinterServiceElectronWithSettings {
     }
     
     .date-info { 
-        font-weight: 600; 
-    }
-    
-   .total-info {
-    font-weight: bold;
-    background: #333;
-    color: white;
-    padding: 0.3mm 1mm;
-    border-radius: 1px;
-    transform: translateX(-10mm); /* shift left visually */
+    font-weight: 600; 
+    margin-left: 2mm; /* move 2mm to the right */
 }
+
+    
+    .total-info {
+        font-weight: bold;
+        background: #333;
+        color: white;
+        padding: 0.3mm 1mm;
+        border-radius: 1px;
+    }
 </style>
 </head>
 <body>
