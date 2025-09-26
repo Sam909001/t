@@ -516,6 +516,23 @@ function closeExtraModal() {
 }
 
 // Quantity modal is already existing: openQuantityModal(productName)
+function openStatusQuantityModal(statusName) {
+    const quantityModal = document.getElementById("quantityModal");
+    const modalTitle = document.getElementById("quantityModalTitle");
+    const quantityInput = document.getElementById("quantityInput");
+
+    modalTitle.textContent = `${statusName} Adet Girin`;
+    quantityInput.value = "";
+
+    // Save current item/status for later
+    quantityModal.dataset.currentStatus = statusName;
+
+    quantityModal.style.display = "flex";
+}
+
+
+
+
 
 
 // Settings functions
