@@ -460,39 +460,21 @@ function openStatusQuantityModal(status) {
 }
 
 
-// Reuse your existing confirmQuantity function but check if a status is being added
 function confirmQuantity() {
     const quantity = parseInt(elements.quantityInput.value);
-
-    // Validation
+    
+    // Doğrulama
     if (!quantity || quantity <= 0) {
         document.getElementById('quantityError').style.display = 'block';
         return;
-    } else {
-        document.getElementById('quantityError').style.display = 'none';
     }
 
-    // Update or create quantity badge
-    let badge = document.getElementById(`${selectedProduct}-quantity`);
-    const btn = document.getElementById(selectedProduct);
-
+    // Update quantity badge
+    const badge = document.getElementById(`${selectedProduct}-quantity`);
     if (badge) {
-        // If badge exists, add to current quantity
         const currentQuantity = parseInt(badge.textContent) || 0;
         badge.textContent = currentQuantity + quantity;
-    } else if (btn) {
-        // If badge doesn't exist, create it with the entered quantity
-        badge = document.createElement("div");
-        badge.id = `${selectedProduct}-quantity`;
-        badge.className = "quantity-badge";
-        badge.textContent = quantity; // Set entered quantity
-        btn.appendChild(badge);
     }
-
-    // Optional: clear input after confirming
-    elements.quantityInput.value = '';
-}
-
 
     // Add to current package
     if (!currentPackage.items) currentPackage.items = {};
@@ -501,8 +483,6 @@ function confirmQuantity() {
     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
     closeQuantityModal();
 }
-
-
         
 function openManualEntry() {
     document.getElementById('manualModal').style.display = 'flex';
@@ -544,6 +524,8 @@ function openExtraModal() {
 function closeExtraModal() {
     document.getElementById('extraModal').style.display = 'none';
 }
+
+
 
 
 
