@@ -1,4 +1,6 @@
-/// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
+ui.js:551 Uncaught ReferenceError: updateQuantityBadge is not defined
+    at confirmQuantity (ui.js:551:9)
+    at HTMLButtonElement.onclick (VM457:1:1)/////////////// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
     const elements = {};
@@ -6,7 +8,7 @@ function initializeElements() {
     elementIds.forEach(id => {
         elements[id] = document.getElementById(id);
         if (!elements[id]) {
-            // Removed console.error to avoid logs
+            console.error(`Element ${id} not found`);
         }
     });
     
@@ -58,7 +60,7 @@ function initializeElementsObject() {
         if (element) {
             elements[key] = element;
         } else {
-            // Removed console.warn to avoid logs
+            console.warn(`Element ${elementMap[key]} not found`);
             elements[key] = null;
         }
     });
@@ -80,7 +82,8 @@ function showAlert(message, type = 'info', duration = 5000) {
     alertQueue.add(alertKey);
     
     if (!elements.alertContainer) {
-        // Removed console.error to avoid logs
+        console.error('Alert container not found, using console instead');
+        console.log(`${type.toUpperCase()}: ${message}`);
         alertQueue.delete(alertKey);
         return;
     }
@@ -211,122 +214,6 @@ function showApiKeyHelp() {
     `);
 }
 
-// FIXED QUANTITY MODAL FUNCTIONS
-// Fix quantity input validation issues
-function fixQuantityInput() {
-    const input = elements.quantityInput;
-    if (input) {
-        input.removeAttribute('required');
-        input.removeAttribute('min');
-        input.type = 'number';
-    }
-}
-
-// Force fix quantity input styling
-function forceFixQuantityInput() {
-    const input = elements.quantityInput;
-    if (input) {
-        input.style.cssText = `
-            color: #000 !important;
-            border-color: #ddd !important;
-            background-color: #fff !important;
-            box-shadow: none !important;
-            padding: 10px !important;
-            font-size: 16px !important;
-            border: 2px solid #ddd !important;
-            border-radius: 4px !important;
-            text-align: center !important;
-        `;
-        input.value = '1';
-    }
-}
-
-// Updated showQuantityModal function
-function showQuantityModal(title = 'Miktar Girin') {
-    if (!elements.quantityModal || !elements.quantityInput) {
-        return;
-    }
-    
-    // Set title
-    if (elements.quantityModalTitle) {
-        elements.quantityModalTitle.textContent = title;
-    }
-    
-    // Fix the input first
-    forceFixQuantityInput();
-    
-    // Show modal
-    elements.quantityModal.style.display = 'flex';
-    
-    // Focus and select all text
-    setTimeout(() => {
-        elements.quantityInput.focus();
-        elements.quantityInput.select();
-    }, 100);
-}
-
-// Hide quantity modal
-function hideQuantityModal() {
-    if (elements.quantityModal) {
-        elements.quantityModal.style.display = 'none';
-    }
-}
-
-// Validate quantity input
-function validateQuantityInput() {
-    const input = elements.quantityInput;
-    if (!input) return false;
-    
-    const value = parseInt(input.value);
-    
-    if (isNaN(value) || value <= 0) {
-        input.style.color = 'red';
-        input.style.borderColor = 'red';
-        return false;
-    } else {
-        input.style.color = '#000';
-        input.style.borderColor = '#ddd';
-        return true;
-    }
-}
-
-// Initialize quantity modal
-function initializeQuantityModal() {
-    if (!elements.quantityInput || !elements.quantityModal) {
-        return;
-    }
-    
-    // Fix input on initialization
-    fixQuantityInput();
-    
-    // Input validation on change
-    elements.quantityInput.addEventListener('input', validateQuantityInput);
-    
-    // Enter key to confirm
-    elements.quantityInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            if (validateQuantityInput()) {
-                const quantity = parseInt(elements.quantityInput.value);
-                hideQuantityModal();
-            }
-        }
-    });
-    
-    // ESC key to cancel
-    elements.quantityInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            hideQuantityModal();
-        }
-    });
-    
-    // Click outside to close
-    elements.quantityModal.addEventListener('click', function(e) {
-        if (e.target === elements.quantityModal) {
-            hideQuantityModal();
-        }
-    });
-}
-
 // Barkod tarayıcı modunu aç/kapa
 function toggleScannerMode() {
     scannerMode = !scannerMode;
@@ -348,6 +235,7 @@ let barcodeListenerAttached = false;
 
 function setupBarcodeScanner() {
     if (!elements.barcodeInput) {
+        console.error('Barcode input element not found');
         return;
     }
     
@@ -437,10 +325,13 @@ async function saveStockItem(code, input) {
     try {
         input.disabled = true;
         
+        // Only show one loading message
         const loadingAlert = showAlert('Güncelleniyor...', 'info', 1000);
         
+        // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 500));
         
+        // Update the UI
         const row = input.closest('tr');
         const quantityCell = row.querySelector('td:nth-child(3)');
         const actionsCell = row.querySelector('td:last-child');
@@ -470,6 +361,7 @@ async function saveStockItem(code, input) {
         showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
         
     } catch (error) {
+        console.error('Stok güncelleme hatası:', error);
         showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
         input.disabled = false;
         input.focus();
@@ -483,6 +375,7 @@ function cancelEditStockItem(code, originalQuantity) {
     const editButton = row.querySelector('button');
     const editButtons = row.querySelector('.edit-buttons');
     
+    // Değişiklikleri iptal et
     quantityInput.value = originalQuantity;
     quantitySpan.style.display = 'block';
     quantityInput.style.display = 'none';
@@ -490,7 +383,6 @@ function cancelEditStockItem(code, originalQuantity) {
     editButtons.style.display = 'none';
     
     editingStockItem = null;
-    currentEditingRow = null;
 }
 
 function checkOnlineStatus() {
@@ -500,17 +392,6 @@ function checkOnlineStatus() {
     }
     return true;
 }
-
-// [REST OF YOUR CODE CONTINUES HERE - ADD THE REMAINING 1443 LINES]
-// Since I can only see the first 393 lines, you'll need to add the rest of your existing code after this point.
-// The quantity modal functions above will fix the red "0" issue.
-
-// INITIALIZATION - Add this at the very end of your complete file
-document.addEventListener('DOMContentLoaded', function() {
-    elements = initializeElementsObject();
-    initializeQuantityModal();
-    // Rest of your existing initialization code...
-});
 
 // Konteyner detay modalını kapat
 function closeContainerDetailModal() {
@@ -559,11 +440,8 @@ function selectCustomerFromModal(customer) {
     closeModal();
     showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
 }
-
-// ---------------------- QUANTITY MODAL ----------------------
-
-// Open for a product
-// ✅ Open quantity modal for normal products
+        
+// Package operations
 function openQuantityModal(productName) {
     const quantityModal = document.getElementById("quantityModal");
     const modalTitle = document.getElementById("quantityModalTitle");
@@ -572,112 +450,120 @@ function openQuantityModal(productName) {
     modalTitle.textContent = `${productName} Adet Girin`;
     quantityInput.value = "";
 
-    // make sure dataset is set correctly
     quantityModal.dataset.currentProduct = productName;
-    delete quantityModal.dataset.currentStatus; 
+    delete quantityModal.dataset.currentStatus; // clear previous status if any
 
     quantityModal.style.display = "flex";
 }
 
-// ✅ Confirm and add product or status
-function confirmQuantity() {
+        
+if (quantityModal.dataset.currentProduct) {
+    const product = quantityModal.dataset.currentProduct;
+    updateQuantityBadge(product, quantity);
+    delete quantityModal.dataset.currentProduct;
+    delete quantityModal.dataset.currentStatus;
+} else if (quantityModal.dataset.currentStatus) {
+    const status = quantityModal.dataset.currentStatus;
+    updateStatusBadge(status, quantity);
+    delete quantityModal.dataset.currentStatus;
+    delete quantityModal.dataset.currentProduct;
+}
+
+
+
+        
+function openManualEntry() {
+    document.getElementById('manualModal').style.display = 'flex';
+    document.getElementById('manualProduct').focus();
+}
+        
+function addManualProduct() {
+    const product = document.getElementById('manualProduct').value.trim();
+    const quantity = parseInt(document.getElementById('manualQuantity').value);
+
+    // Form doğrulama
+    if (!validateForm([
+        { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
+        { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
+    ])) {
+        return;
+    }
+
+    // Add to current package
+    if (!currentPackage.items) currentPackage.items = {};
+    currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
+
+    showAlert(`${product}: ${quantity} adet eklendi`, 'success');
+    
+    // Clear form
+    document.getElementById('manualProduct').value = '';
+    document.getElementById('manualQuantity').value = '';
+    closeManualModal();
+}
+
+
+
+
+// Open Extra Modal
+function openExtraModal() {
+    document.getElementById('extraModal').style.display = 'block';
+}
+
+// Close Extra Modal
+function closeExtraModal() {
+    document.getElementById('extraModal').style.display = 'none';
+}
+
+// Quantity modal is already existing: openQuantityModal(productName)
+
+
+
+
+
+
+function openStatusQuantityModal(statusName) {
     const quantityModal = document.getElementById("quantityModal");
+    const modalTitle = document.getElementById("quantityModalTitle");
+    const quantityInput = document.getElementById("quantityInput");
+
+    modalTitle.textContent = `${statusName} Adet Girin`;
+    quantityInput.value = "";
+
+    // Save current item/status for later
+    quantityModal.dataset.currentStatus = statusName;
+
+    quantityModal.style.display = "flex";
+}
+
+// Reuse your existing confirmQuantity function but check if a status is being added
+function confirmQuantity() {
     const quantityInput = document.getElementById("quantityInput");
     const quantity = parseInt(quantityInput.value);
-
     if (isNaN(quantity) || quantity < 1) {
         document.getElementById("quantityError").style.display = "block";
         return;
     }
     document.getElementById("quantityError").style.display = "none";
 
+    const quantityModal = document.getElementById("quantityModal");
+    
+    // Determine if this is a product or status
     if (quantityModal.dataset.currentProduct) {
         const product = quantityModal.dataset.currentProduct;
-        addProductToPackage(product, quantity);   // ⬅️ important!
         updateQuantityBadge(product, quantity);
+        delete quantityModal.dataset.currentProduct;
     } else if (quantityModal.dataset.currentStatus) {
         const status = quantityModal.dataset.currentStatus;
-        addStatusToPackage(status, quantity);     // ⬅️ you must add this
-        updateStatusBadge(status, quantity);
+        updateStatusBadge(status, quantity); // You create this function
+        delete quantityModal.dataset.currentStatus;
     }
-
-    // clear dataset after use
-    delete quantityModal.dataset.currentProduct;
-    delete quantityModal.dataset.currentStatus;
 
     quantityModal.style.display = "none";
 }
 
-
-    hideQuantityModal();
-}
-
-
-// Open for a status (Lekeli, Yırtık, etc.)
-function openStatusQuantityModal(status) {
-    const quantityModal = document.getElementById("quantityModal");
-    const modalTitle = document.getElementById("quantityModalTitle");
-    const quantityInput = document.getElementById("quantityInput");
-
-    // Set modal state
-    modalTitle.textContent = `${status} - Adet Girin`;
-    quantityInput.value = "1";
-
-    // Save context
-    quantityModal.dataset.currentStatus = status;
-    delete quantityModal.dataset.currentProduct; // clear old state
-
-    // Show modal
-    quantityModal.style.display = "flex";
-    setTimeout(() => quantityInput.focus(), 100);
-}
-
-function addStatusToPackage(status, quantity) {
-    if (!currentPackageItems) {
-        currentPackageItems = [];
-    }
-    currentPackageItems.push({ product: status, quantity: quantity, isStatus: true });
-}
-
-
-// Hide modal
-function hideQuantityModal() {
-    const quantityModal = document.getElementById("quantityModal");
-    if (quantityModal) {
-        quantityModal.style.display = "none";
-        delete quantityModal.dataset.currentProduct;
-        delete quantityModal.dataset.currentStatus;
-    }
-}
-
-// Validate input
-function validateQuantityInput() {
-    const input = document.getElementById("quantityInput");
-    const value = parseInt(input.value);
-    if (isNaN(value) || value <= 0) {
-        input.style.color = "red";
-        input.style.borderColor = "red";
-        return false;
-    }
-    input.style.color = "#000";
-    input.style.borderColor = "#ddd";
-    return true;
-}
-
-
-// ---------------------- BADGES ----------------------
-
-// Product badge
-function updateQuantityBadge(product, quantity) {
-    let badge = document.getElementById(`${product}-quantity`);
-    if (!badge) return;
-
-    const current = parseInt(badge.textContent) || 0;
-    badge.textContent = current + quantity;
-}
-
-// Status badge
+// Example badge update for status
 function updateStatusBadge(status, quantity) {
+    // You can create small badges next to the status buttons
     let badge = document.getElementById(`${status}-quantity`);
     if (!badge) {
         const btn = document.querySelector(`.status-btn[data-status='${status}']`);
@@ -690,40 +576,7 @@ function updateStatusBadge(status, quantity) {
         btn.style.position = "relative";
         btn.appendChild(badge);
     }
-    const current = parseInt(badge.textContent) || 0;
-    badge.textContent = current + quantity;
-}
-
-// ---------------------- INIT ----------------------
-
-function initializeQuantityModal() {
-    const quantityInput = document.getElementById("quantityInput");
-    const quantityModal = document.getElementById("quantityModal");
-
-    if (!quantityInput || !quantityModal) {
-        console.warn("Quantity modal elements not found");
-        return;
-    }
-
-    // Input validation
-    quantityInput.addEventListener("input", validateQuantityInput);
-
-    // Enter to confirm
-    quantityInput.addEventListener("keypress", e => {
-        if (e.key === "Enter" && validateQuantityInput()) {
-            confirmQuantity();
-        }
-    });
-
-    // Escape to cancel
-    quantityInput.addEventListener("keydown", e => {
-        if (e.key === "Escape") hideQuantityModal();
-    });
-
-    // Click outside to close
-    quantityModal.addEventListener("click", e => {
-        if (e.target === quantityModal) hideQuantityModal();
-    });
+    badge.textContent = quantity;
 }
 
 
@@ -1939,18 +1792,4 @@ function clearStockSearch() {
     rows.forEach(row => {
         row.style.display = '';
     });
-}
-
-
-
-function debugQuantityModal() {
-    console.log('Quantity Modal Debug:');
-    console.log('Modal element:', elements.quantityModal);
-    console.log('Input element:', elements.quantityInput);
-    console.log('Input value:', elements.quantityInput?.value);
-    console.log('Input style:', elements.quantityInput?.style.color);
-    
-    if (elements.quantityInput) {
-        console.log('Computed styles:', getComputedStyle(elements.quantityInput));
-    }
 }
