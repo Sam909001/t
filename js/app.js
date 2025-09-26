@@ -438,106 +438,276 @@ function scheduleDailyClear() {
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', function() {
-    // Settings button
+    console.log('🔧 DOMContentLoaded - Initializing ProClean application...');
+    
+    // Wait for UI functions to load
+    setTimeout(() => {
+        initializeAppEventListeners();
+    }, 100);
+});
+
+function initializeAppEventListeners() {
+    console.log('🔧 Initializing event listeners...');
+    
+    // Settings button - SAFE VERSION
     const settingsBtn = document.getElementById('settingsBtn');
     if (settingsBtn) {
         settingsBtn.addEventListener('click', function() {
             console.log('Settings button clicked');
-            showSettingsModal();
+            if (typeof showSettingsModal === 'function') {
+                showSettingsModal();
+            } else {
+                console.error('showSettingsModal function not available');
+                // Fallback: directly show modal
+                const modal = document.getElementById('settingsModal');
+                if (modal) modal.style.display = 'flex';
+            }
         });
-        console.log('Settings button listener added successfully');
+        console.log('✅ Settings button listener added successfully');
     } else {
         console.error('Settings button not found in DOM');
     }
 
-    // Close settings modal
+    // Close settings modal - SAFE VERSION
     const closeBtn = document.getElementById('closeSettingsModalBtn');
     if (closeBtn) {
-        closeBtn.addEventListener('click', closeSettingsModal);
+        closeBtn.addEventListener('click', function() {
+            if (typeof closeSettingsModal === 'function') {
+                closeSettingsModal();
+            } else {
+                // Fallback: directly hide modal
+                const modal = document.getElementById('settingsModal');
+                if (modal) modal.style.display = 'none';
+            }
+        });
+        console.log('✅ Close settings button listener added');
     }
 
     try {
-        console.log('Initializing ProClean application...');
-        
         // Initialize elements first
-        initializeElementsObject();
+        if (typeof initializeElementsObject === 'function') {
+            initializeElementsObject();
+            console.log('✅ Elements initialized');
+        } else {
+            console.error('initializeElementsObject function not available');
+            // Basic fallback initialization
+            window.elements = window.elements || {};
+        }
         
         // Check critical elements exist before adding listeners
         const loginBtn = elements.loginButton;
         const emailInput = elements.emailInput;
         const passwordInput = elements.passwordInput;
         
+        // Login button - SAFE VERSION
         if (loginBtn) {
-            loginBtn.addEventListener('click', login);
-            console.log('Login button listener added');
+            loginBtn.addEventListener('click', function() {
+                if (typeof login === 'function') {
+                    login();
+                } else {
+                    console.error('login function not available');
+                    alert('Giriş fonksiyonu yüklenmedi. Sayfayı yenileyin.');
+                }
+            });
+            console.log('✅ Login button listener added');
         } else {
             console.error('Login button not found - check HTML structure');
-            showAlert('Giriş butonu bulunamadı', 'error');
+            if (typeof showAlert === 'function') {
+                showAlert('Giriş butonu bulunamadı', 'error');
+            }
         }
         
-        // Logout button
+        // Logout button - SAFE VERSION
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
-            logoutBtn.addEventListener('click', logout);
+            logoutBtn.addEventListener('click', function() {
+                if (typeof logout === 'function') {
+                    logout();
+                } else {
+                    console.error('logout function not available');
+                    // Fallback logout
+                    window.location.reload();
+                }
+            });
+            console.log('✅ Logout button listener added');
         }
         
-        // Enter key listeners
+        // Enter key listeners - SAFE VERSION
         if (emailInput) {
             emailInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    login();
+                    if (typeof login === 'function') {
+                        login();
+                    }
                 }
             });
+            console.log('✅ Email enter key listener added');
         }
         
         if (passwordInput) {
             passwordInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    login();
+                    if (typeof login === 'function') {
+                        login();
+                    }
                 }
             });
+            console.log('✅ Password enter key listener added');
         }
         
-        // Quantity modal enter key
+        // Quantity modal enter key - SAFE VERSION
         if (elements.quantityInput) {
             elements.quantityInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    confirmQuantity();
+                    if (typeof confirmQuantity === 'function') {
+                        confirmQuantity();
+                    } else {
+                        console.error('confirmQuantity function not available');
+                    }
                 }
             });
+            console.log('✅ Quantity modal enter key listener added');
         }
         
-        // Customer select change listener
+        // Customer select change listener - SAFE VERSION
         if (elements.customerSelect) {
             elements.customerSelect.addEventListener('change', function() {
                 const customerId = this.value;
                 if (customerId) {
                     const selectedOption = this.options[this.selectedIndex];
-                    selectedCustomer = {
+                    window.selectedCustomer = {
                         id: customerId,
                         name: selectedOption.textContent.split(' (')[0],
                         code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
                     };
-                    showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+                    if (typeof showAlert === 'function') {
+                        showAlert(`Müşteri seçildi: ${window.selectedCustomer.name}`, 'success');
+                    }
                 } else {
-                    selectedCustomer = null;
+                    window.selectedCustomer = null;
                 }
             });
+            console.log('✅ Customer select listener added');
         }
         
-        // Tab click events
+        // Tab click events - SAFE VERSION
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', function() {
                 const tabName = this.getAttribute('data-tab');
                 if (tabName) {
-                    switchTab(tabName);
+                    if (typeof switchTab === 'function') {
+                        switchTab(tabName);
+                    } else {
+                        console.error('switchTab function not available');
+                        // Fallback tab switching
+                        document.querySelectorAll('.tab-content').forEach(content => {
+                            content.style.display = 'none';
+                        });
+                        const targetContent = document.getElementById(tabName + 'Content');
+                        if (targetContent) targetContent.style.display = 'block';
+                    }
                 }
             });
         });
+        console.log('✅ Tab listeners added');
 
+        // Print button - SAFE VERSION
+        const printBtn = document.getElementById('printBarcodeBtn');
+        if (printBtn) {
+            printBtn.addEventListener('click', function() {
+                if (typeof printSelectedElectron === 'function') {
+                    printSelectedElectron();
+                } else {
+                    console.error('printSelectedElectron function not available');
+                    alert('Yazdırma fonksiyonu yüklenmedi. Sayfayı yenileyin.');
+                }
+            });
+            console.log('✅ Print button listener added');
+        }
+
+        // Scanner toggle - SAFE VERSION
+        const scannerToggle = document.getElementById('scannerToggle');
+        if (scannerToggle) {
+            scannerToggle.addEventListener('click', function() {
+                if (typeof toggleScannerMode === 'function') {
+                    toggleScannerMode();
+                } else {
+                    console.error('toggleScannerMode function not available');
+                }
+            });
+            console.log('✅ Scanner toggle listener added');
+        }
+
+        // Manual entry button - SAFE VERSION
+        const manualEntryBtn = document.getElementById('manualEntryBtn');
+        if (manualEntryBtn) {
+            manualEntryBtn.addEventListener('click', function() {
+                if (typeof openManualEntry === 'function') {
+                    openManualEntry();
+                } else {
+                    console.error('openManualEntry function not available');
+                }
+            });
+            console.log('✅ Manual entry button listener added');
+        }
+
+        // API key button - SAFE VERSION
+        const apiKeyBtn = document.getElementById('changeApiKeyBtn');
+        if (apiKeyBtn) {
+            apiKeyBtn.addEventListener('click', function() {
+                if (typeof showApiKeyModal === 'function') {
+                    showApiKeyModal();
+                } else {
+                    console.error('showApiKeyModal function not available');
+                }
+            });
+            console.log('✅ API key button listener added');
+        }
+
+        console.log('🎉 All event listeners initialized successfully');
+        
+    } catch (error) {
+        console.error('❌ Error initializing event listeners:', error);
+        if (typeof showAlert === 'function') {
+            showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        }
+    }
+}
+
+// Fallback functions in case UI.js doesn't load properly
+if (typeof showSettingsModal === 'undefined') {
+    window.showSettingsModal = function() {
+        console.log('🔧 Fallback showSettingsModal called');
+        const modal = document.getElementById('settingsModal');
+        if (modal) modal.style.display = 'flex';
+    };
+}
+
+if (typeof closeSettingsModal === 'undefined') {
+    window.closeSettingsModal = function() {
+        console.log('🔧 Fallback closeSettingsModal called');
+        const modal = document.getElementById('settingsModal');
+        if (modal) modal.style.display = 'none';
+    };
+}
+
+if (typeof initializeElementsObject === 'undefined') {
+    window.initializeElementsObject = function() {
+        console.log('🔧 Fallback initializeElementsObject called');
+        window.elements = window.elements || {};
+        // Basic element initialization
+        const elementIds = ['loginScreen', 'appContainer', 'customerSelect', 'settingsModal', 'quantityModal'];
+        elementIds.forEach(id => {
+            window.elements[id] = document.getElementById(id);
+        });
+        return window.elements;
+    };
+}
+
+console.log('🔧 App.js loaded successfully');
         function applySavedTheme() {
             const savedTheme = localStorage.getItem('procleanTheme');
             if (savedTheme === 'dark') {
