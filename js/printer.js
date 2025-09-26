@@ -179,12 +179,12 @@ class PrinterServiceElectronWithSettings {
 <meta charset="UTF-8">
 <style>
     @page { 
-        size: 110mm 70mm portrait; 
+        size: 110mm 78mm portrait; 
         margin: 0; 
     }
     body { 
         width: 110mm; 
-        height: 70mm; 
+        height: 78mm; 
         margin: 0; 
         padding: 0; 
         font-family: 'Arial', sans-serif;
@@ -320,13 +320,14 @@ class PrinterServiceElectronWithSettings {
         font-weight: 600; 
     }
     
-    .total-info {
-        font-weight: bold;
-        background: #333;
-        color: white;
-        padding: 0.3mm 1mm;
-        border-radius: 1px;
-    }
+   .total-info {
+    font-weight: bold;
+    background: #333;
+    color: white;
+    padding: 0.3mm 1mm;
+    border-radius: 1px;
+    transform: translateX(-10mm); /* shift left visually */
+}
 </style>
 </head>
 <body>
