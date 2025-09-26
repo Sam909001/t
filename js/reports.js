@@ -1,43 +1,152 @@
+// ================== SUPABASE INITIALIZATION CHECK ==================
+function getSupabaseClient() {
+    if (window.supabase && window.supabase.storage) {
+        return window.supabase;
+    }
+    
+    // Fallback: try to initialize Supabase if not available
+    if (typeof supabase !== 'undefined' && supabase) {
+        window.supabase = supabase;
+        return window.supabase;
+    }
+    
+    // Last resort: check if Supabase is available globally
+    if (typeof window.supabase === 'undefined') {
+        console.error('Supabase client not available');
+        return null;
+    }
+    
+    return window.supabase;
+}
+
+// Safe storage bucket check
+async function checkStorageBucket() {
+    try {
+        const supabase = getSupabaseClient();
+        if (!supabase) {
+            console.warn('Supabase client not available for storage check');
+            return false;
+        }
+        
+        // Check if storage is available
+        if (!supabase.storage) {
+            console.warn('Supabase storage not available');
+            return false;
+        }
+        
+        const { data, error } = await supabase.storage.listBuckets();
+        if (error) {
+            console.warn('Storage bucket access error:', error);
+            return false;
+        }
+        
+        console.log('Storage buckets available:', data);
+        return true;
+    } catch (error) {
+        console.warn('Storage bucket check failed:', error);
+        return false;
+    }
+}
+
+// Safe storage initialization
+async function initializeStorage() {
+    try {
+        const isStorageAvailable = await checkStorageBucket();
+        if (!isStorageAvailable) {
+            console.warn('Storage bucket could not be initialized - running in limited mode');
+            // Don't throw error, just continue without storage
+            return false;
+        }
+        
+        console.log('Storage initialized successfully');
+        return true;
+    } catch (error) {
+        console.warn('Storage initialization failed:', error);
+        return false;
+    }
+}
+
+// ================== SAFE SUPABASE FUNCTIONS ==================
+async function safeSupabaseAuth() {
+    try {
+        const supabase = getSupabaseClient();
+        if (!supabase) {
+            throw new Error('Supabase client not available');
+        }
+        
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw new Error(`User fetch error: ${userError.message}`);
+        if (!user) throw new Error('User not authenticated');
+        
+        return user;
+    } catch (error) {
+        console.error('Authentication error:', error);
+        throw error;
+    }
+}
+
+async function safeSupabaseQuery(queryFunction, errorMessage) {
+    try {
+        const supabase = getSupabaseClient();
+        if (!supabase) {
+            throw new Error('Supabase client not available');
+        }
+        
+        const result = await queryFunction(supabase);
+        if (result.error) {
+            throw new Error(`${errorMessage}: ${result.error.message}`);
+        }
+        
+        return result.data;
+    } catch (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+    }
+}
+
+// ================== REPORT GENERATION FUNCTIONS ==================
 async function generateDailyReport() {
     try {
         showAlert('Profesyonel günlük rapor oluşturuluyor...', 'info');
 
         // Fetch the authenticated user first
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw new Error(`User fetch error: ${userError.message}`);
-        if (!user) throw new Error('User not authenticated');
+        const user = await safeSupabaseAuth();
         
         const today = new Date();
         const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
         const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
 
         // Fetch ALL packages (both waiting and shipped) for the day
-        const { data: allPackages, error: packagesError } = await supabase
-            .from('packages')
-            .select('*, customers (name, code)')
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay)
-            .order('created_at', { ascending: false });
+        const allPackages = await safeSupabaseQuery(
+            (supabase) => supabase
+                .from('packages')
+                .select('*, customers (name, code)')
+                .gte('created_at', startOfDay)
+                .lte('created_at', endOfDay)
+                .order('created_at', { ascending: false }),
+            'Paket verileri alınamadı'
+        );
 
         // Fetch ALL containers for the day
-        const { data: allContainers, error: containersError } = await supabase
-            .from('containers')
-            .select('*, packages (package_no, total_quantity, customers (name))')
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay)
-            .order('created_at', { ascending: false });
+        const allContainers = await safeSupabaseQuery(
+            (supabase) => supabase
+                .from('containers')
+                .select('*, packages (package_no, total_quantity, customers (name))')
+                .gte('created_at', startOfDay)
+                .lte('created_at', endOfDay)
+                .order('created_at', { ascending: false }),
+            'Konteyner verileri alınamadı'
+        );
 
         // Fetch critical stock
-        const { data: criticalStock, error: stockError } = await supabase
-            .from('stock_items')
-            .select('*')
-            .lte('quantity', 5)
-            .order('quantity', { ascending: true });
-
-        // Handle errors
-        if (packagesError) throw new Error(`Paket verileri alınamadı: ${packagesError.message}`);
-        if (containersError) throw new Error(`Konteyner verileri alınamadı: ${containersError.message}`);
-        if (stockError) throw new Error(`Stok verileri alınamadı: ${stockError.message}`);
+        const criticalStock = await safeSupabaseQuery(
+            (supabase) => supabase
+                .from('stock_items')
+                .select('*')
+                .lte('quantity', 5)
+                .order('quantity', { ascending: true }),
+            'Stok verileri alınamadı'
+        );
 
         // Separate packages by status
         const waitingPackages = allPackages.filter(pkg => !pkg.container_id);
@@ -72,22 +181,32 @@ async function generateDailyReport() {
         // Generate PDF with professional template
         showAlert('Profesyonel PDF oluşturuluyor...', 'info');
         const pdfBlob = await generateProfessionalPDFReport(currentReportData);
-        const pdfUrl = await uploadPDFToSupabase(pdfBlob, currentReportData);
+        
+        // Try to upload PDF to Supabase, but continue even if it fails
+        let pdfUrl = '';
+        try {
+            pdfUrl = await uploadPDFToSupabase(pdfBlob, currentReportData);
+        } catch (uploadError) {
+            console.warn('PDF upload failed, continuing without storage:', uploadError);
+            // Create a local URL for the PDF
+            pdfUrl = URL.createObjectURL(pdfBlob);
+        }
 
         // Save report to database with PDF URL
-        const { data: report, error: reportError } = await supabase
-            .from('reports')
-            .insert([{
-                report_date: new Date(),
-                report_type: 'daily',
-                data: currentReportData,
-                pdf_url: pdfUrl,
-                user_id: user.id
-            }])
-            .select()
-            .single();
-
-        if (reportError) throw new Error(`Rapor kaydedilemedi: ${reportError.message}`);
+        const report = await safeSupabaseQuery(
+            (supabase) => supabase
+                .from('reports')
+                .insert([{
+                    report_date: new Date(),
+                    report_type: 'daily',
+                    data: currentReportData,
+                    pdf_url: pdfUrl,
+                    user_id: user.id
+                }])
+                .select()
+                .single(),
+            'Rapor kaydedilemedi'
+        );
 
         currentReportData.id = report.id;
         currentReportData.pdf_url = pdfUrl;
@@ -125,10 +244,6 @@ async function generateProfessionalPDFReport(reportData) {
             const margin = 15;
             let currentY = margin;
 
-            // ==================== TURKISH CHARACTER FIX ====================
-            // Use a font that supports Turkish characters
-            // First, let's use the standard font but encode Turkish characters properly
-            
             // Helper function to encode Turkish text
             function encodeTurkishText(text) {
                 if (typeof text !== 'string') return String(text);
@@ -147,9 +262,8 @@ async function generateProfessionalPDFReport(reportData) {
                 return text.replace(/[ğĞüÜşŞıİöÖçÇ]/g, char => turkishMap[char] || char);
             }
 
-            // Alternative: Use built-in fonts that might work better
-            const availableFonts = ['helvetica', 'times', 'courier'];
-            const currentFont = 'helvetica'; // Try different fonts
+            // Use built-in fonts
+            const currentFont = 'helvetica';
             
             doc.setFont(currentFont);
             doc.setFontSize(10);
@@ -445,67 +559,14 @@ async function generateProfessionalPDFReport(reportData) {
     });
 }
 
-// Alternative solution with better Turkish character support
-async function generateProfessionalPDFReportV2(reportData) {
-    return new Promise((resolve, reject) => {
-        try {
-            const { jsPDF } = window.jspdf;
-            
-            // Create PDF with better encoding support
-            const doc = new jsPDF();
-            
-            // Better Turkish character solution using text encoding
-            function fixTurkishText(text) {
-                if (typeof text !== 'string') return String(text);
-                
-                // Direct character replacement for Turkish letters
-                return text
-                    .replace(/ğ/g, 'g')
-                    .replace(/Ğ/g, 'G')
-                    .replace(/ü/g, 'u')
-                    .replace(/Ü/g, 'U')
-                    .replace(/ş/g, 's')
-                    .replace(/Ş/g, 'S')
-                    .replace(/ı/g, 'i')
-                    .replace(/İ/g, 'I')
-                    .replace(/ö/g, 'o')
-                    .replace(/Ö/g, 'O')
-                    .replace(/ç/g, 'c')
-                    .replace(/Ç/g, 'C');
-            }
-
-            // Use a simple font that handles basic characters better
-            doc.setFont('helvetica');
-            doc.setFontSize(12);
-
-            // Add content with fixed Turkish text
-            doc.text(fixTurkishText('PROCLEAN ÇAMAŞIRHANE'), 20, 20);
-            doc.text(fixTurkishText('Günlük Rapor'), 20, 30);
-            doc.text(fixTurkishText(`Tarih: ${reportData.date}`), 20, 40);
-            doc.text(fixTurkishText(`Operatör: ${reportData.operator}`), 20, 50);
-
-            // Add summary
-            doc.text(fixTurkishText(`Toplam Paket: ${reportData.totalPackages}`), 20, 70);
-            doc.text(fixTurkishText(`Bekleyen Paket: ${reportData.waitingPackages}`), 20, 80);
-            doc.text(fixTurkishText(`Sevk Edilen: ${reportData.shippedPackages}`), 20, 90);
-
-            const pdfBlob = doc.output('blob');
-            resolve(pdfBlob);
-
-        } catch (error) {
-            reject(error);
-        }
-    });
-}
-
-
-
-
-
-
 // Upload PDF to Supabase Storage
 async function uploadPDFToSupabase(pdfBlob, reportData) {
     try {
+        const supabase = getSupabaseClient();
+        if (!supabase || !supabase.storage) {
+            throw new Error('Supabase storage not available');
+        }
+
         // Create a unique file name
         const fileName = `reports/daily-report-${reportData.date.replace(/\./g, '-')}-${Date.now()}.pdf`;
         
@@ -591,7 +652,7 @@ async function sendDailyReport() {
 
         console.log('E-posta parametreleri:', templateParams);
 
-        // Send email using EmailJS - USE YOUR ACTUAL CREDENTIALS!
+        // Send email using EmailJS
         try {
             const response = await emailjs.send(
                 'service_4rt2w5g',  // REPLACE WITH YOUR REAL SERVICE ID
@@ -605,16 +666,19 @@ async function sendDailyReport() {
             if (response.status === 200) {
                 // Save email record to database
                 try {
-                    await supabase
-                        .from('report_emails')
-                        .insert([{
-                            report_id: currentReportData.id,
-                            sent_to: email,
-                            sent_at: new Date().toISOString(),
-                            status: 'sent',
-                            delivery_method: 'link',
-                            pdf_url: currentReportData.pdf_url
-                        }]);
+                    const supabase = getSupabaseClient();
+                    if (supabase) {
+                        await supabase
+                            .from('report_emails')
+                            .insert([{
+                                report_id: currentReportData.id,
+                                sent_to: email,
+                                sent_at: new Date().toISOString(),
+                                status: 'sent',
+                                delivery_method: 'link',
+                                pdf_url: currentReportData.pdf_url
+                            }]);
+                    }
                 } catch (dbError) {
                     console.warn('E-posta kaydı veritabanına eklenemedi:', dbError);
                 }
@@ -677,194 +741,6 @@ async function downloadReportPDF() {
     }
 }
 
-// Function to check if Supabase Storage bucket exists
-async function checkStorageBucket() {
-    try {
-        const { data, error } = await supabase.storage.getBucket('reports');
-        if (error) {
-            console.log('Reports bucket does not exist, creating...');
-            // Create the bucket if it doesn't exist
-            const { data: bucketData, error: bucketError } = await supabase.storage.createBucket('reports', {
-                public: true, // Make files publicly accessible
-                fileSizeLimit: 52428800, // 50MB limit
-            });
-            
-            if (bucketError) {
-                console.error('Bucket creation error:', bucketError);
-                return false;
-            }
-            console.log('Reports bucket created successfully');
-        }
-        return true;
-    } catch (error) {
-        console.error('Storage bucket check error:', error);
-        return false;
-    }
-}
-
-// Initialize storage bucket on app start
-async function initializeStorage() {
-    const bucketExists = await checkStorageBucket();
-    if (!bucketExists) {
-        console.warn('Storage bucket could not be initialized');
-    }
-}
-
-// PDF Generation Function
-async function generatePDFReport(reportData) {
-    return new Promise((resolve, reject) => {
-        try {
-            // Check if jsPDF is available
-            if (typeof window.jspdf === 'undefined') {
-                throw new Error('jsPDF kütüphanesi yüklenmemiş');
-            }
-
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
-            // Set default font
-           doc.setFont("Roboto", "normal");
-           doc.setFont("Roboto", "bold");
-            
-            // Title
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            const title = 'ProClean - Günlük İş Sonu Raporu';
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const titleWidth = doc.getTextWidth(title);
-            doc.text(title, (pageWidth - titleWidth) / 2, 20);
-            
-            // Report details
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.text(`Tarih: ${reportData.date}`, 20, 35);
-            doc.text(`Operatör: ${reportData.operator}`, 20, 42);
-            doc.text(`Rapor ID: ${reportData.id || 'Yerel Kayıt'}`, 20, 49);
-            
-            // Summary section
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text('ÖZET', 20, 65);
-            
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.text(`• Toplam Paket Sayısı: ${reportData.totalPackages}`, 30, 75);
-            doc.text(`• Toplam Ürün Adedi: ${reportData.totalItems}`, 30, 82);
-            doc.text(`• Konteyner Sayısı: ${reportData.containers || 0}`, 30, 89);
-            doc.text(`• Müşteri Sayısı: ${reportData.customers || 0}`, 30, 96);
-            doc.text(`• Kritik Stok Sayısı: ${reportData.criticalStock?.length || 0}`, 30, 103);
-            
-            let currentY = 115;
-            
-            // Critical stock table if exists
-            if (reportData.criticalStock && reportData.criticalStock.length > 0) {
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.text('KRİTİK STOKLAR', 20, currentY);
-                currentY += 10;
-                
-                const criticalStockData = reportData.criticalStock.map(item => [
-                    item.code || 'N/A',
-                    item.name || 'N/A',
-                    item.quantity?.toString() || '0'
-                ]);
-                
-                // Use autoTable if available, otherwise create simple table
-                if (doc.autoTable) {
-                    doc.autoTable({
-                        startY: currentY,
-                        head: [['Stok Kodu', 'Ürün Adı', 'Mevcut Adet']],
-                        body: criticalStockData,
-                        theme: 'grid',
-                        headStyles: { 
-                            fillColor: [231, 76, 60],
-                            textColor: [255, 255, 255],
-                            fontStyle: 'bold'
-                        },
-                        styles: {
-                            fontSize: 9,
-                            cellPadding: 3
-                        }
-                    });
-                    currentY = doc.lastAutoTable.finalY + 15;
-                } else {
-                    // Simple table without autoTable
-                    criticalStockData.forEach((row, index) => {
-                        if (currentY < 280) {
-                            doc.text(row.join(' | '), 20, currentY);
-                            currentY += 7;
-                        }
-                    });
-                    currentY += 10;
-                }
-            }
-            
-            // Package details table
-            if (reportData.packages && reportData.packages.length > 0) {
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.text('PAKET DETAYLARI', 20, currentY);
-                currentY += 10;
-                
-                const packageData = reportData.packages.map(pkg => [
-                    pkg.package_no || 'N/A',
-                    pkg.customers?.name || 'N/A',
-                    pkg.total_quantity?.toString() || '0',
-                    pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A',
-                    pkg.packer || 'Bilinmiyor'
-                ]);
-                
-                if (doc.autoTable) {
-                    doc.autoTable({
-                        startY: currentY,
-                        head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Paketleyen']],
-                        body: packageData,
-                        theme: 'grid',
-                        headStyles: { 
-                            fillColor: [52, 152, 219],
-                            textColor: [255, 255, 255],
-                            fontStyle: 'bold'
-                        },
-                        styles: {
-                            fontSize: 8,
-                            cellPadding: 2
-                        },
-                        margin: { top: 10 },
-                        pageBreak: 'auto'
-                    });
-                    currentY = doc.lastAutoTable.finalY + 15;
-                } else {
-                    packageData.forEach((row, index) => {
-                        if (currentY < 280) {
-                            doc.text(row.join(' | '), 20, currentY);
-                            currentY += 7;
-                        }
-                    });
-                    currentY += 10;
-                }
-            }
-            
-            // Footer
-            doc.setFontSize(8);
-            doc.setFont(undefined, 'italic');
-            const pageCount = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.text(`Sayfa ${i} / ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-                doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, pageWidth - 20, doc.internal.pageSize.height - 10, { align: 'right' });
-            }
-            
-            // Generate PDF blob
-            const pdfBlob = doc.output('blob');
-            resolve(pdfBlob);
-            
-        } catch (error) {
-            console.error('PDF oluşturma hatası:', error);
-            reject(new Error(`PDF oluşturulamadı: ${error.message}`));
-        }
-    });
-}
-
 // Simple PDF generation fallback
 async function generateSimplePDFReport(reportData) {
     return new Promise((resolve, reject) => {
@@ -899,7 +775,7 @@ async function previewReport() {
     }
     
     try {
-        const pdfBlob = await generatePDFReport(currentReportData);
+        const pdfBlob = await generateProfessionalPDFReport(currentReportData);
         const pdfUrl = URL.createObjectURL(pdfBlob);
         
         // Open in new window
@@ -936,8 +812,32 @@ function initializeEmailJS() {
     }
 }
 
-// Call initialization when script loads
+// ================== GLOBAL VARIABLES ==================
+let currentReportData = null;
+let selectedCustomer = null;
+
+// ================== MAIN INITIALIZATION ==================
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('📊 Reports module initializing...');
+    
+    // Initialize EmailJS
     initializeEmailJS();
-    initializeStorage(); // Initialize storage bucket
+    
+    // Initialize storage (non-blocking)
+    initializeStorage().catch(error => {
+        console.warn('Storage initialization warning:', error);
+    });
+    
+    console.log('✅ Reports module initialized');
 });
+
+// ================== HELPER FUNCTIONS ==================
+function showAlert(message, type = 'info') {
+    // Use your existing alert system or fallback to console
+    if (typeof window.showAlert === 'function') {
+        window.showAlert(message, type);
+    } else {
+        console.log(`${type.toUpperCase()}: ${message}`);
+        alert(message);
+    }
+}
