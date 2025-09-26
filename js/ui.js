@@ -442,23 +442,55 @@ function selectCustomerFromModal(customer) {
 // ---------------------- QUANTITY MODAL ----------------------
 
 // Open for a product
-function openQuantityModal(product) {
+// ✅ Open quantity modal for normal products
+function openQuantityModal(productName) {
     const quantityModal = document.getElementById("quantityModal");
     const modalTitle = document.getElementById("quantityModalTitle");
     const quantityInput = document.getElementById("quantityInput");
 
-    // Set modal state
-    modalTitle.textContent = `${product} - Adet Girin`;
-    quantityInput.value = "1";
+    modalTitle.textContent = `${productName} Adet Girin`;
+    quantityInput.value = "";
 
-    // Save context
-    quantityModal.dataset.currentProduct = product;
-    delete quantityModal.dataset.currentStatus; // clear old state
+    // make sure dataset is set correctly
+    quantityModal.dataset.currentProduct = productName;
+    delete quantityModal.dataset.currentStatus; 
 
-    // Show modal
     quantityModal.style.display = "flex";
-    setTimeout(() => quantityInput.focus(), 100);
 }
+
+// ✅ Confirm and add product or status
+function confirmQuantity() {
+    const quantityModal = document.getElementById("quantityModal");
+    const quantityInput = document.getElementById("quantityInput");
+    const quantity = parseInt(quantityInput.value);
+
+    if (isNaN(quantity) || quantity < 1) {
+        document.getElementById("quantityError").style.display = "block";
+        return;
+    }
+    document.getElementById("quantityError").style.display = "none";
+
+    if (quantityModal.dataset.currentProduct) {
+        const product = quantityModal.dataset.currentProduct;
+        addProductToPackage(product, quantity);   // ⬅️ important!
+        updateQuantityBadge(product, quantity);
+    } else if (quantityModal.dataset.currentStatus) {
+        const status = quantityModal.dataset.currentStatus;
+        addStatusToPackage(status, quantity);     // ⬅️ you must add this
+        updateStatusBadge(status, quantity);
+    }
+
+    // clear dataset after use
+    delete quantityModal.dataset.currentProduct;
+    delete quantityModal.dataset.currentStatus;
+
+    quantityModal.style.display = "none";
+}
+
+
+    hideQuantityModal();
+}
+
 
 // Open for a status (Lekeli, Yırtık, etc.)
 function openStatusQuantityModal(status) {
@@ -478,6 +510,14 @@ function openStatusQuantityModal(status) {
     quantityModal.style.display = "flex";
     setTimeout(() => quantityInput.focus(), 100);
 }
+
+function addStatusToPackage(status, quantity) {
+    if (!currentPackageItems) {
+        currentPackageItems = [];
+    }
+    currentPackageItems.push({ product: status, quantity: quantity, isStatus: true });
+}
+
 
 // Hide modal
 function hideQuantityModal() {
@@ -503,28 +543,6 @@ function validateQuantityInput() {
     return true;
 }
 
-// Confirm quantity (shared for product + status)
-function confirmQuantity() {
-    const quantityModal = document.getElementById("quantityModal");
-    const input = document.getElementById("quantityInput");
-    const quantity = parseInt(input.value);
-
-    if (!quantity || quantity < 1) {
-        document.getElementById("quantityError").style.display = "block";
-        return;
-    }
-    document.getElementById("quantityError").style.display = "none";
-
-    if (quantityModal.dataset.currentProduct) {
-        const product = quantityModal.dataset.currentProduct;
-        updateQuantityBadge(product, quantity);
-    } else if (quantityModal.dataset.currentStatus) {
-        const status = quantityModal.dataset.currentStatus;
-        updateStatusBadge(status, quantity);
-    }
-
-    hideQuantityModal();
-}
 
 // ---------------------- BADGES ----------------------
 
