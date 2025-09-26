@@ -1510,3 +1510,48 @@ table {
 .quantity-badge.high {
     background: #007bff;
 }
+
+
+
+#quantityModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.quantity-modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-width: 300px;
+    text-align: center;
+}
+
+#quantityInput {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    margin: 10px 0;
+    text-align: center;
+    color: #000 !important; /* Force black color */
+}
+
+#quantityInput:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+#quantityInput.error {
+    border-color: red !important;
+    color: red !important;
+}
