@@ -476,6 +476,16 @@ function confirmQuantity() {
         const currentQuantity = parseInt(badge.textContent) || 0;
         badge.textContent = currentQuantity + quantity;
     }
+    // create badge dynamically if it doesn't exist yet
+    const btn = document.getElementById(selectedProduct);
+    if (btn) {
+        badge = document.createElement("div");
+        badge.id = `${selectedProduct}-quantity`;
+        badge.className = "quantity-badge";
+        badge.textContent = 0;
+        btn.appendChild(badge);
+    }
+}
 
     // Add to current package
     if (!currentPackage.items) currentPackage.items = {};
