@@ -1437,3 +1437,159 @@ table {
     background-color: #e0e0e0;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ------------------------------
+   STATUS BUTTONS (UNIFIED)
+   ------------------------------ */
+.status-buttons .quick-btn,
+.status-btn {
+  flex: 1;
+  padding: 0.55rem 0;
+  text-align: center;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  font-size: 0.92rem;
+  min-width: 88px;
+  transition: filter .12s ease, transform .06s ease;
+  user-select: none;
+}
+
+/* Per-status colors (suitable for 'bad' items) */
+.status-buttons .quick-btn[data-status="Lekeli"],
+.status-btn[data-status="Lekeli"] {
+  background: #ffc107;    /* yellow (stained) */
+  color: #212529;
+}
+
+.status-buttons .quick-btn[data-status="Yırtık"],
+.status-btn[data-status="Yırtık"] {
+  background: #e67e22;    /* orange (torn) */
+  color: #fff;
+}
+
+.status-buttons .quick-btn[data-status="Çıkmayan"],
+.status-btn[data-status="Çıkmayan"] {
+  background: #c0392b;    /* deep red (not coming out) */
+  color: #fff;
+}
+
+.status-buttons .quick-btn[data-status="Discard"],
+.status-btn[data-status="Discard"] {
+  background: #6c757d;    /* gray (discard) */
+  color: #fff;
+}
+
+/* subtle hover */
+.status-buttons .quick-btn:hover,
+.status-btn:hover {
+  filter: brightness(.95);
+  transform: translateY(-1px);
+}
+
+/* ------------------------------
+   QUANTITY BADGE (single unified definition)
+   ------------------------------ */
+.quantity-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #dc3545; /* default red */
+  color: #fff;
+  border-radius: 50%;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  line-height: 1;
+}
+
+/* Allow different color utility classes (optional) */
+.quantity-badge.low { background: #ffc107; color: #222; }
+.quantity-badge.normal { background: #28a745; }
+.quantity-badge.high { background: #007bff; }
+
+/* hide if empty or zero */
+.quantity-badge[data-quantity="0"],
+.quantity-badge:empty {
+  display: none !important;
+}
+
+/* ------------------------------
+   QUANTITY MODAL (clean)
+   ------------------------------ */
+#quantityModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+}
+
+.quantity-modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  min-width: 300px;
+  max-width: 92%;
+  text-align: center;
+}
+
+/* single cleaned input style (no duplicates) */
+#quantityInput {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  margin: 10px 0;
+  text-align: center;
+  color: #000;
+  background-color: #fff;
+  -moz-appearance: textfield; /* hide number arrows on firefox if necessary */
+}
+
+/* focus and error */
+#quantityInput:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 6px rgba(0,123,255,0.06);
+}
+#quantityInput.error {
+  border-color: #dc3545 !important;
+  color: #dc3545 !important;
+}
+
+/* ensure browser-invalid styles won't turn text red */
+input[type="number"]:invalid {
+  color: #000 !important;
+  border-color: #ddd !important;
+  box-shadow: none !important;
+}
