@@ -192,10 +192,10 @@ document.addEventListener("DOMContentLoaded", function() {
 </div>
 
                         <div class="status-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-    <div class="quick-btn status-btn" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli">Lekeli</div>
-    <div class="quick-btn status-btn" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık">Yırtık</div>
-    <div class="quick-btn status-btn" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan">Çıkmayan</div>
-    <div class="quick-btn status-btn" onclick="openStatusQuantityModal('Discard')" data-status="Discard">Discard</div>
+   <div class="quick-btn status-btn" data-status="Lekeli" onclick="openStatusQuantityModal('Lekeli')">Lekeli</div>
+<div class="quick-btn status-btn" data-status="Yırtık" onclick="openStatusQuantityModal('Yırtık')">Yırtık</div>
+<div class="quick-btn status-btn" data-status="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')">Çıkmayan</div>
+<div class="quick-btn status-btn" data-status="Discard" onclick="openStatusQuantityModal('Discard')">Discard</div>
 </div>
 
                         <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:0.5rem;" id="scannerToggle">
