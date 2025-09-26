@@ -1840,3 +1840,4 @@ window.soundEnabled = true;
 window.notificationsEnabled = true;
 
 console.log('UI functions loaded successfully');
+window.initializeElementsObject = initializeElementsObject;
