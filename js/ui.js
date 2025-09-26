@@ -531,6 +531,30 @@ function openStatusQuantityModal(statusName) {
 }
 
 
+function confirmQuantity() {
+    const quantity = parseInt(elements.quantityInput.value);
+    
+    // Doğrulama
+    if (!quantity || quantity <= 0) {
+        document.getElementById('quantityError').style.display = 'block';
+        return;
+    }
+
+    // Update quantity badge
+    const badge = document.getElementById(`${selectedProduct}-quantity`);
+    if (badge) {
+        const currentQuantity = parseInt(badge.textContent) || 0;
+        badge.textContent = currentQuantity + quantity;
+    }
+
+    // Add to current package
+    if (!currentPackage.items) currentPackage.items = {};
+    currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
+
+    showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
+    closeQuantityModal();
+}
+
 
 
 
