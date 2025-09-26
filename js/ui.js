@@ -1882,3 +1882,17 @@ function clearStockSearch() {
         row.style.display = '';
     });
 }
+
+
+
+function debugQuantityModal() {
+    console.log('Quantity Modal Debug:');
+    console.log('Modal element:', elements.quantityModal);
+    console.log('Input element:', elements.quantityInput);
+    console.log('Input value:', elements.quantityInput?.value);
+    console.log('Input style:', elements.quantityInput?.style.color);
+    
+    if (elements.quantityInput) {
+        console.log('Computed styles:', getComputedStyle(elements.quantityInput));
+    }
+}
