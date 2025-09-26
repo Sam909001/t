@@ -460,6 +460,7 @@ function openStatusQuantityModal(status) {
 }
 
 
+// Reuse your existing confirmQuantity function but check if a status is being added
 function confirmQuantity() {
     const quantity = parseInt(elements.quantityInput.value);
     
@@ -483,6 +484,8 @@ function confirmQuantity() {
     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
     closeQuantityModal();
 }
+
+
         
 function openManualEntry() {
     document.getElementById('manualModal').style.display = 'flex';
@@ -524,34 +527,6 @@ function openExtraModal() {
 function closeExtraModal() {
     document.getElementById('extraModal').style.display = 'none';
 }
-
-
-// Reuse your existing confirmQuantity function but check if a status is being added
-function confirmQuantity() {
-    const quantityInput = document.getElementById("quantityInput");
-    const quantity = parseInt(quantityInput.value);
-    if (isNaN(quantity) || quantity < 1) {
-        document.getElementById("quantityError").style.display = "block";
-        return;
-    }
-    document.getElementById("quantityError").style.display = "none";
-
-    const quantityModal = document.getElementById("quantityModal");
-    
-    // Determine if this is a product or status
-    if (quantityModal.dataset.currentProduct) {
-        const product = quantityModal.dataset.currentProduct;
-        updateQuantityBadge(product, quantity);
-        delete quantityModal.dataset.currentProduct;
-    } else if (quantityModal.dataset.currentStatus) {
-        const status = quantityModal.dataset.currentStatus;
-        updateStatusBadge(status, quantity); // You create this function
-        delete quantityModal.dataset.currentStatus;
-    }
-
-    quantityModal.style.display = "none";
-}
-
 
 
 
