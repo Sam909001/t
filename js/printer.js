@@ -216,7 +216,7 @@ class PrinterServiceElectronWithSettings {
     }
     
     .logo-img { 
-        width: 35mm;
+        width: 50mm;
         height: 25mm; 
         object-fit: contain; 
     }
@@ -236,7 +236,7 @@ class PrinterServiceElectronWithSettings {
     }
     
     .barcode svg { 
-        width: 43mm; 
+        width: 55mm; 
         height: 25mm !important; 
         display: block; 
         margin: 0; 
