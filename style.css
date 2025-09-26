@@ -1555,3 +1555,39 @@ table {
     border-color: red !important;
     color: red !important;
 }
+
+
+
+
+
+
+#quantityInput {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border: 2px solid #ddd !important;
+    border-radius: 4px;
+    margin: 10px 0;
+    text-align: center;
+    color: #000 !important;
+    background-color: #fff !important;
+}
+
+/* Override browser validation styles */
+#quantityInput:invalid {
+    border-color: #ddd !important;
+    color: #000 !important;
+    box-shadow: none !important;
+}
+
+#quantityInput:focus {
+    outline: none !important;
+    border-color: #007bff !important;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25) !important;
+}
+
+/* Ensure no red styling from browser validation */
+input[type="number"]:invalid {
+    color: #000 !important;
+    border-color: #ddd !important;
+}
