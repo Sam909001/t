@@ -526,35 +526,6 @@ function closeExtraModal() {
 }
 
 
-
-function openStatusQuantityModal(status) {
-    selectedProduct = status; // 👈 reuse the same global
-    elements.quantityModalTitle.textContent = `${status} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
-}
-
-
-
-
-// Quantity modal is already existing: openQuantityModal(productName)
-function openStatusQuantityModal(statusName) {
-    const quantityModal = document.getElementById("quantityModal");
-    const modalTitle = document.getElementById("quantityModalTitle");
-    const quantityInput = document.getElementById("quantityInput");
-
-    modalTitle.textContent = `${statusName} Adet Girin`;
-    quantityInput.value = "";
-
-    // Save current item/status for later
-    quantityModal.dataset.currentStatus = statusName;
-
-    quantityModal.style.display = "flex";
-}
-
-
 // Reuse your existing confirmQuantity function but check if a status is being added
 function confirmQuantity() {
     const quantityInput = document.getElementById("quantityInput");
