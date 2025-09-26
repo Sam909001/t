@@ -1,4 +1,4 @@
-/////////////// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
+/// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
     const elements = {};
@@ -65,9 +65,6 @@ function initializeElementsObject() {
     
     return elements;
 }
-
-// Initialize elements first
-let elements = initializeElementsObject();
 
 // Profesyonel alert sistemi
 // 1. Prevent duplicate alerts with debouncing
@@ -136,14 +133,12 @@ function showAlert(message, type = 'info', duration = 5000) {
 // Yardımcı fonksiyonlar
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
-    if (toast) {
-        toast.textContent = message;
-        toast.className = `toast ${type} show`;
-        
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
-    }
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
 }
 
 // Form doğrulama fonksiyonu
@@ -161,25 +156,6 @@ function validateFormDebounced(inputs, callback) {
         if (callback) callback(isValid);
     }, 200);
 }
-
-function validateForm(inputs) {
-    let isValid = true;
-    inputs.forEach(input => {
-        const element = document.getElementById(input.id);
-        const errorElement = document.getElementById(input.errorId);
-        
-        if (element && errorElement) {
-            if (input.required && !element.value.trim()) {
-                errorElement.style.display = 'block';
-                errorElement.textContent = 'Bu alan gereklidir';
-                isValid = false;
-            } else {
-                errorElement.style.display = 'none';
-            }
-        }
-    });
-    return isValid;
-}
         
 function isValidEmail(email) {
     const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -190,7 +166,7 @@ function isValidEmail(email) {
 function showApiKeyModal() {
     const apiKeyInput = document.getElementById('apiKeyInput');
     if (apiKeyInput) {
-        apiKeyInput.value = window.SUPABASE_ANON_KEY || '';
+        apiKeyInput.value = SUPABASE_ANON_KEY || '';
         document.getElementById('apiKeyModal').style.display = 'flex';
     }
 }
@@ -237,8 +213,6 @@ function showApiKeyHelp() {
 }
 
 // Barkod tarayıcı modunu aç/kapa
-let scannerMode = false;
-
 function toggleScannerMode() {
     scannerMode = !scannerMode;
     
@@ -299,8 +273,6 @@ function setupBarcodeScanner() {
 
 // Stok düzenleme fonksiyonları
 let currentEditingRow = null;
-let editingStockItem = null;
-let scannedBarcodes = [];
 
 function editStockItem(button, code) {
     // Prevent multiple edits
@@ -394,26 +366,19 @@ async function saveStockItem(code, input) {
     }
 }
 
-function restoreEditButton(actionsCell, code) {
-    // Implementation depends on your specific UI structure
-    console.log('Restore edit button for:', code);
-}
-
 function cancelEditStockItem(code, originalQuantity) {
     const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-    if (!row) return;
-    
     const quantityInput = row.querySelector('.stock-quantity-input');
     const quantitySpan = row.querySelector('.stock-quantity');
     const editButton = row.querySelector('button');
     const editButtons = row.querySelector('.edit-buttons');
     
     // Değişiklikleri iptal et
-    if (quantityInput) quantityInput.value = originalQuantity;
-    if (quantitySpan) quantitySpan.style.display = 'block';
-    if (quantityInput) quantityInput.style.display = 'none';
-    if (editButton) editButton.style.display = 'block';
-    if (editButtons) editButtons.style.display = 'none';
+    quantityInput.value = originalQuantity;
+    quantitySpan.style.display = 'block';
+    quantityInput.style.display = 'none';
+    editButton.style.display = 'block';
+    editButtons.style.display = 'none';
     
     editingStockItem = null;
 }
@@ -429,7 +394,7 @@ function checkOnlineStatus() {
 // Konteyner detay modalını kapat
 function closeContainerDetailModal() {
     document.getElementById('containerDetailModal').style.display = 'none';
-    window.currentContainerDetails = null;
+    currentContainerDetails = null;
 }
 
 // Müşteri klasöründeki tüm konteynerleri seç
@@ -442,8 +407,6 @@ function toggleSelectAllCustomer(checkbox) {
 // Taranan barkodları göster
 function displayScannedBarcodes() {
     const container = document.getElementById('scannedBarcodes');
-    if (!container) return;
-    
     container.innerHTML = '';
     
     if (scannedBarcodes.length === 0) {
@@ -470,52 +433,44 @@ function displayScannedBarcodes() {
 }
 
 function selectCustomerFromModal(customer) {
-    window.selectedCustomer = customer;
+    selectedCustomer = customer;
     elements.customerSelect.value = customer.id;
     closeModal();
     showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
 }
-
-function closeModal() {
-    const modal = document.querySelector('.modal');
-    if (modal) modal.style.display = 'none';
-}
-
-function closeManualModal() {
-    document.getElementById('manualModal').style.display = 'none';
-}
         
 // Package operations
-function openQuantityModal(productName) {
-    const quantityModal = document.getElementById("quantityModal");
-    const modalTitle = document.getElementById("quantityModalTitle");
-    const quantityInput = document.getElementById("quantityInput");
-
-    if (!quantityModal || !modalTitle || !quantityInput) return;
-
-    modalTitle.textContent = `${productName} Adet Girin`;
-    quantityInput.value = "";
-
-    quantityModal.dataset.currentProduct = productName;
-    delete quantityModal.dataset.currentStatus; // clear previous status if any
-
-    quantityModal.style.display = "flex";
+function openQuantityModal(product) {
+    selectedProduct = product;
+    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
+    elements.quantityInput.value = '';
+    document.getElementById('quantityError').style.display = 'none';
+    elements.quantityModal.style.display = 'flex';
+    elements.quantityInput.focus();
 }
+        
+function confirmQuantity() {
+    const quantity = parseInt(elements.quantityInput.value);
+    
+    // Doğrulama
+    if (!quantity || quantity <= 0) {
+        document.getElementById('quantityError').style.display = 'block';
+        return;
+    }
 
-// Missing function implementations
-function updateQuantityBadge(product, quantity) {
-    console.log('Update quantity badge:', product, quantity);
-    // Implementation depends on your specific badge system
-}
+    // Update quantity badge
+    const badge = document.getElementById(`${selectedProduct}-quantity`);
+    if (badge) {
+        const currentQuantity = parseInt(badge.textContent) || 0;
+        badge.textContent = currentQuantity + quantity;
+    }
 
-function updateStatusBadge(status, quantity) {
-    console.log('Update status badge:', status, quantity);
-    // Implementation depends on your specific badge system
-}
+    // Add to current package
+    if (!currentPackage.items) currentPackage.items = {};
+    currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
 
-function processBarcode() {
-    console.log('Process barcode');
-    // Implementation depends on your barcode processing logic
+    showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
+    closeQuantityModal();
 }
         
 function openManualEntry() {
@@ -536,9 +491,8 @@ function addManualProduct() {
     }
 
     // Add to current package
-    if (!window.currentPackage) window.currentPackage = { items: {} };
-    if (!window.currentPackage.items) window.currentPackage.items = {};
-    window.currentPackage.items[product] = (window.currentPackage.items[product] || 0) + quantity;
+    if (!currentPackage.items) currentPackage.items = {};
+    currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
 
     showAlert(`${product}: ${quantity} adet eklendi`, 'success');
     
@@ -547,6 +501,9 @@ function addManualProduct() {
     document.getElementById('manualQuantity').value = '';
     closeManualModal();
 }
+
+
+
 
 // Open Extra Modal
 function openExtraModal() {
@@ -558,12 +515,17 @@ function closeExtraModal() {
     document.getElementById('extraModal').style.display = 'none';
 }
 
+// Quantity modal is already existing: openQuantityModal(productName)
+
+
+
+
+
+
 function openStatusQuantityModal(statusName) {
     const quantityModal = document.getElementById("quantityModal");
     const modalTitle = document.getElementById("quantityModalTitle");
     const quantityInput = document.getElementById("quantityInput");
-
-    if (!quantityModal || !modalTitle || !quantityInput) return;
 
     modalTitle.textContent = `${statusName} Adet Girin`;
     quantityInput.value = "";
@@ -574,38 +536,54 @@ function openStatusQuantityModal(statusName) {
     quantityModal.style.display = "flex";
 }
 
-// Fixed confirmQuantity function
+// Reuse your existing confirmQuantity function but check if a status is being added
 function confirmQuantity() {
     const quantityInput = document.getElementById("quantityInput");
-    const quantityError = document.getElementById("quantityError");
-    const quantityModal = document.getElementById("quantityModal");
-    
-    if (!quantityInput || !quantityError || !quantityModal) return;
-
     const quantity = parseInt(quantityInput.value);
     if (isNaN(quantity) || quantity < 1) {
-        quantityError.style.display = "block";
+        document.getElementById("quantityError").style.display = "block";
         return;
     }
-    quantityError.style.display = "none";
+    document.getElementById("quantityError").style.display = "none";
 
+    const quantityModal = document.getElementById("quantityModal");
+    
     // Determine if this is a product or status
     if (quantityModal.dataset.currentProduct) {
         const product = quantityModal.dataset.currentProduct;
-        if (typeof updateQuantityBadge === 'function') {
-            updateQuantityBadge(product, quantity);
-        }
+        updateQuantityBadge(product, quantity);
         delete quantityModal.dataset.currentProduct;
     } else if (quantityModal.dataset.currentStatus) {
         const status = quantityModal.dataset.currentStatus;
-        if (typeof updateStatusBadge === 'function') {
-            updateStatusBadge(status, quantity);
-        }
+        updateStatusBadge(status, quantity); // You create this function
         delete quantityModal.dataset.currentStatus;
     }
 
     quantityModal.style.display = "none";
 }
+
+// Example badge update for status
+function updateStatusBadge(status, quantity) {
+    // You can create small badges next to the status buttons
+    let badge = document.getElementById(`${status}-quantity`);
+    if (!badge) {
+        const btn = document.querySelector(`.status-btn[data-status='${status}']`);
+        badge = document.createElement("div");
+        badge.id = `${status}-quantity`;
+        badge.className = "quantity-badge";
+        badge.style.position = "absolute";
+        badge.style.top = "0";
+        badge.style.right = "0";
+        btn.style.position = "relative";
+        btn.appendChild(badge);
+    }
+    badge.textContent = quantity;
+}
+
+
+
+
+
 
 // Settings functions
 function showSettingsModal() {
@@ -614,16 +592,9 @@ function showSettingsModal() {
     document.getElementById('settingsModal').style.display = 'flex';
 }
 
-
-// Add this function with your other modal functions
 function closeSettingsModal() {
-    const settingsModal = document.getElementById('settingsModal');
-    if (settingsModal) {
-        settingsModal.style.display = 'none';
-    }
+    document.getElementById('settingsModal').style.display = 'none';
 }
-window.closeSettingsModal = closeSettingsModal;
-
 
 function loadSettings() {
     // Load saved settings from localStorage
@@ -712,14 +683,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-function getPrinter() {
-    return window.printerElectron || {
-        testPrint: function() {
-            return Promise.resolve(true);
-        }
-    };
-}
 
 // ---------------- PRINT PACKAGE WITH SETTINGS ----------------
 async function printPackageWithSettings(packageData) {
@@ -1042,6 +1005,8 @@ function showConsoleLogs() {
         </html>
     `);
     
+    const logsDiv = logsWindow.document.getElementById('logs');
+    
     // Override console methods to show in logs window
     console.log = function(...args) {
         originalLog.apply(console, args);
@@ -1253,7 +1218,7 @@ function checkSystemStatus() {
     // --- Printer connection ---
     const printerStatus = document.getElementById('printerConnectionStatus');
     if (printerStatus) {
-        const printerInstance = typeof window.getPrinterElectron === 'function' ? window.getPrinterElectron() : null;
+        const printerInstance = typeof getPrinterElectron === 'function' ? getPrinterElectron() : null;
 
         if (printerInstance && printerInstance.isConnected) {
             printerStatus.textContent = 'Bağlı';
@@ -1768,6 +1733,8 @@ function updatePackageDetails(pkg, container) {
     }
 }
 
+
+
 function getSelectedPackage() {
     const selectedRow = document.querySelector('#packagesTableBody tr.selected');
     if (!selectedRow) return null;
@@ -1827,17 +1794,3 @@ function clearStockSearch() {
         row.style.display = '';
     });
 }
-
-// Initialize global variables
-window.selectedCustomer = null;
-window.currentContainer = null;
-window.currentPackage = { items: {} };
-window.currentUser = null;
-window.containers = [];
-window.packages = [];
-window.DEBUG_MODE = false;
-window.soundEnabled = true;
-window.notificationsEnabled = true;
-
-console.log('UI functions loaded successfully');
-window.initializeElementsObject = initializeElementsObject;
