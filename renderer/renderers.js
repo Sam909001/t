@@ -1,4 +1,4 @@
-const db = require('./db'); // your local database module
+const db = require('./db'); /// your local database module
 
 // =========================
 // Electron Direct Printing
