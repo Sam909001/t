@@ -440,6 +440,7 @@ function selectCustomerFromModal(customer) {
 }
 
 // Show quantity modal
+// Updated function to properly initialize and show quantity modal
 function showQuantityModal(title = 'Miktar Girin') {
     if (!elements.quantityModal || !elements.quantityInput) {
         console.error('Quantity modal elements not found');
@@ -451,19 +452,27 @@ function showQuantityModal(title = 'Miktar Girin') {
         elements.quantityModalTitle.textContent = title;
     }
     
-    // Reset and show input
-    elements.quantityInput.value = '';
-    elements.quantityInput.style.color = '#000'; // Reset color to black
-    elements.quantityInput.style.borderColor = '#ddd'; // Reset border
+    // Reset input completely
+    elements.quantityInput.value = '1'; // Set default value instead of empty
+    elements.quantityInput.style.color = '#000';
+    elements.quantityInput.style.borderColor = '#ddd';
+    elements.quantityInput.style.backgroundColor = '#fff';
+    
+    // Remove any validation classes
+    elements.quantityInput.classList.remove('error', 'invalid');
+    elements.quantityInput.setCustomValidity(''); // Clear custom validation
     
     // Show modal
     elements.quantityModal.style.display = 'flex';
     
-    // Focus on input
+    // Focus and select all text
     setTimeout(() => {
         elements.quantityInput.focus();
+        elements.quantityInput.select();
     }, 100);
 }
+
+
 
 // Hide quantity modal
 function hideQuantityModal() {
