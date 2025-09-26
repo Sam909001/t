@@ -463,29 +463,36 @@ function openStatusQuantityModal(status) {
 // Reuse your existing confirmQuantity function but check if a status is being added
 function confirmQuantity() {
     const quantity = parseInt(elements.quantityInput.value);
-    
-    // Doğrulama
+
+    // Validation
     if (!quantity || quantity <= 0) {
         document.getElementById('quantityError').style.display = 'block';
         return;
+    } else {
+        document.getElementById('quantityError').style.display = 'none';
     }
 
-    // Update quantity badge
-    const badge = document.getElementById(`${selectedProduct}-quantity`);
+    // Update or create quantity badge
+    let badge = document.getElementById(`${selectedProduct}-quantity`);
+    const btn = document.getElementById(selectedProduct);
+
     if (badge) {
+        // If badge exists, add to current quantity
         const currentQuantity = parseInt(badge.textContent) || 0;
         badge.textContent = currentQuantity + quantity;
-    }
-    // create badge dynamically if it doesn't exist yet
-    const btn = document.getElementById(selectedProduct);
-    if (btn) {
+    } else if (btn) {
+        // If badge doesn't exist, create it with the entered quantity
         badge = document.createElement("div");
         badge.id = `${selectedProduct}-quantity`;
         badge.className = "quantity-badge";
-        badge.textContent = 0;
+        badge.textContent = quantity; // Set entered quantity
         btn.appendChild(badge);
     }
+
+    // Optional: clear input after confirming
+    elements.quantityInput.value = '';
 }
+
 
     // Add to current package
     if (!currentPackage.items) currentPackage.items = {};
