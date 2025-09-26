@@ -515,7 +515,6 @@ function addManualProduct() {
 
 
 
-
 // Open Extra Modal
 function openExtraModal() {
     document.getElementById('extraModal').style.display = 'block';
@@ -525,6 +524,20 @@ function openExtraModal() {
 function closeExtraModal() {
     document.getElementById('extraModal').style.display = 'none';
 }
+
+
+
+function openStatusQuantityModal(status) {
+    selectedProduct = status; // 👈 reuse the same global
+    elements.quantityModalTitle.textContent = `${status} - Adet Girin`;
+    elements.quantityInput.value = '';
+    document.getElementById('quantityError').style.display = 'none';
+    elements.quantityModal.style.display = 'flex';
+    elements.quantityInput.focus();
+}
+
+
+
 
 // Quantity modal is already existing: openQuantityModal(productName)
 function openStatusQuantityModal(statusName) {
