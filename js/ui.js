@@ -448,7 +448,18 @@ function openQuantityModal(product) {
     elements.quantityModal.style.display = 'flex';
     elements.quantityInput.focus();
 }
-        
+
+
+function openStatusQuantityModal(status) {
+    selectedProduct = status; // 👈 reuse the same global
+    elements.quantityModalTitle.textContent = `${status} - Adet Girin`;
+    elements.quantityInput.value = '';
+    document.getElementById('quantityError').style.display = 'none';
+    elements.quantityModal.style.display = 'flex';
+    elements.quantityInput.focus();
+}
+
+
 function confirmQuantity() {
     const quantity = parseInt(elements.quantityInput.value);
     
