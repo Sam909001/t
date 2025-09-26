@@ -438,7 +438,60 @@ function selectCustomerFromModal(customer) {
     closeModal();
     showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
 }
-        
+
+// Show quantity modal
+function showQuantityModal(title = 'Miktar Girin') {
+    if (!elements.quantityModal || !elements.quantityInput) {
+        console.error('Quantity modal elements not found');
+        return;
+    }
+    
+    // Set title
+    if (elements.quantityModalTitle) {
+        elements.quantityModalTitle.textContent = title;
+    }
+    
+    // Reset and show input
+    elements.quantityInput.value = '';
+    elements.quantityInput.style.color = '#000'; // Reset color to black
+    elements.quantityInput.style.borderColor = '#ddd'; // Reset border
+    
+    // Show modal
+    elements.quantityModal.style.display = 'flex';
+    
+    // Focus on input
+    setTimeout(() => {
+        elements.quantityInput.focus();
+    }, 100);
+}
+
+// Hide quantity modal
+function hideQuantityModal() {
+    if (elements.quantityModal) {
+        elements.quantityModal.style.display = 'none';
+    }
+}
+
+// Validate quantity input
+function validateQuantityInput() {
+    const input = elements.quantityInput;
+    if (!input) return false;
+    
+    const value = parseInt(input.value);
+    
+    if (isNaN(value) || value <= 0) {
+        // Show error styling
+        input.style.color = 'red';
+        input.style.borderColor = 'red';
+        return false;
+    } else {
+        // Show success styling
+        input.style.color = '#000';
+        input.style.borderColor = '#ddd';
+        return true;
+    }
+}
+
 // Package operations
 function openQuantityModal(product) {
     selectedProduct = product;
@@ -472,6 +525,46 @@ function confirmQuantity() {
     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
     closeQuantityModal();
 }
+
+
+// Add this to your initialization function
+function initializeQuantityModal() {
+    if (!elements.quantityInput || !elements.quantityModal) {
+        console.warn('Quantity modal elements not found');
+        return;
+    }
+    
+    // Input validation on change
+    elements.quantityInput.addEventListener('input', validateQuantityInput);
+    
+    // Enter key to confirm
+    elements.quantityInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            if (validateQuantityInput()) {
+                // Handle the quantity submission here
+                const quantity = parseInt(elements.quantityInput.value);
+                console.log('Quantity entered:', quantity);
+                hideQuantityModal();
+            }
+        }
+    });
+    
+    // ESC key to cancel
+    elements.quantityInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideQuantityModal();
+        }
+    });
+    
+    // Click outside to close
+    elements.quantityModal.addEventListener('click', function(e) {
+        if (e.target === elements.quantityModal) {
+            hideQuantityModal();
+        }
+    });
+}
+
+
         
 function openManualEntry() {
     document.getElementById('manualModal').style.display = 'flex';
@@ -514,11 +607,6 @@ function openExtraModal() {
 function closeExtraModal() {
     document.getElementById('extraModal').style.display = 'none';
 }
-
-// Quantity modal is already existing: openQuantityModal(productName)
-
-
-
 
 
 
