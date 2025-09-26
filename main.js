@@ -78,3 +78,38 @@ ipcMain.handle('print-barcode', async (event, htmlContent) => {
         });
     });
 });
+
+
+// Fetch packages for multiple containers
+ipcMain.handle('fetchPackagesForContainers', async (event, containerIds) => {
+    if (!containerIds || containerIds.length === 0) return [];
+    const query = `
+        SELECT p.id, p.package_no, p.total_quantity, p.container_id,
+               c.name AS customer_name, c.code AS customer_code
+        FROM packages p
+        LEFT JOIN customers c ON p.customer_id = c.id
+        WHERE p.container_id IN (${containerIds.map(() => '?').join(',')})
+    `;
+    return new Promise((resolve, reject) => {
+        db.all(query, containerIds, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+        });
+    });
+});
+
+// Count containers (for pagination)
+ipcMain.handle('getContainersCount', async (event, monitorId, filter = 'all') => {
+    let query = 'SELECT COUNT(*) as total FROM containers';
+    const params = [];
+    if (filter !== 'all') {
+        query += ' WHERE status = ?';
+        params.push(filter);
+    }
+    return new Promise((resolve, reject) => {
+        db.get(query, params, (err, row) => {
+            if (err) reject(err);
+            else resolve(row.total);
+        });
+    });
+});
