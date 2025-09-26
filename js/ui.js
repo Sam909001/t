@@ -558,6 +558,25 @@ function confirmQuantity() {
 }
 
 
+// Example badge update for status
+function updateStatusBadge(status, quantity) {
+    // You can create small badges next to the status buttons
+    let badge = document.getElementById(`${status}-quantity`);
+    if (!badge) {
+        const btn = document.querySelector(`.status-btn[data-status='${status}']`);
+        badge = document.createElement("div");
+        badge.id = `${status}-quantity`;
+        badge.className = "quantity-badge";
+        badge.style.position = "absolute";
+        badge.style.top = "0";
+        badge.style.right = "0";
+        btn.style.position = "relative";
+        btn.appendChild(badge);
+    }
+    badge.textContent = quantity;
+}
+
+
 
 
 
