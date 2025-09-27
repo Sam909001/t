@@ -1299,3 +1299,20 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('apiKeyModal').style.display = 'flex';
     }
 });
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Restore current user
+    const savedUser = localStorage.getItem('procleanCurrentUser');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+    } else {
+        // redirect to login if needed
+        currentUser = null;
+    }
+
+    // Populate dropdowns etc.
+    initializeLocalData();
+    populatePersonnel();
+    populateCustomers();
+});
