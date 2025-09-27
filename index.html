@@ -732,7 +732,38 @@ document.addEventListener("DOMContentLoaded", function() {
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
 
-<!-- 1. External libraries and database connection first -->
+<script>
+// Initialize elements immediately when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing elements...');
+    
+    // Simple elements initialization that runs first
+    window.elements = {};
+    
+    // Critical elements that must be available
+    const criticalElements = [
+        'loginScreen', 'appContainer', 'currentDate', 'customerSelect', 
+        'personnelSelect', 'packagesTableBody', 'shippingFolders',
+        'stockTableBody', 'reportsTableBody'
+    ];
+    
+    criticalElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            window.elements[id] = element;
+        } else {
+            console.error('Critical element not found:', id);
+        }
+    });
+    
+    // Set current date immediately
+    if (window.elements.currentDate) {
+        window.elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    }
+    
+    console.log('Basic elements initialized:', Object.keys(window.elements));
+});
+</script>
 
 
 <!-- 2. UI functions (needed by other modules) -->
@@ -750,7 +781,5 @@ document.addEventListener("DOMContentLoaded", function() {
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script>
             
-<script src="renderer/renderers.js"></script>
-<script src="renderer/shipping.js"></script>
 </body>
 </html>
