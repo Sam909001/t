@@ -227,47 +227,49 @@ function generateSummaryData() {
     };
 }
 
+// =============================
+// Manual Excel Export (Safe)
+// =============================
 async function manualExportToExcel(sheetName, data, fileName) {
     try {
-        console.log(`📤 Exporting ${sheetName} to Excel...`);
-
-        // 1. Create workbook + sheet
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(data || []);
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-        // 2. Convert to binary
-        const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        const fileBlob = new Blob([wbout], { type: "application/octet-stream" });
-
-        // 3. Save locally (download to user machine)
-        const url = URL.createObjectURL(fileBlob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        // 4. Upload to Supabase (backup)
-        if (supabase) {
-            const { error } = await supabase.storage
-                .from("daily-data") // bucket must exist
-                .upload(fileName, fileBlob, {
-                    upsert: true,
-                    cacheControl: "3600"
-                });
-
-            if (error) {
-                console.error(`❌ Upload failed for ${fileName}:`, error.message);
-            } else {
-                console.log(`✅ Uploaded ${fileName} to Supabase`);
-            }
+        // ✅ Ensure we always have a fileName
+        if (!fileName || typeof fileName !== "string") {
+            fileName = `${sheetName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
         }
 
+        // ✅ Ensure data is at least an empty array
+        const safeData = Array.isArray(data) ? data : [];
+
+        // Build Excel sheet
+        const ws = XLSX.utils.json_to_sheet(safeData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+        // Convert workbook to buffer
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        // ✅ Save locally (download)
+        saveAs(blob, fileName);
+
+        // ✅ Upload to Supabase Storage
+        const bucketName = "daily-data"; // must exist in Supabase
+        const filePath = fileName.replace(/\s+/g, "_"); // clean spaces
+
+        const { error } = await supabase.storage
+            .from(bucketName)
+            .upload(filePath, blob, { upsert: true });
+
+        if (error) throw error;
+
+        console.log(`✅ Exported & uploaded ${sheetName} as ${fileName}`);
     } catch (err) {
-        console.error("❌ manualExportToExcel error:", err);
+        console.error("❌ manualExportToExcel error:", err.message || err);
     }
 }
+
 
 
 // ==================== DATA OPERATIONS (EXCEL-BASED) ====================
