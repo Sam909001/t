@@ -662,154 +662,230 @@ let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
 
 async function populateShippingTable(page = 0) {
-    if (isShippingTableLoading) return;
-
-    const now = Date.now();
-    if (now - lastShippingFetchTime < 500) {
-        setTimeout(() => populateShippingTable(page), 500);
+    if (isShippingTableLoading) {
+        console.log('Shipping table already loading, skipping...');
         return;
     }
 
     isShippingTableLoading = true;
-    lastShippingFetchTime = now;
 
     try {
-        console.log('populateShippingTable called, page', page);
+        console.log('Populating shipping table...');
 
-        if (!elements.shippingFolders) {
-            console.error('shippingFolders element not found');
+        const shippingFolders = document.getElementById('shippingFolders');
+        if (!shippingFolders) {
+            console.error('shippingFolders element not found!');
             return;
         }
 
-        elements.shippingFolders.innerHTML = '';
-
-        const filter = elements.shippingFilter?.value || 'all';
+        // Show loading state
+        shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666; font-size:16px;">Sevkiyat verileri yükleniyor...</div>';
 
         let containers = [];
         let packagesData = [];
 
         // Get data based on current mode
         if (isUsingExcel || !supabase || !navigator.onLine) {
+            console.log('Using Excel data for shipping');
+            
             // Use Excel data for containers
-            containers = excelPackages
-                .filter(pkg => pkg.container_id)
-                .reduce((acc, pkg) => {
-                    if (!acc.find(c => c.id === pkg.container_id)) {
-                        acc.push({
+            const excelContainers = {};
+            
+            // Group packages by container
+            excelPackages.forEach(pkg => {
+                if (pkg.container_id) {
+                    if (!excelContainers[pkg.container_id]) {
+                        excelContainers[pkg.container_id] = {
                             id: pkg.container_id,
                             container_no: pkg.container_id,
-                            customer: pkg.customer_name,
-                            package_count: 1,
-                            total_quantity: pkg.total_quantity,
-                            status: 'sevk-edildi',
-                            created_at: pkg.created_at,
-                            packages: [pkg]
-                        });
-                    } else {
-                        const container = acc.find(c => c.id === pkg.container_id);
-                        container.package_count += 1;
-                        container.total_quantity += pkg.total_quantity;
-                        container.packages.push(pkg);
+                            packages: [],
+                            package_count: 0,
+                            total_quantity: 0,
+                            status: pkg.status || 'beklemede',
+                            created_at: pkg.created_at
+                        };
                     }
-                    return acc;
-                }, []);
+                    excelContainers[pkg.container_id].packages.push(pkg);
+                    excelContainers[pkg.container_id].package_count++;
+                    excelContainers[pkg.container_id].total_quantity += pkg.total_quantity || 0;
+                }
+            });
             
-            console.log('Excel containers:', containers);
+            containers = Object.values(excelContainers);
+            console.log('Excel containers found:', containers.length);
+            
         } else {
+            console.log('Using Supabase data for shipping');
+            
             // Use Supabase data
-            let query = supabase
-                .from('containers')
-                .select('*', { count: 'exact' })
-                .order('created_at', { ascending: false })
-                .range(page * pageSize, (page + 1) * pageSize - 1);
+            try {
+                const { data: supabaseContainers, error } = await supabase
+                    .from('containers')
+                    .select('*')
+                    .order('created_at', { ascending: false });
 
-            if (filter !== 'all') query = query.eq('status', filter);
+                if (error) {
+                    console.error('Supabase containers error:', error);
+                    throw error;
+                }
 
-            const { data: supabaseContainers, error: containersError, count } = await query;
-            if (containersError) throw containersError;
-            containers = supabaseContainers || [];
+                containers = supabaseContainers || [];
+                console.log('Supabase containers loaded:', containers.length);
 
-            // Get packages for these containers
-            if (containers.length > 0) {
-                const containerIds = containers.map(c => c.id);
-                const { data: supabasePackages } = await supabase
-                    .from('packages')
-                    .select('id, package_no, total_quantity, container_id, customers(name, code)')
-                    .in('container_id', containerIds);
-                packagesData = supabasePackages || [];
+                // Get packages for these containers if we have containers
+                if (containers.length > 0) {
+                    const containerIds = containers.map(c => c.id);
+                    const { data: supabasePackages } = await supabase
+                        .from('packages')
+                        .select('*, customers(name)')
+                        .in('container_id', containerIds);
+                    
+                    packagesData = supabasePackages || [];
+                    console.log('Packages for containers loaded:', packagesData.length);
+                }
+
+            } catch (supabaseError) {
+                console.error('Supabase shipping data error:', supabaseError);
+                // Fallback to empty array
+                containers = [];
             }
         }
 
+        // Clear loading message
+        shippingFolders.innerHTML = '';
+
         if (!containers || containers.length === 0) {
-            elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
+            shippingFolders.innerHTML = `
+                <div style="text-align:center; padding:60px; color:#666;">
+                    <i class="fas fa-box-open" style="font-size:48px; margin-bottom:20px; opacity:0.5;"></i>
+                    <h3>Henüz konteyner bulunmamaktadır</h3>
+                    <p>Paketleri sevkiyat için konteynerlere ekleyin.</p>
+                    <button onclick="createNewContainer()" class="btn btn-primary" style="margin-top:15px;">
+                        <i class="fas fa-plus"></i> Yeni Konteyner Oluştur
+                    </button>
+                </div>
+            `;
             return;
         }
 
-        // Group by customer for Excel data
+        console.log('Rendering containers:', containers.length);
+
+        // Group containers by customer for folder view
         const customersMap = {};
+        
         containers.forEach(container => {
-            let customerName = 'Diğer';
+            let customerName = 'Genel Sevkiyat';
             
-            if (container.packages && container.packages.length > 0) {
-                // Excel data already has packages
-                const names = container.packages.map(p => p.customer_name).filter(Boolean);
-                if (names.length > 0) customerName = [...new Set(names)].join(', ');
-            } else if (packagesData.length > 0) {
-                // Supabase data - find packages for this container
+            // Try to find customer name from packages
+            if (packagesData.length > 0) {
                 const containerPackages = packagesData.filter(p => p.container_id === container.id);
-                const names = containerPackages.map(p => p.customers?.name).filter(Boolean);
-                if (names.length > 0) customerName = [...new Set(names)].join(', ');
-                container.packages = containerPackages;
-                container.package_count = containerPackages.length;
-                container.total_quantity = containerPackages.reduce((sum, p) => sum + (p.total_quantity || 0), 0);
+                if (containerPackages.length > 0) {
+                    const customerNames = containerPackages.map(p => p.customers?.name).filter(Boolean);
+                    if (customerNames.length > 0) {
+                        customerName = [...new Set(customerNames)].join(', ');
+                    }
+                }
+            } else if (container.packages && container.packages.length > 0) {
+                // For Excel data
+                const customerNames = container.packages.map(p => p.customer_name).filter(Boolean);
+                if (customerNames.length > 0) {
+                    customerName = [...new Set(customerNames)].join(', ');
+                }
+            } else if (container.customer) {
+                customerName = container.customer;
             }
 
-            if (!customersMap[customerName]) customersMap[customerName] = [];
+            if (!customersMap[customerName]) {
+                customersMap[customerName] = [];
+            }
             customersMap[customerName].push(container);
         });
 
-        // Render folders
+        // Render customer folders
         Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'customer-folder';
+            folderDiv.style.marginBottom = '20px';
+            folderDiv.style.border = '1px solid var(--border)';
+            folderDiv.style.borderRadius = '8px';
+            folderDiv.style.overflow = 'hidden';
 
             const folderHeader = document.createElement('div');
             folderHeader.className = 'folder-header';
+            folderHeader.style.padding = '15px';
+            folderHeader.style.background = 'var(--light)';
+            folderHeader.style.cursor = 'pointer';
+            folderHeader.style.display = 'flex';
+            folderHeader.style.justifyContent = 'space-between';
+            folderHeader.style.alignItems = 'center';
+            
             folderHeader.innerHTML = `
-                <span>${customerName}</span>
-                <span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>
+                <div>
+                    <strong>${escapeHtml(customerName)}</strong>
+                    <span style="margin-left:10px; color:#666; font-size:0.9em;">
+                        (${customerContainers.length} konteyner)
+                    </span>
+                </div>
+                <div class="folder-toggle">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
             `;
 
             const folderContent = document.createElement('div');
             folderContent.className = 'folder-content';
+            folderContent.style.padding = '0';
+            folderContent.style.display = 'none'; // Start collapsed
 
             const table = document.createElement('table');
-            table.className = 'package-table';
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
             table.innerHTML = `
                 <thead>
-                    <tr>
-                        <th><input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)"></th>
-                        <th>Konteyner No</th>
-                        <th>Paket Sayısı</th>
-                        <th>Toplam Adet</th>
-                        <th>Tarih</th>
-                        <th>Durum</th>
-                        <th>İşlemler</th>
+                    <tr style="background: var(--light);">
+                        <th style="padding:12px; border:1px solid var(--border); width:30px;">
+                            <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
+                        </th>
+                        <th style="padding:12px; border:1px solid var(--border);">Konteyner No</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Durum</th>
+                        <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${customerContainers.map(container => `
                         <tr>
-                            <td><input type="checkbox" value="${container.id}" class="container-checkbox"></td>
-                            <td>${container.container_no}</td>
-                            <td>${container.package_count || 0}</td>
-                            <td>${container.total_quantity || 0}</td>
-                            <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                            <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                            <td>
-                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm">Detay</button>
-                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
-                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                <input type="checkbox" value="${container.id}" class="container-checkbox">
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <strong>${escapeHtml(container.container_no)}</strong>
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                ${container.package_count || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                ${container.total_quantity || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <span class="status-${container.status || 'beklemede'}">
+                                    ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                                </span>
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
+                                    <i class="fas fa-eye"></i> Detay
+                                </button>
+                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
+                                    <i class="fas fa-plus"></i> Paket Ekle
+                                </button>
+                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
+                                    <i class="fas fa-ship"></i> Sevk Et
+                                </button>
                             </td>
                         </tr>
                     `).join('')}
@@ -820,21 +896,40 @@ async function populateShippingTable(page = 0) {
             folderDiv.appendChild(folderHeader);
             folderDiv.appendChild(folderContent);
 
+            // Folder toggle functionality
             folderHeader.addEventListener('click', () => {
-                folderDiv.classList.toggle('folder-open');
-                folderContent.style.display = folderDiv.classList.contains('folder-open') ? 'block' : 'none';
+                const isOpen = folderContent.style.display === 'block';
+                folderContent.style.display = isOpen ? 'none' : 'block';
+                const icon = folderHeader.querySelector('.fa-chevron-down');
+                icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
             });
 
-            elements.shippingFolders.appendChild(folderDiv);
+            shippingFolders.appendChild(folderDiv);
         });
+
+        console.log('Shipping table populated successfully with', Object.keys(customersMap).length, 'customer folders');
 
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
-        showAlert('Sevkiyat tablosu yükleme hatası', 'error');
+        const shippingFolders = document.getElementById('shippingFolders');
+        if (shippingFolders) {
+            shippingFolders.innerHTML = `
+                <div style="text-align:center; padding:40px; color:#dc3545;">
+                    <i class="fas fa-exclamation-triangle" style="font-size:48px; margin-bottom:20px;"></i>
+                    <h3>Sevkiyat verileri yüklenirken hata oluştu</h3>
+                    <p>${error.message}</p>
+                    <button onclick="populateShippingTable()" class="btn btn-primary" style="margin-top:15px;">
+                        <i class="fas fa-redo"></i> Tekrar Dene
+                    </button>
+                </div>
+            `;
+        }
+        showAlert('Sevkiyat tablosu yüklenirken hata oluştu: ' + error.message, 'error');
     } finally {
         isShippingTableLoading = false;
     }
 }
+
 
 
 
@@ -1935,3 +2030,26 @@ async function sendToRamp(containerNo = null) {
 
 
 
+
+// Helper function to toggle select all checkboxes in a customer folder
+function toggleSelectAllCustomer(checkbox) {
+    const folder = checkbox.closest('.customer-folder');
+    const checkboxes = folder.querySelectorAll('.container-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+}
+
+// Simple viewContainerDetails function for testing
+function viewContainerDetails(containerId) {
+    showAlert(`Konteyner detayları görüntüleniyor: ${containerId}`, 'info');
+    console.log('View container details:', containerId);
+}
+
+// Simple shipContainer function for testing
+function shipContainer(containerNo) {
+    if (confirm(`Konteyner ${containerNo} sevk edilecek. Emin misiniz?`)) {
+        showAlert(`Konteyner ${containerNo} sevk edildi`, 'success');
+        populateShippingTable(); // Refresh the table
+    }
+}
