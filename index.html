@@ -7,6 +7,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <img src="${logoPathFinal}" class="logo-img">
@@ -732,12 +733,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 <!-- 1. External libraries and database connection first -->
-<script src="js/supabase.js"></script>
+
 
 <!-- 2. UI functions (needed by other modules) -->
 <script src="js/printer.js"></script>
 <script src="js/ui.js"></script>
-
+<script src="js/supabase.js"></script>
 <!-- 3. Authentication (depends on supabase and ui) -->
 <script src="js/auth.js"></script>
 
