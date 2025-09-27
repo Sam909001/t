@@ -13,285 +13,6 @@ function initializeElements() {
     return elements;
 }
 
-
-
-
-// 2. Add a function to verify critical elements exist after DOM load
-function verifyCriticalElements() {
-    const criticalElements = {
-        'customerSelect': 'Customer dropdown is required for the app to function',
-        'personnelSelect': 'Personnel dropdown is required for the app to function', 
-        'packagesTableBody': 'Package table is required to display data',
-        'appContainer': 'Main app container is required',
-        'loginScreen': 'Login screen is required for authentication'
-    };
-    
-    let missingElements = [];
-    
-    Object.keys(criticalElements).forEach(elementKey => {
-        if (!elements[elementKey]) {
-            missingElements.push({
-                key: elementKey,
-                message: criticalElements[elementKey]
-            });
-        }
-    });
-    
-    if (missingElements.length > 0) {
-        console.error('❌ Critical UI elements missing:');
-        missingElements.forEach(missing => {
-            console.error(`  - ${missing.key}: ${missing.message}`);
-        });
-        
-        if (typeof showAlert === 'function') {
-            showAlert(`Critical UI elements missing: ${missingElements.map(m => m.key).join(', ')}`, 'error');
-        }
-        
-        return false;
-    }
-    
-    console.log('✅ All critical UI elements verified');
-    return true;
-}
-
-// 3. Add enhanced alert function that works even if alertContainer is missing
-function showAlert(message, type = 'info', duration = 5000) {
-    // Prevent duplicate alerts
-    const alertKey = `${message}-${type}`;
-    if (alertQueue.has(alertKey)) {
-        return;
-    }
-    
-    alertQueue.add(alertKey);
-    
-    // Fallback if alertContainer is missing
-    if (!elements.alertContainer && !document.getElementById('alertContainer')) {
-        console.log(`${type.toUpperCase()}: ${message}`);
-        
-        // Create a temporary toast-style alert
-        const tempAlert = document.createElement('div');
-        tempAlert.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${type === 'error' ? '#f44336' : type === 'success' ? '#4CAF50' : '#2196F3'};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 4px;
-            z-index: 10000;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            max-width: 300px;
-            word-wrap: break-word;
-        `;
-        tempAlert.textContent = message;
-        document.body.appendChild(tempAlert);
-        
-        setTimeout(() => {
-            if (tempAlert.parentNode) {
-                tempAlert.remove();
-                alertQueue.delete(alertKey);
-            }
-        }, duration);
-        
-        return tempAlert;
-    }
-    
-    // Use existing alert system if available
-    const alertContainer = elements.alertContainer || document.getElementById('alertContainer');
-    if (!alertContainer) {
-        alertQueue.delete(alertKey);
-        return;
-    }
-    
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type}`;
-    
-    const span = document.createElement('span');
-    span.textContent = message;
-    
-    const button = document.createElement('button');
-    button.className = 'alert-close';
-    button.textContent = '×';
-    
-    alert.appendChild(span);
-    alert.appendChild(button);
-    
-    alertContainer.appendChild(alert);
-    
-    // Close button event
-    button.addEventListener('click', () => {
-        alert.classList.add('hide');
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.remove();
-                alertQueue.delete(alertKey);
-            }
-        }, 300);
-    });
-    
-    // Auto close
-    if (duration > 0) {
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.classList.add('hide');
-                setTimeout(() => {
-                    if (alert.parentNode) {
-                        alert.remove();
-                        alertQueue.delete(alertKey);
-                    }
-                }, 300);
-            }
-        }, duration);
-    }
-    
-    return alert;
-}
-
-
-
-
-
-// 4. Add DOM ready check function - FIXED VERSION
-function ensureDOMReady(callback) {
-    if (!callback || typeof callback !== 'function') {
-        return new Promise((resolve) => {
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', resolve);
-            } else {
-                resolve();
-            }
-        });
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', callback);
-    } else {
-        callback();
-    }
-}
-
-
-
-
-
-
-// 5. Add function to check if required HTML elements exist in the DOM
-function checkRequiredHTML() {
-    const requiredElements = [
-        'customerSelect',
-        'personnelSelect', 
-        'packagesTableBody',
-        'appContainer',
-        'loginScreen'
-    ];
-    
-    console.log('🔍 Checking for required HTML elements...');
-    
-    const missing = [];
-    const found = [];
-    
-    requiredElements.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            found.push(id);
-        } else {
-            missing.push(id);
-        }
-    });
-    
-    console.log('✅ Found elements:', found);
-    if (missing.length > 0) {
-        console.error('❌ Missing elements:', missing);
-        console.error('Make sure your HTML contains these elements:');
-        missing.forEach(id => {
-            console.error(`  - <select id="${id}"> or <div id="${id}"> as appropriate`);
-        });
-    }
-    
-    return missing.length === 0;
-}
-
-
-
-
-
-
-
-
-
-// 1. Update the initializeElementsObject function to ensure global elements object is created
-function initializeElementsObject() {
-    // Make sure we're using the global elements object
-    if (typeof elements === 'undefined') {
-        window.elements = {};
-    }
-    
-    const elementMap = {
-        loginScreen: 'loginScreen',
-        appContainer: 'appContainer',
-        loginButton: 'loginBtn',
-        emailInput: 'email',
-        passwordInput: 'password',
-        customerSelect: 'customerSelect',
-        personnelSelect: 'personnelSelect',
-        currentDate: 'currentDate',
-        barcodeInput: 'barcodeInput',
-        packagesTableBody: 'packagesTableBody',
-        packageDetailContent: 'packageDetailContent',
-        shippingFolders: 'shippingFolders',
-        stockTableBody: 'stockTableBody',
-        customerList: 'customerList',
-        allCustomersList: 'allCustomersList',
-        toast: 'toast',
-        containerNumber: 'containerNumber',
-        totalPackages: 'totalPackages',
-        shippingFilter: 'shippingFilter',
-        stockSearch: 'stockSearch',
-        selectAllPackages: 'selectAllPackages',
-        apiKeyModal: 'apiKeyModal',
-        apiKeyInput: 'apiKeyInput',
-        quantityInput: 'quantityInput',
-        quantityModal: 'quantityModal',
-        quantityModalTitle: 'quantityModalTitle',
-        connectionStatus: 'connectionStatus',
-        alertContainer: 'alertContainer',
-        scannerToggle: 'scannerToggle',
-        containerSearch: 'containerSearch',
-        settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn'
-    };
-    
-    Object.keys(elementMap).forEach(key => {
-        const element = document.getElementById(elementMap[key]);
-        if (element) {
-            elements[key] = element;
-            // Also set on window for global access
-            window.elements[key] = element;
-        } else {
-            // Only warn about critical missing elements
-            const criticalElements = ['loginScreen', 'appContainer', 'customerSelect', 'personnelSelect', 'packagesTableBody'];
-            if (criticalElements.includes(key)) {
-                console.warn(`Critical element ${elementMap[key]} not found`);
-            }
-            elements[key] = null;
-            window.elements[key] = null;
-        }
-    });
-    
-    // Log successful initialization
-    const foundElements = Object.values(elements).filter(el => el !== null).length;
-    const totalElements = Object.keys(elementMap).length;
-    console.log(`UI Elements initialized: ${foundElements}/${totalElements} elements found`);
-    
-    return elements;
-}
-
-
-
-
-// Update the initializeElementsObject function:
 function initializeElementsObject() {
     const elementMap = {
         loginScreen: 'loginScreen',
@@ -320,13 +41,16 @@ function initializeElementsObject() {
         quantityInput: 'quantityInput',
         quantityModal: 'quantityModal',
         quantityModalTitle: 'quantityModalTitle',
+        scannedBarcodes: 'scannedBarcodes',
         connectionStatus: 'connectionStatus',
         alertContainer: 'alertContainer',
         scannerToggle: 'scannerToggle',
         containerSearch: 'containerSearch',
         settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn'
-        // Removed missing elements: scannedBarcodes, toggleTheme, exportData, showApiKeyModal
+        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        toggleThemeBtn: 'toggleThemeBtn',
+        downloadDataBtn: 'downloadDataBtn',
+        changeApiKeyBtn: 'changeApiKeyBtn',
     };
     
     Object.keys(elementMap).forEach(key => {
@@ -334,20 +58,13 @@ function initializeElementsObject() {
         if (element) {
             elements[key] = element;
         } else {
-            // Only log critical missing elements, ignore optional ones
-            const criticalElements = ['loginScreen', 'appContainer', 'customerSelect', 'packagesTableBody'];
-            if (criticalElements.includes(key)) {
-                console.warn(`Critical element ${elementMap[key]} not found`);
-            }
+            console.warn(`Element ${elementMap[key]} not found`);
             elements[key] = null;
         }
     });
     
     return elements;
 }
-
-
-
 
 // Profesyonel alert sistemi
 // 1. Prevent duplicate alerts with debouncing
@@ -717,25 +434,10 @@ function displayScannedBarcodes() {
 
 function selectCustomerFromModal(customer) {
     selectedCustomer = customer;
-
-    // Check if option exists
-    let option = elements.customerSelect.querySelector(`option[value="${customer.id}"]`);
-    if (!option) {
-        option = document.createElement('option');
-        option.value = customer.id;
-        option.textContent = customer.name;
-        elements.customerSelect.appendChild(option);
-    }
-
     elements.customerSelect.value = customer.id;
-
     closeModal();
     showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
 }
-
-
-
-
         
 // Package operations
 function openQuantityModal(product) {
@@ -746,18 +448,7 @@ function openQuantityModal(product) {
     elements.quantityModal.style.display = 'flex';
     elements.quantityInput.focus();
 }
-
-
-function openStatusQuantityModal(status) {
-    selectedProduct = status; // 👈 reuse the same global
-    elements.quantityModalTitle.textContent = `${status} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
-}
-
-
+        
 function confirmQuantity() {
     const quantity = parseInt(elements.quantityInput.value);
     
@@ -781,51 +472,6 @@ function confirmQuantity() {
     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
     closeQuantityModal();
 }
-
-
-
-// 6. Enhanced modal close functions with safety checks
-function closeModal() {
-    const modals = ['customerModal', 'quantityModal', 'manualModal', 'settingsModal', 'apiKeyModal'];
-    
-    modals.forEach(modalId => {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    });
-}
-
-function closeQuantityModal() {
-    const modal = document.getElementById('quantityModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-    
-    // Clear any error states
-    const error = document.getElementById('quantityError');
-    if (error) {
-        error.style.display = 'none';
-    }
-}
-
-function closeManualModal() {
-    const modal = document.getElementById('manualModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-    
-    // Clear form fields safely
-    const productInput = document.getElementById('manualProduct');
-    const quantityInput = document.getElementById('manualQuantity');
-    
-    if (productInput) productInput.value = '';
-    if (quantityInput) quantityInput.value = '';
-}
-
-
-
-
         
 function openManualEntry() {
     document.getElementById('manualModal').style.display = 'flex';
@@ -855,22 +501,6 @@ function addManualProduct() {
     document.getElementById('manualQuantity').value = '';
     closeManualModal();
 }
-
-
-
-// Open Extra Modal
-function openExtraModal() {
-    document.getElementById('extraModal').style.display = 'block';
-}
-
-// Close Extra Modal
-function closeExtraModal() {
-    document.getElementById('extraModal').style.display = 'none';
-}
-
-
-
-
 
 // Settings functions
 function showSettingsModal() {
@@ -2081,147 +1711,3 @@ function clearStockSearch() {
         row.style.display = '';
     });
 }
-
-
-document.addEventListener('DOMContentLoaded', function () {
-  const qtyModal = document.getElementById('quantityModal');
-  const qtyInput = document.getElementById('quantityInput');
-
-  // 1) Ensure initial input isn't "0"
-  if (qtyInput && qtyInput.value === '0') qtyInput.value = '';
-
-  // 2) Watch the modal becoming visible and clear the input if it's "0"
-  if (qtyModal && qtyInput) {
-    const mo = new MutationObserver(() => {
-      try {
-        const visible = window.getComputedStyle(qtyModal).display !== 'none';
-        if (visible) {
-          // Make sure placeholder/value not showing "0"
-          if (qtyInput.value === '0') qtyInput.value = '';
-          // prefer empty placeholder so user types fresh
-          qtyInput.placeholder = '';
-          // give focus (non-invasive)
-          setTimeout(() => { try { qtyInput.focus(); qtyInput.select(); } catch (e) {} }, 80);
-        }
-      } catch (e) { /* ignore */ }
-    });
-    mo.observe(qtyModal, { attributes: true, attributeFilter: ['style', 'class'] });
-  }
-
-  // 3) Auto-hide badges when their content is empty or "0"
-  const badgeObserver = new MutationObserver(mutations => {
-    mutations.forEach(m => {
-      const el = m.target;
-      if (!el || !el.classList) return;
-      if (!el.classList.contains('quantity-badge')) return;
-      const txt = (el.textContent || '').trim();
-      if (txt === '' || txt === '0') {
-        el.style.display = 'none';
-      } else {
-        el.style.display = 'flex';
-      }
-    });
-  });
-
-  // Attach observer to existing badges
-  document.querySelectorAll('.quantity-badge').forEach(b => {
-    badgeObserver.observe(b, { childList: true, subtree: true, characterData: true });
-    // initial normalize
-    const txt = (b.textContent || '').trim();
-    b.style.display = (txt === '' || txt === '0') ? 'none' : 'flex';
-  });
-});
-
-
-
-
-
-
-
-// 7. Add initialization function that should be called after DOM is ready
-function initializeUI() {
-    console.log('🔧 Initializing UI components...');
-    
-    // Check if required HTML elements exist
-    if (!checkRequiredHTML()) {
-        console.error('❌ Cannot initialize UI - required HTML elements are missing');
-        return false;
-    }
-    
-    // Initialize elements object
-    initializeElementsObject();
-    
-    // Verify critical elements
-    if (!verifyCriticalElements()) {
-        console.error('❌ UI initialization failed - critical elements missing');
-        return false;
-    }
-    
-    // Set up UI event listeners and other initialization
-    setupUIEventListeners();
-    
-    console.log('✅ UI initialization completed successfully');
-    return true;
-}
-
-// 8. Setup UI event listeners
-function setupUIEventListeners() {
-    // Modal close buttons
-    document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal-close') || 
-            e.target.classList.contains('close-modal')) {
-            closeModal();
-        }
-    });
-    
-    // ESC key to close modals
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeModal();
-        }
-    });
-    
-    // Auto-focus on inputs when modals open
-    const quantityModal = document.getElementById('quantityModal');
-    if (quantityModal) {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    if (quantityModal.style.display !== 'none') {
-                        const input = document.getElementById('quantityInput');
-                        if (input) {
-                            setTimeout(() => input.focus(), 100);
-                        }
-                    }
-                }
-            });
-        });
-        observer.observe(quantityModal, { attributes: true });
-    }
-}
-
-// 9. Update the DOMContentLoaded event listener
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 DOM loaded - starting UI initialization...');
-    
-    // Wait a bit for all scripts to load
-    setTimeout(() => {
-        const uiReady = initializeUI();
-        if (uiReady) {
-            console.log('✅ UI ready for application initialization');
-            
-            // Trigger any additional initialization
-            if (typeof window.onUIReady === 'function') {
-                window.onUIReady();
-            }
-        } else {
-            console.error('❌ UI initialization failed');
-        }
-    }, 100);
-});
-
-// Export functions for global access
-window.initializeElementsObject = initializeElementsObject;
-window.verifyCriticalElements = verifyCriticalElements;
-window.checkRequiredHTML = checkRequiredHTML;
-window.ensureDOMReady = ensureDOMReady;
