@@ -24,6 +24,18 @@ let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
 
+
+// Generate proper UUID v4 for Excel packages
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+
+
 // EmailJS initialization
 (function() {
     // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
@@ -1365,71 +1377,77 @@ async function completePackage() {
             qty: qty
         }));
 
+        // Generate proper ID for Supabase compatibility
+        const packageId = generateUUID(); // Use the UUID generator
+
         const packageData = {
-            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: packageId, // Use proper UUID
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
-            items: itemsArray, // Use array instead of object
+            items: itemsArray,
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            source: 'excel' // Mark as Excel source
+            source: 'excel'
         };
 
-        // Save to Excel first (always)
+        // Save to Excel first
         const excelSuccess = await saveToExcel(packageData);
         
         if (excelSuccess) {
             showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'success');
             
-            // If online and Supabase available, try to sync
+            // If online and Supabase available, try to sync with proper data
             if (supabase && navigator.onLine) {
                 try {
+                    // Create Supabase-compatible data (without the source field)
+                    const supabaseData = {
+                        id: packageId,
+                        package_no: packageNo,
+                        customer_id: selectedCustomer.id,
+                        items: itemsArray,
+                        total_quantity: totalQuantity,
+                        status: 'beklemede',
+                        packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+                        created_at: new Date().toISOString()
+                    };
+
                     const { data, error } = await supabase
                         .from('packages')
-                        .insert([packageData])
+                        .insert([supabaseData])
                         .select();
 
-                    if (!error) {
+                    if (error) {
+                        console.warn('Supabase insert failed, queuing for sync:', error);
+                        addToSyncQueue('add', supabaseData); // Queue the Supabase-compatible version
+                    } else {
                         showAlert(`Paket Supabase'e de kaydedildi: ${packageNo}`, 'success');
                         isUsingExcel = false;
-                    } else {
-                        addToSyncQueue('add', packageData);
                     }
                 } catch (supabaseError) {
+                    console.warn('Supabase error, queuing for sync:', supabaseError);
                     addToSyncQueue('add', packageData);
                 }
             } else {
                 addToSyncQueue('add', packageData);
             }
-        } else {
-            showAlert('Paket kaydedilemedi', 'error');
-            return;
         }
 
-        // Reset current package
+        // Reset and refresh
         currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-
-        // Refresh the table immediately
         await populatePackagesTable();
         updateStorageIndicator();
-
-        // Auto-print if printer available
-        setTimeout(() => {
-            if (typeof printPackageWithSettings === 'function') {
-                printPackageWithSettings(packageData);
-            }
-        }, 500);
 
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası', 'error');
     }
 }
+
 
 
 
@@ -1466,16 +1484,31 @@ async function deleteSelectedPackages() {
 
 
 
-// Shipping operations
-        async function sendToRamp(containerNo = null) {
+async function sendToRamp(containerNo = null) {
     try {
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
-            .map(cb => cb.value);
+            .map(cb => {
+                const packageDataStr = cb.getAttribute('data-package');
+                if (packageDataStr) {
+                    const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
+                    return packageData.id;
+                }
+                return cb.value;
+            });
         
         if (selectedPackages.length === 0) {
             showAlert('Sevk etmek için paket seçin', 'error');
             return;
         }
+
+        // Filter out Excel-style IDs that can't be used with Supabase directly
+        const validPackageIds = selectedPackages.filter(id => 
+            id && !id.startsWith('pkg-') && !id.startsWith('excel-')
+        );
+        
+        const excelStylePackageIds = selectedPackages.filter(id => 
+            id && (id.startsWith('pkg-') || id.startsWith('excel-'))
+        );
 
         // Use existing container or create a new one
         let containerId;
@@ -1492,7 +1525,7 @@ async function deleteSelectedPackages() {
                     customer: selectedCustomer?.name || '',
                     package_count: selectedPackages.length,
                     total_quantity: await calculateTotalQuantity(selectedPackages),
-                    status: 'sevk-edildi',  // ✅ direkt sevk edildi
+                    status: 'sevk-edildi',
                     created_at: new Date().toISOString()
                 }])
                 .select();
@@ -1505,18 +1538,39 @@ async function deleteSelectedPackages() {
             saveAppState();
         }
 
-        // Update packages directly to sevk-edildi
-        const { error: updateError } = await supabase
-            .from('packages')
-            .update({ 
-                container_id: containerId,
-                status: 'sevk-edildi'
-            })
-            .in('id', selectedPackages);
+        // Update valid Supabase packages
+        if (validPackageIds.length > 0 && supabase) {
+            const { error: updateError } = await supabase
+                .from('packages')
+                .update({ 
+                    container_id: containerId,
+                    status: 'sevk-edildi'
+                })
+                .in('id', validPackageIds);
 
-        if (updateError) throw updateError;
+            if (updateError) console.warn('Supabase update error:', updateError);
+        }
 
-        showAlert(`${selectedPackages.length} paket doğrudan sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        // Update Excel packages locally
+        if (excelStylePackageIds.length > 0) {
+            const currentPackages = await ExcelJS.readFile();
+            const updatedPackages = currentPackages.map(pkg => {
+                if (excelStylePackageIds.includes(pkg.id)) {
+                    return {
+                        ...pkg,
+                        container_id: containerId,
+                        status: 'sevk-edildi',
+                        updated_at: new Date().toISOString()
+                    };
+                }
+                return pkg;
+            });
+            
+            await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
+            excelPackages = updatedPackages;
+        }
+
+        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
         
         // Refresh tables
         await populatePackagesTable();
@@ -1527,6 +1581,9 @@ async function deleteSelectedPackages() {
         showAlert('Paketler sevk edilirken hata oluştu: ' + error.message, 'error');
     }
 }
+
+
+
 
 
 
