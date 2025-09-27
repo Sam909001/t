@@ -1,5 +1,5 @@
- // Supabase initialization - Varsayılan değerler
-        const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
+// Supabase initialization - Varsayılan değerler
+const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
 
@@ -19,6 +19,11 @@ let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
 
+// Excel local storage
+let excelPackages = [];
+let excelSyncQueue = [];
+let isUsingExcel = false;
+
 // EmailJS initialization
 (function() {
     // EmailJS kullanıcı ID'si - KENDİ ID'NİZİ EKLEYİN
@@ -28,8 +33,53 @@ let packagesTableLoading = false;
 // Elementleri bir defa tanımla
 const elements = {};
 
+// Excel.js library (simple implementation)
+const ExcelJS = {
+    readFile: async function() {
+        try {
+            const data = localStorage.getItem('excelPackages');
+            return data ? JSON.parse(data) : [];
+        } catch (error) {
+            console.error('Excel read error:', error);
+            return [];
+        }
+    },
+    
+    writeFile: async function(data) {
+        try {
+            localStorage.setItem('excelPackages', JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error('Excel write error:', error);
+            return false;
+        }
+    },
+    
+    // Simple XLSX format simulation
+    toExcelFormat: function(packages) {
+        return packages.map(pkg => ({
+            id: pkg.id || `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            package_no: pkg.package_no,
+            customer_id: pkg.customer_id,
+            customer_name: pkg.customer_name,
+            items: pkg.items,
+            total_quantity: pkg.total_quantity,
+            status: pkg.status,
+            packer: pkg.packer,
+            created_at: pkg.created_at,
+            updated_at: pkg.updated_at || new Date().toISOString(),
+            source: 'excel'
+        }));
+    },
+    
+    fromExcelFormat: function(excelData) {
+        return excelData.map(row => ({
+            ...row,
+            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items
+        }));
+    }
+};
 
-        
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
     // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
@@ -40,6 +90,8 @@ function initializeSupabase() {
     if (!SUPABASE_ANON_KEY) {
         console.warn('Supabase API key not set, showing modal');
         showApiKeyModal();
+        isUsingExcel = true;
+        showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
         return null;
     }
     
@@ -47,17 +99,159 @@ function initializeSupabase() {
         // Global supabase değişkenine ata
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized successfully');
+        isUsingExcel = false;
         return supabase;
     } catch (error) {
         console.error('Supabase initialization error:', error);
-        showAlert('Supabase başlatılamadı. API anahtarını kontrol edin.', 'error');
+        showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
+        isUsingExcel = true;
         showApiKeyModal();
         return null;
     }
 }
 
-
+// Excel local storage functions
+async function initializeExcelStorage() {
+    try {
+        excelPackages = await ExcelJS.readFile();
+        console.log('Excel packages loaded:', excelPackages.length);
         
+        // Sync queue'yu yükle
+        const savedQueue = localStorage.getItem('excelSyncQueue');
+        excelSyncQueue = savedQueue ? JSON.parse(savedQueue) : [];
+        
+        return excelPackages;
+    } catch (error) {
+        console.error('Excel storage init error:', error);
+        excelPackages = [];
+        return [];
+    }
+}
+
+async function saveToExcel(packageData) {
+    try {
+        // Mevcut paketleri oku
+        const currentPackages = await ExcelJS.readFile();
+        
+        // Yeni paketi ekle veya güncelle
+        const existingIndex = currentPackages.findIndex(p => p.id === packageData.id);
+        if (existingIndex >= 0) {
+            currentPackages[existingIndex] = packageData;
+        } else {
+            currentPackages.push(packageData);
+        }
+        
+        // Excel formatına çevir ve kaydet
+        const excelData = ExcelJS.toExcelFormat(currentPackages);
+        const success = await ExcelJS.writeFile(excelData);
+        
+        if (success) {
+            excelPackages = currentPackages;
+            console.log('Package saved to Excel');
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Save to Excel error:', error);
+        return false;
+    }
+}
+
+async function deleteFromExcel(packageId) {
+    try {
+        const currentPackages = await ExcelJS.readFile();
+        const filteredPackages = currentPackages.filter(p => p.id !== packageId);
+        
+        const excelData = ExcelJS.toExcelFormat(filteredPackages);
+        const success = await ExcelJS.writeFile(excelData);
+        
+        if (success) {
+            excelPackages = filteredPackages;
+            console.log('Package deleted from Excel');
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Delete from Excel error:', error);
+        return false;
+    }
+}
+
+// Sync functions
+async function syncExcelWithSupabase() {
+    if (!supabase || !navigator.onLine) {
+        console.log('Cannot sync: No Supabase client or offline');
+        return false;
+    }
+    
+    try {
+        const queue = [...excelSyncQueue];
+        if (queue.length === 0) {
+            console.log('No packages to sync');
+            return true;
+        }
+        
+        showAlert(`${queue.length} paket senkronize ediliyor...`, 'info');
+        
+        for (const operation of queue) {
+            try {
+                if (operation.type === 'add') {
+                    const { error } = await supabase
+                        .from('packages')
+                        .insert([operation.data]);
+                    
+                    if (error) throw error;
+                    
+                } else if (operation.type === 'update') {
+                    const { error } = await supabase
+                        .from('packages')
+                        .update(operation.data)
+                        .eq('id', operation.data.id);
+                    
+                    if (error) throw error;
+                    
+                } else if (operation.type === 'delete') {
+                    const { error } = await supabase
+                        .from('packages')
+                        .delete()
+                        .eq('id', operation.data.id);
+                    
+                    if (error) throw error;
+                }
+                
+                // Başarılı olanı kuyruktan kaldır
+                excelSyncQueue = excelSyncQueue.filter(op => 
+                    !(op.type === operation.type && op.data.id === operation.data.id)
+                );
+                
+            } catch (opError) {
+                console.error('Sync operation failed:', opError);
+                // Bu operasyonu bir sonrakine bırak
+            }
+        }
+        
+        // Kuyruğu kaydet
+        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+        
+        showAlert('Senkronizasyon tamamlandı', 'success');
+        return true;
+        
+    } catch (error) {
+        console.error('Sync error:', error);
+        showAlert('Senkronizasyon hatası', 'error');
+        return false;
+    }
+}
+
+function addToSyncQueue(operationType, data) {
+    excelSyncQueue.push({
+        type: operationType,
+        data: data,
+        timestamp: new Date().toISOString()
+    });
+    
+    localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+}
 
 // FIXED: API anahtarını kaydet ve istemciyi başlat
 function saveApiKey() {
@@ -81,10 +275,11 @@ function saveApiKey() {
         document.getElementById('apiKeyModal').style.display = 'none';
         showAlert('API anahtarı kaydedildi', 'success');
         testConnection();
+        
+        // Çevrimiçi olunca senkronize et
+        setTimeout(syncExcelWithSupabase, 2000);
     }
 }
-
-
 
         
 let connectionAlertShown = false; // Prevent duplicate success alert
