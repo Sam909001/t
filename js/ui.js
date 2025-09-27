@@ -434,10 +434,25 @@ function displayScannedBarcodes() {
 
 function selectCustomerFromModal(customer) {
     selectedCustomer = customer;
+
+    // Check if option exists
+    let option = elements.customerSelect.querySelector(`option[value="${customer.id}"]`);
+    if (!option) {
+        option = document.createElement('option');
+        option.value = customer.id;
+        option.textContent = customer.name;
+        elements.customerSelect.appendChild(option);
+    }
+
     elements.customerSelect.value = customer.id;
+
     closeModal();
     showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
 }
+
+
+
+
         
 // Package operations
 function openQuantityModal(product) {
