@@ -1,104 +1,25 @@
-// Replace the DOMContentLoaded listener in app.js:
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM Content Loaded - Checking API key...');
-    
-    // Check if API key exists and is valid
     const savedApiKey = localStorage.getItem('procleanApiKey');
-    const apiKeyModal = document.getElementById('apiKeyModal');
-    
-    if (savedApiKey && savedApiKey.length > 20) { // Basic validation
+    if (savedApiKey) {
         SUPABASE_ANON_KEY = savedApiKey;
         initializeSupabase();
         console.log('API key loaded from localStorage');
-        
-        // Hide API modal if it's visible
-        if (apiKeyModal) {
-            apiKeyModal.style.display = 'none';
-        }
-        
-        // Check if user is already authenticated
-        checkExistingAuth();
-    } else {
-        console.log('No valid API key found, showing modal');
-        // Only show modal if no valid key exists
-        if (apiKeyModal) {
-            apiKeyModal.style.display = 'flex';
-        }
     }
 });
 
-// Update the saveApiKey function to validate better:
-function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    
-    // Better validation
-    if (!apiKey) {
-        showAlert('Lütfen bir API anahtarı girin', 'error');
-        return;
-    }
-    
-    if (apiKey.length < 20) {
-        showAlert('API anahtarı geçersiz görünüyor', 'error');
-        return;
-    }
-    
-    SUPABASE_ANON_KEY = apiKey;
-    localStorage.setItem('procleanApiKey', apiKey);
-    
-    const newClient = initializeSupabase();
-    
-    if (newClient) {
-        document.getElementById('apiKeyModal').style.display = 'none';
-        showAlert('API anahtarı kaydedildi', 'success');
-        
-        // Test connection and proceed to auth
-        testConnection().then(success => {
-            if (success) {
-                checkExistingAuth();
-            }
-        });
-    }
-}
-
-
-
-
-
-// Also update the saveApiKey function in supabase.js to use localStorage:
-function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    if (!apiKey) {
-        showAlert('Lütfen bir API anahtarı girin', 'error');
-        return;
-    }
-    
-    SUPABASE_ANON_KEY = apiKey;
-    localStorage.setItem('procleanApiKey', apiKey); // Change to localStorage
-    
-    const newClient = initializeSupabase();
-    
-    if (newClient) {
-        document.getElementById('apiKeyModal').style.display = 'none';
-        showAlert('API anahtarı kaydedildi', 'success');
-        testConnection();
-    }
-}
-
-
-
-
-// State management functions - Excel based
+// State management functions
 function saveAppState() {
     const state = {
         selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
         selectedPersonnelId: elements.personnelSelect.value,
         currentContainer: currentContainer,
     };
-    sessionStorage.setItem('procleanState', JSON.stringify(state));
+    localStorage.setItem('procleanState', JSON.stringify(state));
 }
 
 function loadAppState() {
-    const savedState = sessionStorage.getItem('procleanState');
+    const savedState = localStorage.getItem('procleanState');
     if (savedState) {
         const state = JSON.parse(savedState);
         
@@ -130,7 +51,7 @@ function loadAppState() {
 }
 
 function clearAppState() {
-    sessionStorage.removeItem('procleanState');
+    localStorage.removeItem('procleanState');
     selectedCustomer = null;
     elements.customerSelect.value = '';
     elements.personnelSelect.value = '';
@@ -148,117 +69,7 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
-// Excel file operations
-function getTodayFileName(type) {
-    const today = new Date().toISOString().split('T')[0];
-    return `proclean_${type}_${today}.xlsx`;
-}
-
-async function loadExcelData(type) {
-    const fileName = getTodayFileName(type);
-    
-    try {
-        const { data, error } = await supabase.storage
-            .from('daily-data')
-            .download(fileName);
-        
-        if (error) {
-            // If file doesn't exist, create it
-            await createEmptyExcelFile(type);
-            return [];
-        }
-        
-        const arrayBuffer = await data.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        
-        return jsonData;
-        
-    } catch (error) {
-        console.error(`Error loading ${type} data:`, error);
-        await createEmptyExcelFile(type);
-        return [];
-    }
-}
-
-
-
-
-async function saveExcelData(type, data) {
-    const fileName = getTodayFileName(type);
-    
-    try {
-        // Create worksheet from data
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, type);
-        
-        // Convert to buffer
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const file = new File([wbout], fileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        
-        // Upload to Supabase storage
-        const { error } = await supabase.storage
-            .from('daily-data')
-            .upload(fileName, file, { upsert: true });
-        
-        if (error) throw error;
-        
-        console.log(`Saved ${type} data to ${fileName}`);
-        return true;
-        
-    } catch (error) {
-        console.error(`Error saving ${type} data:`, error);
-        return false;
-    }
-}
-
-async function createEmptyExcelFile(type) {
-    const fileName = getTodayFileName(type);
-    let headers = [];
-    
-    switch (type) {
-        case 'customers':
-            headers = ['ID', 'Name', 'Code', 'Email', 'Phone', 'Address', 'Created'];
-            break;
-        case 'personnel':
-            headers = ['ID', 'Name', 'Position', 'Email', 'Phone', 'Created'];
-            break;
-        case 'packages':
-            headers = ['ID', 'CustomerID', 'PersonnelID', 'ContainerID', 'PackageType', 'Quantity', 'Status', 'Created'];
-            break;
-        case 'containers':
-            headers = ['ID', 'ContainerNo', 'CustomerID', 'PackageCount', 'TotalQuantity', 'Status', 'Created'];
-            break;
-        case 'stock':
-            headers = ['ID', 'ItemName', 'ItemCode', 'Quantity', 'Unit', 'LastUpdated'];
-            break;
-    }
-    
-    // Create workbook
-    const ws = XLSX.utils.aoa_to_sheet([headers]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, type);
-    
-    // Convert to buffer
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const file = new File([wbout], fileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
-    try {
-        const { error } = await supabase.storage
-            .from('daily-data')
-            .upload(fileName, file);
-        
-        if (error) throw error;
-        
-        console.log(`Created daily file: ${fileName}`);
-    } catch (error) {
-        console.error(`Error creating ${fileName}:`, error);
-    }
-}
-
-// Initialize application - Excel based
+// Initialize application
 async function initApp() {
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
@@ -290,115 +101,7 @@ async function initApp() {
     scheduleDailyClear();
 }
 
-// Excel-based populate functions
-async function populateCustomers() {
-    const customers = await loadExcelData('customers');
-    const select = elements.customerSelect;
-    
-    if (!select) return;
-    
-    select.innerHTML = '<option value="">Müşteri seçin</option>';
-    
-    customers.forEach(customer => {
-        const option = document.createElement('option');
-        option.value = customer.ID;
-        option.textContent = `${customer.Name} (${customer.Code})`;
-        select.appendChild(option);
-    });
-}
-
-async function populatePersonnel() {
-    const personnel = await loadExcelData('personnel');
-    const select = elements.personnelSelect;
-    
-    if (!select) return;
-    
-    select.innerHTML = '<option value="">Personel seçin</option>';
-    
-    personnel.forEach(person => {
-        const option = document.createElement('option');
-        option.value = person.ID;
-        option.textContent = `${person.Name} (${person.Position})`;
-        select.appendChild(option);
-    });
-}
-
-async function populatePackagesTable() {
-    const packages = await loadExcelData('packages');
-    const customers = await loadExcelData('customers');
-    const personnel = await loadExcelData('personnel');
-    
-    const tbody = document.querySelector('#packagesTable tbody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
-    packages.forEach(pkg => {
-        const customer = customers.find(c => c.ID == pkg.CustomerID);
-        const person = personnel.find(p => p.ID == pkg.PersonnelID);
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${pkg.ID}</td>
-            <td>${customer ? customer.Name : 'N/A'}</td>
-            <td>${person ? person.Name : 'N/A'}</td>
-            <td>${pkg.PackageType}</td>
-            <td>${pkg.Quantity}</td>
-            <td>${pkg.Status}</td>
-            <td>${new Date(pkg.Created).toLocaleDateString('tr-TR')}</td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-async function populateStockTable() {
-    const stock = await loadExcelData('stock');
-    const tbody = document.querySelector('#stockTable tbody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
-    stock.forEach(item => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${item.ID}</td>
-            <td>${item.ItemName}</td>
-            <td>${item.ItemCode}</td>
-            <td>${item.Quantity}</td>
-            <td>${item.Unit}</td>
-            <td>${new Date(item.LastUpdated).toLocaleDateString('tr-TR')}</td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-async function populateShippingTable() {
-    const containers = await loadExcelData('containers');
-    const customers = await loadExcelData('customers');
-    
-    const tbody = document.querySelector('#shippingTable tbody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
-    containers.forEach(container => {
-        const customer = customers.find(c => c.ID == container.CustomerID);
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><input type="checkbox" class="container-checkbox" value="${container.ID}"></td>
-            <td>${container.ContainerNo}</td>
-            <td>${customer ? customer.Name : 'N/A'}</td>
-            <td>${container.PackageCount}</td>
-            <td>${container.TotalQuantity}</td>
-            <td>${container.Status}</td>
-            <td>${new Date(container.Created).toLocaleDateString('tr-TR')}</td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// Storage bucket kontrolü ve oluşturma fonksiyonu - Excel için
+// Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
     try {
         // Storage bucket var mı kontrol et
@@ -409,16 +112,16 @@ async function setupStorageBucket() {
             return false;
         }
         
-        const dailyDataBucketExists = buckets.some(bucket => bucket.name === 'daily-data');
+        const reportsBucketExists = buckets.some(bucket => bucket.name === 'reports');
         
-        if (!dailyDataBucketExists) {
-            console.log('Daily-data bucket bulunamadı, oluşturuluyor...');
+        if (!reportsBucketExists) {
+            console.log('Reports bucket bulunamadı, oluşturuluyor...');
             // Bucket oluşturmaya çalış (admin yetkisi gerektirir)
             try {
-                const { data: newBucket, error: createError } = await supabase.storage.createBucket('daily-data', {
-                    public: false,
-                    fileSizeLimit: 52428800, // 50MB
-                    allowedMimeTypes: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+                const { data: newBucket, error: createError } = await supabase.storage.createBucket('reports', {
+                    public: true,
+                    fileSizeLimit: 5242880, // 5MB
+                    allowedMimeTypes: ['application/pdf']
                 });
                 
                 if (createError) {
@@ -426,7 +129,7 @@ async function setupStorageBucket() {
                     return false;
                 }
                 
-                console.log('Daily-data bucket oluşturuldu:', newBucket);
+                console.log('Reports bucket oluşturuldu:', newBucket);
                 return true;
             } catch (createError) {
                 console.warn('Bucket oluşturma hatası:', createError);
@@ -440,6 +143,7 @@ async function setupStorageBucket() {
         return false;
     }
 }
+
 
 async function previewReport() {
     if (!currentReportData) {
@@ -469,7 +173,7 @@ async function previewReport() {
     }
 }
 
-// Container operations - Excel based
+// Container operations
 function loadCurrentContainer() {
     showAlert('Mevcut konteyner yüklendi', 'success');
 }
@@ -479,23 +183,18 @@ async function createNewContainer() {
         const timestamp = new Date().getTime();
         const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
 
-        // Load existing containers
-        const containers = await loadExcelData('containers');
-        const newId = Math.max(0, ...containers.map(c => c.ID || 0)) + 1;
+        const { data: newContainer, error } = await supabase
+            .from('containers')
+            .insert([{
+                container_no: containerNo,
+                customer: null,           // leave blank initially
+                package_count: 0,
+                total_quantity: 0,
+                status: 'beklemede'
+            }])
+            .select('*');                // get inserted row back
 
-        // Create new container
-        const newContainer = {
-            ID: newId,
-            ContainerNo: containerNo,
-            CustomerID: selectedCustomer ? selectedCustomer.id : null,
-            PackageCount: 0,
-            TotalQuantity: 0,
-            Status: 'beklemede',
-            Created: new Date().toISOString()
-        };
-
-        containers.push(newContainer);
-        await saveExcelData('containers', containers);
+        if (error) throw error;
 
         elements.containerNumber.textContent = containerNo;
         currentContainer = containerNo;
@@ -523,24 +222,24 @@ async function deleteContainer() {
     if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
 
     try {
-        // Load data from Excel
-        const containers = await loadExcelData('containers');
-        const packages = await loadExcelData('packages');
-
         // Önce bu konteynerlere bağlı paketleri güncelle
-        packages.forEach(pkg => {
-            if (selectedContainers.includes(pkg.ContainerID?.toString())) {
-                pkg.ContainerID = null;
-                pkg.Status = 'beklemede';
-            }
-        });
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ 
+                container_id: null,
+                status: 'beklemede'
+            })
+            .in('container_id', selectedContainers);
+
+        if (updateError) throw updateError;
 
         // Sonra konteynerleri sil
-        const updatedContainers = containers.filter(c => !selectedContainers.includes(c.ID.toString()));
+        const { error: deleteError } = await supabase
+            .from('containers')
+            .delete()
+            .in('id', selectedContainers);
 
-        // Save back to Excel
-        await saveExcelData('packages', packages);
-        await saveExcelData('containers', updatedContainers);
+        if (deleteError) throw deleteError;
 
         // Eğer silinen konteyner aktif konteyner ise sıfırla
         if (currentContainer && selectedContainers.includes(currentContainer)) {
@@ -619,7 +318,7 @@ function escapeHtml(text) {
 function setupAuthListener() {
     if (!supabase) return;
     
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
         console.log('Auth state change:', event, session?.user?.email || 'No user');
         
         if (session) {
@@ -633,9 +332,6 @@ function setupAuthListener() {
             document.getElementById('loginScreen').style.display = "none";
             document.getElementById('appContainer').style.display = "flex";
             
-            // Setup storage bucket for Excel files
-            await setupStorageBucket();
-            
             initApp();
         } else {
             document.getElementById('loginScreen').style.display = "flex";
@@ -644,9 +340,9 @@ function setupAuthListener() {
     });
 }
 
-// Load API key from sessionStorage
+// Load API key from localStorage
 function loadApiKey() {
-    const savedApiKey = sessionStorage.getItem('procleanApiKey');
+    const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
         SUPABASE_ANON_KEY = savedApiKey;
         return true;
@@ -663,9 +359,9 @@ function handleSupabaseError(error, context) {
     if (error.code === '42501') {
         userMessage = 'Bu işlem için yetkiniz bulunmamaktadır.';
     } else if (error.code === '42P01') {
-        userMessage = 'Dosya bulunamadı. Lütfen yönetici ile iletişime geçin.';
+        userMessage = 'Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.';
     } else if (error.code === '08006') {
-        userMessage = 'Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
+        userMessage = 'Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
     } else if (error.message) {
         userMessage += ' ' + error.message;
     }
@@ -687,8 +383,8 @@ function handleSupabaseError(error, context) {
 function clearDailyAppState() {
     console.log('[Daily Clear] Clearing frontend state...');
     
-    // Clear saved state in sessionStorage
-    sessionStorage.removeItem('procleanState');
+    // Clear saved state in localStorage
+    localStorage.removeItem('procleanState');
 
     // Reset global variables
     selectedCustomer = null;
@@ -703,22 +399,24 @@ function clearDailyAppState() {
     const packageDetail = document.getElementById('packageDetailContent');
     if (packageDetail) packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 
-    // Reload today's data from Excel files
+    // Reload today's data from Supabase
     loadTodaysData();
 }
 
-// Load today's packages/containers from Excel files
+// Load today's packages/containers from Supabase
 async function loadTodaysData() {
     try {
         if (!supabase) return;
 
-        // Re-render UI tables from Excel files
-        await populatePackagesTable();
-        await populateShippingTable();
-        await populateCustomers();
-        await populatePersonnel();
+        // Fetch today's packages
+        window.packages = await fetchTodaysPackages();
+        window.containers = await fetchTodaysContainers();
 
-        console.log('[Daily Clear] Data reloaded from Excel files');
+        // Re-render UI tables
+        renderPackagesTable();
+        renderShippingTable();
+
+        console.log('[Daily Clear] Data reloaded from Supabase');
     } catch (error) {
         console.error('Error loading today\'s data:', error);
     }
@@ -759,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     try {
-        console.log('Initializing ProClean application with Excel storage...');
+        console.log('Initializing ProClean application...');
         
         // Initialize elements first
         initializeElementsObject();
@@ -841,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         function applySavedTheme() {
-            const savedTheme = sessionStorage.getItem('procleanTheme');
+            const savedTheme = localStorage.getItem('procleanTheme');
             if (savedTheme === 'dark') {
                 document.body.classList.add('dark-mode');
             }
@@ -850,10 +548,10 @@ document.addEventListener('DOMContentLoaded', function() {
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
             if (document.body.classList.contains('dark-mode')) {
-                sessionStorage.setItem('procleanTheme', 'dark');
+                localStorage.setItem('procleanTheme', 'dark');
                 showAlert('Koyu tema etkinleştirildi.', 'info');
             } else {
-                sessionStorage.setItem('procleanTheme', 'light');
+                localStorage.setItem('procleanTheme', 'light');
                 showAlert('Açık tema etkinleştirildi.', 'info');
             }
         }
@@ -863,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
             supabase = initializeSupabase();
             if (supabase) {
                 setupAuthListener();
-                console.log('Supabase client initialized successfully for Excel storage');
+                console.log('Supabase client initialized successfully');
             } else {
                 console.warn('Failed to initialize Supabase client');
             }
@@ -894,7 +592,7 @@ document.addEventListener('DOMContentLoaded', function() {
             elements.appContainer.style.display = 'none';
         }
         
-        console.log('ProClean application initialized successfully with Excel storage');
+        console.log('ProClean application initialized successfully');
         
     } catch (error) {
         console.error('Critical error during DOMContentLoaded:', error);
