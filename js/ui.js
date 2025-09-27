@@ -13,127 +13,58 @@ function initializeElements() {
     return elements;
 }
 
-
-
-
-
-// Robust elements initialization
 function initializeElementsObject() {
-    console.log('Initializing elements object...');
-    
-    // Element map with all required elements
     const elementMap = {
-        // Core containers
-        'loginScreen': 'loginScreen',
-        'appContainer': 'appContainer',
-        
-        // Header elements
-        'currentDate': 'currentDate',
-        'userRole': 'userRole',
-        'containerNumber': 'containerNumber',
-        'totalPackages': 'totalPackages',
-        'connectionStatus': 'connectionStatus',
-        
-        // Packaging tab
-        'customerSelect': 'customerSelect',
-        'personnelSelect': 'personnelSelect',
-        'barcodeInput': 'barcodeInput',
-        'packagesTableBody': 'packagesTableBody',
-        'packageDetailContent': 'packageDetailContent',
-        'selectAllPackages': 'selectAllPackages',
-        
-        // Shipping tab
-        'shippingFolders': 'shippingFolders',
-        'shippingFilter': 'shippingFilter',
-        'containerSearch': 'containerSearch',
-        
-        // Stock tab
-        'stockTableBody': 'stockTableBody',
-        'stockSearch': 'stockSearch',
-        
-        // Reports tab
-        'reportsTableBody': 'reportsTableBody',
-        'reportType': 'reportType',
-        'startDate': 'startDate',
-        'endDate': 'endDate',
-        
-        // Modals
-        'customerList': 'customerList',
-        'allCustomersList': 'allCustomersList',
-        'quantityModal': 'quantityModal',
-        'quantityInput': 'quantityInput',
-        'quantityModalTitle': 'quantityModalTitle',
-        
-        // API key modal
-        'apiKeyModal': 'apiKeyModal',
-        'apiKeyInput': 'apiKeyInput',
-        
-        // Settings modal
-        'settingsModal': 'settingsModal',
-        'closeSettingsModalBtn': 'closeSettingsModalBtn',
-        
-        // Alert system
-        'alertContainer': 'alertContainer',
-        'toast': 'toast',
-        
-        // Buttons
-        'scannerToggle': 'scannerToggle',
-        'loginButton': 'loginBtn'
+        loginScreen: 'loginScreen',
+        appContainer: 'appContainer',
+        loginButton: 'loginBtn',
+        emailInput: 'email',
+        passwordInput: 'password',
+        customerSelect: 'customerSelect',
+        personnelSelect: 'personnelSelect',
+        currentDate: 'currentDate',
+        barcodeInput: 'barcodeInput',
+        packagesTableBody: 'packagesTableBody',
+        packageDetailContent: 'packageDetailContent',
+        shippingFolders: 'shippingFolders',
+        stockTableBody: 'stockTableBody',
+        customerList: 'customerList',
+        allCustomersList: 'allCustomersList',
+        toast: 'toast',
+        containerNumber: 'containerNumber',
+        totalPackages: 'totalPackages',
+        shippingFilter: 'shippingFilter',
+        stockSearch: 'stockSearch',
+        selectAllPackages: 'selectAllPackages',
+        apiKeyModal: 'apiKeyModal',
+        apiKeyInput: 'apiKeyInput',
+        quantityInput: 'quantityInput',
+        quantityModal: 'quantityModal',
+        quantityModalTitle: 'quantityModalTitle',
+        scannedBarcodes: 'scannedBarcodes',
+        connectionStatus: 'connectionStatus',
+        alertContainer: 'alertContainer',
+        scannerToggle: 'scannerToggle',
+        containerSearch: 'containerSearch',
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        toggleThemeBtn: 'toggleThemeBtn',
+        downloadDataBtn: 'downloadDataBtn',
+        changeApiKeyBtn: 'changeApiKeyBtn',
     };
     
-    // Initialize or clear existing elements object
-    window.elements = window.elements || {};
-    
-    let foundCount = 0;
-    let missingCount = 0;
-    
-    // Find and assign elements
     Object.keys(elementMap).forEach(key => {
-        const elementId = elementMap[key];
-        const element = document.getElementById(elementId);
-        
+        const element = document.getElementById(elementMap[key]);
         if (element) {
-            window.elements[key] = element;
-            foundCount++;
+            elements[key] = element;
         } else {
-            console.warn('Element not found:', elementId);
-            window.elements[key] = null;
-            missingCount++;
+            console.warn(`Element ${elementMap[key]} not found`);
+            elements[key] = null;
         }
     });
     
-    console.log(`Elements initialized: ${foundCount} found, ${missingCount} missing`);
-    
-    // Set up critical element fallbacks
-    setupElementFallbacks();
-    
-    return window.elements;
+    return elements;
 }
-
-// Set up fallbacks for missing critical elements
-function setupElementFallbacks() {
-    // Ensure currentDate element exists
-    if (!window.elements.currentDate) {
-        const currentDateElement = document.getElementById('currentDate');
-        if (currentDateElement) {
-            window.elements.currentDate = currentDateElement;
-        } else {
-            console.error('Critical: currentDate element not found in DOM');
-            // Create a fallback
-            const fallbackDateElement = document.createElement('span');
-            fallbackDateElement.id = 'currentDate';
-            fallbackDateElement.textContent = new Date().toLocaleDateString('tr-TR');
-            document.querySelector('.customer-info')?.appendChild(fallbackDateElement);
-            window.elements.currentDate = fallbackDateElement;
-        }
-    }
-}
-
-
-
-
-
-
 
 // Profesyonel alert sistemi
 // 1. Prevent duplicate alerts with debouncing
