@@ -1,47 +1,68 @@
-// Replace the DOMContentLoaded listener at the top of app.js:
+// Replace the DOMContentLoaded listener in app.js:
 document.addEventListener('DOMContentLoaded', () => {
-    // Use localStorage instead of sessionStorage for persistence
+    console.log('DOM Content Loaded - Checking API key...');
+    
+    // Check if API key exists and is valid
     const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
+    const apiKeyModal = document.getElementById('apiKeyModal');
+    
+    if (savedApiKey && savedApiKey.length > 20) { // Basic validation
         SUPABASE_ANON_KEY = savedApiKey;
         initializeSupabase();
         console.log('API key loaded from localStorage');
         
+        // Hide API modal if it's visible
+        if (apiKeyModal) {
+            apiKeyModal.style.display = 'none';
+        }
+        
         // Check if user is already authenticated
         checkExistingAuth();
+    } else {
+        console.log('No valid API key found, showing modal');
+        // Only show modal if no valid key exists
+        if (apiKeyModal) {
+            apiKeyModal.style.display = 'flex';
+        }
     }
 });
 
-// Add this new function to app.js:
-async function checkExistingAuth() {
-    try {
-        if (!supabase) return;
+// Update the saveApiKey function to validate better:
+function saveApiKey() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    
+    // Better validation
+    if (!apiKey) {
+        showAlert('Lütfen bir API anahtarı girin', 'error');
+        return;
+    }
+    
+    if (apiKey.length < 20) {
+        showAlert('API anahtarı geçersiz görünüyor', 'error');
+        return;
+    }
+    
+    SUPABASE_ANON_KEY = apiKey;
+    localStorage.setItem('procleanApiKey', apiKey);
+    
+    const newClient = initializeSupabase();
+    
+    if (newClient) {
+        document.getElementById('apiKeyModal').style.display = 'none';
+        showAlert('API anahtarı kaydedildi', 'success');
         
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-            console.log('No existing session:', error.message);
-            showLoginScreen();
-            return;
-        }
-        
-        if (session && session.user) {
-            // User is already logged in, proceed to app
-            currentUser = {
-                email: session.user.email,
-                uid: session.user.id,
-                name: session.user.email.split('@')[0]
-            };
-            
-            showAppScreen();
-        } else {
-            showLoginScreen();
-        }
-    } catch (error) {
-        console.error('Auth check error:', error);
-        showLoginScreen();
+        // Test connection and proceed to auth
+        testConnection().then(success => {
+            if (success) {
+                checkExistingAuth();
+            }
+        });
     }
 }
+
+
+
+
 
 // Also update the saveApiKey function in supabase.js to use localStorage:
 function saveApiKey() {
