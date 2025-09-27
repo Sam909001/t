@@ -7,8 +7,10 @@ async function login() {
     if (!supabase) {
         const client = initializeSupabase();
         if (!client) {
-            showAlert('Lütfen önce API anahtarını girin.', 'error');
-            showApiKeyModal();
+            showAlert('Supabase bağlantısı yok. Excel modunda devam ediliyor.', 'warning');
+            // Excel modunda devam et
+            isUsingExcel = true;
+            proceedWithExcelMode();
             return;
         }
     }
@@ -35,7 +37,11 @@ async function login() {
         });
 
         if (error) {
-            showAlert(`Giriş başarısız: ${error.message}`, 'error');
+            // Giriş başarısız olursa Excel modunda devam et
+            console.warn('Login failed, continuing with Excel mode:', error.message);
+            showAlert('Giriş başarısız. Excel modunda devam ediliyor.', 'warning');
+            isUsingExcel = true;
+            proceedWithExcelMode();
             return;
         }
 
@@ -75,54 +81,89 @@ async function login() {
                 connectionTested = true;
             }
 
+            // Storage indicator'ı güncelle
+            updateStorageIndicator();
+
         } else {
-            showAlert('Giriş başarısız. Lütfen tekrar deneyin.', 'error');
+            showAlert('Giriş başarısız. Excel modunda devam ediliyor.', 'warning');
+            isUsingExcel = true;
+            proceedWithExcelMode();
         }
 
     } catch (e) {
         console.error('Login error:', e);
-        showAlert('Giriş sırasında bir hata oluştu.', 'error');
+        showAlert('Giriş sırasında bir hata oluştu. Excel modunda devam ediliyor.', 'warning');
+        isUsingExcel = true;
+        proceedWithExcelMode();
     } finally {
         loginBtn.disabled = false;
         loginBtn.textContent = 'Giriş Yap';
     }
 }
 
+// Excel modunda devam et
+function proceedWithExcelMode() {
+    isUsingExcel = true;
+    
+    // Kullanıcıyı Excel modunda giriş yapmış say
+    currentUser = {
+        email: 'excel-user@local',
+        uid: 'excel-local',
+        name: 'Excel Kullanıcısı',
+        role: 'operator'
+    };
 
+    const userRoleElement = document.getElementById('userRole');
+    if (userRoleElement) {
+        userRoleElement.textContent = 'Operatör: Excel Modu';
+    }
 
+    showAlert('Excel modunda çalışıyorsunuz', 'info');
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'flex';
+
+    // Storage indicator'ı güncelle
+    updateStorageIndicator();
+    
+    // Excel verilerini yükle
+    initializeExcelStorage().then(() => {
+        populatePackagesTable();
+    });
+}
 
 function applyRoleBasedPermissions(role) {
-            const adminOnlyElements = document.querySelectorAll('.admin-only');
-            
-            if (role === 'admin') {
-                adminOnlyElements.forEach(el => el.style.display = 'block');
-            } else {
-                adminOnlyElements.forEach(el => el.style.display = 'none');
-            }
-        }
+    const adminOnlyElements = document.querySelectorAll('.admin-only');
+    
+    if (role === 'admin') {
+        adminOnlyElements.forEach(el => el.style.display = 'block');
+    } else {
+        adminOnlyElements.forEach(el => el.style.display = 'none');
+    }
+}
 
-
-
-        
-
-        // Kullanıcı çıkışı
-        function logout() {
-            if (!supabase) return;
-            
-            supabase.auth.signOut().then(() => {
-                showAlert('Başarıyla çıkış yapıldı.', 'success');
-                document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('appContainer').style.display = 'none';
-                document.getElementById('email').value = '';
-                document.getElementById('password').value = '';
-            }).catch(e => {
-                console.error('Çıkış yapılırken bir hata oluştu:', e);
-                showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
-            });
-        }
-
-
-
+// Kullanıcı çıkışı
+function logout() {
+    if (!supabase) {
+        // Excel modundan çıkış
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('appContainer').style.display = 'none';
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        showAlert('Excel modundan çıkış yapıldı.', 'success');
+        return;
+    }
+    
+    supabase.auth.signOut().then(() => {
+        showAlert('Başarıyla çıkış yapıldı.', 'success');
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('appContainer').style.display = 'none';
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+    }).catch(e) {
+        console.error('Çıkış yapılırken bir hata oluştu:', e);
+        showAlert('Çıkış yapılırken bir hata oluştu.', 'error');
+    });
+}
 
 // Basit form doğrulama fonksiyonu
 function validateForm(fields) {
@@ -154,6 +195,3 @@ function validateForm(fields) {
 
     return valid;
 }
-
-
-
