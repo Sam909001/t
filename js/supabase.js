@@ -788,63 +788,70 @@ async function deleteSelectedPackages() {
 }
 
 // Stock Items
+// Improved stock functions:
 async function populateStockTable() {
-    if (isStockTableLoading) return;
-    isStockTableLoading = true;
-    
     try {
-        elements.stockTableBody.innerHTML = '';
-        
-        if (localData.stock_items.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
-            elements.stockTableBody.appendChild(row);
+        const stockTableBody = document.getElementById('stockTableBody');
+        if (!stockTableBody) {
+            console.error('Stock table body not found');
             return;
         }
 
-        localData.stock_items.forEach(item => {
+        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Yükleniyor...</td></tr>';
+
+        // Load stock data
+        let stockItems = [];
+        try {
+            stockItems = await loadExcelData('stock');
+        } catch (error) {
+            console.warn('Using local stock data');
+            stockItems = localData.stock_items || [];
+        }
+
+        if (stockItems.length === 0) {
+            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Stok verisi bulunamadı</td></tr>';
+            return;
+        }
+
+        // Render stock table
+        stockTableBody.innerHTML = '';
+        stockItems.forEach(item => {
             const row = document.createElement('tr');
-            
-            // Determine stock status
+            const quantity = item.Quantity || item.quantity;
             let statusClass = 'status-stokta';
             let statusText = 'Stokta';
             
-            if (item.quantity <= 0) {
+            if (quantity <= 0) {
                 statusClass = 'status-kritik';
-                statusText = 'Kritik';
-            } else if (item.quantity < 10) {
+                statusText = 'Tükendi';
+            } else if (quantity < 10) {
                 statusClass = 'status-az-stok';
                 statusText = 'Az Stok';
             }
             
             row.innerHTML = `
-                <td>${item.code}</td>
-                <td>${item.name}</td>
-                <td class="editable-cell">
-                    <span class="stock-quantity">${item.quantity}</span>
-                    <input type="number" class="stock-quantity-input" value="${item.quantity}" style="display:none;" data-original="${item.quantity}">
-                </td>
-                <td>${item.unit || 'Adet'}</td>
+                <td>${item.Code || item.code}</td>
+                <td>${item.Name || item.name}</td>
+                <td>${quantity}</td>
+                <td>${item.Unit || item.unit || 'Adet'}</td>
                 <td><span class="${statusClass}">${statusText}</span></td>
-                <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                <td>${item.LastUpdated ? new Date(item.LastUpdated).toLocaleDateString('tr-TR') : 'N/A'}</td>
                 <td>
-                    <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
-                    <div class="edit-buttons" style="display:none;">
-                        <button onclick="saveStockItem('${item.code}', this.parentNode.parentNode.querySelector('.stock-quantity-input'))" class="btn btn-success btn-sm">Kaydet</button>
-                        <button onclick="cancelEditStockItem('${item.code}', ${item.quantity})" class="btn btn-secondary btn-sm">İptal</button>
-                    </div>
+                    <button onclick="editStockItem(this, '${item.Code || item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
                 </td>
             `;
-            elements.stockTableBody.appendChild(row);
+            stockTableBody.appendChild(row);
         });
-        
+
     } catch (error) {
-        console.error('Error in populateStockTable:', error);
-        showAlert('Stok tablosu yükleme hatası', 'error');
-    } finally {
-        isStockTableLoading = false;
+        console.error('Error populating stock table:', error);
+        showAlert('Stok tablosu yüklenirken hata oluştu', 'error');
     }
 }
+
+
+
+
 
 async function saveStockItem(code, input) {
     const newQuantity = parseInt(input.value);
@@ -958,121 +965,166 @@ async function sendToRamp(containerNo = null) {
     }
 }
 
-async function populateShippingTable(page = 0) {
-    if (isShippingTableLoading) return;
-    isShippingTableLoading = true;
-
+// Improved populateShippingTable function:
+async function populateShippingTable() {
     try {
-        elements.shippingFolders.innerHTML = '';
-
-        const filter = elements.shippingFilter?.value || 'all';
-        
-        let filteredContainers = localData.containers;
-        if (filter !== 'all') {
-            filteredContainers = localData.containers.filter(c => c.status === filter);
-        }
-
-        // Pagination
-        const from = page * pageSize;
-        const to = from + pageSize;
-        const paginatedContainers = filteredContainers.slice(from, to);
-
-        if (paginatedContainers.length === 0) {
-            elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
+        const shippingFolders = document.getElementById('shippingFolders');
+        if (!shippingFolders) {
+            console.error('Shipping folders container not found');
             return;
         }
 
-        // Add packages to containers
-        paginatedContainers.forEach(container => {
-            container.packages = localData.packages.filter(p => p.container_id === container.id);
-        });
+        shippingFolders.innerHTML = '<p style="text-align:center; color:#666;">Yükleniyor...</p>';
+
+        // Load containers data
+        let containers = [];
+        try {
+            containers = await loadExcelData('containers');
+        } catch (error) {
+            console.warn('Using local containers data');
+            containers = localData.containers || [];
+        }
+
+        if (containers.length === 0) {
+            shippingFolders.innerHTML = '<p style="text-align:center; color:#666;">Henüz sevkiyat verisi yok</p>';
+            return;
+        }
 
         // Group by customer
         const customersMap = {};
-        paginatedContainers.forEach(container => {
-            let customerName = 'Diğer';
-            if (container.packages.length > 0) {
-                const customerIds = [...new Set(container.packages.map(p => p.customer_id))];
-                const customerNames = customerIds.map(id => {
-                    const customer = localData.customers.find(c => c.id === id);
-                    return customer ? customer.name : 'Bilinmeyen';
-                });
-                customerName = customerNames.join(', ');
+        containers.forEach(container => {
+            const customerName = container.Customer || container.customer || 'Diğer';
+            if (!customersMap[customerName]) {
+                customersMap[customerName] = [];
             }
-            if (!customersMap[customerName]) customersMap[customerName] = [];
             customersMap[customerName].push(container);
         });
 
         // Render folders
+        shippingFolders.innerHTML = '';
         Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'customer-folder';
-
-            const folderHeader = document.createElement('div');
-            folderHeader.className = 'folder-header';
-            folderHeader.innerHTML = `
-                <span>${customerName}</span>
-                <span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>
+            
+            folderDiv.innerHTML = `
+                <div class="folder-header">
+                    <span>${customerName}</span>
+                    <span class="folder-toggle">▶</span>
+                </div>
+                <div class="folder-content" style="display:none;">
+                    <table class="shipping-table">
+                        <thead>
+                            <tr>
+                                <th>Konteyner No</th>
+                                <th>Paket Sayısı</th>
+                                <th>Toplam Adet</th>
+                                <th>Durum</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${customerContainers.map(container => `
+                                <tr>
+                                    <td>${container.ContainerNo || container.container_no}</td>
+                                    <td>${container.PackageCount || container.package_count}</td>
+                                    <td>${container.TotalQuantity || container.total_quantity}</td>
+                                    <td><span class="status-${container.Status || container.status}">${(container.Status || container.status) === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                                    <td>
+                                        <button onclick="viewContainerDetails('${container.ID || container.id}')" class="btn btn-primary btn-sm">Detay</button>
+                                        <button onclick="shipContainer('${container.ContainerNo || container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
             `;
-
-            const folderContent = document.createElement('div');
-            folderContent.className = 'folder-content';
-
-            const table = document.createElement('table');
-            table.className = 'package-table';
-            table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)"></th>
-                        <th>Konteyner No</th>
-                        <th>Paket Sayısı</th>
-                        <th>Toplam Adet</th>
-                        <th>Tarih</th>
-                        <th>Durum</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${customerContainers.map(container => `
-                        <tr>
-                            <td><input type="checkbox" value="${container.id}" class="container-checkbox"></td>
-                            <td>${container.container_no}</td>
-                            <td>${container.packages.length}</td>
-                            <td>${container.packages.reduce((sum, p) => sum + (p.total_quantity || 0), 0)}</td>
-                            <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                            <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                            <td>
-                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm">Detay</button>
-                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
-                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            `;
-
-            folderContent.appendChild(table);
-            folderDiv.appendChild(folderHeader);
-            folderDiv.appendChild(folderContent);
-
-            folderHeader.addEventListener('click', () => {
-                folderDiv.classList.toggle('folder-open');
-                folderContent.style.display = folderDiv.classList.contains('folder-open') ? 'block' : 'none';
+            
+            // Add toggle functionality
+            const header = folderDiv.querySelector('.folder-header');
+            const content = folderDiv.querySelector('.folder-content');
+            const toggle = folderDiv.querySelector('.folder-toggle');
+            
+            header.addEventListener('click', () => {
+                const isOpen = content.style.display === 'block';
+                content.style.display = isOpen ? 'none' : 'block';
+                toggle.textContent = isOpen ? '▶' : '▼';
             });
-
-            elements.shippingFolders.appendChild(folderDiv);
+            
+            shippingFolders.appendChild(folderDiv);
         });
 
-        // Render pagination
-        renderPagination(filteredContainers.length, page);
-
     } catch (error) {
-        console.error('Error in populateShippingTable:', error);
-        showAlert('Sevkiyat tablosu yükleme hatası', 'error');
-    } finally {
-        isShippingTableLoading = false;
+        console.error('Error populating shipping table:', error);
+        showAlert('Sevkiyat tablosu yüklenirken hata oluştu', 'error');
     }
 }
+
+// Improved stock functions:
+async function populateStockTable() {
+    try {
+        const stockTableBody = document.getElementById('stockTableBody');
+        if (!stockTableBody) {
+            console.error('Stock table body not found');
+            return;
+        }
+
+        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Yükleniyor...</td></tr>';
+
+        // Load stock data
+        let stockItems = [];
+        try {
+            stockItems = await loadExcelData('stock');
+        } catch (error) {
+            console.warn('Using local stock data');
+            stockItems = localData.stock_items || [];
+        }
+
+        if (stockItems.length === 0) {
+            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Stok verisi bulunamadı</td></tr>';
+            return;
+        }
+
+        // Render stock table
+        stockTableBody.innerHTML = '';
+        stockItems.forEach(item => {
+            const row = document.createElement('tr');
+            const quantity = item.Quantity || item.quantity;
+            let statusClass = 'status-stokta';
+            let statusText = 'Stokta';
+            
+            if (quantity <= 0) {
+                statusClass = 'status-kritik';
+                statusText = 'Tükendi';
+            } else if (quantity < 10) {
+                statusClass = 'status-az-stok';
+                statusText = 'Az Stok';
+            }
+            
+            row.innerHTML = `
+                <td>${item.Code || item.code}</td>
+                <td>${item.Name || item.name}</td>
+                <td>${quantity}</td>
+                <td>${item.Unit || item.unit || 'Adet'}</td>
+                <td><span class="${statusClass}">${statusText}</span></td>
+                <td>${item.LastUpdated ? new Date(item.LastUpdated).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                <td>
+                    <button onclick="editStockItem(this, '${item.Code || item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
+                </td>
+            `;
+            stockTableBody.appendChild(row);
+        });
+
+    } catch (error) {
+        console.error('Error populating stock table:', error);
+        showAlert('Stok tablosu yüklenirken hata oluştu', 'error');
+    }
+}
+
+
+
+
+
 
 async function viewContainerDetails(containerId) {
     try {
@@ -1617,3 +1669,5 @@ async function showAppScreen() {
     // Update UI with user info
     updateUserInterface();
 }
+
+
