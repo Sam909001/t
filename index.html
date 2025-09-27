@@ -548,7 +548,7 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="settings-option">
                 <label for="themeToggle">Tema Modu</label>
                 <div class="toggle-switch">
-                    <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                    <input type="checkbox" id="toggleThemeBtn" onchange="toggleTheme()">
                     <label for="themeToggle" class="toggle-slider"></label>
                     <span id="themeStatus">Açık</span>
                 </div>
@@ -655,8 +655,8 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="settings-option">
                 <label>Veri Yedekleme</label>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-primary" onclick="exportData('json')">JSON İndir</button>
-                    <button class="btn btn-primary" onclick="exportData('excel')">Excel İndir</button>
+             <button class="btn btn-primary" id="downloadDataBtn" onclick="exportData('json')">JSON İndir</button>
+             <button class="btn btn-primary" id="downloadDataBtnExcel" onclick="exportData('excel')">Excel İndir</button>
                 </div>
             </div>
             
