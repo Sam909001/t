@@ -153,15 +153,26 @@ function showAlert(message, type = 'info', duration = 5000) {
 
 
 
-// 4. Add DOM ready check function
+// 4. Add DOM ready check function - FIXED VERSION
 function ensureDOMReady(callback) {
+    if (!callback || typeof callback !== 'function') {
+        return new Promise((resolve) => {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', resolve);
+            } else {
+                resolve();
+            }
+        });
+    }
+    
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', callback);
     } else {
-        // DOM is already ready
         callback();
     }
 }
+
+
 
 
 
