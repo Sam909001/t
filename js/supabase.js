@@ -393,6 +393,7 @@ async function manualExportToExcel(sheetName, data, fileName) {
 // ==================== DATA OPERATIONS (EXCEL-BASED) ====================
 
 // Customers
+// Fixed populateCustomers function
 async function populateCustomers() {
     try {
         console.log('Populating customers dropdown...');
@@ -402,54 +403,40 @@ async function populateCustomers() {
             return;
         }
 
-        // Try to load from Excel first
-        let customers = [];
-        try {
-            customers = await loadExcelData('customers');
-            console.log('Loaded customers from Excel:', customers.length);
-        } catch (excelError) {
-            console.warn('Excel load failed, using local data:', excelError);
-            customers = localData.customers || [];
-        }
-
-        // If no data, create default customers
-        if (!customers || customers.length === 0) {
-            console.log('No customers found, creating default data');
-            customers = [
-                {
-                    ID: '1',
-                    Name: 'Yeditepe Otel',
-                    Code: 'YEDITEPE',
-                    Email: 'info@yeditepe.com',
-                    Created: new Date().toISOString()
-                },
-                {
-                    ID: '2',
-                    Name: 'Marmara Otel', 
-                    Code: 'MARMARA',
-                    Email: 'info@marmara.com',
-                    Created: new Date().toISOString()
-                }
-            ];
-            // Save to local data
-            localData.customers = customers;
-            saveLocalData();
-        }
-
-        // Clear and populate dropdown
+        // Clear dropdown first
         customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
         
-        customers.forEach(customer => {
-            const option = document.createElement('option');
-            option.value = customer.ID || customer.id;
-            option.textContent = `${customer.Name || customer.name} (${customer.Code || customer.code})`;
-            customerSelect.appendChild(option);
-        });
-
-        console.log(`Customers dropdown populated with ${customers.length} customers`);
+        // Use localData as primary source
+        if (localData.customers && localData.customers.length > 0) {
+            localData.customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = `${customer.name} (${customer.code})`;
+                customerSelect.appendChild(option);
+            });
+            console.log(`Loaded ${localData.customers.length} customers from local data`);
+        } else {
+            // Fallback to default customers
+            const defaultCustomers = [
+                { id: '1', name: 'Yeditepe Otel', code: 'YEDITEPE' },
+                { id: '2', name: 'Marmara Otel', code: 'MARMARA' }
+            ];
+            
+            defaultCustomers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = `${customer.name} (${customer.code})`;
+                customerSelect.appendChild(option);
+            });
+            
+            // Save to local data
+            localData.customers = defaultCustomers;
+            saveLocalData();
+            console.log('Created default customers');
+        }
 
     } catch (error) {
-        console.error('populateCustomers error:', error);
+        console.error('Error populating customers:', error);
         showAlert('Müşteri listesi yüklenirken hata oluştu', 'error');
     }
 }
@@ -563,8 +550,7 @@ async function showAllCustomers() {
     }
 }
 
-// Fixed personnel dropdown population
-// Similar fix for populatePersonnel:
+// Fixed populatePersonnel function
 async function populatePersonnel() {
     try {
         console.log('Populating personnel dropdown...');
@@ -574,51 +560,40 @@ async function populatePersonnel() {
             return;
         }
 
-        // Try to load from Excel first
-        let personnel = [];
-        try {
-            personnel = await loadExcelData('personnel');
-            console.log('Loaded personnel from Excel:', personnel.length);
-        } catch (excelError) {
-            console.warn('Excel load failed, using local data:', excelError);
-            personnel = localData.personnel || [];
-        }
-
-        // If no data, create default personnel
-        if (!personnel || personnel.length === 0) {
-            console.log('No personnel found, creating default data');
-            personnel = [
-                {
-                    ID: '1',
-                    Name: 'Ahmet Yılmaz',
-                    Position: 'Operator',
-                    Created: new Date().toISOString()
-                },
-                {
-                    ID: '2',
-                    Name: 'Mehmet Demir',
-                    Position: 'Supervisor',
-                    Created: new Date().toISOString()
-                }
-            ];
-            localData.personnel = personnel;
-            saveLocalData();
-        }
-
-        // Clear and populate dropdown
-        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+        // Clear dropdown first
+        personnelSelect.innerHTML = '<option value="">Personel Seç</option>';
         
-        personnel.forEach(person => {
-            const option = document.createElement('option');
-            option.value = person.ID || person.id;
-            option.textContent = `${person.Name || person.name} (${person.Position || person.role})`;
-            personnelSelect.appendChild(option);
-        });
-
-        console.log(`Personnel dropdown populated with ${personnel.length} personnel`);
+        // Use localData as primary source
+        if (localData.personnel && localData.personnel.length > 0) {
+            localData.personnel.forEach(person => {
+                const option = document.createElement('option');
+                option.value = person.id;
+                option.textContent = `${person.name} (${person.role})`;
+                personnelSelect.appendChild(option);
+            });
+            console.log(`Loaded ${localData.personnel.length} personnel from local data`);
+        } else {
+            // Fallback to default personnel
+            const defaultPersonnel = [
+                { id: '1', name: 'Ahmet Yılmaz', role: 'Operator' },
+                { id: '2', name: 'Mehmet Demir', role: 'Supervisor' }
+            ];
+            
+            defaultPersonnel.forEach(person => {
+                const option = document.createElement('option');
+                option.value = person.id;
+                option.textContent = `${person.name} (${person.role})`;
+                personnelSelect.appendChild(option);
+            });
+            
+            // Save to local data
+            localData.personnel = defaultPersonnel;
+            saveLocalData();
+            console.log('Created default personnel');
+        }
 
     } catch (error) {
-        console.error('populatePersonnel error:', error);
+        console.error('Error populating personnel:', error);
         showAlert('Personel listesi yüklenirken hata oluştu', 'error');
     }
 }
@@ -1660,6 +1635,15 @@ async function showAppScreen() {
     // Initialize form elements
     initializeFormElements();
     
+    // Set current date FIRST
+    const currentDateElement = document.getElementById('currentDate');
+    if (currentDateElement) {
+        currentDateElement.textContent = new Date().toLocaleDateString('tr-TR');
+        console.log('Current date set:', currentDateElement.textContent);
+    } else {
+        console.error('Current date element not found');
+    }
+    
     // Load app data
     await initializeAppData();
     
@@ -1669,5 +1653,24 @@ async function showAppScreen() {
     // Update UI with user info
     updateUserInterface();
 }
+
+// Add this function to supabase.js
+function initializeFormElements() {
+    console.log('Initializing form elements...');
+    
+    // Initialize current date
+    const currentDateElement = document.getElementById('currentDate');
+    if (currentDateElement) {
+        currentDateElement.textContent = new Date().toLocaleDateString('tr-TR');
+    }
+    
+    // Initialize other form elements
+    const containerNumberElement = document.getElementById('containerNumber');
+    if (containerNumberElement) {
+        containerNumberElement.textContent = currentContainer || 'Yok';
+    }
+}
+
+
 
 
