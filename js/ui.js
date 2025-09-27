@@ -513,6 +513,8 @@ function addManualProduct() {
     closeManualModal();
 }
 
+
+
 // Open Extra Modal
 function openExtraModal() {
     document.getElementById('extraModal').style.display = 'block';
@@ -522,6 +524,10 @@ function openExtraModal() {
 function closeExtraModal() {
     document.getElementById('extraModal').style.display = 'none';
 }
+
+
+
+
 
 // Settings functions
 function showSettingsModal() {
@@ -974,402 +980,811 @@ function showConsoleLogs() {
         }
     };
     
-    // Show initial message
-    logsWindow.addLog('Console logs started at ' + new Date().toLocaleString(), 'info');
-    
     // Restore original console methods when window closes
-    const checkWindow = setInterval(() => {
-        if (logsWindow.closed) {
-            console.log = originalLog;
-            console.error = originalError;
-            console.warn = originalWarn;
-            console.info = originalInfo;
-            clearInterval(checkWindow);
-            showAlert('Console logs window closed', 'info');
-        }
-    }, 1000);
-    
-    showAlert('Console logs window opened', 'info');
-}
-
-// FIX #5: exportData function
-function exportData() {
-    try {
-        // Get all data from localStorage
-        const exportData = {
-            packages: JSON.parse(localStorage.getItem('packages') || '[]'),
-            containers: JSON.parse(localStorage.getItem('containers') || '[]'),
-            customers: JSON.parse(localStorage.getItem('customers') || '[]'),
-            personnel: JSON.parse(localStorage.getItem('personnel') || '[]'),
-            stock: JSON.parse(localStorage.getItem('stock') || '[]'),
-            settings: JSON.parse(localStorage.getItem('procleanSettings') || '{}'),
-            exportDate: new Date().toISOString(),
-            version: '1.0'
-        };
-        
-        // Create blob and download
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `proclean-backup-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        showAlert('Veriler başarıyla dışa aktarıldı', 'success');
-        console.log('Data exported successfully:', exportData);
-        
-    } catch (error) {
-        console.error('Export error:', error);
-        showAlert('Veri aktarımı başarısız: ' + error.message, 'error');
-    }
-}
-
-// FIX #6: importData function
-function importData() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    
-    input.onchange = function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importData = JSON.parse(e.target.result);
-                
-                // Validate import data structure
-                if (!importData.packages || !importData.containers || !importData.customers) {
-                    throw new Error('Geçersiz veri formatı');
-                }
-                
-                // Confirm overwrite
-                if (confirm('Mevcut verilerin üzerine yazılacak. Devam etmek istiyor musunuz?')) {
-                    // Import data
-                    localStorage.setItem('packages', JSON.stringify(importData.packages));
-                    localStorage.setItem('containers', JSON.stringify(importData.containers));
-                    localStorage.setItem('customers', JSON.stringify(importData.customers));
-                    localStorage.setItem('personnel', JSON.stringify(importData.personnel || []));
-                    localStorage.setItem('stock', JSON.stringify(importData.stock || []));
-                    localStorage.setItem('procleanSettings', JSON.stringify(importData.settings || {}));
-                    
-                    showAlert('Veriler başarıyla içe aktarıldı', 'success');
-                    console.log('Data imported successfully');
-                    
-                    // Reload the application
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                }
-                
-            } catch (error) {
-                console.error('Import error:', error);
-                showAlert('Veri aktarımı başarısız: ' + error.message, 'error');
-            }
-        };
-        
-        reader.readAsText(file);
-    };
-    
-    input.click();
-}
-
-// FIX #7: clearAllData function
-function clearAllData() {
-    if (confirm('TÜM VERİLER SİLİNECEK! Bu işlem geri alınamaz. Devam etmek istiyor musunuz?')) {
-        if (confirm('Son bir kez onaylayın: Tüm paketler, konteynerler, müşteriler ve ayarlar silinecek!')) {
-            try {
-                // Clear all localStorage data
-                localStorage.removeItem('packages');
-                localStorage.removeItem('containers');
-                localStorage.removeItem('customers');
-                localStorage.removeItem('personnel');
-                localStorage.removeItem('stock');
-                localStorage.removeItem('procleanSettings');
-                localStorage.removeItem('appState');
-                
-                showAlert('Tüm veriler başarıyla temizlendi', 'success');
-                console.log('All data cleared');
-                
-                // Reload the application
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-                
-            } catch (error) {
-                console.error('Clear data error:', error);
-                showAlert('Veri temizleme başarısız: ' + error.message, 'error');
-            }
-        }
-    }
-}
-
-// FIX #8: checkSystemStatus function
-function checkSystemStatus() {
-    const status = {
-        localStorage: false,
-        performance: false,
-        memory: false,
-        connection: false,
-        overall: false
-    };
-    
-    // Check localStorage
-    try {
-        localStorage.setItem('test', 'test');
-        localStorage.removeItem('test');
-        status.localStorage = true;
-    } catch (e) {
-        console.error('LocalStorage test failed:', e);
-    }
-    
-    // Check performance
-    status.performance = performance.now() > 0;
-    
-    // Check memory (if available)
-    status.memory = performance.memory ? performance.memory.usedJSHeapSize < performance.memory.jsHeapSizeLimit * 0.9 : true;
-    
-    // Check connection
-    status.connection = navigator.onLine;
-    
-    // Overall status
-    status.overall = status.localStorage && status.performance && status.memory;
-    
-    // Update UI indicators
-    updateStatusIndicators(status);
-    
-    return status;
-}
-
-function updateStatusIndicators(status) {
-    const indicators = {
-        localStorage: document.getElementById('localStorageStatus'),
-        performance: document.getElementById('performanceStatus'),
-        memory: document.getElementById('memoryStatus'),
-        connection: document.getElementById('connectionStatus'),
-        overall: document.getElementById('overallStatus')
-    };
-    
-    Object.keys(indicators).forEach(key => {
-        const indicator = indicators[key];
-        if (indicator) {
-            indicator.className = `status-indicator ${status[key] ? 'online' : 'offline'}`;
-            indicator.title = `${key}: ${status[key] ? 'OK' : 'Problem'}`;
-        }
+    logsWindow.addEventListener('beforeunload', () => {
+        console.log = originalLog;
+        console.error = originalError;
+        console.warn = originalWarn;
+        console.info = originalInfo;
     });
+    
+    showAlert('Console logs penceresi açıldı', 'success');
+    console.log('Console logs monitoring started');
 }
 
-// FIX #9: saveAllSettings function
-function saveAllSettings() {
-    try {
-        const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        
-        // Get all settings from the form
-        const formSettings = {
-            theme: document.getElementById('themeToggle')?.checked ? 'dark' : 'light',
-            language: document.getElementById('languageSelect')?.value || 'tr',
-            autoSave: document.getElementById('autoSaveToggle')?.checked !== false,
-            sound: document.getElementById('soundToggle')?.checked !== false,
-            notifications: document.getElementById('notificationsToggle')?.checked !== false,
-            backup: document.getElementById('backupToggle')?.checked !== false,
-            debugMode: document.getElementById('debugToggle')?.checked || false,
-            printerScaling: document.getElementById('printerScaling')?.value || '100%',
-            copiesNumber: parseInt(document.getElementById('copiesNumber')?.value || '1'),
-            fontSizeSelect: document.getElementById('fontSizeSelect')?.value || '14px',
-            printQualitySelect: document.getElementById('printQualitySelect')?.value || 'high',
-            barcodeTypeSelect: document.getElementById('barcodeTypeSelect')?.value || 'code128',
-            paperSizeSelect: document.getElementById('paperSizeSelect')?.value || 'A4',
-            printerFontSize: parseInt(document.getElementById('printerFontSize')?.value || '10'),
-            printerMargin: parseInt(document.getElementById('printerMargin')?.value || '5'),
-            barcodeHeight: parseInt(document.getElementById('barcodeHeight')?.value || '50'),
-            labelWidth: parseInt(document.getElementById('labelWidth')?.value || '80'),
-            labelHeight: parseInt(document.getElementById('labelHeight')?.value || '50')
+// Reset settings to defaults
+function resetSettings() {
+    if (confirm('Tüm ayarlar varsayılan değerlere sıfırlanacak. Emin misiniz?')) {
+        const defaultSettings = {
+            theme: 'light',
+            printerScaling: '100',
+            copies: 1,
+            language: 'tr',
+            autoSave: true,
+            fontSize: '14',
+            printQuality: 'normal',
+            barcodeType: 'code128',
+            paperSize: '80x100',
+            soundEnabled: true,
+            notificationsEnabled: true,
+            backupEnabled: true,
+            printerFontSize: '12',
+            printerMargin: '3',
+            barcodeHeight: '25',
+            labelWidth: '100',
+            labelHeight: '80',
+            debugMode: false
         };
         
-        // Merge with existing settings
-        Object.assign(settings, formSettings);
+        localStorage.setItem('procleanSettings', JSON.stringify(defaultSettings));
+        applySettings(defaultSettings);
+        loadSettings();
         
-        // Save to localStorage
-        localStorage.setItem('procleanSettings', JSON.stringify(settings));
-        
-        // Apply settings immediately
-        applySettings(settings);
-        
-        console.log('All settings saved:', settings);
-        return true;
-        
-    } catch (error) {
-        console.error('Save settings error:', error);
-        showAlert('Ayarlar kaydedilirken hata oluştu: ' + error.message, 'error');
-        return false;
+        showAlert('Ayarlar varsayılan değerlere sıfırlandı', 'success');
     }
 }
 
+// Import settings from file
+function importSettings(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const settings = JSON.parse(e.target.result);
+            localStorage.setItem('procleanSettings', JSON.stringify(settings));
+            applySettings(settings);
+            loadSettings();
+            showAlert('Ayarlar başarıyla içe aktarıldı', 'success');
+        } catch (error) {
+            showAlert('Ayar dosyası geçersiz', 'error');
+        }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input
+    event.target.value = '';
+}
+
+// FIX #6: Save all settings with fixed changeLanguage reference
+function saveAllSettings() {
+    const settings = {
+        theme: document.getElementById('themeToggle')?.checked ? 'dark' : 'light',
+        printerScaling: document.getElementById('printerScaling')?.value || '100',
+        copies: parseInt(document.getElementById('copiesNumber')?.value) || 1,
+        language: document.getElementById('languageSelect')?.value || 'tr',
+        autoSave: document.getElementById('autoSaveToggle')?.checked !== false,
+        fontSize: document.getElementById('fontSizeSelect')?.value || '14',
+        printQuality: document.getElementById('printQualitySelect')?.value || 'normal',
+        barcodeType: document.getElementById('barcodeTypeSelect')?.value || 'code128',
+        paperSize: document.getElementById('paperSizeSelect')?.value || '80x100',
+        soundEnabled: document.getElementById('soundToggle')?.checked !== false,
+        notificationsEnabled: document.getElementById('notificationsToggle')?.checked !== false,
+        backupEnabled: document.getElementById('backupToggle')?.checked !== false,
+        debugMode: document.getElementById('debugToggle')?.checked || false,
+        // FIX #7: Real printer settings (not fake)
+        printerFontSize: parseInt(document.getElementById('printerFontSize')?.value) || 12,
+        printerMargin: parseInt(document.getElementById('printerMargin')?.value) || 3,
+        barcodeHeight: parseInt(document.getElementById('barcodeHeight')?.value) || 25,
+        labelWidth: parseInt(document.getElementById('labelWidth')?.value) || 100,
+        labelHeight: parseInt(document.getElementById('labelHeight')?.value) || 80,
+        // Additional real printer settings
+        printDensity: document.getElementById('printDensity')?.value || 'medium',
+        printSpeed: document.getElementById('printSpeed')?.value || 'normal',
+        paperType: document.getElementById('paperType')?.value || 'thermal',
+        printerPort: document.getElementById('printerPort')?.value || 'USB001',
+        printerModel: document.getElementById('printerModel')?.value || 'Generic'
+    };
+    
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
+    applySettings(settings);
+    showAlert('Ayarlar kaydedildi', 'success');
+    
+    // Update printer settings in real-time
+    updatePrinterSettings(settings);
+}
+
+// Apply settings to the application - FIX #6: Fixed changeLanguage reference
 function applySettings(settings) {
     // Apply theme
     if (settings.theme === 'dark') {
         document.body.classList.add('dark-mode');
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.checked = true;
     } else {
         document.body.classList.remove('dark-mode');
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.checked = false;
+    }
+    
+    // Apply language (safe simulation mode)
+    if (settings.language && typeof changeLanguage === 'function') {
+        changeLanguage(settings.language);
     }
     
     // Apply font size
-    if (settings.fontSizeSelect) {
-        document.documentElement.style.fontSize = settings.fontSizeSelect;
+    if (settings.fontSize) {
+        document.documentElement.style.setProperty('--base-font-size', settings.fontSize + 'px');
+        updateFontSize(settings.fontSize);
+    }
+    
+    // Apply sound settings
+    if (settings.soundEnabled !== undefined) {
+        window.soundEnabled = settings.soundEnabled;
+    }
+    
+    // Apply notification settings
+    if (settings.notificationsEnabled !== undefined) {
+        window.notificationsEnabled = settings.notificationsEnabled;
+    }
+    
+    // Apply UI scaling
+    if (settings.printerScaling) {
+        document.documentElement.style.setProperty('--ui-scale', (parseInt(settings.printerScaling) / 100));
     }
     
     // Apply debug mode
-    if (settings.debugMode) {
-        window.DEBUG_MODE = true;
-        document.body.classList.add('debug-mode');
-    } else {
-        window.DEBUG_MODE = false;
-        document.body.classList.remove('debug-mode');
+    if (settings.debugMode !== undefined) {
+        window.DEBUG_MODE = settings.debugMode;
+        if (settings.debugMode) {
+            document.body.classList.add('debug-mode');
+        } else {
+            document.body.classList.remove('debug-mode');
+        }
     }
     
-    // Apply other settings as needed
     console.log('Settings applied:', settings);
 }
 
-// FIX #10: setupSettingsEventListeners function (already defined above)
-// This function is now complete with all necessary event listeners
+function toggleTheme() {
+    const isDark = document.getElementById('themeToggle')?.checked;
+    document.body.classList.toggle('dark-mode', isDark);
+    const themeStatus = document.getElementById('themeStatus');
+    if (themeStatus) {
+        themeStatus.textContent = isDark ? 'Koyu' : 'Açık';
+    }
+}
 
-// Initialize settings when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Load saved settings
-    loadSettings();
-    
-    // Setup event listeners
-    setupSettingsEventListeners();
-    
-    // Check system status
-    checkSystemStatus();
-    
-    // Setup auto-save if enabled
-    setupAutoSave();
-    
-    console.log('Settings system initialized');
-});
+function checkSystemStatus() {
+    // --- Database connection ---
+    const dbStatus = document.getElementById('dbConnectionStatus');
+    if (dbStatus) {
+        if (window.supabase) {
+            dbStatus.textContent = 'Bağlı';
+            dbStatus.className = 'status-indicator connected';
+        } else {
+            dbStatus.textContent = 'Bağlantı Yok';
+            dbStatus.className = 'status-indicator disconnected';
+        }
+    }
 
-// Add this function to handle Excel export
-function exportToExcel() {
+    // --- Printer connection ---
+    const printerStatus = document.getElementById('printerConnectionStatus');
+    if (printerStatus) {
+        const printerInstance = typeof getPrinterElectron === 'function' ? getPrinterElectron() : null;
+
+        if (printerInstance && printerInstance.isConnected) {
+            printerStatus.textContent = 'Bağlı';
+            printerStatus.className = 'status-indicator connected';
+        } else {
+            printerStatus.textContent = 'Bağlantı Yok';
+            printerStatus.className = 'status-indicator disconnected';
+        }
+    }
+}
+
+async function exportData(format) {
+    if (!format) {
+        showAlert('⚠️ Format belirtilmedi!', 'error');
+        return;
+    }
+
+    format = format.toLowerCase().trim();
+
     try {
-        // Get current date for filename
-        const today = new Date();
-        const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+        showAlert('📊 Veriler toplanıyor...', 'info');
+
+        // Collect all data from the app
+        const allData = await collectAllAppData();
+
+        if (Object.keys(allData).length === 0) {
+            showAlert('⚠️ Dışa aktarılacak veri bulunamadı!', 'info');
+            return;
+        }
+
+        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const filename = `proclean_full_backup_${timestamp}`;
+
+        if (format === 'json') {
+            await exportToJSON(allData, filename);
+        } else if (format === 'excel') {
+            await exportToExcel(allData, filename);
+        } else {
+            showAlert('⚠️ Geçersiz format seçildi! Sadece JSON veya Excel desteklenir.', 'error');
+        }
+
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert(`❌ Dışa aktarma hatası: ${error.message}`, 'error');
+    }
+}
+
+// Collect all data from the application
+async function collectAllAppData() {
+    const allData = {
+        metadata: {
+            exportDate: new Date().toISOString(),
+            appVersion: '1.0.0',
+            totalRecords: 0
+        },
+        settings: {},
+        customers: [],
+        packages: [],
+        containers: [],
+        stock: [],
+        personnel: [],
+        reports: [],
+        shipping: [],
+        users: [],
+        auditLogs: []
+    };
+
+    try {
+        // 1. Export Settings and Local Storage
+        allData.settings = {
+            theme: localStorage.getItem('procleanTheme'),
+            apiKey: localStorage.getItem('procleanApiKey') ? '***HIDDEN***' : null,
+            appState: JSON.parse(localStorage.getItem('procleanState') || '{}'),
+            userPreferences: JSON.parse(localStorage.getItem('procleanPreferences') || '{}')
+        };
+
+        // 2. Export Customers
+        if (window.packages && window.packages.length > 0) {
+            const uniqueCustomers = [...new Set(window.packages.map(p => p.customer_name))].filter(Boolean);
+            allData.customers = uniqueCustomers.map(name => ({
+                name: name,
+                totalPackages: window.packages.filter(p => p.customer_name === name).length,
+                totalItems: window.packages.filter(p => p.customer_name === name)
+                    .reduce((sum, p) => sum + (p.total_quantity || 0), 0)
+            }));
+        }
+
+        // 3. Export Packages (Current Session)
+        if (window.packages) {
+            allData.packages = window.packages.map(pkg => ({
+                package_no: pkg.package_no,
+                customer_name: pkg.customer_name,
+                product: pkg.product,
+                total_quantity: pkg.total_quantity,
+                status: pkg.status,
+                container_id: pkg.container_id,
+                created_at: pkg.created_at,
+                packer: pkg.packer,
+                barcode: pkg.barcode
+            }));
+        }
+
+        // 4. Export Containers
+        if (window.containers) {
+            allData.containers = window.containers.map(container => ({
+                container_no: container.container_no,
+                customer: container.customer,
+                package_count: container.package_count,
+                total_quantity: container.total_quantity,
+                status: container.status,
+                created_at: container.created_at,
+                shipped_at: container.shipped_at
+            }));
+        }
+
+        // 5. Export Stock Items
+        const stockTable = document.getElementById('stockTableBody');
+        if (stockTable) {
+            const stockRows = Array.from(stockTable.querySelectorAll('tr'));
+            allData.stock = stockRows.map(tr => {
+                const tds = tr.querySelectorAll('td');
+                return {
+                    code: tds[0]?.textContent.trim(),
+                    name: tds[1]?.textContent.trim(),
+                    quantity: parseInt(tds[2]?.textContent) || 0,
+                    unit: tds[3]?.textContent.trim(),
+                    category: tds[4]?.textContent.trim(),
+                    critical_level: parseInt(tds[5]?.textContent) || 0
+                };
+            }).filter(item => item.code && item.name);
+        }
+
+        // 6. Export Personnel
+        const personnelSelect = document.getElementById('personnelSelect');
+        if (personnelSelect) {
+            allData.personnel = Array.from(personnelSelect.options).map(option => ({
+                id: option.value,
+                name: option.textContent.trim(),
+                isActive: option.value === personnelSelect.value
+            })).filter(p => p.id); // Remove empty options
+        }
+
+        // 7. Export Current Session State
+        allData.currentSession = {
+            selectedCustomer: window.selectedCustomer,
+            currentContainer: window.currentContainer,
+            currentPackage: window.currentPackage,
+            currentUser: window.currentUser,
+            connectionStatus: navigator.onLine ? 'online' : 'offline'
+        };
+
+        // 8. Export Shipping/Container Data
+        const shippingTable = document.getElementById('shippingTableBody');
+        if (shippingTable) {
+            const shippingRows = Array.from(shippingTable.querySelectorAll('tr'));
+            allData.shipping = shippingRows.map(tr => {
+                const tds = tr.querySelectorAll('td');
+                const checkbox = tr.querySelector('input[type="checkbox"]');
+                return {
+                    selected: checkbox?.checked || false,
+                    container_no: tds[1]?.textContent.trim(),
+                    customer: tds[2]?.textContent.trim(),
+                    package_count: parseInt(tds[3]?.textContent) || 0,
+                    total_quantity: parseInt(tds[4]?.textContent) || 0,
+                    status: tds[5]?.textContent.trim(),
+                    created_date: tds[6]?.textContent.trim()
+                };
+            }).filter(item => item.container_no);
+        }
+
+        // 9. Try to fetch additional data from Supabase if available
+        if (window.supabase) {
+            try {
+                // Export users data
+                const { data: users } = await supabase
+                    .from('users')
+                    .select('*')
+                    .limit(100); // Limit for safety
+                if (users) allData.users = users;
+
+                // Export reports data
+                const { data: reports } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .limit(50);
+                if (reports) allData.reports = reports;
+
+            } catch (dbError) {
+                console.warn('Database export limited:', dbError);
+                allData.databaseExport = 'partial - some tables unavailable';
+            }
+        }
+
+        // 10. Export UI State and Statistics
+        allData.uiState = {
+            activeTab: document.querySelector('.tab.active')?.getAttribute('data-tab') || 'unknown',
+            totalPackagesCount: window.packages ? window.packages.length : 0,
+            totalContainersCount: window.containers ? window.containers.length : 0,
+            waitingPackages: window.packages ? window.packages.filter(p => !p.container_id).length : 0,
+            shippedPackages: window.packages ? window.packages.filter(p => p.container_id).length : 0,
+            criticalStockItems: allData.stock.filter(item => item.quantity <= item.critical_level).length
+        };
+
+        // Calculate total records
+        allData.metadata.totalRecords = 
+            allData.packages.length +
+            allData.containers.length +
+            allData.stock.length +
+            allData.customers.length +
+            allData.personnel.length +
+            allData.users.length +
+            allData.reports.length;
+
+        return allData;
+
+    } catch (error) {
+        console.error('Data collection error:', error);
+        throw new Error(`Veri toplama hatası: ${error.message}`);
+    }
+}
+
+// Export to JSON function
+async function exportToJSON(data, filename) {
+    try {
+        // Create a pretty-printed JSON string
+        const jsonString = JSON.stringify(data, null, 2);
         
-        // Get all data from localStorage
-        const packages = JSON.parse(localStorage.getItem('packages') || '[]');
-        const containers = JSON.parse(localStorage.getItem('containers') || '[]');
-        const customers = JSON.parse(localStorage.getItem('customers') || '[]');
-        const stock = JSON.parse(localStorage.getItem('stock') || '[]');
+        // Create blob and download
+        const blob = new Blob([jsonString], { 
+            type: 'application/json;charset=utf-8' 
+        });
         
-        // Create workbook
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showAlert(`✅ Tüm veriler JSON formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt)`, 'success');
+        
+        // Optional: Log export summary
+        console.log('📊 Export Summary:', {
+            packages: data.packages.length,
+            containers: data.containers.length,
+            stock: data.stock.length,
+            customers: data.customers.length,
+            personnel: data.personnel.length
+        });
+
+    } catch (error) {
+        throw new Error(`JSON export failed: ${error.message}`);
+    }
+}
+
+// Export to Excel function
+async function exportToExcel(data, filename) {
+    if (typeof XLSX === 'undefined') {
+        throw new Error('XLSX kütüphanesi bulunamadı! Lütfen SheetJS kütüphanesini yükleyin.');
+    }
+
+    try {
         const wb = XLSX.utils.book_new();
         
         // Create worksheets for each data type
-        if (packages.length > 0) {
-            const wsPackages = XLSX.utils.json_to_sheet(packages);
-            XLSX.utils.book_append_sheet(wb, wsPackages, 'Packages');
-        }
-        
-        if (containers.length > 0) {
-            const wsContainers = XLSX.utils.json_to_sheet(containers);
-            XLSX.utils.book_append_sheet(wb, wsContainers, 'Containers');
-        }
-        
-        if (customers.length > 0) {
-            const wsCustomers = XLSX.utils.json_to_sheet(customers);
-            XLSX.utils.book_append_sheet(wb, wsCustomers, 'Customers');
-        }
-        
-        if (stock.length > 0) {
-            const wsStock = XLSX.utils.json_to_sheet(stock);
-            XLSX.utils.book_append_sheet(wb, wsStock, 'Stock');
-        }
-        
-        // Add summary sheet
-        const summaryData = [
-            ['Data Type', 'Count', 'Export Date'],
-            ['Packages', packages.length, new Date().toLocaleString()],
-            ['Containers', containers.length, new Date().toLocaleString()],
-            ['Customers', customers.length, new Date().toLocaleString()],
-            ['Stock Items', stock.length, new Date().toLocaleString()]
+        const sheets = [
+            { name: 'Paketler', data: data.packages },
+            { name: 'Konteynerler', data: data.containers },
+            { name: 'Stok', data: data.stock },
+            { name: 'Müşteriler', data: data.customers },
+            { name: 'Personel', data: data.personnel },
+            { name: 'Raporlar', data: data.reports },
+            { name: 'Kullanıcılar', data: data.users },
+            { name: 'Ayarlar', data: [data.settings] },
+            { name: 'Oturum', data: [data.currentSession] },
+            { name: 'UI_Durum', data: [data.uiState] },
+            { name: 'Metadata', data: [data.metadata] }
         ];
+
+        // Add each sheet to workbook
+        sheets.forEach(sheet => {
+            if (sheet.data && sheet.data.length > 0) {
+                const ws = XLSX.utils.json_to_sheet(sheet.data);
+                XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+            }
+        });
+
+        // Export to Excel file
+        XLSX.writeFile(wb, `${filename}.xlsx`);
         
-        const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+        showAlert(`✅ Tüm veriler Excel formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt, ${sheets.filter(s => s.data.length > 0).length} sayfa)`, 'success');
+
+    } catch (error) {
+        throw new Error(`Excel export failed: ${error.message}`);
+    }
+}
+
+// Quick export functions for specific data types
+async function exportPackages(format) {
+    if (!window.packages || window.packages.length === 0) {
+        showAlert('⚠️ Dışa aktarılacak paket bulunamadı!', 'info');
+        return;
+    }
+
+    const data = {
+        packages: window.packages.map(pkg => ({
+            package_no: pkg.package_no,
+            customer_name: pkg.customer_name,
+            product: pkg.product,
+            total_quantity: pkg.total_quantity,
+            status: pkg.status,
+            container_id: pkg.container_id,
+            created_at: pkg.created_at,
+            packer: pkg.packer
+        })),
+        metadata: {
+            exportDate: new Date().toISOString(),
+            totalPackages: window.packages.length,
+            waitingPackages: window.packages.filter(p => !p.container_id).length,
+            shippedPackages: window.packages.filter(p => p.container_id).length
+        }
+    };
+
+    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    
+    if (format === 'json') {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `proclean_packages_${timestamp}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showAlert(`✅ Paketler dışa aktarıldı! (${data.packages.length} paket)`, 'success');
+    } else if (format === 'excel') {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data.packages);
+        XLSX.utils.book_append_sheet(wb, ws, 'Paketler');
+        XLSX.writeFile(wb, `proclean_packages_${timestamp}.xlsx`);
+        showAlert(`✅ Paketler Excel formatında dışa aktarıldı!`, 'success');
+    }
+}
+
+// Add to your HTML for easy access:
+function addExportButtons() {
+    // Create export buttons container if it doesn't exist
+    let exportContainer = document.getElementById('export-buttons-container');
+    if (!exportContainer) {
+        exportContainer = document.createElement('div');
+        exportContainer.id = 'export-buttons-container';
+        exportContainer.style.margin = '10px 0';
+        exportContainer.style.padding = '10px';
+        exportContainer.style.border = '1px solid #ddd';
+        exportContainer.style.borderRadius = '5px';
         
-        // Generate filename with date
-        const filename = `proclean_data_${dateString}.xlsx`;
+        // Add to settings panel or wherever appropriate
+        const settingsPanel = document.querySelector('.settings-panel') || document.body;
+        settingsPanel.appendChild(exportContainer);
+    }
+
+    exportContainer.innerHTML = `
+        <h4>📊 Veri Dışa Aktarma</h4>
+        <button onclick="exportData('json')" class="btn btn-success">📁 Tüm Veriyi JSON Olarak İndir</button>
+        <button onclick="exportData('excel')" class="btn btn-primary">📊 Tüm Veriyi Excel Olarak İndir</button>
+        <button onclick="exportPackages('json')" class="btn btn-outline-success">📦 Sadece Paketleri JSON İndir</button>
+        <button onclick="exportPackages('excel')" class="btn btn-outline-primary">📦 Sadece Paketleri Excel İndir</button>
+        <p style="font-size:12px; color:#666; margin-top:5px;">
+            Tüm veri: Paketler, konteynerler, stok, müşteriler, personel, ayarlar ve daha fazlası
+        </p>
+    `;
+}
+
+// Initialize export buttons when app loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(addExportButtons, 2000); // Add after app initializes
+});
+
+function clearFrontendData() {
+    const password = prompt('Tüm frontend veriler silinecek. Lütfen şifreyi girin:');
+
+    if (password !== '8823') {
+        alert('⚠️ Şifre yanlış! İşlem iptal edildi.');
+        return;
+    }
+
+    // ------------------- LOCALSTORAGE -------------------
+    localStorage.removeItem('procleanState');
+    localStorage.removeItem('procleanOfflineData');
+    localStorage.removeItem('procleanSettings');
+
+    // ------------------- TABLES -------------------
+    const tables = document.querySelectorAll('table');
+    tables.forEach(table => {
+        const tbody = table.querySelector('tbody');
+        if (tbody) tbody.innerHTML = '';
+    });
+
+    // ------------------- INPUTS & TEXTAREAS -------------------
+    const inputs = document.querySelectorAll('input, textarea');
+    inputs.forEach(input => input.value = '');
+
+    // ------------------- SELECTS -------------------
+    const selects = document.querySelectorAll('select');
+    selects.forEach(select => select.selectedIndex = 0);
+
+    // ------------------- CONTAINERS -------------------
+    const containers = document.querySelectorAll(
+        '.container, .packages-container, .reports-container, .stock-container, .stock-items'
+    );
+    containers.forEach(container => container.innerHTML = '');
+
+    // ------------------- CHECKBOXES / TOGGLES -------------------
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+
+    const toggles = document.querySelectorAll('input[type="radio"]');
+    toggles.forEach(toggle => toggle.checked = false);
+
+    showAlert('Tüm frontend veriler temizlendi', 'success');
+}
+
+function initializeSettings() {
+    try {
+        const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+        if (savedSettings && typeof applySettings === 'function') {
+            applySettings(savedSettings);
+        }
+    } catch (error) {
+        console.error('⚠️ Error loading settings:', error);
+    }
+}
+
+function selectPackage(pkg) {
+    try {
+        // Validate input
+        if (!pkg || !pkg.id) {
+            console.error('Invalid package data:', pkg);
+            showAlert('Geçersiz paket verisi', 'error');
+            return;
+        }
         
-        // Save file
-        XLSX.writeFile(wb, filename);
+        // Remove selected class from all rows
+        document.querySelectorAll('#packagesTableBody tr').forEach(row => {
+            row.classList.remove('selected');
+        });
         
-        showAlert(`Excel dosyası başarıyla oluşturuldu: ${filename}`, 'success');
+        // Find and select the target row
+        const targetCheckbox = document.querySelector(`#packagesTableBody input[value="${pkg.id}"]`);
+        const targetRow = targetCheckbox?.closest('tr');
         
-        // Auto-backup to Supabase if available
-        if (window.supabase && SUPABASE_ANON_KEY) {
-            backupToSupabase();
+        if (targetRow) {
+            targetRow.classList.add('selected');
+        } else {
+            console.warn('Could not find row for package:', pkg.id);
+        }
+        
+        // Update detail content
+        const detailContent = document.getElementById('packageDetailContent');
+        if (detailContent) {
+            updatePackageDetails(pkg, detailContent);
         }
         
     } catch (error) {
-        console.error('Excel export error:', error);
-        showAlert('Excel dosyası oluşturulurken hata oluştu: ' + error.message, 'error');
+        console.error('Error in selectPackage:', error);
+        showAlert('Paket seçilirken hata oluştu', 'error');
     }
 }
 
-// Auto-save Excel file daily
-function setupDailyAutoSave() {
-    // Check if we need to save today
-    const lastSaveDate = localStorage.getItem('lastExcelSaveDate');
-    const today = new Date().toDateString();
-    
-    if (lastSaveDate !== today) {
-        // Save Excel file
-        exportToExcel();
-        
-        // Update last save date
-        localStorage.setItem('lastExcelSaveDate', today);
-        
-        console.log('Daily auto-save completed');
+function updatePackageDetails(pkg, container) {
+    // Safe date formatting
+    let dateStr = 'N/A';
+    if (pkg.created_at) {
+        try {
+            const date = new Date(pkg.created_at);
+            dateStr = isNaN(date.getTime()) ? 'Geçersiz tarih' : date.toLocaleDateString('tr-TR');
+        } catch (e) {
+            dateStr = 'Geçersiz tarih';
+        }
+    }
+
+    container.innerHTML = `
+        <h4>Paket: ${pkg.package_no || 'N/A'}</h4>
+        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+        <p><strong>Tarih:</strong> ${dateStr}</p>
+        <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
+        <div class="items-section">
+            <div style="display:flex; justify-content:space-between; font-weight:bold; border-bottom:2px solid #000; padding-bottom:0.3rem;">
+                <span>Ürün</span>
+                <span>Adet</span>
+            </div>
+        </div>
+    `;
+
+    if (Array.isArray(pkg.items) && pkg.items.length > 0) {
+        const itemsSection = container.querySelector('.items-section');
+        pkg.items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.style.display = 'flex';
+            itemDiv.style.justifyContent = 'space-between';
+            itemDiv.style.padding = '0.2rem 0';
+            itemDiv.textContent = ''; // We'll use spans
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = item.name || 'Bilinmeyen Ürün';
+            const qtySpan = document.createElement('span');
+            qtySpan.textContent = item.qty != null ? item.qty : 1;
+            itemDiv.appendChild(nameSpan);
+            itemDiv.appendChild(qtySpan);
+            itemsSection.appendChild(itemDiv);
+        });
     }
 }
 
-// Initialize auto-save on app start
-document.addEventListener('DOMContentLoaded', function() {
-    // Run auto-save check after 5 seconds (wait for app to load)
-    setTimeout(setupDailyAutoSave, 5000);
+
+
+function getSelectedPackage() {
+    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
+    if (!selectedRow) return null;
     
-    // Also set up daily check (every 24 hours)
-    setInterval(setupDailyAutoSave, 24 * 60 * 60 * 1000);
+    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
+    
+    return {
+        id: packageId,
+        package_no: selectedRow.cells[1].textContent,
+        customers: { name: selectedRow.cells[2].textContent },
+        total_quantity: selectedRow.cells[3].textContent.trim(), // now as text
+        created_at: selectedRow.cells[4].textContent
+    };
+}
+
+function toggleSelectAll() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const selectAll = document.getElementById('selectAllPackages').checked;
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+}
+
+function updatePackageSelection() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    
+    document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+}
+
+// Stock operations
+function searchStock() {
+    if (!elements.stockSearch) {
+        console.error('Stock search input not found');
+        return;
+    }
+    
+    if (!elements.stockTableBody) {
+        console.error('Stock table body not found');
+        return;
+    }
+    
+    const searchTerm = elements.stockSearch.value.toLowerCase();
+    const rows = elements.stockTableBody.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+}
+
+function clearStockSearch() {
+    elements.stockSearch.value = '';
+    const rows = elements.stockTableBody.querySelectorAll('tr');
+    rows.forEach(row => {
+        row.style.display = '';
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', function () {
+  const qtyModal = document.getElementById('quantityModal');
+  const qtyInput = document.getElementById('quantityInput');
+
+  // 1) Ensure initial input isn't "0"
+  if (qtyInput && qtyInput.value === '0') qtyInput.value = '';
+
+  // 2) Watch the modal becoming visible and clear the input if it's "0"
+  if (qtyModal && qtyInput) {
+    const mo = new MutationObserver(() => {
+      try {
+        const visible = window.getComputedStyle(qtyModal).display !== 'none';
+        if (visible) {
+          // Make sure placeholder/value not showing "0"
+          if (qtyInput.value === '0') qtyInput.value = '';
+          // prefer empty placeholder so user types fresh
+          qtyInput.placeholder = '';
+          // give focus (non-invasive)
+          setTimeout(() => { try { qtyInput.focus(); qtyInput.select(); } catch (e) {} }, 80);
+        }
+      } catch (e) { /* ignore */ }
+    });
+    mo.observe(qtyModal, { attributes: true, attributeFilter: ['style', 'class'] });
+  }
+
+  // 3) Auto-hide badges when their content is empty or "0"
+  const badgeObserver = new MutationObserver(mutations => {
+    mutations.forEach(m => {
+      const el = m.target;
+      if (!el || !el.classList) return;
+      if (!el.classList.contains('quantity-badge')) return;
+      const txt = (el.textContent || '').trim();
+      if (txt === '' || txt === '0') {
+        el.style.display = 'none';
+      } else {
+        el.style.display = 'flex';
+      }
+    });
+  });
+
+  // Attach observer to existing badges
+  document.querySelectorAll('.quantity-badge').forEach(b => {
+    badgeObserver.observe(b, { childList: true, subtree: true, characterData: true });
+    // initial normalize
+    const txt = (b.textContent || '').trim();
+    b.style.display = (txt === '' || txt === '0') ? 'none' : 'flex';
+  });
 });
-
-// Add export button to UI
-function addExportButton() {
-    const exportBtn = document.createElement('button');
-    exportBtn.id = 'exportExcelBtn';
-    exportBtn.className = 'btn btn-success';
-    exportBtn.innerHTML = '<i class="fas fa-file-excel"></i> Excel\'e Aktar';
-    exportBtn.onclick = exportToExcel;
-    
-    // Add to settings modal or main UI
-    const settingsSection = document.querySelector('.settings-section');
-    if (settingsSection) {
-        settingsSection.appendChild(exportBtn);
-    } else {
-        // Add to main UI if settings section not found
-        document.body.appendChild(exportBtn);
-        exportBtn.style.position = 'fixed';
-        exportBtn.style.bottom = '20px';
-        exportBtn.style.right = '20px';
-        exportBtn.style.zIndex = '1000';
-    }
-}
-
-// Initialize export button when DOM is ready
-document.addEventListener('DOMContentLoaded', addExportButton);
