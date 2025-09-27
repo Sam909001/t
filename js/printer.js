@@ -179,12 +179,12 @@ class PrinterServiceElectronWithSettings {
 <meta charset="UTF-8">
 <style>
     @page { 
-        size: 105mm 77mm portrait; 
+        size: 105mm 76mm portrait; 
         margin: 0; 
     }
     body { 
         width: 105mm; 
-        height: 77mm; 
+        height: 76mm; 
         margin: 0; 
         padding: 0; 
         font-family: 'Arial', sans-serif;
@@ -217,7 +217,7 @@ class PrinterServiceElectronWithSettings {
     
     .logo-img { 
         width: 50mm;
-        height: 25mm; 
+        height: 22mm; 
         object-fit: contain; 
     }
     
@@ -237,7 +237,7 @@ class PrinterServiceElectronWithSettings {
     
     .barcode svg { 
         width: 55mm; 
-        height: 25mm !important; 
+        height: 20mm !important; 
         display: block; 
         margin: 0; 
         padding: 0; 
@@ -304,38 +304,36 @@ class PrinterServiceElectronWithSettings {
         white-space: nowrap;
     }
     
-    .footer {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        font-size: 15px;
-        color: #333;
-        margin-top: 0.5mm;
-        padding-top: 0.5mm;
-        border-top: 0.5px solid #ccc;
-        line-height: 1.3;
-        position: relative;
-    }
+  .footer {
+    display: flex;
+    justify-content: flex-end; /* keep total on the right */
+    align-items: center;
+    font-size: 15px;
+    color: #333;
+    margin-top: 0.5mm;
+    padding-top: 0.5mm;
+    border-top: 0.5px solid #ccc; /* this is the bottom line */
+    line-height: 1.3;
+    position: relative;
+}
 
-    .total-info {
-        font-weight: bold;
-        background: #333;
-        color: #fff;
-        padding: 0.3mm 1mm;
-        border-radius: 1px;
-        position: relative;
-        top: -0.5mm;
-    }
+.total-info {
+    font-weight: bold;
+    background: #333;
+    color: #fff;
+    padding: 0.3mm 1mm;
+    border-radius: 1px;
+    position: relative;
+    top: -0.5mm; /* makes it hover just above the line */
+}
 
-    .date-info {
-        margin-top: 1mm;
-        font-weight: 600;
-        text-align: center;
-        font-size: 12px;
-        width: 100%;
-        padding-top: 0.5mm;
-        border-top: 0.5px solid #ccc; /* Date now has its own line underneath */
-    }
+.date-info {
+    margin-top: 1mm; /* spacing under border */
+    font-weight: 600;
+    text-align: left; /* or center if preferred */
+    font-size: 12px;
+}
+
 </style>
 </head>
 <body>
