@@ -327,6 +327,7 @@ async function manualExportToExcel(sheetName, data, fileName) {
 // ==================== DATA OPERATIONS (EXCEL-BASED) ====================
 
 // Customers
+// Fixed customer dropdown population
 async function populateCustomers() {
     try {
         console.log('Populating customers dropdown...');
@@ -336,6 +337,9 @@ async function populateCustomers() {
             return;
         }
 
+        // Save current selection
+        const currentValue = customerSelect.value;
+        
         customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
 
         if (!localData.customers || localData.customers.length === 0) {
@@ -354,6 +358,11 @@ async function populateCustomers() {
             customerSelect.appendChild(opt);
         });
 
+        // Restore selection if still valid
+        if (currentValue && localData.customers.some(c => c.id === currentValue)) {
+            customerSelect.value = currentValue;
+        }
+
         console.log(`Customers dropdown populated with ${localData.customers.length} customers`);
 
     } catch (error) {
@@ -361,6 +370,9 @@ async function populateCustomers() {
         showAlert('Müşteri listesi yüklenirken hata oluştu', 'error');
     }
 }
+
+
+
 
 
 
@@ -468,7 +480,7 @@ async function showAllCustomers() {
     }
 }
 
-// Personnel
+// Fixed personnel dropdown population
 async function populatePersonnel() {
     try {
         console.log('Populating personnel dropdown...');
@@ -478,6 +490,9 @@ async function populatePersonnel() {
             return;
         }
 
+        // Save current selection
+        const currentValue = personnelSelect.value;
+        
         personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
 
         if (!localData.personnel || localData.personnel.length === 0) {
@@ -496,6 +511,11 @@ async function populatePersonnel() {
             personnelSelect.appendChild(option);
         });
 
+        // Restore selection if still valid
+        if (currentValue && localData.personnel.some(p => p.id === currentValue)) {
+            personnelSelect.value = currentValue;
+        }
+
         console.log(`Personnel dropdown populated with ${localData.personnel.length} personnel`);
 
     } catch (error) {
@@ -503,7 +523,6 @@ async function populatePersonnel() {
         showAlert('Personel listesi yüklenirken hata oluştu', 'error');
     }
 }
-
 
 
 
@@ -1241,6 +1260,35 @@ async function restoreFromSupabase() {
     }
 }
 
+
+
+// Add this function right after your existing utility functions
+function updateUserInterface() {
+    // Update user role display
+    const userRoleElement = document.getElementById('userRole');
+    if (userRoleElement && currentUser) {
+        userRoleElement.textContent = 
+            `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+    }
+    
+    // Update current date fields
+    const today = new Date().toISOString().split('T')[0];
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        if (!input.value) {
+            input.value = today;
+        }
+    });
+    
+    // Apply role-based permissions
+    if (typeof applyRoleBasedPermissions === 'function') {
+        applyRoleBasedPermissions(currentUser.role);
+    }
+}
+
+
+
+
 // ==================== UTILITY FUNCTIONS ====================
 
 function escapeHtml(text) {
@@ -1354,55 +1402,6 @@ function setupAuthPersistence() {
     }
 }
 
-// Modified login function to persist session
-async function login() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    
-    if (!email || !password) {
-        showAlert('E-posta ve şifre gerekli', 'error');
-        return;
-    }
-    
-    try {
-        // For demo purposes - create a user session without Supabase auth
-        currentUser = {
-            email: email,
-            uid: generateId(),
-            name: email.split('@')[0]
-        };
-        
-        // Save user to localStorage
-        localStorage.setItem('procleanCurrentUser', JSON.stringify(currentUser));
-        
-        // Hide login screen, show app
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'flex';
-        
-        // Initialize app data
-        initializeAppData();
-        
-        showAlert('Giriş başarılı!', 'success');
-        
-    } catch (error) {
-        console.error('Login error:', error);
-        showAlert('Giriş başarısız: ' + error.message, 'error');
-    }
-}
-
-// Modified logout function
-function logout() {
-    currentUser = null;
-    localStorage.removeItem('procleanCurrentUser');
-    localStorage.removeItem('supabase.auth.token');
-    
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('appContainer').style.display = 'none';
-    
-    showAlert('Çıkış yapıldı', 'info');
-}
-
-
 
 
 
@@ -1416,13 +1415,12 @@ const pageSize = 20;
 let isShippingTableLoading = false;
 let isStockTableLoading = false;
 
-// ==================== INITIALIZATION ====================
-// Fixed initialization sequence
+// ==================== CORRECTED INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Content Loaded - Starting initialization...');
+    console.log('DOM Content Loaded - Starting corrected initialization...');
     
-    // Step 1: Setup authentication persistence FIRST
-    setupAuthPersistence();
+    // Step 1: Initialize UI elements first
+    initializeUIElements();
     
     // Step 2: Check for XLSX library
     if (!checkXLSXLibrary()) {
@@ -1439,76 +1437,85 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeSupabase();
     }
     
-    // Step 5: Initialize UI elements
-    initializeUIElements();
+    // Step 5: Check if user is already logged in via Supabase auth
+    checkAuthState();
     
-    // Step 6: Check if user is logged in
-    if (currentUser) {
-        // User is logged in, show app
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'flex';
-        
-        // Load data into UI
-        initializeAppData();
-        
-        // Setup daily Excel export
-        setupDailyExcelExport();
-        
-        console.log('App initialized for user:', currentUser);
-    } else {
-        // User not logged in, show login screen
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('appContainer').style.display = 'none';
-        console.log('User not logged in, showing login screen');
-    }
-    
-    console.log('Initialization completed');
+    console.log('Initialization sequence completed');
 });
 
-// Initialize UI elements function
-function initializeUIElements() {
-    Object.assign(elements, {
-        packagesTableBody: document.getElementById('packagesTableBody'),
-        stockTableBody: document.getElementById('stockTableBody'),
-        shippingFolders: document.getElementById('shippingFolders'),
-        customerList: document.getElementById('customerList'),
-        allCustomersList: document.getElementById('allCustomersList'),
-        totalPackages: document.getElementById('totalPackages'),
-        shippingFilter: document.getElementById('shippingFilter'),
-        containerSearch: document.getElementById('containerSearch'),
-        barcodeInput: document.getElementById('barcodeInput'),
-        personnelSelect: document.getElementById('personnelSelect'),
-        customerSelect: document.getElementById('customerSelect')
-    });
-    
-    console.log('UI elements initialized');
-}
-
-// Initialize app data after login
-function initializeAppData() {
-    console.log('Initializing app data...');
-    
-    // Populate dropdowns
-    populateCustomers();
-    populatePersonnel();
-    
-    // Populate tables
-    populatePackagesTable();
-    populateStockTable();
-    populateShippingTable();
-    
-    console.log('App data initialized');
-}
-
-
-window.addEventListener('DOMContentLoaded', () => {
-    const savedKey = localStorage.getItem('procleanApiKey');
-    if (savedKey) {
-        SUPABASE_ANON_KEY = savedKey;
-        initializeSupabase();
-        console.log('Supabase API key loaded from localStorage');
-    } else {
-        document.getElementById('apiKeyModal').style.display = 'flex';
+// Check authentication state using Supabase
+async function checkAuthState() {
+    try {
+        // Initialize Supabase first
+        if (!supabase) {
+            const client = initializeSupabase();
+            if (!client) {
+                console.log('Supabase not initialized, showing login screen');
+                showLoginScreen();
+                return;
+            }
+        }
+        
+        // Check current session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+            console.error('Session check error:', error);
+            showLoginScreen();
+            return;
+        }
+        
+        if (session && session.user) {
+            // User is logged in - get additional user info
+            const { data: userData, error: userError } = await supabase
+                .from('personnel')
+                .select('role, name')
+                .eq('email', session.user.email)
+                .single();
+                
+            if (userError) {
+                console.error('Error fetching user data:', userError);
+            }
+            
+            currentUser = {
+                email: session.user.email,
+                uid: session.user.id,
+                name: userData?.name || session.user.email.split('@')[0],
+                role: userData?.role || 'operator'
+            };
+            
+            showAppScreen();
+        } else {
+            showLoginScreen();
+        }
+        
+    } catch (error) {
+        console.error('Auth state check error:', error);
+        showLoginScreen();
     }
-});
+}
 
+function showLoginScreen() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appContainer').style.display = 'none';
+    console.log('Showing login screen');
+}
+
+async function showAppScreen() {
+    console.log('Showing app screen for user:', currentUser);
+    
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'flex';
+    
+    // Initialize form elements
+    initializeFormElements();
+    
+    // Load app data
+    await initializeAppData();
+    
+    // Setup daily Excel export
+    setupDailyExcelExport();
+    
+    // Update UI with user info
+    updateUserInterface();
+}
