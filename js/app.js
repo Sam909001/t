@@ -69,97 +69,37 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
-
-
-
-// Safe application initialization
+// Initialize application
 async function initApp() {
-    console.log('Initializing app...');
+    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
-    try {
-        // Wait a brief moment to ensure DOM is fully ready
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Ensure elements are initialized
-        if (!window.elements || Object.keys(window.elements).length === 0) {
-            console.warn('Elements not initialized, calling initializeElementsObject...');
-            initializeElementsObject();
-        }
-        
-        // Safely set current date
-        if (window.elements && window.elements.currentDate) {
-            window.elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-            console.log('Current date set successfully');
-        } else {
-            console.warn('currentDate element not found');
-        }
-        
-        // Populate dropdowns with error handling
-        try {
-            await populateCustomers();
-            console.log('Customers populated');
-        } catch (error) {
-            console.error('Error populating customers:', error);
-        }
-        
-        try {
-            await populatePersonnel();
-            console.log('Personnel populated');
-        } catch (error) {
-            console.error('Error populating personnel:', error);
-        }
-        
-        // Load saved state
-        loadAppState();
-        
-        // Load initial data for current tab
-        await loadInitialData();
-        
-        // Test connection
-        await testConnection();
-        
-        // Set up other features
-        setupOfflineSupport();
-        setupBarcodeScanner();
-        
-        console.log('App initialization completed successfully');
-        
-    } catch (error) {
-        console.error('Error in initApp:', error);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
-    }
+    // Populate dropdowns
+    await populateCustomers();
+    await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
+    
+    // Load data
+    await populatePackagesTable();
+    await populateStockTable();
+    await populateShippingTable();
+    
+    // Test connection
+    await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000); // Save every 5 seconds
+    
+    // Set up offline support
+    setupOfflineSupport();
+    
+    // Set up barcode scanner listener
+    setupBarcodeScanner();
+    
+    // Start daily auto-clear
+    scheduleDailyClear();
 }
-
-// Load data for the currently active tab
-async function loadInitialData() {
-    const activeTab = document.querySelector('.tab.active');
-    const tabName = activeTab ? activeTab.getAttribute('data-tab') : 'packaging';
-    
-    console.log('Loading initial data for tab:', tabName);
-    
-    try {
-        switch(tabName) {
-            case 'packaging':
-                await populatePackagesTable();
-                break;
-            case 'shipping':
-                await populateShippingTable();
-                break;
-            case 'stock':
-                await populateStockTable();
-                break;
-            case 'reports':
-                await populateReportsTable();
-                break;
-            default:
-                await populatePackagesTable();
-        }
-    } catch (error) {
-        console.error('Error loading initial data for tab', tabName, ':', error);
-    }
-}
-
-
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
@@ -318,74 +258,40 @@ async function deleteContainer() {
 }
 
 function switchTab(tabName) {
-    console.log('Switching to tab:', tabName);
+    // Hide all tab panes
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
     
-    try {
-        // Hide all tab panes
-        document.querySelectorAll('.tab-pane').forEach(pane => {
-            pane.classList.remove('active');
-        });
+    // Deactivate all tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Activate selected tab
+    const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    const selectedPane = document.getElementById(`${tabName}Tab`);
+    
+    if (selectedTab && selectedPane) {
+        selectedTab.classList.add('active');
+        selectedPane.classList.add('active');
         
-        // Deactivate all tabs
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        // Activate selected tab
-        const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
-        const selectedPane = document.getElementById(`${tabName}Tab`);
-        
-        if (selectedTab && selectedPane) {
-            selectedTab.classList.add('active');
-            selectedPane.classList.add('active');
-            
-            // Load data for the selected tab
-            loadTabData(tabName);
-        } else {
-            console.error('Tab or pane not found:', { tabName, selectedTab, selectedPane });
-            showAlert('Sekme yüklenirken hata oluştu', 'error');
-        }
-    } catch (error) {
-        console.error('Error switching tab:', error);
-        showAlert('Sekme değiştirilirken hata oluştu', 'error');
+        // Load data when tab is clicked
+        setTimeout(() => {
+            switch(tabName) {
+                case 'shipping':
+                    populateShippingTable();
+                    break;
+                case 'stock':
+                    populateStockTable();
+                    break;
+                case 'reports':
+                    populateReportsTable();
+                    break;
+            }
+        }, 100);
     }
 }
-
-// Load data for specific tab
-async function loadTabData(tabName) {
-    console.log('Loading data for tab:', tabName);
-    
-    try {
-        switch(tabName) {
-            case 'packaging':
-                await populatePackagesTable();
-                break;
-                
-            case 'shipping':
-                await populateShippingTable();
-                break;
-                
-            case 'stock':
-                await populateStockTable();
-                break;
-                
-            case 'reports':
-                await populateReportsTable();
-                break;
-                
-            default:
-                console.warn('Unknown tab:', tabName);
-        }
-        
-        console.log('Tab data loaded successfully:', tabName);
-    } catch (error) {
-        console.error('Error loading tab data:', tabName, error);
-        showAlert(`${tabName} verileri yüklenirken hata oluştu`, 'error');
-    }
-}
-
-
-
 
 
 
@@ -549,8 +455,6 @@ function scheduleDailyClear() {
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', function() {
-      // Initialize elements first
-    initializeElementsObject();
     // Settings button
     const settingsBtn = document.getElementById('settingsBtn');
     if (settingsBtn) {
