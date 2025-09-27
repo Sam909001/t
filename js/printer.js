@@ -304,39 +304,38 @@ class PrinterServiceElectronWithSettings {
         white-space: nowrap;
     }
     
-.footer {
-    display: flex;
-    justify-content: flex-end; /* keep total on the right */
-    align-items: center;
-    font-size: 15px;
-    color: #333;
-    margin-top: 0.5mm;
-    padding-top: 0.5mm;
-    border-top: 0.5px solid #ccc; /* line stays only for footer */
-    line-height: 1.3;
-    position: relative;
-}
+    .footer {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        font-size: 15px;
+        color: #333;
+        margin-top: 0.5mm;
+        padding-top: 0.5mm;
+        border-top: 0.5px solid #ccc;
+        line-height: 1.3;
+        position: relative;
+    }
 
-.total-info {
-    font-weight: bold;
-    background: #333;
-    color: white;
-    padding: 0.3mm 1mm;
-    border-radius: 1px;
-    position: relative;
-    top: -0.5mm; /* makes it sit slightly above the border */
-}
+    .total-info {
+        font-weight: bold;
+        background: #333;
+        color: #fff;
+        padding: 0.3mm 1mm;
+        border-radius: 1px;
+        position: relative;
+        top: -0.5mm;
+    }
 
-.date-info {
-    display: block;
-    margin-top: 1mm; /* space below footer border */
-    font-weight: 600;
-    text-align: left; /* change to center if needed */
-}
-
-
-
-
+    .date-info {
+        margin-top: 1mm;
+        font-weight: 600;
+        text-align: center;
+        font-size: 12px;
+        width: 100%;
+        padding-top: 0.5mm;
+        border-top: 0.5px solid #ccc; /* Date now has its own line underneath */
+    }
 </style>
 </head>
 <body>
@@ -404,12 +403,11 @@ class PrinterServiceElectronWithSettings {
     <div class="items-section">
         ${itemHTML}
     </div>
-<div class="footer">
-    <span class="total-info">Toplam: ${totalItems} adet</span>
-</div>
-<span class="date-info">${dateTime}</span>
-
-                    `;
+    <div class="footer">
+        <span class="total-info">Toplam: ${totalItems} adet</span>
+    </div>
+    <div class="date-info">${dateTime}</div>
+</div>`;
                 }
             }
 
