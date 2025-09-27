@@ -153,9 +153,9 @@ document.addEventListener("DOMContentLoaded", function() {
                                 <span>Büyük çarşaf</span>
                                 <div class="quantity-badge" id="Büyük Çarşaf-quantity">0</div>
                             </div>
-                           <div class="quick-btn" onclick="openQuantityModal('Büyük Havlu')" data-product="Büyük Havlu">
-                                <span>Büyük Havlu</span>
-                                <div class="quantity-badge" id="Büyük Havlu-quantity">0</div>
+                            <div class="quick-btn" onclick="openQuantityModal('Çarşaf')" data-product="Çarşaf">
+                                <span>Çarşaf</span>
+                                <div class="quantity-badge" id="Çarşaf-quantity">0</div>
                             </div>
                             <div class="quick-btn" onclick="openQuantityModal('Büyük Nevresim')" data-product="Büyük Nevresim">
                                 <span>Büyük Nevresim</span>
@@ -165,9 +165,9 @@ document.addEventListener("DOMContentLoaded", function() {
                                 <span>Nevresim</span>
                                 <div class="quantity-badge" id="Nevresim-quantity">0</div>
                             </div>
-                            <div class="quick-btn" onclick="openQuantityModal('Çarşaf')" data-product="Çarşaf">
-                                <span>Çarşaf</span>
-                                <div class="quantity-badge" id="Çarşaf-quantity">0</div>
+                            <div class="quick-btn" onclick="openQuantityModal('Büyük Havlu')" data-product="Büyük Havlu">
+                                <span>Büyük Havlu</span>
+                                <div class="quantity-badge" id="Büyük Havlu-quantity">0</div>
                             </div>
                             <div class="quick-btn" onclick="openQuantityModal('Havlu')" data-product="Havlu">
                                 <span>Havlu</span>
@@ -187,18 +187,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             </div>
                         </div>
                         
-                       <div style="display: flex; gap: 10px; margin-top: 1rem;">
-    <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="flex: 1;">Manuel Giriş</button>
-    <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;">Extra</button>
-</div>
-
-<div class="status-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-<div class="quick-btn status-btn" id="Lekeli" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli">Lekeli</div>
-<div class="quick-btn status-btn" id="Yırtık" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık">Yırtık</div>
-<div class="quick-btn status-btn" id="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan">Çıkmayan</div>
-<div class="quick-btn status-btn" id="Discard" onclick="openStatusQuantityModal('Discard')" data-status="Discard">Discard</div>
-</div>
-
+                        <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="width:100%; margin-top:1rem;">Manuel Giriş</button>
                         <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:0.5rem;" id="scannerToggle">
                             <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
                         </button>
@@ -237,7 +226,7 @@ document.addEventListener("DOMContentLoaded", function() {
     <!-- Buttons always under Paket Detayları -->
     <div class="package-actions">
         <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
-        <button type="button" class="btn btn-warning" id="printBarcodeBtn">Etiket Yazdır</button>
+        <button type="button" class="btn btn-warning" id="printSelectedElectronBtn">Etiket Yazdır</button>
         <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
     </div>
 </div>
@@ -492,31 +481,6 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
     </div>
 
-
-            <!-- Extra Products Modal -->
-<div class="modal" id="extraModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Extra Ürünler</h3>
-            <button type="button" class="modal-close" onclick="closeExtraModal()">&times;</button>
-        </div>
-
-        <div class="quick-buttons">
-            <div class="quick-btn" onclick="openQuantityModal('Paspas Havlu')">Paspas Havlu</div>
-            <div class="quick-btn" onclick="openQuantityModal('Minik Havlu')">Minik Havlu</div>
-            <div class="quick-btn" onclick="openQuantityModal('Peştemal')">Peştemal</div>
-            <div class="quick-btn" onclick="openQuantityModal('Pornoz')">Pornoz</div>
-            <div class="quick-btn" onclick="openQuantityModal('Pike')">Pike</div>
-            <div class="quick-btn" onclick="openQuantityModal('Battaniye')">Battaniye</div>
-            <div class="quick-btn" onclick="openQuantityModal('Yatak Örtüsü')">Yatak Örtüsü</div>
-            <div class="quick-btn" onclick="openQuantityModal('Tül Perde')">Tül Perde</div>
-            <div class="quick-btn" onclick="openQuantityModal('Kumaş Perde')">Kumaş Perde</div>
-            <div class="quick-btn" onclick="openQuantityModal('Saten Perde')">Saten Perde</div>
-        </div>
-    </div>
-</div>
-
-
     <!-- Container Detail Modal -->
     <div class="modal" id="containerDetailModal">
         <div class="modal-content">
@@ -750,7 +714,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script>
             
-<script src="renderer/renderers.js"></script>
-<script src="renderer/shipping.js"></script>
+<script src="renderer.js"></script>
+
 </body>
 </html>
