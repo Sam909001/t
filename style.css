@@ -199,12 +199,14 @@ body {
 
 .tab-pane { 
     display: none; 
-    height: calc(100vh - 200px); 
+    height: auto; /* ✅ Use auto or flex-grow */
+    min-height: 400px; /* ✅ Ensure minimum height */
     overflow: auto; 
 }
 
 .tab-pane.active { 
-    display: block; 
+    display: flex; /* ✅ Use flex for better layout */
+    flex-direction: column;
 }
 
 .packaging-header { 
@@ -1512,3 +1514,56 @@ table {
     border-radius: 5px;
     border-left: 4px solid #1976d2;
 }
+
+
+
+
+
+/* Specific styles for shipping tab */
+#shippingTab {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#shippingFolders {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 300px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 15px;
+    background: var(--surface);
+    margin-top: 15px;
+}
+
+/* Ensure shipping content is visible */
+#shippingTab .packaging-header {
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+
+/* Specific styling for shipping tab content */
+#shippingTab .tab-pane-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 15px;
+}
+
+#shippingTab .packaging-header {
+    background: var(--surface);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+
+
+
+
+
+/* Debug borders - remove after fixing */
+#shippingTab { border: 2px solid red !important; }
+#shippingFolders { border: 2px solid blue !important; min-height: 200px; }
+.tab-pane.active { border: 2px solid green !important; }
