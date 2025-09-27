@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -7,7 +8,6 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <img src="${logoPathFinal}" class="logo-img">
@@ -269,135 +269,108 @@ document.addEventListener("DOMContentLoaded", function() {
                     <!-- Customer folders will be populated here -->
                 </div>
             </div>
-       
-<!-- Shipping Tab - CORRECT -->
-<div class="tab-pane" id="shippingTab">
-    <div class="packaging-header">
-        <div class="customer-info">
-            <div class="info-group">
-                <label for="shippingFilter">Durum Filtresi</label>
-                <select id="shippingFilter" onchange="filterShipping()">
-                    <option value="all">Tümü</option>
-                    <option value="beklemede">Beklemede</option>
-                    <option value="sevk-edildi">Sevk Edildi</option>
-                </select>
-            </div>
-            <div class="info-group">
-                <label for="containerSearch">Konteyner Ara</label>
-                <input type="text" id="containerSearch" placeholder="Konteyner no..." oninput="searchContainers()">
-            </div>
-        </div>
-        <div class="action-buttons">
-            <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
-            <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()">Mevcut Konteyner</button>
-            <button type="button" class="btn btn-danger" onclick="deleteContainer()">Konteyner Sil</button>
-        </div>
+
+
+            <td>
+    <div class="edit-buttons" style="display: none;">
+        <button onclick="saveStockFromRow(this, 'STK001')">Kaydet</button>
+        <button onclick="cancelStockFromRow(this, 'STK001')">İptal</button>
     </div>
+</td>
+            
 
-    <div id="shippingFolders">
-        <!-- Customer folders will be populated here -->
-    </div>
-</div>
+          <div class="tab-pane" id="stockTab">
+                <div class="stock-search">
+                    <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
+                    <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
+                    <button type="button" class="btn btn-success" onclick="exportStock()">Stokları Dışa Aktar</button>
+                </div>
 
-<!-- Stock Tab - CORRECTED -->
-<div class="tab-pane" id="stockTab">
-    <div class="stock-container">
-        <div class="stock-search">
-            <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
-            <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
-            <button type="button" class="btn btn-success" onclick="exportStock()">Stokları Dışa Aktar</button>
-        </div>
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th>Stok Kodu</th>
+                            <th>Ürün Adı</th>
+                            <th>Mevcut Adet</th>
+                            <th>Birim</th>
+                            <th>Durum</th>
+                            <th>Son Güncelleme</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody">
+                        <!-- Stock data will be populated here -->
+                    </tbody>
+                </table>
 
-        <div class="stock-table-container">
-            <table class="stock-table">
-                <thead>
-                    <tr>
-                        <th>Stok Kodu</th>
-                        <th>Ürün Adı</th>
-                        <th>Mevcut Adet</th>
-                        <th>Birim</th>
-                        <th>Durum</th>
-                        <th>Son Güncelleme</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody id="stockTableBody">
-                    <!-- Stock data will be populated here -->
-                </tbody>
-            </table>
-        </div>
 
-        <div class="file-upload">
-            <h3>Stok Dosyası Yükle</h3>
-            <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
-            <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
-            <div>
-                <span id="selectedFileName"></span>
-                <div class="validation-error" id="fileError"></div>
+
+                <div class="file-upload">
+                    <h3>Stok Dosyası Yükle</h3>
+                    <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
+                    <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
+                    <div>
+                        <span id="selectedFileName"></span>
+                        <div class="validation-error" id="fileError"></div>
+                    </div>
+                    <button type="button" class="upload-button" onclick="uploadStockFile()">
+                        <i class="fas fa-upload"></i> Dosya Yükle
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
+                        <i class="fas fa-download"></i> Şablon İndir
+                    </button>
+                </div>
             </div>
-            <button type="button" class="upload-button" onclick="uploadStockFile()">
-                <i class="fas fa-upload"></i> Dosya Yükle
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
-                <i class="fas fa-download"></i> Şablon İndir
-            </button>
-        </div>
-    </div>
-</div>
 
-<!-- Reports Tab - CORRECTED -->
-<div class="tab-pane admin-only" id="reportsTab">
-    <div class="reports-container">
-        <div class="packaging-header">
-            <h3>Raporlar</h3>
-            <div class="action-buttons">
-                <button type="button" class="btn btn-primary" onclick="generateCustomReport()">Özel Rapor</button>
-                <button type="button" class="btn btn-warning" onclick="exportReports()">Raporları Dışa Aktar</button>
-            </div>
-        </div>
+            <div class="tab-pane admin-only" id="reportsTab">
+                <div class="packaging-header">
+                    <h3>Raporlar</h3>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-primary" onclick="generateCustomReport()">Özel Rapor</button>
+                        <button type="button" class="btn btn-warning" onclick="exportReports()">Raporları Dışa Aktar</button>
+                    </div>
+                </div>
 
-        <div class="report-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-            <div class="info-group">
-                <label for="reportType">Rapor Türü</label>
-                <select id="reportType">
-                    <option value="daily">Günlük Rapor</option>
-                    <option value="weekly">Haftalık Rapor</option>
-                    <option value="monthly">Aylık Rapor</option>
-                    <option value="custom">Özel Rapor</option>
-                </select>
-            </div>
-            <div class="info-group">
-                <label for="startDate">Başlangıç Tarihi</label>
-                <input type="date" id="startDate">
-            </div>
-            <div class="info-group">
-                <label for="endDate">Bitiş Tarihi</label>
-                <input type="date" id="endDate">
-            </div>
-            <div class="info-group" style="align-self: flex-end;">
-                <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
-            </div>
-        </div>
+                <div class="report-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <div class="info-group">
+                        <label for="reportType">Rapor Türü</label>
+                        <select id="reportType">
+                            <option value="daily">Günlük Rapor</option>
+                            <option value="weekly">Haftalık Rapor</option>
+                            <option value="monthly">Aylık Rapor</option>
+                            <option value="custom">Özel Rapor</option>
+                        </select>
+                    </div>
+                    <div class="info-group">
+                        <label for="startDate">Başlangıç Tarihi</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="info-group">
+                        <label for="endDate">Bitiş Tarihi</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <div class="info-group" style="align-self: flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
+                    </div>
+                </div>
 
-        <div class="reports-table-container">
-            <table class="stock-table">
-                <thead>
-                    <tr>
-                        <th>Rapor Tarihi</th>
-                        <th>Rapor Türü</th>
-                        <th>Paket Sayısı</th>
-                        <th>Toplam Adet</th>
-                        <th>Oluşturan</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody id="reportsTableBody">
-                    <!-- Reports will be populated here -->
-                </tbody>
-            </table>
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th>Rapor Tarihi</th>
+                            <th>Rapor Türü</th>
+                            <th>Paket Sayısı</th>
+                            <th>Toplam Adet</th>
+                            <th>Oluşturan</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportsTableBody">
+                        <!-- Reports will be populated here -->
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-</div>
 
         <div class="app-footer">
             <div class="container-info">
@@ -683,8 +656,8 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="settings-option">
                 <label>Veri Yedekleme</label>
                 <div style="display: flex; gap: 10px;">
-             <button class="btn btn-primary" id="downloadDataBtn" onclick="exportData('json')">JSON İndir</button>
-             <button class="btn btn-primary" id="downloadDataBtnExcel" onclick="exportData('excel')">Excel İndir</button>
+                    <button class="btn btn-primary" onclick="exportData('json')">JSON İndir</button>
+                    <button class="btn btn-primary" onclick="exportData('excel')">Excel İndir</button>
                 </div>
             </div>
             
@@ -759,44 +732,13 @@ document.addEventListener("DOMContentLoaded", function() {
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
 
-<script>
-// Initialize elements immediately when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing elements...');
-    
-    // Simple elements initialization that runs first
-    window.elements = {};
-    
-    // Critical elements that must be available
-    const criticalElements = [
-        'loginScreen', 'appContainer', 'currentDate', 'customerSelect', 
-        'personnelSelect', 'packagesTableBody', 'shippingFolders',
-        'stockTableBody', 'reportsTableBody'
-    ];
-    
-    criticalElements.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            window.elements[id] = element;
-        } else {
-            console.error('Critical element not found:', id);
-        }
-    });
-    
-    // Set current date immediately
-    if (window.elements.currentDate) {
-        window.elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-    }
-    
-    console.log('Basic elements initialized:', Object.keys(window.elements));
-});
-</script>
-
+<!-- 1. External libraries and database connection first -->
+<script src="js/supabase.js"></script>
 
 <!-- 2. UI functions (needed by other modules) -->
 <script src="js/printer.js"></script>
 <script src="js/ui.js"></script>
-<script src="js/supabase.js"></script>
+
 <!-- 3. Authentication (depends on supabase and ui) -->
 <script src="js/auth.js"></script>
 
@@ -808,5 +750,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script>
             
+<script src="renderer/renderers.js"></script>
+<script src="renderer/shipping.js"></script>
 </body>
 </html>
