@@ -2053,3 +2053,38 @@ function shipContainer(containerNo) {
         populateShippingTable(); // Refresh the table
     }
 }
+
+
+
+
+function debugShippingElements() {
+    console.log('=== DEBUG SHIPPING ELEMENTS ===');
+    
+    // Check if shippingFolders exists
+    const shippingFolders = document.getElementById('shippingFolders');
+    console.log('shippingFolders element:', shippingFolders);
+    
+    // Check if shippingTab exists and is visible
+    const shippingTab = document.getElementById('shippingTab');
+    console.log('shippingTab element:', shippingTab);
+    if (shippingTab) {
+        console.log('shippingTab display style:', getComputedStyle(shippingTab).display);
+        console.log('shippingTab classList:', shippingTab.classList);
+    }
+    
+    // Check all elements in the shipping tab
+    const shippingElements = [
+        'shippingFolders', 'shippingFilter', 'containerSearch'
+    ];
+    
+    shippingElements.forEach(id => {
+        const element = document.getElementById(id);
+        console.log(`Element ${id}:`, element ? 'FOUND' : 'NOT FOUND', element);
+    });
+    
+    // Check if we're on the shipping tab
+    const activeTab = document.querySelector('.tab.active');
+    console.log('Active tab:', activeTab ? activeTab.getAttribute('data-tab') : 'None');
+}
+
+// Run this in console after switching to shipping tab
