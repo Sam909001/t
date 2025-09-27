@@ -1,4 +1,4 @@
-// Supabase initialization - Only for authentication and backups
+// Supabase initialization - Only for authentication and reference data
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
@@ -19,22 +19,22 @@ let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
 
-// Local Excel Storage System
+// Local Excel Storage System - Transactional data only
 let localData = {
     packages: [],
     containers: [],
-    customers: [],
-    personnel: [],
     stock_items: [],
     barcodes: [],
-    settings: {}
+    settings: {},
+    // Reference data cached from Supabase
+    customers: [],
+    personnel: []
 };
 
 // EmailJS initialization
 (function() {
     emailjs.init("jH-KlJ2ffs_lGwfsp");
 })();
-
 
 // FIXED: API anahtarını kaydet ve istemciyi başlat
 function saveApiKey() {
@@ -61,9 +61,6 @@ function saveApiKey() {
     }
 }
 
-
-
-        
 let connectionAlertShown = false; // Prevent duplicate success alert
 
 // FIXED: Supabase bağlantısını test et
@@ -72,7 +69,7 @@ async function testConnection() {
         console.warn('Supabase client not initialized for connection test');
         if (!connectionAlertShown) {
             showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
-            connectionAlertShown = true; // mark as shown to avoid repeating
+            connectionAlertShown = true;
         }
         return false;
     }
@@ -85,7 +82,7 @@ async function testConnection() {
         
         if (!connectionAlertShown) {
             showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
-            connectionAlertShown = true; // ensure alert shows only once
+            connectionAlertShown = true;
         }
 
         return true;
@@ -98,8 +95,6 @@ async function testConnection() {
         return false;
     }
 }
-
-
 
 // Elements
 const elements = {};
@@ -117,7 +112,6 @@ function checkXLSXLibrary() {
 // ==================== LOCAL EXCEL STORAGE FUNCTIONS ====================
 
 // Initialize local data from localStorage or create default structure
-// Fixed data initialization function
 function initializeLocalData() {
     console.log('Initializing local data...');
     
@@ -140,59 +134,18 @@ function initializeLocalData() {
         localData = createDefaultData();
     }
     
-    // Ensure all arrays exist and have data
-    if (!localData.customers || localData.customers.length === 0) {
-        console.log('No customers found, creating default customers');
-        localData.customers = [
-            {
-                id: '1',
-                name: 'Yeditepe Otel',
-                code: 'YEDITEPE',
-                email: 'info@yeditepe.com',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: '2', 
-                name: 'Marmara Otel',
-                code: 'MARMARA',
-                email: 'info@marmara.com',
-                created_at: new Date().toISOString()
-            }
-        ];
-    }
-    
-    if (!localData.personnel || localData.personnel.length === 0) {
-        console.log('No personnel found, creating default personnel');
-        localData.personnel = [
-            {
-                id: '1',
-                name: 'Ahmet Yılmaz',
-                role: 'Operator',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: '2',
-                name: 'Mehmet Demir',
-                role: 'Supervisor', 
-                created_at: new Date().toISOString()
-            }
-        ];
-    }
-    
-    // Ensure other arrays exist
+    // Ensure all arrays exist
     if (!localData.packages) localData.packages = [];
     if (!localData.containers) localData.containers = [];
     if (!localData.stock_items) localData.stock_items = [];
     if (!localData.barcodes) localData.barcodes = [];
     if (!localData.settings) localData.settings = {};
+    if (!localData.customers) localData.customers = [];
+    if (!localData.personnel) localData.personnel = [];
     
     saveLocalData();
     console.log('Local data initialization completed');
 }
-
-
-
-
 
 function createDefaultData() {
     return {
@@ -209,22 +162,8 @@ function createDefaultData() {
                 container_id: null
             }
         ],
-        customers: [
-            {
-                id: '1',
-                name: 'Örnek Otel',
-                code: 'OTEL001',
-                email: 'info@ornekotel.com',
-                created_at: new Date().toISOString()
-            }
-        ],
-        personnel: [
-            {
-                id: '1',
-                name: 'Admin Kullanıcı',
-                created_at: new Date().toISOString()
-            }
-        ],
+        customers: [], // Will be populated from Supabase
+        personnel: [], // Will be populated from Supabase
         containers: [],
         stock_items: [
             {
@@ -245,10 +184,22 @@ function createDefaultData() {
     };
 }
 
-// Save data to localStorage
+// Save data to localStorage - Only transactional data
 function saveLocalData() {
     try {
-        localStorage.setItem('procleanLocalData', JSON.stringify(localData));
+        // Only save transactional data to local storage
+        const dataToSave = {
+            packages: localData.packages,
+            containers: localData.containers,
+            stock_items: localData.stock_items,
+            barcodes: localData.barcodes,
+            settings: localData.settings,
+            // Keep cached reference data for offline use
+            customers: localData.customers,
+            personnel: localData.personnel
+        };
+        
+        localStorage.setItem('procleanLocalData', JSON.stringify(dataToSave));
         console.log('Local data saved successfully');
     } catch (error) {
         console.error('Error saving local data:', error);
@@ -272,7 +223,7 @@ function setupDailyExcelExport() {
         setTimeout(() => {
             exportAllDataToExcel();
             localStorage.setItem('lastExcelExport', today);
-        }, 5000); // 5 seconds after page load
+        }, 5000);
     }
     
     // Set up daily timer
@@ -285,12 +236,11 @@ function setupDailyExcelExport() {
     setTimeout(() => {
         exportAllDataToExcel();
         localStorage.setItem('lastExcelExport', new Date().toDateString());
-        // Set up recurring daily export
         setInterval(exportAllDataToExcel, 24 * 60 * 60 * 1000);
     }, msUntilMidnight);
 }
 
-// Export all data to Excel file
+// Export all data to Excel file - Only transactional data
 function exportAllDataToExcel() {
     if (!checkXLSXLibrary()) return;
     
@@ -298,11 +248,9 @@ function exportAllDataToExcel() {
         const wb = XLSX.utils.book_new();
         const timestamp = new Date().toISOString().slice(0, 10);
         
-        // Create worksheets for each data type
+        // Create worksheets for transactional data only
         const worksheets = [
             { name: 'Packages', data: localData.packages },
-            { name: 'Customers', data: localData.customers },
-            { name: 'Personnel', data: localData.personnel },
             { name: 'Containers', data: localData.containers },
             { name: 'Stock', data: localData.stock_items },
             { name: 'Barcodes', data: localData.barcodes },
@@ -320,7 +268,6 @@ function exportAllDataToExcel() {
         XLSX.writeFile(wb, `ProClean_Data_${timestamp}.xlsx`);
         console.log('Daily Excel export completed');
         
-        // Show notification only on manual export
         if (arguments[0] === 'manual') {
             showAlert('Excel dosyası başarıyla kaydedildi', 'success');
         }
@@ -345,55 +292,46 @@ function generateSummaryData() {
     };
 }
 
-// =============================
-// Manual Excel Export (Safe)
-// =============================
+// Manual Excel Export (Safe) - Only transactional data
 async function manualExportToExcel(sheetName, data, fileName) {
     try {
-        // ✅ Ensure we always have a fileName
         if (!fileName || typeof fileName !== "string") {
             fileName = `${sheetName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
         }
 
-        // ✅ Ensure data is at least an empty array
         const safeData = Array.isArray(data) ? data : [];
-
-        // Build Excel sheet
         const ws = XLSX.utils.json_to_sheet(safeData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-        // Convert workbook to buffer
         const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([excelBuffer], {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         });
 
-        // ✅ Save locally (download)
         saveAs(blob, fileName);
 
-        // ✅ Upload to Supabase Storage
-        const bucketName = "daily-data"; // must exist in Supabase
-        const filePath = fileName.replace(/\s+/g, "_"); // clean spaces
+        // Upload to Supabase Storage if available
+        if (supabase) {
+            const bucketName = "daily-data";
+            const filePath = fileName.replace(/\s+/g, "_");
 
-        const { error } = await supabase.storage
-            .from(bucketName)
-            .upload(filePath, blob, { upsert: true });
+            const { error } = await supabase.storage
+                .from(bucketName)
+                .upload(filePath, blob, { upsert: true });
 
-        if (error) throw error;
+            if (error) throw error;
+        }
 
-        console.log(`✅ Exported & uploaded ${sheetName} as ${fileName}`);
+        console.log(`Exported & uploaded ${sheetName} as ${fileName}`);
     } catch (err) {
-        console.error("❌ manualExportToExcel error:", err.message || err);
+        console.error("manualExportToExcel error:", err.message || err);
     }
 }
 
+// ==================== REFERENCE DATA OPERATIONS (SUPABASE FIRST) ====================
 
-
-// ==================== DATA OPERATIONS (EXCEL-BASED) ====================
-
-// Customers
-// Fixed populateCustomers function
+// UPDATED: Populate customers from Supabase first, fallback to localData
 async function populateCustomers() {
     try {
         console.log('Populating customers dropdown...');
@@ -403,37 +341,56 @@ async function populateCustomers() {
             return;
         }
 
-        // Clear dropdown first
         customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
-        
-        // Use localData as primary source
-        if (localData.customers && localData.customers.length > 0) {
-            localData.customers.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = `${customer.name} (${customer.code})`;
-                customerSelect.appendChild(option);
-            });
-            console.log(`Loaded ${localData.customers.length} customers from local data`);
+        let customers = [];
+
+        // Try Supabase first
+        if (supabase) {
+            try {
+                const { data: supabaseCustomers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
+                
+                if (!error && supabaseCustomers && supabaseCustomers.length > 0) {
+                    customers = supabaseCustomers;
+                    // Update local cache
+                    localData.customers = customers;
+                    console.log(`Loaded ${customers.length} customers from Supabase`);
+                } else {
+                    console.log('No customers from Supabase or error occurred, using fallback');
+                    throw new Error('Supabase fetch failed');
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase customers fetch failed:', supabaseError.message);
+                // Fallback to local data
+                customers = localData.customers;
+            }
         } else {
-            // Fallback to default customers
-            const defaultCustomers = [
-                { id: '1', name: 'Yeditepe Otel', code: 'YEDITEPE' },
-                { id: '2', name: 'Marmara Otel', code: 'MARMARA' }
-            ];
-            
-            defaultCustomers.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = `${customer.name} (${customer.code})`;
-                customerSelect.appendChild(option);
-            });
-            
-            // Save to local data
-            localData.customers = defaultCustomers;
-            saveLocalData();
-            console.log('Created default customers');
+            console.log('Supabase not available, using local data');
+            customers = localData.customers;
         }
+
+        // If no customers available, create defaults
+        if (!customers || customers.length === 0) {
+            console.log('No customers found, creating defaults');
+            customers = [
+                { id: '1', name: 'Yeditepe Otel', code: 'YEDITEPE', email: 'info@yeditepe.com' },
+                { id: '2', name: 'Marmara Otel', code: 'MARMARA', email: 'info@marmara.com' }
+            ];
+            localData.customers = customers;
+            saveLocalData();
+        }
+
+        // Populate dropdown
+        customers.forEach(customer => {
+            const option = document.createElement('option');
+            option.value = customer.id;
+            option.textContent = `${customer.name} (${customer.code})`;
+            customerSelect.appendChild(option);
+        });
+
+        console.log(`Customer dropdown populated with ${customers.length} customers`);
 
     } catch (error) {
         console.error('Error populating customers:', error);
@@ -441,12 +398,74 @@ async function populateCustomers() {
     }
 }
 
+// UPDATED: Populate personnel from Supabase first, fallback to localData
+async function populatePersonnel() {
+    try {
+        console.log('Populating personnel dropdown...');
+        const personnelSelect = document.getElementById('personnelSelect');
+        if (!personnelSelect) {
+            console.error('Personnel select element not found');
+            return;
+        }
 
+        personnelSelect.innerHTML = '<option value="">Personel Seç</option>';
+        let personnel = [];
 
+        // Try Supabase first
+        if (supabase) {
+            try {
+                const { data: supabasePersonnel, error } = await supabase
+                    .from('personnel')
+                    .select('*')
+                    .order('name');
+                
+                if (!error && supabasePersonnel && supabasePersonnel.length > 0) {
+                    personnel = supabasePersonnel;
+                    // Update local cache
+                    localData.personnel = personnel;
+                    console.log(`Loaded ${personnel.length} personnel from Supabase`);
+                } else {
+                    console.log('No personnel from Supabase or error occurred, using fallback');
+                    throw new Error('Supabase fetch failed');
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase personnel fetch failed:', supabaseError.message);
+                // Fallback to local data
+                personnel = localData.personnel;
+            }
+        } else {
+            console.log('Supabase not available, using local data');
+            personnel = localData.personnel;
+        }
 
+        // If no personnel available, create defaults
+        if (!personnel || personnel.length === 0) {
+            console.log('No personnel found, creating defaults');
+            personnel = [
+                { id: '1', name: 'Ahmet Yılmaz', role: 'Operator' },
+                { id: '2', name: 'Mehmet Demir', role: 'Supervisor' }
+            ];
+            localData.personnel = personnel;
+            saveLocalData();
+        }
 
+        // Populate dropdown
+        personnel.forEach(person => {
+            const option = document.createElement('option');
+            option.value = person.id;
+            option.textContent = `${person.name} (${person.role || 'Staff'})`;
+            personnelSelect.appendChild(option);
+        });
 
+        console.log(`Personnel dropdown populated with ${personnel.length} personnel`);
 
+    } catch (error) {
+        console.error('Error populating personnel:', error);
+        showAlert('Personel listesi yüklenirken hata oluştu', 'error');
+    }
+}
+
+// UPDATED: Add new customer - Save to Supabase if available, always update local cache
 async function addNewCustomer() {
     const code = document.getElementById('newCustomerCode').value.trim();
     const name = document.getElementById('newCustomerName').value.trim();
@@ -466,6 +485,29 @@ async function addNewCustomer() {
             created_at: new Date().toISOString()
         };
 
+        // Try to save to Supabase first
+        if (supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('customers')
+                    .insert([newCustomer])
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                // Use the returned data (may have different ID from Supabase)
+                if (data) {
+                    newCustomer.id = data.id;
+                }
+                console.log('Customer saved to Supabase successfully');
+            } catch (supabaseError) {
+                console.warn('Failed to save customer to Supabase:', supabaseError.message);
+                showAlert('Müşteri Supabase\'e kaydedilmedi, sadece yerel olarak eklendi', 'warning');
+            }
+        }
+
+        // Always update local cache
         localData.customers.push(newCustomer);
         saveLocalData();
 
@@ -485,10 +527,28 @@ async function addNewCustomer() {
     }
 }
 
+// UPDATED: Delete customer - Remove from Supabase if available, always update local cache
 async function deleteCustomer(customerId) {
     if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
 
     try {
+        // Try to delete from Supabase first
+        if (supabase) {
+            try {
+                const { error } = await supabase
+                    .from('customers')
+                    .delete()
+                    .eq('id', customerId);
+                
+                if (error) throw error;
+                console.log('Customer deleted from Supabase successfully');
+            } catch (supabaseError) {
+                console.warn('Failed to delete customer from Supabase:', supabaseError.message);
+                showAlert('Müşteri Supabase\'den silinemedi, sadece yerel olarak kaldırıldı', 'warning');
+            }
+        }
+
+        // Always update local cache
         localData.customers = localData.customers.filter(c => c.id !== customerId);
         saveLocalData();
 
@@ -502,6 +562,7 @@ async function deleteCustomer(customerId) {
     }
 }
 
+// Customer display functions remain largely the same, but use cached localData
 async function showCustomers() {
     try {
         elements.customerList.innerHTML = '';
@@ -550,57 +611,9 @@ async function showAllCustomers() {
     }
 }
 
-// Fixed populatePersonnel function
-async function populatePersonnel() {
-    try {
-        console.log('Populating personnel dropdown...');
-        const personnelSelect = document.getElementById('personnelSelect');
-        if (!personnelSelect) {
-            console.error('Personnel select element not found');
-            return;
-        }
+// ==================== TRANSACTIONAL DATA OPERATIONS (EXCEL ONLY) ====================
 
-        // Clear dropdown first
-        personnelSelect.innerHTML = '<option value="">Personel Seç</option>';
-        
-        // Use localData as primary source
-        if (localData.personnel && localData.personnel.length > 0) {
-            localData.personnel.forEach(person => {
-                const option = document.createElement('option');
-                option.value = person.id;
-                option.textContent = `${person.name} (${person.role})`;
-                personnelSelect.appendChild(option);
-            });
-            console.log(`Loaded ${localData.personnel.length} personnel from local data`);
-        } else {
-            // Fallback to default personnel
-            const defaultPersonnel = [
-                { id: '1', name: 'Ahmet Yılmaz', role: 'Operator' },
-                { id: '2', name: 'Mehmet Demir', role: 'Supervisor' }
-            ];
-            
-            defaultPersonnel.forEach(person => {
-                const option = document.createElement('option');
-                option.value = person.id;
-                option.textContent = `${person.name} (${person.role})`;
-                personnelSelect.appendChild(option);
-            });
-            
-            // Save to local data
-            localData.personnel = defaultPersonnel;
-            saveLocalData();
-            console.log('Created default personnel');
-        }
-
-    } catch (error) {
-        console.error('Error populating personnel:', error);
-        showAlert('Personel listesi yüklenirken hata oluştu', 'error');
-    }
-}
-
-
-
-// Packages
+// Packages - Continue using Excel/localData only
 async function populatePackagesTable() {
     if (packagesTableLoading) return;
     packagesTableLoading = true;
@@ -630,11 +643,10 @@ async function populatePackagesTable() {
         waitingPackages.forEach(pkg => {
             const row = document.createElement('tr');
             
-            // Get customer name
+            // Get customer name from cached data
             const customer = localData.customers.find(c => c.id === pkg.customer_id);
             const customerName = customer ? customer.name : 'Bilinmeyen Müşteri';
 
-            // Ensure items is an array
             let itemsArray = [];
             if (pkg.items && Array.isArray(pkg.items)) {
                 itemsArray = pkg.items;
@@ -644,7 +656,6 @@ async function populatePackagesTable() {
                 itemsArray = [{ name: pkg.product || 'Bilinmeyen Ürün', qty: 1 }];
             }
 
-            // Create package object with customer info for compatibility
             const packageWithCustomer = {
                 ...pkg,
                 customers: { name: customerName },
@@ -689,6 +700,7 @@ async function populatePackagesTable() {
     }
 }
 
+// Complete package - Excel only
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -717,6 +729,7 @@ async function completePackage() {
             container_id: null
         };
 
+        // Save to local data only
         localData.packages.push(packageData);
         saveLocalData();
 
@@ -739,6 +752,7 @@ async function completePackage() {
     }
 }
 
+// Delete packages - Excel only
 async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     if (checkboxes.length === 0) {
@@ -762,8 +776,7 @@ async function deleteSelectedPackages() {
     }
 }
 
-// Stock Items
-// Improved stock functions:
+// Stock Items - Continue using Excel/localData only
 async function populateStockTable() {
     try {
         const stockTableBody = document.getElementById('stockTableBody');
@@ -774,25 +787,18 @@ async function populateStockTable() {
 
         stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Yükleniyor...</td></tr>';
 
-        // Load stock data
-        let stockItems = [];
-        try {
-            stockItems = await loadExcelData('stock');
-        } catch (error) {
-            console.warn('Using local stock data');
-            stockItems = localData.stock_items || [];
-        }
+        // Use local stock data only
+        const stockItems = localData.stock_items || [];
 
         if (stockItems.length === 0) {
             stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Stok verisi bulunamadı</td></tr>';
             return;
         }
 
-        // Render stock table
         stockTableBody.innerHTML = '';
         stockItems.forEach(item => {
             const row = document.createElement('tr');
-            const quantity = item.Quantity || item.quantity;
+            const quantity = item.quantity;
             let statusClass = 'status-stokta';
             let statusText = 'Stokta';
             
@@ -805,14 +811,14 @@ async function populateStockTable() {
             }
             
             row.innerHTML = `
-                <td>${item.Code || item.code}</td>
-                <td>${item.Name || item.name}</td>
+                <td>${item.code}</td>
+                <td>${item.name}</td>
                 <td>${quantity}</td>
-                <td>${item.Unit || item.unit || 'Adet'}</td>
+                <td>${item.unit || 'Adet'}</td>
                 <td><span class="${statusClass}">${statusText}</span></td>
-                <td>${item.LastUpdated ? new Date(item.LastUpdated).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                 <td>
-                    <button onclick="editStockItem(this, '${item.Code || item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
+                    <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
                 </td>
             `;
             stockTableBody.appendChild(row);
@@ -824,10 +830,7 @@ async function populateStockTable() {
     }
 }
 
-
-
-
-
+// Save stock item - Excel only
 async function saveStockItem(code, input) {
     const newQuantity = parseInt(input.value);
     
@@ -837,7 +840,7 @@ async function saveStockItem(code, input) {
     }
     
     try {
-        // Find and update the stock item
+        // Find and update the stock item in local data only
         const itemIndex = localData.stock_items.findIndex(item => item.code === code);
         if (itemIndex !== -1) {
             localData.stock_items[itemIndex].quantity = newQuantity;
@@ -853,23 +856,25 @@ async function saveStockItem(code, input) {
         const editButton = row.querySelector('button');
         const editButtons = row.querySelector('.edit-buttons');
         
-        quantitySpan.textContent = newQuantity;
-        quantitySpan.style.display = 'block';
+        if (quantitySpan) quantitySpan.textContent = newQuantity;
+        if (quantitySpan) quantitySpan.style.display = 'block';
         input.style.display = 'none';
-        editButton.style.display = 'block';
-        editButtons.style.display = 'none';
+        if (editButton) editButton.style.display = 'block';
+        if (editButtons) editButtons.style.display = 'none';
         
         // Update status
         const statusCell = row.querySelector('td:nth-child(5) span');
-        if (newQuantity <= 0) {
-            statusCell.className = 'status-kritik';
-            statusCell.textContent = 'Kritik';
-        } else if (newQuantity < 10) {
-            statusCell.className = 'status-az-stok';
-            statusCell.textContent = 'Az Stok';
-        } else {
-            statusCell.className = 'status-stokta';
-            statusCell.textContent = 'Stokta';
+        if (statusCell) {
+            if (newQuantity <= 0) {
+                statusCell.className = 'status-kritik';
+                statusCell.textContent = 'Kritik';
+            } else if (newQuantity < 10) {
+                statusCell.className = 'status-az-stok';
+                statusCell.textContent = 'Az Stok';
+            } else {
+                statusCell.className = 'status-stokta';
+                statusCell.textContent = 'Stokta';
+            }
         }
         
         editingStockItem = null;
@@ -880,7 +885,7 @@ async function saveStockItem(code, input) {
     }
 }
 
-// Shipping operations
+// Shipping operations - Excel only
 async function sendToRamp(containerNo = null) {
     try {
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
@@ -915,6 +920,7 @@ async function sendToRamp(containerNo = null) {
             created_at: new Date().toISOString()
         };
 
+        // Save to local data only
         localData.containers.push(newContainer);
 
         // Update packages
@@ -940,7 +946,7 @@ async function sendToRamp(containerNo = null) {
     }
 }
 
-// Improved populateShippingTable function:
+// Populate shipping table - Excel only
 async function populateShippingTable() {
     try {
         const shippingFolders = document.getElementById('shippingFolders');
@@ -951,14 +957,8 @@ async function populateShippingTable() {
 
         shippingFolders.innerHTML = '<p style="text-align:center; color:#666;">Yükleniyor...</p>';
 
-        // Load containers data
-        let containers = [];
-        try {
-            containers = await loadExcelData('containers');
-        } catch (error) {
-            console.warn('Using local containers data');
-            containers = localData.containers || [];
-        }
+        // Use local containers data only
+        const containers = localData.containers || [];
 
         if (containers.length === 0) {
             shippingFolders.innerHTML = '<p style="text-align:center; color:#666;">Henüz sevkiyat verisi yok</p>';
@@ -968,7 +968,7 @@ async function populateShippingTable() {
         // Group by customer
         const customersMap = {};
         containers.forEach(container => {
-            const customerName = container.Customer || container.customer || 'Diğer';
+            const customerName = container.customer || 'Diğer';
             if (!customersMap[customerName]) {
                 customersMap[customerName] = [];
             }
@@ -1000,13 +1000,13 @@ async function populateShippingTable() {
                         <tbody>
                             ${customerContainers.map(container => `
                                 <tr>
-                                    <td>${container.ContainerNo || container.container_no}</td>
-                                    <td>${container.PackageCount || container.package_count}</td>
-                                    <td>${container.TotalQuantity || container.total_quantity}</td>
-                                    <td><span class="status-${container.Status || container.status}">${(container.Status || container.status) === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                                    <td>${container.container_no}</td>
+                                    <td>${container.package_count}</td>
+                                    <td>${container.total_quantity}</td>
+                                    <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
                                     <td>
-                                        <button onclick="viewContainerDetails('${container.ID || container.id}')" class="btn btn-primary btn-sm">Detay</button>
-                                        <button onclick="shipContainer('${container.ContainerNo || container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
+                                        <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm">Detay</button>
+                                        <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1035,72 +1035,7 @@ async function populateShippingTable() {
     }
 }
 
-// Improved stock functions:
-async function populateStockTable() {
-    try {
-        const stockTableBody = document.getElementById('stockTableBody');
-        if (!stockTableBody) {
-            console.error('Stock table body not found');
-            return;
-        }
-
-        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Yükleniyor...</td></tr>';
-
-        // Load stock data
-        let stockItems = [];
-        try {
-            stockItems = await loadExcelData('stock');
-        } catch (error) {
-            console.warn('Using local stock data');
-            stockItems = localData.stock_items || [];
-        }
-
-        if (stockItems.length === 0) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Stok verisi bulunamadı</td></tr>';
-            return;
-        }
-
-        // Render stock table
-        stockTableBody.innerHTML = '';
-        stockItems.forEach(item => {
-            const row = document.createElement('tr');
-            const quantity = item.Quantity || item.quantity;
-            let statusClass = 'status-stokta';
-            let statusText = 'Stokta';
-            
-            if (quantity <= 0) {
-                statusClass = 'status-kritik';
-                statusText = 'Tükendi';
-            } else if (quantity < 10) {
-                statusClass = 'status-az-stok';
-                statusText = 'Az Stok';
-            }
-            
-            row.innerHTML = `
-                <td>${item.Code || item.code}</td>
-                <td>${item.Name || item.name}</td>
-                <td>${quantity}</td>
-                <td>${item.Unit || item.unit || 'Adet'}</td>
-                <td><span class="${statusClass}">${statusText}</span></td>
-                <td>${item.LastUpdated ? new Date(item.LastUpdated).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>
-                    <button onclick="editStockItem(this, '${item.Code || item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
-                </td>
-            `;
-            stockTableBody.appendChild(row);
-        });
-
-    } catch (error) {
-        console.error('Error populating stock table:', error);
-        showAlert('Stok tablosu yüklenirken hata oluştu', 'error');
-    }
-}
-
-
-
-
-
-
+// View container details - Excel only
 async function viewContainerDetails(containerId) {
     try {
         const container = localData.containers.find(c => c.id === containerId);
@@ -1108,7 +1043,7 @@ async function viewContainerDetails(containerId) {
         
         container.packages = localData.packages.filter(p => p.container_id === containerId);
         
-        // Add customer info to packages
+        // Add customer info to packages from cached data
         container.packages.forEach(pkg => {
             const customer = localData.customers.find(c => c.id === pkg.customer_id);
             pkg.customers = customer ? { name: customer.name, code: customer.code } : { name: 'N/A', code: 'N/A' };
@@ -1119,10 +1054,10 @@ async function viewContainerDetails(containerId) {
         const modalTitle = document.getElementById('containerDetailTitle');
         const modalContent = document.getElementById('containerDetailContent');
         
-        modalTitle.textContent = `Konteyner: ${container.container_no}`;
+        if (modalTitle) modalTitle.textContent = `Konteyner: ${container.container_no}`;
         
         let contentHTML = `
-            <p><strong>Durum:</strong> <span class="container-status status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></p>
+            <p><strong>Durum:</strong> <span class="container-status status-${container.status}">${container.status === 'beklemde' ? 'Beklemede' : 'Sevk Edildi'}</span></p>
             <p><strong>Oluşturulma Tarihi:</strong> ${new Date(container.created_at).toLocaleDateString('tr-TR')}</p>
             <p><strong>Paket Sayısı:</strong> ${container.package_count || 0}</p>
             <p><strong>Toplam Adet:</strong> ${container.total_quantity || 0}</p>
@@ -1154,8 +1089,10 @@ async function viewContainerDetails(containerId) {
             `;
         }
         
-        modalContent.innerHTML = contentHTML;
-        document.getElementById('containerDetailModal').style.display = 'flex';
+        if (modalContent) modalContent.innerHTML = contentHTML;
+        
+        const modal = document.getElementById('containerDetailModal');
+        if (modal) modal.style.display = 'flex';
         
     } catch (error) {
         console.error('Error loading container details:', error);
@@ -1163,6 +1100,7 @@ async function viewContainerDetails(containerId) {
     }
 }
 
+// Ship container - Excel only
 async function shipContainer(containerNo) {
     try {
         const containerIndex = localData.containers.findIndex(c => c.container_no === containerNo);
@@ -1180,7 +1118,7 @@ async function shipContainer(containerNo) {
     }
 }
 
-// Barcode operations
+// Barcode operations - Excel only
 async function processBarcode() {
     if (!elements.barcodeInput) {
         showAlert('Barkod girişi bulunamadı', 'error');
@@ -1207,6 +1145,7 @@ async function processBarcode() {
             processed: false
         };
 
+        // Save to local data only
         localData.barcodes.push(barcodeData);
         scannedBarcodes.push(barcodeData);
         saveLocalData();
@@ -1241,7 +1180,7 @@ function initializeSupabase() {
     
     try {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized for backup');
+        console.log('Supabase client initialized');
         return supabase;
     } catch (error) {
         console.error('Supabase initialization error:', error);
@@ -1249,45 +1188,7 @@ function initializeSupabase() {
     }
 }
 
-function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    if (!apiKey) {
-        showAlert('Lütfen bir API anahtarı girin', 'error');
-        return;
-    }
-    
-    SUPABASE_ANON_KEY = apiKey;
-    localStorage.setItem('procleanApiKey', apiKey);
-    
-    const newClient = initializeSupabase();
-    
-    if (newClient) {
-        document.getElementById('apiKeyModal').style.display = 'none';
-        showAlert('API anahtarı kaydedildi', 'success');
-        testConnection();
-    }
-}
-
-async function testConnection() {
-    if (!supabase) {
-        showAlert('Supabase istemcisi başlatılmadı', 'error');
-        return false;
-    }
-    
-    try {
-        const { data, error } = await supabase.from('customers').select('*').limit(1);
-        if (error) throw error;
-        
-        showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
-        return true;
-    } catch (e) {
-        console.error('Supabase connection test failed:', e.message);
-        showAlert('Veritabanına bağlanılamıyor. API anahtarınızı kontrol edin.', 'error');
-        return false;
-    }
-}
-
-// Backup functions
+// UPDATED: Backup only transactional data to Supabase
 async function backupToSupabase() {
     if (!supabase) {
         showAlert('Supabase bağlantısı yok. Yedekleme yapılamıyor.', 'error');
@@ -1295,15 +1196,8 @@ async function backupToSupabase() {
     }
 
     try {
-        // Backup each data type
+        // Only backup transactional data
         const backupPromises = [];
-
-        // Backup customers
-        if (localData.customers.length > 0) {
-            backupPromises.push(
-                supabase.from('customers').upsert(localData.customers, { onConflict: 'id' })
-            );
-        }
 
         // Backup packages
         if (localData.packages.length > 0) {
@@ -1319,17 +1213,17 @@ async function backupToSupabase() {
             );
         }
 
-        // Backup personnel
-        if (localData.personnel.length > 0) {
-            backupPromises.push(
-                supabase.from('personnel').upsert(localData.personnel, { onConflict: 'id' })
-            );
-        }
-
         // Backup stock items
         if (localData.stock_items.length > 0) {
             backupPromises.push(
                 supabase.from('stock_items').upsert(localData.stock_items, { onConflict: 'id' })
+            );
+        }
+
+        // Backup barcodes
+        if (localData.barcodes.length > 0) {
+            backupPromises.push(
+                supabase.from('barcodes').upsert(localData.barcodes, { onConflict: 'id' })
             );
         }
 
@@ -1338,7 +1232,7 @@ async function backupToSupabase() {
         localData.settings.lastBackup = new Date().toISOString();
         saveLocalData();
         
-        showAlert('Veriler Supabase\'e yedeklendi', 'success');
+        showAlert('Transactional data yedeklendi', 'success');
         
     } catch (error) {
         console.error('Backup error:', error);
@@ -1346,38 +1240,35 @@ async function backupToSupabase() {
     }
 }
 
+// UPDATED: Restore only transactional data from Supabase
 async function restoreFromSupabase() {
     if (!supabase) {
         showAlert('Supabase bağlantısı yok', 'error');
         return;
     }
 
-    if (!confirm('Yerel veriler Supabase verilerle değiştirilecek. Emin misiniz?')) return;
+    if (!confirm('Yerel transactional veriler Supabase verilerle değiştirilecek. Emin misiniz?')) return;
 
     try {
-        // Restore each data type
-        const { data: customers } = await supabase.from('customers').select('*');
+        // Restore only transactional data
         const { data: packages } = await supabase.from('packages').select('*');
         const { data: containers } = await supabase.from('containers').select('*');
-        const { data: personnel } = await supabase.from('personnel').select('*');
         const { data: stock_items } = await supabase.from('stock_items').select('*');
+        const { data: barcodes } = await supabase.from('barcodes').select('*');
 
-        localData.customers = customers || [];
         localData.packages = packages || [];
         localData.containers = containers || [];
-        localData.personnel = personnel || [];
         localData.stock_items = stock_items || [];
+        localData.barcodes = barcodes || [];
         
         saveLocalData();
         
-        // Refresh all tables
-        await populateCustomers();
-        await populatePersonnel();
+        // Refresh transactional data tables only
         await populatePackagesTable();
         await populateStockTable();
         await populateShippingTable();
         
-        showAlert('Veriler Supabase\'den geri yüklendi', 'success');
+        showAlert('Transactional data geri yüklendi', 'success');
         
     } catch (error) {
         console.error('Restore error:', error);
@@ -1385,9 +1276,7 @@ async function restoreFromSupabase() {
     }
 }
 
-
-
-// Add this function right after your existing utility functions
+// Update user interface
 function updateUserInterface() {
     // Update user role display
     const userRoleElement = document.getElementById('userRole');
@@ -1411,12 +1300,10 @@ function updateUserInterface() {
     }
 }
 
-
-
-
 // ==================== UTILITY FUNCTIONS ====================
 
 function escapeHtml(text) {
+    if (!text) return '';
     const map = {
         '&': '&amp;',
         '<': '&lt;',
@@ -1424,7 +1311,7 @@ function escapeHtml(text) {
         '"': '&quot;',
         "'": '&#039;'
     };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
 function renderPagination(totalCount, page) {
@@ -1434,7 +1321,8 @@ function renderPagination(totalCount, page) {
         paginationDiv.id = 'pagination';
         paginationDiv.style.textAlign = 'center';
         paginationDiv.style.marginTop = '10px';
-        elements.shippingFolders.appendChild(paginationDiv);
+        const shippingFolders = document.getElementById('shippingFolders');
+        if (shippingFolders) shippingFolders.appendChild(paginationDiv);
     }
     paginationDiv.innerHTML = '';
 
@@ -1462,7 +1350,10 @@ function filterShipping() {
 }
 
 function searchContainers() {
-    const searchTerm = elements.containerSearch.value.toLowerCase();
+    const containerSearchElement = document.getElementById('containerSearch');
+    if (!containerSearchElement) return;
+    
+    const searchTerm = containerSearchElement.value.toLowerCase();
     const folders = document.querySelectorAll('.customer-folder');
     
     folders.forEach(folder => {
@@ -1470,7 +1361,7 @@ function searchContainers() {
         let hasVisibleRows = false;
         
         containerRows.forEach(row => {
-            const containerNo = row.cells[1].textContent.toLowerCase();
+            const containerNo = row.cells[0]?.textContent?.toLowerCase() || '';
             if (containerNo.includes(searchTerm)) {
                 row.style.display = '';
                 hasVisibleRows = true;
@@ -1482,17 +1373,14 @@ function searchContainers() {
         const folderHeader = folder.querySelector('.folder-header');
         if (hasVisibleRows) {
             folder.style.display = 'block';
-            folderHeader.style.display = 'flex';
+            if (folderHeader) folderHeader.style.display = 'flex';
         } else {
             folder.style.display = 'none';
         }
     });
 }
 
-
-
-
-// Add this function to persist user session
+// Auth persistence setup
 function setupAuthPersistence() {
     // Check for existing session on page load
     const savedSession = localStorage.getItem('supabase.auth.token');
@@ -1500,7 +1388,6 @@ function setupAuthPersistence() {
         try {
             const sessionData = JSON.parse(savedSession);
             if (sessionData && sessionData.access_token) {
-                // Set current user from saved session
                 currentUser = {
                     email: sessionData.user?.email || 'user@example.com',
                     uid: sessionData.user?.id || 'unknown',
@@ -1527,27 +1414,20 @@ function setupAuthPersistence() {
     }
 }
 
-
-
-
-
-
-
-
-
 // Global variables for pagination and loading states
 const pageSize = 20;
 let isShippingTableLoading = false;
 let isStockTableLoading = false;
 
-// ==================== CORRECTED INITIALIZATION ====================
-// Replace the existing DOMContentLoaded listener in supabase.js:
+// ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded - Starting initialization...');
     
     try {
         // Step 1: Initialize UI elements first
-        initializeElementsObject(); // From ui.js
+        if (typeof initializeElementsObject === 'function') {
+            initializeElementsObject(); // From ui.js
+        }
         
         // Step 2: Check for XLSX library
         if (!checkXLSXLibrary()) {
@@ -1573,14 +1453,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
     } catch (error) {
         console.error('Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
+        if (typeof showAlert === 'function') {
+            showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
+        }
     }
 });
-
-
-
-
-
 
 // Check authentication state using Supabase
 async function checkAuthState() {
@@ -1605,7 +1482,7 @@ async function checkAuthState() {
         }
         
         if (session && session.user) {
-            // User is logged in - get additional user info
+            // User is logged in - get additional user info from Supabase personnel
             const { data: userData, error: userError } = await supabase
                 .from('personnel')
                 .select('role, name')
@@ -1635,16 +1512,22 @@ async function checkAuthState() {
 }
 
 function showLoginScreen() {
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('appContainer').style.display = 'none';
+    const loginScreen = document.getElementById('loginScreen');
+    const appContainer = document.getElementById('appContainer');
+    
+    if (loginScreen) loginScreen.style.display = 'flex';
+    if (appContainer) appContainer.style.display = 'none';
     console.log('Showing login screen');
 }
 
 async function showAppScreen() {
     console.log('Showing app screen for user:', currentUser);
     
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appContainer').style.display = 'flex';
+    const loginScreen = document.getElementById('loginScreen');
+    const appContainer = document.getElementById('appContainer');
+    
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (appContainer) appContainer.style.display = 'flex';
     
     // Initialize form elements
     initializeFormElements();
@@ -1668,7 +1551,7 @@ async function showAppScreen() {
     updateUserInterface();
 }
 
-// Add this function to supabase.js
+// Initialize form elements
 function initializeFormElements() {
     console.log('Initializing form elements...');
     
@@ -1685,18 +1568,16 @@ function initializeFormElements() {
     }
 }
 
-
-
-// Add these functions to supabase.js
+// Initialize app data
 async function initializeAppData() {
     try {
         console.log('Initializing app data...');
         
-        // Populate dropdowns
+        // Populate dropdowns - customers and personnel from Supabase first
         await populateCustomers();
         await populatePersonnel();
         
-        // Load other data
+        // Load transactional data from Excel/localData
         await populatePackagesTable();
         await populateStockTable();
         await populateShippingTable();
@@ -1704,47 +1585,8 @@ async function initializeAppData() {
         console.log('App data initialization completed');
     } catch (error) {
         console.error('Error initializing app data:', error);
-        showAlert('Uygulama verileri yüklenirken hata oluştu', 'error');
-    }
-}
-
-function initializeUIElements() {
-    console.log('Initializing UI elements...');
-    // This will be handled by the existing initializeElementsObject from ui.js
-}
-
-// Enhanced local data initialization
-function initializeLocalData() {
-    console.log('Initializing local data...');
-    
-    const savedData = localStorage.getItem('procleanLocalData');
-    
-    if (savedData) {
-        try {
-            localData = JSON.parse(savedData);
-            console.log('Existing local data loaded');
-        } catch (error) {
-            console.error('Error parsing local data, creating default:', error);
-            localData = createDefaultData();
+        if (typeof showAlert === 'function') {
+            showAlert('Uygulama verileri yüklenirken hata oluştu', 'error');
         }
-    } else {
-        console.log('No existing data found, creating default data');
-        localData = createDefaultData();
     }
-    
-    // Ensure all required arrays exist
-    if (!localData.customers) localData.customers = [];
-    if (!localData.personnel) localData.personnel = [];
-    if (!localData.packages) localData.packages = [];
-    if (!localData.containers) localData.containers = [];
-    if (!localData.stock_items) localData.stock_items = [];
-    if (!localData.barcodes) localData.barcodes = [];
-    if (!localData.settings) localData.settings = {};
-    
-    saveLocalData();
-    console.log('Local data initialization completed');
 }
-
-
-
-
