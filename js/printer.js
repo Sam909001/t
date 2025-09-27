@@ -304,28 +304,17 @@ class PrinterServiceElectronWithSettings {
         white-space: nowrap;
     }
     
-    .footer { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: flex-start; /* align items at top initially */
+.footer {
+    display: flex;
+    justify-content: flex-end; /* push total-info to right */
+    align-items: center;
     font-size: 15px;
-    color: #333; 
-    margin-top: 0.5mm; 
+    color: #333;
+    margin-top: 0.5mm;
     padding-top: 0.5mm;
     border-top: 0.5px solid #ccc;
     line-height: 1.3;
-    flex-direction: column; /* stack elements vertically */
-}
-
-.footer-top {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-}
-
-.date-info { 
-    font-weight: 600; 
-    margin: 2mm 0 0 0; /* move below the border */
+    position: relative;
 }
 
 .total-info {
@@ -335,6 +324,15 @@ class PrinterServiceElectronWithSettings {
     padding: 0.3mm 1mm;
     border-radius: 1px;
 }
+
+/* Date placed outside */
+.date-info {
+    display: block;
+    margin-top: 1mm;
+    font-weight: 600;
+    text-align: left; /* or center if you prefer */
+}
+
 
 </style>
 </head>
@@ -403,12 +401,10 @@ class PrinterServiceElectronWithSettings {
     <div class="items-section">
         ${itemHTML}
     </div>
-    <div class="footer">
-    <div class="footer-top">
-        <span class="total-info">Toplam: ${totalItems} adet</span>
-    </div>
-    <span class="date-info">${dateTime}</span>
+   <div class="footer">
+    <span class="total-info">Toplam: ${totalItems} adet</span>
 </div>
+<span class="date-info">${dateTime}</span>
 
                     `;
                 }
