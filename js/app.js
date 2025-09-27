@@ -6,11 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeSupabase();
         console.log('API key loaded from localStorage');
     }
-    
-    // Excel storage'ı başlat
-    initializeExcelStorage().then(() => {
-        console.log('Excel storage initialized');
-    });
 });
 
 // State management functions
@@ -19,7 +14,6 @@ function saveAppState() {
         selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
         selectedPersonnelId: elements.personnelSelect.value,
         currentContainer: currentContainer,
-        isUsingExcel: isUsingExcel
     };
     localStorage.setItem('procleanState', JSON.stringify(state));
 }
@@ -53,18 +47,8 @@ function loadAppState() {
             currentContainer = state.currentContainer;
             elements.containerNumber.textContent = currentContainer;
         }
-        
-        // Restore Excel mode
-        if (state.isUsingExcel !== undefined) {
-            isUsingExcel = state.isUsingExcel;
-            updateStorageIndicator();
-        }
     }
 }
-
-
-
-
 
 function clearAppState() {
     localStorage.removeItem('procleanState');
@@ -89,9 +73,6 @@ function clearAppState() {
 async function initApp() {
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
-    // Storage indicator'ı güncelle
-    updateStorageIndicator();
-    
     // Populate dropdowns
     await populateCustomers();
     await populatePersonnel();
@@ -99,8 +80,8 @@ async function initApp() {
     // Load saved state
     loadAppState();
     
-    // Load data - önce Excel'den, sonra Supabase'den
-    await loadPackagesData();
+    // Load data
+    await populatePackagesTable();
     await populateStockTable();
     await populateShippingTable();
     
@@ -119,309 +100,6 @@ async function initApp() {
     // Start daily auto-clear
     scheduleDailyClear();
 }
-
-
-
-// Modified package data loading
-async function loadPackagesData() {
-    try {
-        // Önce Excel'den yükle
-        const excelData = await ExcelJS.readFile();
-        const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
-        
-        if (excelPackagesList.length > 0) {
-            console.log('Loaded from Excel:', excelPackagesList.length, 'packages');
-            window.packages = excelPackagesList;
-            await populatePackagesTable();
-        }
-        
-        // Eğer online ve Supabase bağlı ise, Supabase'den de yükle
-        if (supabase && navigator.onLine) {
-            try {
-                const { data: supabasePackages, error } = await supabase
-                    .from('packages')
-                    .select(`*, customers (name, code)`)
-                    .is('container_id', null)
-                    .eq('status', 'beklemede')
-                    .order('created_at', { ascending: false });
-                
-                if (!error && supabasePackages) {
-                    console.log('Loaded from Supabase:', supabasePackages.length, 'packages');
-                    
-                    // Excel verileri ile birleştir (duplicate önle)
-                    const mergedPackages = mergePackages(excelPackagesList, supabasePackages);
-                    window.packages = mergedPackages;
-                    
-                    // Excel'i güncelle
-                    const excelData = ExcelJS.toExcelFormat(mergedPackages);
-                    await ExcelJS.writeFile(excelData);
-                }
-            } catch (supabaseError) {
-                console.warn('Supabase load failed, using Excel data:', supabaseError);
-            }
-        }
-        
-        await populatePackagesTable();
-        
-    } catch (error) {
-        console.error('Error loading packages data:', error);
-        showAlert('Paket verileri yüklenirken hata oluştu', 'error');
-    }
-}
-
-function mergePackages(excelPackages, supabasePackages) {
-    const merged = [...excelPackages];
-    const excelIds = new Set(excelPackages.map(p => p.id));
-    
-    for (const supabasePkg of supabasePackages) {
-        if (!excelIds.has(supabasePkg.id)) {
-            merged.push(supabasePkg);
-        }
-    }
-    
-    return merged;
-}
-
-// Modified completePackage function
-async function completePackage() {
-    if (!selectedCustomer) {
-        showAlert('Önce müşteri seçin', 'error');
-        return;
-    }
-
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
-    try {
-        const packageNo = `PKG-${Date.now()}`;
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect.value;
-
-        const packageData = {
-            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            package_no: packageNo,
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name,
-            items: currentPackage.items,
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-
-        // Online ise önce Supabase'e kaydet
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
-
-                if (error) throw error;
-
-                showAlert(`Paket oluşturuldu: ${packageNo} (Online)`, 'success');
-                
-                // Sonra Excel'e de kaydet
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                // Supabase başarısız olursa Excel'e kaydet
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (Çevrimdışı)`, 'warning');
-                isUsingExcel = true;
-            }
-        } else {
-            // Offline ise direkt Excel'e kaydet
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (Çevrimdışı)`, 'warning');
-            isUsingExcel = true;
-        }
-
-        // Reset current package
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-
-        // Mark scanned barcodes as processed
-        if (scannedBarcodes.length > 0 && navigator.onLine && supabase) {
-            const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
-            if (barcodeIds.length > 0) {
-                await supabase.from('barcodes').update({ processed: true }).in('id', barcodeIds);
-            }
-            scannedBarcodes = [];
-            displayScannedBarcodes();
-        }
-
-        await populatePackagesTable();
-        updateStorageIndicator();
-
-    } catch (error) {
-        console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası', 'error');
-    }
-}
-
-
-// Modified deleteSelectedPackages function
-async function deleteSelectedPackages() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) {
-        showAlert('Silinecek paket seçin', 'error');
-        return;
-    }
-
-    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
-
-    try {
-        const packageIds = Array.from(checkboxes).map(cb => cb.value);
-
-        // Online ve Supabase bağlı ise önce Supabase'den sil
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { error } = await supabase
-                    .from('packages')
-                    .delete()
-                    .in('id', packageIds);
-
-                if (error) throw error;
-
-                // Sonra Excel'den sil
-                for (const id of packageIds) {
-                    await deleteFromExcel(id);
-                }
-                
-                showAlert(`${packageIds.length} paket silindi (Online)`, 'success');
-                
-            } catch (supabaseError) {
-                console.warn('Supabase delete failed, deleting from Excel:', supabaseError);
-                // Supabase başarısız olursa Excel'den sil
-                for (const id of packageIds) {
-                    await deleteFromExcel(id);
-                    addToSyncQueue('delete', { id: id });
-                }
-                showAlert(`${packageIds.length} paket Excel'den silindi (Çevrimdışı)`, 'warning');
-                isUsingExcel = true;
-            }
-        } else {
-            // Offline ise direkt Excel'den sil
-            for (const id of packageIds) {
-                await deleteFromExcel(id);
-                addToSyncQueue('delete', { id: id });
-            }
-            showAlert(`${packageIds.length} paket Excel'den silindi (Çevrimdışı)`, 'warning');
-            isUsingExcel = true;
-        }
-
-        await populatePackagesTable();
-        updateStorageIndicator();
-
-    } catch (error) {
-        console.error('Error in deleteSelectedPackages:', error);
-        showAlert('Paket silme hatası', 'error');
-    }
-}
-
-// New function to update storage indicator
-function updateStorageIndicator() {
-    const indicator = document.getElementById('storageIndicator');
-    if (!indicator) return;
-    
-    if (isUsingExcel || !supabase || !navigator.onLine) {
-        indicator.innerHTML = '<i class="fas fa-file-excel"></i> Excel Modu';
-        indicator.className = 'storage-indicator excel-mode';
-    } else {
-        indicator.innerHTML = '<i class="fas fa-database"></i> Supabase Modu';
-        indicator.className = 'storage-indicator supabase-mode';
-    }
-}
-
-// New function to manually sync data
-async function manualSync() {
-    if (!supabase) {
-        showAlert('Supabase bağlantısı yok', 'error');
-        return;
-    }
-    
-    if (!navigator.onLine) {
-        showAlert('İnternet bağlantısı yok', 'error');
-        return;
-    }
-    
-    showAlert('Manuel senkronizasyon başlatılıyor...', 'info');
-    
-    const success = await syncExcelWithSupabase();
-    if (success) {
-        isUsingExcel = false;
-        updateStorageIndicator();
-        await loadPackagesData(); // Verileri yeniden yükle
-    }
-}
-
-// New function to export Excel data
-async function exportExcelData() {
-    try {
-        const packages = await ExcelJS.readFile();
-        if (packages.length === 0) {
-            showAlert('Excel verisi yok', 'info');
-            return;
-        }
-        
-        const dataStr = JSON.stringify(packages, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(dataBlob);
-        link.download = `packages-backup-${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-        
-        showAlert('Excel verileri yedeklendi', 'success');
-    } catch (error) {
-        console.error('Export error:', error);
-        showAlert('Yedekleme hatası', 'error');
-    }
-}
-
-// New function to import Excel data
-async function importExcelData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    try {
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                const excelData = ExcelJS.toExcelFormat(importedData);
-                
-                await ExcelJS.writeFile(excelData);
-                excelPackages = importedData;
-                
-                showAlert('Excel verileri içe aktarıldı', 'success');
-                await populatePackagesTable();
-                
-            } catch (parseError) {
-                console.error('Import parse error:', parseError);
-                showAlert('Geçersiz dosya formatı', 'error');
-            }
-        };
-        reader.readAsText(file);
-        
-        // Reset file input
-        event.target.value = '';
-    } catch (error) {
-        console.error('Import error:', error);
-        showAlert('İçe aktarma hatası', 'error');
-    }
-}
-
-
-
-
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
@@ -927,3 +605,404 @@ window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
     showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
 });
+
+
+
+
+
+
+
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+document.addEventListener('DOMContentLoaded', () => {
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        initializeSupabase();
+        console.log('API key loaded from localStorage');
+    }
+    
+    // Excel storage'ı başlat
+    initializeExcelStorage().then(() => {
+        console.log('Excel storage initialized');
+    });
+});
+
+// State management functions
+function saveAppState() {
+    const state = {
+        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
+        selectedPersonnelId: elements.personnelSelect.value,
+        currentContainer: currentContainer,
+        isUsingExcel: isUsingExcel
+    };
+    localStorage.setItem('procleanState', JSON.stringify(state));
+}
+
+function loadAppState() {
+    const savedState = localStorage.getItem('procleanState');
+    if (savedState) {
+        const state = JSON.parse(savedState);
+        
+        // Restore customer selection
+        if (state.selectedCustomerId) {
+            elements.customerSelect.value = state.selectedCustomerId;
+            // Find and set the selectedCustomer object
+            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+            if (option) {
+                selectedCustomer = {
+                    id: state.selectedCustomerId,
+                    name: option.textContent.split(' (')[0],
+                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
+            }
+        }
+        
+        // Restore personnel selection
+        if (state.selectedPersonnelId) {
+            elements.personnelSelect.value = state.selectedPersonnelId;
+        }
+        
+        // Restore current container
+        if (state.currentContainer) {
+            currentContainer = state.currentContainer;
+            elements.containerNumber.textContent = currentContainer;
+        }
+        
+        // Restore Excel mode
+        if (state.isUsingExcel !== undefined) {
+            isUsingExcel = state.isUsingExcel;
+            updateStorageIndicator();
+        }
+    }
+}
+
+// Initialize application
+async function initApp() {
+    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    
+    // Storage indicator'ı güncelle
+    updateStorageIndicator();
+    
+    // Populate dropdowns
+    await populateCustomers();
+    await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
+    
+    // Load data - önce Excel'den, sonra Supabase'den
+    await loadPackagesData();
+    await populateStockTable();
+    await populateShippingTable();
+    
+    // Test connection
+    await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000); // Save every 5 seconds
+    
+    // Set up offline support
+    setupOfflineSupport();
+    
+    // Set up barcode scanner listener
+    setupBarcodeScanner();
+    
+    // Start daily auto-clear
+    scheduleDailyClear();
+}
+
+// Modified package data loading
+async function loadPackagesData() {
+    try {
+        // Önce Excel'den yükle
+        const excelData = await ExcelJS.readFile();
+        const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
+        
+        if (excelPackagesList.length > 0) {
+            console.log('Loaded from Excel:', excelPackagesList.length, 'packages');
+            window.packages = excelPackagesList;
+            await populatePackagesTable();
+        }
+        
+        // Eğer online ve Supabase bağlı ise, Supabase'den de yükle
+        if (supabase && navigator.onLine) {
+            try {
+                const { data: supabasePackages, error } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .is('container_id', null)
+                    .eq('status', 'beklemede')
+                    .order('created_at', { ascending: false });
+                
+                if (!error && supabasePackages) {
+                    console.log('Loaded from Supabase:', supabasePackages.length, 'packages');
+                    
+                    // Excel verileri ile birleştir (duplicate önle)
+                    const mergedPackages = mergePackages(excelPackagesList, supabasePackages);
+                    window.packages = mergedPackages;
+                    
+                    // Excel'i güncelle
+                    const excelData = ExcelJS.toExcelFormat(mergedPackages);
+                    await ExcelJS.writeFile(excelData);
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase load failed, using Excel data:', supabaseError);
+            }
+        }
+        
+        await populatePackagesTable();
+        
+    } catch (error) {
+        console.error('Error loading packages data:', error);
+        showAlert('Paket verileri yüklenirken hata oluştu', 'error');
+    }
+}
+
+function mergePackages(excelPackages, supabasePackages) {
+    const merged = [...excelPackages];
+    const excelIds = new Set(excelPackages.map(p => p.id));
+    
+    for (const supabasePkg of supabasePackages) {
+        if (!excelIds.has(supabasePkg.id)) {
+            merged.push(supabasePkg);
+        }
+    }
+    
+    return merged;
+}
+
+// Modified completePackage function
+async function completePackage() {
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    try {
+        const packageNo = `PKG-${Date.now()}`;
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect.value;
+
+        const packageData = {
+            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            items: currentPackage.items,
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        // Online ise önce Supabase'e kaydet
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo} (Online)`, 'success');
+                
+                // Sonra Excel'e de kaydet
+                await saveToExcel(packageData);
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                // Supabase başarısız olursa Excel'e kaydet
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (Çevrimdışı)`, 'warning');
+                isUsingExcel = true;
+            }
+        } else {
+            // Offline ise direkt Excel'e kaydet
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (Çevrimdışı)`, 'warning');
+            isUsingExcel = true;
+        }
+
+        // Reset current package
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+
+        // Mark scanned barcodes as processed
+        if (scannedBarcodes.length > 0 && navigator.onLine && supabase) {
+            const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
+            if (barcodeIds.length > 0) {
+                await supabase.from('barcodes').update({ processed: true }).in('id', barcodeIds);
+            }
+            scannedBarcodes = [];
+            displayScannedBarcodes();
+        }
+
+        await populatePackagesTable();
+        updateStorageIndicator();
+
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası', 'error');
+    }
+}
+
+// Modified deleteSelectedPackages function
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        // Online ve Supabase bağlı ise önce Supabase'den sil
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { error } = await supabase
+                    .from('packages')
+                    .delete()
+                    .in('id', packageIds);
+
+                if (error) throw error;
+
+                // Sonra Excel'den sil
+                for (const id of packageIds) {
+                    await deleteFromExcel(id);
+                }
+                
+                showAlert(`${packageIds.length} paket silindi (Online)`, 'success');
+                
+            } catch (supabaseError) {
+                console.warn('Supabase delete failed, deleting from Excel:', supabaseError);
+                // Supabase başarısız olursa Excel'den sil
+                for (const id of packageIds) {
+                    await deleteFromExcel(id);
+                    addToSyncQueue('delete', { id: id });
+                }
+                showAlert(`${packageIds.length} paket Excel'den silindi (Çevrimdışı)`, 'warning');
+                isUsingExcel = true;
+            }
+        } else {
+            // Offline ise direkt Excel'den sil
+            for (const id of packageIds) {
+                await deleteFromExcel(id);
+                addToSyncQueue('delete', { id: id });
+            }
+            showAlert(`${packageIds.length} paket Excel'den silindi (Çevrimdışı)`, 'warning');
+            isUsingExcel = true;
+        }
+
+        await populatePackagesTable();
+        updateStorageIndicator();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
+    }
+}
+
+// New function to update storage indicator
+function updateStorageIndicator() {
+    const indicator = document.getElementById('storageIndicator');
+    if (!indicator) return;
+    
+    if (isUsingExcel || !supabase || !navigator.onLine) {
+        indicator.innerHTML = '<i class="fas fa-file-excel"></i> Excel Modu';
+        indicator.className = 'storage-indicator excel-mode';
+    } else {
+        indicator.innerHTML = '<i class="fas fa-database"></i> Supabase Modu';
+        indicator.className = 'storage-indicator supabase-mode';
+    }
+}
+
+// New function to manually sync data
+async function manualSync() {
+    if (!supabase) {
+        showAlert('Supabase bağlantısı yok', 'error');
+        return;
+    }
+    
+    if (!navigator.onLine) {
+        showAlert('İnternet bağlantısı yok', 'error');
+        return;
+    }
+    
+    showAlert('Manuel senkronizasyon başlatılıyor...', 'info');
+    
+    const success = await syncExcelWithSupabase();
+    if (success) {
+        isUsingExcel = false;
+        updateStorageIndicator();
+        await loadPackagesData(); // Verileri yeniden yükle
+    }
+}
+
+// New function to export Excel data
+async function exportExcelData() {
+    try {
+        const packages = await ExcelJS.readFile();
+        if (packages.length === 0) {
+            showAlert('Excel verisi yok', 'info');
+            return;
+        }
+        
+        const dataStr = JSON.stringify(packages, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `packages-backup-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        
+        showAlert('Excel verileri yedeklendi', 'success');
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert('Yedekleme hatası', 'error');
+    }
+}
+
+// New function to import Excel data
+async function importExcelData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                const excelData = ExcelJS.toExcelFormat(importedData);
+                
+                await ExcelJS.writeFile(excelData);
+                excelPackages = importedData;
+                
+                showAlert('Excel verileri içe aktarıldı', 'success');
+                await populatePackagesTable();
+                
+            } catch (parseError) {
+                console.error('Import parse error:', parseError);
+                showAlert('Geçersiz dosya formatı', 'error');
+            }
+        };
+        reader.readAsText(file);
+        
+        // Reset file input
+        event.target.value = '';
+    } catch (error) {
+        console.error('Import error:', error);
+        showAlert('İçe aktarma hatası', 'error');
+    }
+}
