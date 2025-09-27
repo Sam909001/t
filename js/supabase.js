@@ -35,6 +35,72 @@ let localData = {
     emailjs.init("jH-KlJ2ffs_lGwfsp");
 })();
 
+
+// FIXED: API anahtarını kaydet ve istemciyi başlat
+function saveApiKey() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    if (!apiKey) {
+        showAlert('Lütfen bir API anahtarı girin', 'error');
+        return;
+    }
+    
+    // Eski client'ı temizle
+    supabase = null;
+    
+    // Yeni API key'i ayarla
+    SUPABASE_ANON_KEY = apiKey;
+    localStorage.setItem('procleanApiKey', apiKey);
+    
+    // Yeni client oluştur
+    const newClient = initializeSupabase();
+    
+    if (newClient) {
+        document.getElementById('apiKeyModal').style.display = 'none';
+        showAlert('API anahtarı kaydedildi', 'success');
+        testConnection();
+    }
+}
+
+
+
+        
+let connectionAlertShown = false; // Prevent duplicate success alert
+
+// FIXED: Supabase bağlantısını test et
+async function testConnection() {
+    if (!supabase) {
+        console.warn('Supabase client not initialized for connection test');
+        if (!connectionAlertShown) {
+            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+            connectionAlertShown = true; // mark as shown to avoid repeating
+        }
+        return false;
+    }
+    
+    try {
+        const { data, error } = await supabase.from('customers').select('*').limit(1);
+        if (error) throw error;
+        
+        console.log('Supabase connection test successful:', data);
+        
+        if (!connectionAlertShown) {
+            showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
+            connectionAlertShown = true; // ensure alert shows only once
+        }
+
+        return true;
+    } catch (e) {
+        console.error('Supabase connection test failed:', e.message);
+        if (!connectionAlertShown) {
+            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+            connectionAlertShown = true;
+        }
+        return false;
+    }
+}
+
+
+
 // Elements
 const elements = {};
 
