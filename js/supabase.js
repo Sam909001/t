@@ -1286,3 +1286,16 @@ window.exportAllDataToExcel = manualExportToExcel;
 window.backupToSupabase = backupToSupabase;
 window.restoreFromSupabase = restoreFromSupabase;
 window.localData = localData;
+
+
+
+window.addEventListener('DOMContentLoaded', () => {
+    const savedKey = localStorage.getItem('procleanApiKey');
+    if (savedKey) {
+        SUPABASE_ANON_KEY = savedKey;
+        initializeSupabase();
+        console.log('Supabase API key loaded from localStorage');
+    } else {
+        document.getElementById('apiKeyModal').style.display = 'flex';
+    }
+});
