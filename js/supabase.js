@@ -1541,32 +1541,46 @@ let isShippingTableLoading = false;
 let isStockTableLoading = false;
 
 // ==================== CORRECTED INITIALIZATION ====================
+// Replace the existing DOMContentLoaded listener in supabase.js:
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Content Loaded - Starting corrected initialization...');
+    console.log('DOM Content Loaded - Starting initialization...');
     
-    // Step 1: Initialize UI elements first
-    initializeUIElements();
-    
-    // Step 2: Check for XLSX library
-    if (!checkXLSXLibrary()) {
-        showAlert('Excel kütüphanesi bulunamadı. Lütfen SheetJS kütüphanesini yükleyin.', 'error');
+    try {
+        // Step 1: Initialize UI elements first
+        initializeElementsObject(); // From ui.js
+        
+        // Step 2: Check for XLSX library
+        if (!checkXLSXLibrary()) {
+            showAlert('Excel kütüphanesi bulunamadı. Lütfen SheetJS kütüphanesini yükleyin.', 'error');
+        }
+        
+        // Step 3: Initialize local data (Excel-based)
+        initializeLocalData();
+        
+        // Step 4: Check API key (for Supabase auth only)
+        const savedApiKey = localStorage.getItem('procleanApiKey');
+        if (savedApiKey && savedApiKey.length > 20) {
+            SUPABASE_ANON_KEY = savedApiKey;
+            initializeSupabase();
+            console.log('API key loaded, checking auth...');
+            checkAuthState();
+        } else {
+            console.log('No API key found, showing login screen directly');
+            showLoginScreen();
+        }
+        
+        console.log('Initialization sequence completed');
+        
+    } catch (error) {
+        console.error('Critical error during initialization:', error);
+        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
     }
-    
-    // Step 3: Initialize local data
-    initializeLocalData();
-    
-    // Step 4: Load saved API key (for backups only)
-    const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
-        SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
-    }
-    
-    // Step 5: Check if user is already logged in via Supabase auth
-    checkAuthState();
-    
-    console.log('Initialization sequence completed');
 });
+
+
+
+
+
 
 // Check authentication state using Supabase
 async function checkAuthState() {
@@ -1669,6 +1683,66 @@ function initializeFormElements() {
     if (containerNumberElement) {
         containerNumberElement.textContent = currentContainer || 'Yok';
     }
+}
+
+
+
+// Add these functions to supabase.js
+async function initializeAppData() {
+    try {
+        console.log('Initializing app data...');
+        
+        // Populate dropdowns
+        await populateCustomers();
+        await populatePersonnel();
+        
+        // Load other data
+        await populatePackagesTable();
+        await populateStockTable();
+        await populateShippingTable();
+        
+        console.log('App data initialization completed');
+    } catch (error) {
+        console.error('Error initializing app data:', error);
+        showAlert('Uygulama verileri yüklenirken hata oluştu', 'error');
+    }
+}
+
+function initializeUIElements() {
+    console.log('Initializing UI elements...');
+    // This will be handled by the existing initializeElementsObject from ui.js
+}
+
+// Enhanced local data initialization
+function initializeLocalData() {
+    console.log('Initializing local data...');
+    
+    const savedData = localStorage.getItem('procleanLocalData');
+    
+    if (savedData) {
+        try {
+            localData = JSON.parse(savedData);
+            console.log('Existing local data loaded');
+        } catch (error) {
+            console.error('Error parsing local data, creating default:', error);
+            localData = createDefaultData();
+        }
+    } else {
+        console.log('No existing data found, creating default data');
+        localData = createDefaultData();
+    }
+    
+    // Ensure all required arrays exist
+    if (!localData.customers) localData.customers = [];
+    if (!localData.personnel) localData.personnel = [];
+    if (!localData.packages) localData.packages = [];
+    if (!localData.containers) localData.containers = [];
+    if (!localData.stock_items) localData.stock_items = [];
+    if (!localData.barcodes) localData.barcodes = [];
+    if (!localData.settings) localData.settings = {};
+    
+    saveLocalData();
+    console.log('Local data initialization completed');
 }
 
 
