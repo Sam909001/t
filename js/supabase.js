@@ -1,9 +1,9 @@
-// ==================== SUPABASE CONFIGURATION (AUTH & STORAGE ONLY) ====================
+// Supabase initialization - Only for authentication and backups
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
 
-// ==================== GLOBAL STATE VARIABLES ====================
+// Global state variables
 let selectedCustomer = null;
 let currentPackage = {};
 let currentContainer = null;
@@ -19,7 +19,7 @@ let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
 
-// ==================== LOCAL EXCEL DATABASE ====================
+// Local Excel Storage System
 let localData = {
     packages: [],
     containers: [],
@@ -30,251 +30,96 @@ let localData = {
     settings: {}
 };
 
-// ==================== EMAILJS INITIALIZATION ====================
+// EmailJS initialization
 (function() {
     emailjs.init("jH-KlJ2ffs_lGwfsp");
 })();
 
-// ==================== UI ELEMENTS ====================
-const elements = {};
-const pageSize = 20;
-let isShippingTableLoading = false;
-let isStockTableLoading = false;
 
-// ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Content Loaded - Starting initialization...');
-    
-    // Step 1: Initialize UI elements
-    initializeUIElements();
-    
-    // Step 2: Check for XLSX library
-    if (!checkXLSXLibrary()) {
-        showAlert('Excel kütüphanesi bulunamadı. Lütfen SheetJS kütüphanesini yükleyin.', 'error');
-        return;
-    }
-    
-    // Step 3: Initialize local Excel database
-    initializeLocalData();
-    
-    // Step 4: Check authentication state
-    checkAuthState();
-    
-    console.log('Initialization sequence completed');
-});
-
-// ==================== UI INITIALIZATION ====================
-function initializeUIElements() {
-    elements.customerSelect = document.getElementById('customerSelect');
-    elements.personnelSelect = document.getElementById('personnelSelect');
-    elements.barcodeInput = document.getElementById('barcodeInput');
-    elements.packagesTableBody = document.getElementById('packagesTableBody');
-    elements.stockTableBody = document.getElementById('stockTableBody');
-    elements.shippingFolders = document.getElementById('shippingFolders');
-    elements.shippingFilter = document.getElementById('shippingFilter');
-    elements.containerSearch = document.getElementById('containerSearch');
-    elements.totalPackages = document.getElementById('totalPackages');
-    elements.customerList = document.getElementById('customerList');
-    elements.allCustomersList = document.getElementById('allCustomersList');
-    
-    console.log('UI elements initialized');
-}
-
-// ==================== AUTHENTICATION FUNCTIONS ====================
-function initializeSupabase() {
-    if (!SUPABASE_ANON_KEY) {
-        console.warn('Supabase API key not set');
-        return null;
-    }
-    
-    try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized for auth and storage');
-        return supabase;
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        return null;
-    }
-}
-
-async function checkAuthState() {
-    try {
-        // Check for saved API key
-        const savedApiKey = localStorage.getItem('procleanApiKey');
-        
-        if (savedApiKey) {
-            SUPABASE_ANON_KEY = savedApiKey;
-            initializeSupabase();
-        }
-        
-        // Check for saved user session in localStorage
-        const savedUserData = localStorage.getItem('procleanCurrentUser');
-        if (savedUserData) {
-            try {
-                currentUser = JSON.parse(savedUserData);
-                console.log('User session restored:', currentUser);
-                showAppScreen();
-                return;
-            } catch (error) {
-                console.error('Error parsing saved user data:', error);
-            }
-        }
-        
-        // Check Supabase auth if available
-        if (supabase) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session && session.user) {
-                currentUser = {
-                    email: session.user.email,
-                    uid: session.user.id,
-                    name: session.user.email.split('@')[0],
-                    role: 'operator'
-                };
-                
-                localStorage.setItem('procleanCurrentUser', JSON.stringify(currentUser));
-                showAppScreen();
-                return;
-            }
-        }
-        
-        // No valid session, show login
-        showLoginScreen();
-        
-    } catch (error) {
-        console.error('Auth state check error:', error);
-        showLoginScreen();
-    }
-}
-
-function showLoginScreen() {
-    const loginScreen = document.getElementById('loginScreen');
-    const appContainer = document.getElementById('appContainer');
-    
-    if (loginScreen) loginScreen.style.display = 'flex';
-    if (appContainer) appContainer.style.display = 'none';
-    
-    console.log('Showing login screen');
-}
-
-async function showAppScreen() {
-    console.log('Showing app screen for user:', currentUser);
-    
-    const loginScreen = document.getElementById('loginScreen');
-    const appContainer = document.getElementById('appContainer');
-    
-    if (loginScreen) loginScreen.style.display = 'none';
-    if (appContainer) appContainer.style.display = 'flex';
-    
-    // Initialize app data
-    await initializeAppData();
-    
-    // Setup daily Excel export
-    setupDailyExcelExport();
-    
-    // Update UI with user info
-    updateUserInterface();
-}
-
-async function login() {
-    const email = document.getElementById('loginEmail')?.value;
-    const password = document.getElementById('loginPassword')?.value;
-    
-    if (!email || !password) {
-        showAlert('E-posta ve şifre gerekli', 'error');
-        return;
-    }
-    
-    try {
-        // Try Supabase authentication if available
-        if (supabase) {
-            try {
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password
-                });
-                
-                if (!error && data.user) {
-                    currentUser = {
-                        email: data.user.email,
-                        uid: data.user.id,
-                        name: data.user.email.split('@')[0],
-                        role: 'operator'
-                    };
-                } else {
-                    throw new Error('Invalid credentials');
-                }
-            } catch (authError) {
-                // Fallback to local auth
-                console.log('Supabase auth failed, using local auth');
-                currentUser = {
-                    email: email,
-                    uid: 'local_' + Date.now(),
-                    name: email.split('@')[0],
-                    role: 'operator'
-                };
-            }
-        } else {
-            // Local authentication only
-            currentUser = {
-                email: email,
-                uid: 'local_' + Date.now(),
-                name: email.split('@')[0],
-                role: 'operator'
-            };
-        }
-        
-        // Save user session
-        localStorage.setItem('procleanCurrentUser', JSON.stringify(currentUser));
-        
-        showAlert('Giriş başarılı', 'success');
-        showAppScreen();
-        
-    } catch (error) {
-        console.error('Login error:', error);
-        showAlert('Giriş başarısız: ' + error.message, 'error');
-    }
-}
-
-async function logout() {
-    try {
-        localStorage.removeItem('procleanCurrentUser');
-        
-        if (supabase) {
-            await supabase.auth.signOut();
-        }
-        
-        currentUser = null;
-        showLoginScreen();
-        showAlert('Çıkış yapıldı', 'success');
-        
-    } catch (error) {
-        console.error('Logout error:', error);
-        showAlert('Çıkış yapılırken hata oluştu', 'error');
-    }
-}
-
+// FIXED: API anahtarını kaydet ve istemciyi başlat
 function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput')?.value.trim();
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
     if (!apiKey) {
         showAlert('Lütfen bir API anahtarı girin', 'error');
         return;
     }
     
+    // Eski client'ı temizle
+    supabase = null;
+    
+    // Yeni API key'i ayarla
     SUPABASE_ANON_KEY = apiKey;
     localStorage.setItem('procleanApiKey', apiKey);
     
+    // Yeni client oluştur
     const newClient = initializeSupabase();
     
     if (newClient) {
-        const modal = document.getElementById('apiKeyModal');
-        if (modal) modal.style.display = 'none';
+        document.getElementById('apiKeyModal').style.display = 'none';
         showAlert('API anahtarı kaydedildi', 'success');
+        testConnection();
     }
 }
 
-// ==================== LOCAL EXCEL DATABASE FUNCTIONS ====================
+
+
+        
+let connectionAlertShown = false; // Prevent duplicate success alert
+
+// FIXED: Supabase bağlantısını test et
+async function testConnection() {
+    if (!supabase) {
+        console.warn('Supabase client not initialized for connection test');
+        if (!connectionAlertShown) {
+            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+            connectionAlertShown = true; // mark as shown to avoid repeating
+        }
+        return false;
+    }
+    
+    try {
+        const { data, error } = await supabase.from('customers').select('*').limit(1);
+        if (error) throw error;
+        
+        console.log('Supabase connection test successful:', data);
+        
+        if (!connectionAlertShown) {
+            showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
+            connectionAlertShown = true; // ensure alert shows only once
+        }
+
+        return true;
+    } catch (e) {
+        console.error('Supabase connection test failed:', e.message);
+        if (!connectionAlertShown) {
+            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+            connectionAlertShown = true;
+        }
+        return false;
+    }
+}
+
+
+
+// Elements
+const elements = {};
+
+// XLSX Library Check
+function checkXLSXLibrary() {
+    if (typeof XLSX === 'undefined') {
+        console.error('XLSX library not loaded. Please include SheetJS library.');
+        showAlert('Excel kütüphanesi yüklenmedi. Sayfayı yenileyin.', 'error');
+        return false;
+    }
+    return true;
+}
+
+// ==================== LOCAL EXCEL STORAGE FUNCTIONS ====================
+
+// Initialize local data from localStorage or create default structure
+// Fixed data initialization function
 function initializeLocalData() {
-    console.log('Initializing local Excel database...');
+    console.log('Initializing local data...');
     
     const savedData = localStorage.getItem('procleanLocalData');
     
@@ -282,21 +127,22 @@ function initializeLocalData() {
         try {
             localData = JSON.parse(savedData);
             console.log('Existing data loaded:', {
-                customers: localData.customers?.length || 0,
-                personnel: localData.personnel?.length || 0,
-                packages: localData.packages?.length || 0
+                customers: localData.customers.length,
+                personnel: localData.personnel.length,
+                packages: localData.packages.length
             });
         } catch (error) {
             console.error('Error parsing local data, creating default:', error);
             localData = createDefaultData();
         }
     } else {
-        console.log('No existing data, creating default');
+        console.log('No existing data found, creating default data');
         localData = createDefaultData();
     }
     
-    // Ensure all required data exists
+    // Ensure all arrays exist and have data
     if (!localData.customers || localData.customers.length === 0) {
+        console.log('No customers found, creating default customers');
         localData.customers = [
             {
                 id: '1',
@@ -306,7 +152,7 @@ function initializeLocalData() {
                 created_at: new Date().toISOString()
             },
             {
-                id: '2',
+                id: '2', 
                 name: 'Marmara Otel',
                 code: 'MARMARA',
                 email: 'info@marmara.com',
@@ -316,6 +162,7 @@ function initializeLocalData() {
     }
     
     if (!localData.personnel || localData.personnel.length === 0) {
+        console.log('No personnel found, creating default personnel');
         localData.personnel = [
             {
                 id: '1',
@@ -326,7 +173,7 @@ function initializeLocalData() {
             {
                 id: '2',
                 name: 'Mehmet Demir',
-                role: 'Supervisor',
+                role: 'Supervisor', 
                 created_at: new Date().toISOString()
             }
         ];
@@ -340,12 +187,28 @@ function initializeLocalData() {
     if (!localData.settings) localData.settings = {};
     
     saveLocalData();
-    console.log('Local Excel database initialized');
+    console.log('Local data initialization completed');
 }
+
+
+
+
 
 function createDefaultData() {
     return {
-        packages: [],
+        packages: [
+            {
+                id: '1',
+                package_no: 'PKG-001',
+                customer_id: '1',
+                items: [{ name: 'Çarşaf', qty: 2 }],
+                total_quantity: 2,
+                status: 'beklemede',
+                packer: 'Admin',
+                created_at: new Date().toISOString(),
+                container_id: null
+            }
+        ],
         customers: [
             {
                 id: '1',
@@ -359,7 +222,6 @@ function createDefaultData() {
             {
                 id: '1',
                 name: 'Admin Kullanıcı',
-                role: 'Admin',
                 created_at: new Date().toISOString()
             }
         ],
@@ -383,92 +245,25 @@ function createDefaultData() {
     };
 }
 
+// Save data to localStorage
 function saveLocalData() {
     try {
         localStorage.setItem('procleanLocalData', JSON.stringify(localData));
-        console.log('Local data saved');
+        console.log('Local data saved successfully');
     } catch (error) {
         console.error('Error saving local data:', error);
         showAlert('Veri kaydedilirken hata oluştu', 'error');
     }
 }
 
+// Generate unique ID
 function generateId() {
     return Date.now().toString() + Math.random().toString(36).substr(2, 9);
 }
 
-// ==================== APP DATA INITIALIZATION ====================
-async function initializeAppData() {
-    console.log('Initializing app data...');
-    
-    try {
-        // Populate all dropdowns and tables from Excel database
-        await populateCustomers();
-        await populatePersonnel();
-        await populatePackagesTable();
-        await populateStockTable();
-        await populateShippingTable();
-        
-        // Set up form event listeners
-        initializeFormElements();
-        
-        console.log('App data initialization completed');
-    } catch (error) {
-        console.error('Error initializing app data:', error);
-        showAlert('Veri yükleme hatası', 'error');
-    }
-}
-
-function initializeFormElements() {
-    const customerSelect = document.getElementById('customerSelect');
-    if (customerSelect) {
-        customerSelect.addEventListener('change', function() {
-            const customerId = this.value;
-            if (customerId) {
-                selectedCustomer = localData.customers.find(c => c.id === customerId);
-                console.log('Customer selected:', selectedCustomer);
-            } else {
-                selectedCustomer = null;
-            }
-        });
-    }
-    
-    const barcodeInput = document.getElementById('barcodeInput');
-    if (barcodeInput) {
-        barcodeInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                processBarcode();
-            }
-        });
-    }
-    
-    console.log('Form elements initialized');
-}
-
-function updateUserInterface() {
-    const userRoleElement = document.getElementById('userRole');
-    if (userRoleElement && currentUser) {
-        userRoleElement.textContent = `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
-    }
-    
-    const today = new Date().toISOString().split('T')[0];
-    const dateInputs = document.querySelectorAll('input[type="date"]');
-    dateInputs.forEach(input => {
-        if (!input.value) {
-            input.value = today;
-        }
-    });
-}
-
 // ==================== EXCEL EXPORT FUNCTIONS ====================
-function checkXLSXLibrary() {
-    if (typeof XLSX === 'undefined') {
-        console.error('XLSX library not loaded');
-        return false;
-    }
-    return true;
-}
 
+// Auto-save to Excel daily
 function setupDailyExcelExport() {
     const today = new Date().toDateString();
     const lastExport = localStorage.getItem('lastExcelExport');
@@ -477,9 +272,10 @@ function setupDailyExcelExport() {
         setTimeout(() => {
             exportAllDataToExcel();
             localStorage.setItem('lastExcelExport', today);
-        }, 5000);
+        }, 5000); // 5 seconds after page load
     }
     
+    // Set up daily timer
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -489,17 +285,20 @@ function setupDailyExcelExport() {
     setTimeout(() => {
         exportAllDataToExcel();
         localStorage.setItem('lastExcelExport', new Date().toDateString());
+        // Set up recurring daily export
         setInterval(exportAllDataToExcel, 24 * 60 * 60 * 1000);
     }, msUntilMidnight);
 }
 
-function exportAllDataToExcel(manual = false) {
+// Export all data to Excel file
+function exportAllDataToExcel() {
     if (!checkXLSXLibrary()) return;
     
     try {
         const wb = XLSX.utils.book_new();
         const timestamp = new Date().toISOString().slice(0, 10);
         
+        // Create worksheets for each data type
         const worksheets = [
             { name: 'Packages', data: localData.packages },
             { name: 'Customers', data: localData.customers },
@@ -517,15 +316,13 @@ function exportAllDataToExcel(manual = false) {
             }
         });
         
+        // Save file
         XLSX.writeFile(wb, `ProClean_Data_${timestamp}.xlsx`);
+        console.log('Daily Excel export completed');
         
-        if (manual) {
+        // Show notification only on manual export
+        if (arguments[0] === 'manual') {
             showAlert('Excel dosyası başarıyla kaydedildi', 'success');
-        }
-        
-        // Upload to Supabase storage if available
-        if (supabase && manual) {
-            uploadExcelToSupabase(wb, `ProClean_Data_${timestamp}.xlsx`);
         }
         
     } catch (error) {
@@ -534,27 +331,7 @@ function exportAllDataToExcel(manual = false) {
     }
 }
 
-async function uploadExcelToSupabase(workbook, fileName) {
-    if (!supabase) return;
-    
-    try {
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([excelBuffer], {
-            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        });
-        
-        const { error } = await supabase.storage
-            .from('daily-data')
-            .upload(fileName, blob, { upsert: true });
-        
-        if (error) throw error;
-        console.log('Excel uploaded to Supabase storage');
-        
-    } catch (error) {
-        console.error('Supabase upload error:', error);
-    }
-}
-
+// Generate summary data
 function generateSummaryData() {
     return {
         export_date: new Date().toISOString(),
@@ -568,7 +345,55 @@ function generateSummaryData() {
     };
 }
 
-// ==================== CUSTOMER MANAGEMENT ====================
+// =============================
+// Manual Excel Export (Safe)
+// =============================
+async function manualExportToExcel(sheetName, data, fileName) {
+    try {
+        // ✅ Ensure we always have a fileName
+        if (!fileName || typeof fileName !== "string") {
+            fileName = `${sheetName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        }
+
+        // ✅ Ensure data is at least an empty array
+        const safeData = Array.isArray(data) ? data : [];
+
+        // Build Excel sheet
+        const ws = XLSX.utils.json_to_sheet(safeData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+        // Convert workbook to buffer
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        // ✅ Save locally (download)
+        saveAs(blob, fileName);
+
+        // ✅ Upload to Supabase Storage
+        const bucketName = "daily-data"; // must exist in Supabase
+        const filePath = fileName.replace(/\s+/g, "_"); // clean spaces
+
+        const { error } = await supabase.storage
+            .from(bucketName)
+            .upload(filePath, blob, { upsert: true });
+
+        if (error) throw error;
+
+        console.log(`✅ Exported & uploaded ${sheetName} as ${fileName}`);
+    } catch (err) {
+        console.error("❌ manualExportToExcel error:", err.message || err);
+    }
+}
+
+
+
+// ==================== DATA OPERATIONS (EXCEL-BASED) ====================
+
+// Customers
+// Fixed customer dropdown population
 async function populateCustomers() {
     try {
         console.log('Populating customers dropdown...');
@@ -577,42 +402,57 @@ async function populateCustomers() {
             console.error('Customer select element not found');
             return;
         }
-        
+
+        // Save current selection
         const currentValue = customerSelect.value;
-        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
         
+        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
+
         if (!localData.customers || localData.customers.length === 0) {
-            console.warn('No customers available');
+            console.warn('No customers data available');
+            const option = document.createElement('option');
+            option.textContent = 'Müşteri bulunamadı';
+            option.disabled = true;
+            customerSelect.appendChild(option);
             return;
         }
-        
+
         localData.customers.forEach(customer => {
             const opt = document.createElement('option');
             opt.value = customer.id;
             opt.textContent = `${customer.name} (${customer.code})`;
             customerSelect.appendChild(opt);
         });
-        
+
+        // Restore selection if still valid
         if (currentValue && localData.customers.some(c => c.id === currentValue)) {
             customerSelect.value = currentValue;
         }
-        
-        console.log(`Populated ${localData.customers.length} customers`);
+
+        console.log(`Customers dropdown populated with ${localData.customers.length} customers`);
+
     } catch (error) {
         console.error('populateCustomers error:', error);
+        showAlert('Müşteri listesi yüklenirken hata oluştu', 'error');
     }
 }
 
+
+
+
+
+
+
 async function addNewCustomer() {
-    const code = document.getElementById('newCustomerCode')?.value.trim();
-    const name = document.getElementById('newCustomerName')?.value.trim();
-    const email = document.getElementById('newCustomerEmail')?.value.trim();
-    
+    const code = document.getElementById('newCustomerCode').value.trim();
+    const name = document.getElementById('newCustomerName').value.trim();
+    const email = document.getElementById('newCustomerEmail').value.trim();
+
     if (!code || !name) {
         showAlert('Müşteri kodu ve adı gerekli', 'error');
         return;
     }
-    
+
     try {
         const newCustomer = {
             id: generateId(),
@@ -621,10 +461,10 @@ async function addNewCustomer() {
             email: email || null,
             created_at: new Date().toISOString()
         };
-        
+
         localData.customers.push(newCustomer);
         saveLocalData();
-        
+
         showAlert('Müşteri başarıyla eklendi', 'success');
         
         // Clear form
@@ -636,32 +476,30 @@ async function addNewCustomer() {
         await showAllCustomers();
         
     } catch (error) {
-        console.error('Error adding customer:', error);
+        console.error('Error in addNewCustomer:', error);
         showAlert('Müşteri ekleme hatası', 'error');
     }
 }
 
 async function deleteCustomer(customerId) {
     if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
-    
+
     try {
         localData.customers = localData.customers.filter(c => c.id !== customerId);
         saveLocalData();
-        
+
         showAlert('Müşteri başarıyla silindi', 'success');
         await populateCustomers();
         await showAllCustomers();
         
     } catch (error) {
-        console.error('Error deleting customer:', error);
+        console.error('Error in deleteCustomer:', error);
         showAlert('Müşteri silme hatası', 'error');
     }
 }
 
 async function showCustomers() {
     try {
-        if (!elements.customerList) return;
-        
         elements.customerList.innerHTML = '';
         
         localData.customers.forEach(customer => {
@@ -677,19 +515,15 @@ async function showCustomers() {
             elements.customerList.appendChild(div);
         });
         
-        const modal = document.getElementById('customerModal');
-        if (modal) modal.style.display = 'flex';
-        
+        document.getElementById('customerModal').style.display = 'flex';
     } catch (error) {
-        console.error('Error showing customers:', error);
+        console.error('Error in showCustomers:', error);
         showAlert('Müşteri listesi yükleme hatası', 'error');
     }
 }
 
 async function showAllCustomers() {
     try {
-        if (!elements.allCustomersList) return;
-        
         elements.allCustomersList.innerHTML = '';
         
         localData.customers.forEach(customer => {
@@ -705,26 +539,14 @@ async function showAllCustomers() {
             elements.allCustomersList.appendChild(div);
         });
         
-        const modal = document.getElementById('allCustomersModal');
-        if (modal) modal.style.display = 'flex';
-        
+        document.getElementById('allCustomersModal').style.display = 'flex';
     } catch (error) {
-        console.error('Error showing all customers:', error);
+        console.error('Error in showAllCustomers:', error);
         showAlert('Müşteri yönetimi yükleme hatası', 'error');
     }
 }
 
-function selectCustomerFromModal(customer) {
-    selectedCustomer = customer;
-    const customerSelect = document.getElementById('customerSelect');
-    if (customerSelect) {
-        customerSelect.value = customer.id;
-    }
-    const modal = document.getElementById('customerModal');
-    if (modal) modal.style.display = 'none';
-}
-
-// ==================== PERSONNEL MANAGEMENT ====================
+// Fixed personnel dropdown population
 async function populatePersonnel() {
     try {
         console.log('Populating personnel dropdown...');
@@ -733,107 +555,128 @@ async function populatePersonnel() {
             console.error('Personnel select element not found');
             return;
         }
-        
+
+        // Save current selection
         const currentValue = personnelSelect.value;
-        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
         
+        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+
         if (!localData.personnel || localData.personnel.length === 0) {
-            console.warn('No personnel available');
+            console.warn('No personnel data available');
+            const option = document.createElement('option');
+            option.textContent = 'Personel bulunamadı';
+            option.disabled = true;
+            personnelSelect.appendChild(option);
             return;
         }
-        
+
         localData.personnel.forEach(person => {
             const option = document.createElement('option');
             option.value = person.id;
             option.textContent = person.name;
             personnelSelect.appendChild(option);
         });
-        
+
+        // Restore selection if still valid
         if (currentValue && localData.personnel.some(p => p.id === currentValue)) {
             personnelSelect.value = currentValue;
         }
-        
-        console.log(`Populated ${localData.personnel.length} personnel`);
+
+        console.log(`Personnel dropdown populated with ${localData.personnel.length} personnel`);
+
     } catch (error) {
         console.error('populatePersonnel error:', error);
+        showAlert('Personel listesi yüklenirken hata oluştu', 'error');
     }
 }
 
-// ==================== PACKAGE MANAGEMENT ====================
+
+
+
+// Packages
 async function populatePackagesTable() {
     if (packagesTableLoading) return;
     packagesTableLoading = true;
-    
+
     try {
         const tableBody = elements.packagesTableBody || document.getElementById('packagesTableBody');
         const totalPackagesElement = elements.totalPackages || document.getElementById('totalPackages');
-        
-        if (!tableBody) {
-            console.error('Package table body not found');
-            return;
-        }
-        
+
+        if (!tableBody) throw new Error('Package table body not found');
+
         tableBody.innerHTML = '';
         if (totalPackagesElement) totalPackagesElement.textContent = '0';
-        
+
+        // Filter packages that are waiting (not shipped)
         const waitingPackages = localData.packages.filter(pkg => 
             pkg.status === 'beklemede' && !pkg.container_id
         );
-        
+
         if (waitingPackages.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
             tableBody.appendChild(row);
+            if (totalPackagesElement) totalPackagesElement.textContent = '0';
             return;
         }
-        
+
         waitingPackages.forEach(pkg => {
             const row = document.createElement('tr');
+            
+            // Get customer name
             const customer = localData.customers.find(c => c.id === pkg.customer_id);
             const customerName = customer ? customer.name : 'Bilinmeyen Müşteri';
-            
+
+            // Ensure items is an array
             let itemsArray = [];
             if (pkg.items && Array.isArray(pkg.items)) {
                 itemsArray = pkg.items;
             } else if (pkg.items && typeof pkg.items === 'object') {
                 itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ name, qty }));
+            } else {
+                itemsArray = [{ name: pkg.product || 'Bilinmeyen Ürün', qty: 1 }];
             }
-            
+
+            // Create package object with customer info for compatibility
             const packageWithCustomer = {
                 ...pkg,
                 customers: { name: customerName },
                 items: itemsArray
             };
-            
+
             const packageJsonEscaped = JSON.stringify(packageWithCustomer)
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-            
+
             row.innerHTML = `
                 <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
                 <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
                 <td>${escapeHtml(customerName)}</td>
-                <td>${escapeHtml(itemsArray.map(it => it.name).join(', '))}</td>
-                <td>${escapeHtml(itemsArray.map(it => it.qty).join(', '))}</td>
+                <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+                </td>
+                <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+                </td>
                 <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                 <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
             `;
-            
+
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(packageWithCustomer);
             });
-            
+
             tableBody.appendChild(row);
         });
-        
+
         if (totalPackagesElement) {
             totalPackagesElement.textContent = waitingPackages.length.toString();
         }
         
         console.log(`Package table populated with ${waitingPackages.length} packages`);
-        
+
     } catch (error) {
-        console.error('Error populating packages table:', error);
-        showAlert('Paket tablosu yükleme hatası', 'error');
+        console.error('Error in populatePackagesTable:', error);
+        showAlert('Paket tablosu yükleme hatası: ' + error.message, 'error');
     } finally {
         packagesTableLoading = false;
     }
@@ -844,17 +687,17 @@ async function completePackage() {
         showAlert('Önce müşteri seçin', 'error');
         return;
     }
-    
+
     if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
         showAlert('Pakete ürün ekleyin', 'error');
         return;
     }
-    
+
     try {
         const packageNo = `PKG-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect?.value;
-        
+        const selectedPersonnel = elements.personnelSelect.value;
+
         const packageData = {
             id: generateId(),
             package_no: packageNo,
@@ -866,12 +709,13 @@ async function completePackage() {
             created_at: new Date().toISOString(),
             container_id: null
         };
-        
+
         localData.packages.push(packageData);
         saveLocalData();
-        
+
         showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-        
+
+        // Reset current package
         currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
 
