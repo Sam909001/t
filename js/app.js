@@ -101,7 +101,7 @@ async function loadExcelData(type) {
         await createEmptyExcelFile(type);
         return [];
     }
-} here ?
+}
 
 
 
