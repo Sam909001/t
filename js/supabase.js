@@ -664,7 +664,6 @@ let lastShippingFetchTime = 0;
 async function populateShippingTable(page = 0) {
     if (isShippingTableLoading) return;
 
-    // Debounce
     const now = Date.now();
     if (now - lastShippingFetchTime < 500) {
         setTimeout(() => populateShippingTable(page), 500);
@@ -677,65 +676,94 @@ async function populateShippingTable(page = 0) {
     try {
         console.log('populateShippingTable called, page', page);
 
+        if (!elements.shippingFolders) {
+            console.error('shippingFolders element not found');
+            return;
+        }
+
         elements.shippingFolders.innerHTML = '';
 
         const filter = elements.shippingFilter?.value || 'all';
 
-        // Pagination: calculate range
-        const from = page * pageSize;
-        const to = from + pageSize - 1;
+        let containers = [];
+        let packagesData = [];
 
-        let query = supabase
-            .from('containers')
-            .select('*', { count: 'exact' }) // for total count
-            .order('created_at', { ascending: false })
-            .range(from, to);
+        // Get data based on current mode
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Use Excel data for containers
+            containers = excelPackages
+                .filter(pkg => pkg.container_id)
+                .reduce((acc, pkg) => {
+                    if (!acc.find(c => c.id === pkg.container_id)) {
+                        acc.push({
+                            id: pkg.container_id,
+                            container_no: pkg.container_id,
+                            customer: pkg.customer_name,
+                            package_count: 1,
+                            total_quantity: pkg.total_quantity,
+                            status: 'sevk-edildi',
+                            created_at: pkg.created_at,
+                            packages: [pkg]
+                        });
+                    } else {
+                        const container = acc.find(c => c.id === pkg.container_id);
+                        container.package_count += 1;
+                        container.total_quantity += pkg.total_quantity;
+                        container.packages.push(pkg);
+                    }
+                    return acc;
+                }, []);
+            
+            console.log('Excel containers:', containers);
+        } else {
+            // Use Supabase data
+            let query = supabase
+                .from('containers')
+                .select('*', { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(page * pageSize, (page + 1) * pageSize - 1);
 
-        if (filter !== 'all') query = query.eq('status', filter);
+            if (filter !== 'all') query = query.eq('status', filter);
 
-        const { data: containers, error: containersError, count } = await query;
+            const { data: supabaseContainers, error: containersError, count } = await query;
+            if (containersError) throw containersError;
+            containers = supabaseContainers || [];
 
-        if (containersError) throw containersError;
+            // Get packages for these containers
+            if (containers.length > 0) {
+                const containerIds = containers.map(c => c.id);
+                const { data: supabasePackages } = await supabase
+                    .from('packages')
+                    .select('id, package_no, total_quantity, container_id, customers(name, code)')
+                    .in('container_id', containerIds);
+                packagesData = supabasePackages || [];
+            }
+        }
 
         if (!containers || containers.length === 0) {
             elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
             return;
         }
 
-        // Deduplicate containers
-        const uniqueContainers = [];
-        const seenContainerIds = new Set();
-        containers.forEach(c => {
-            if (!seenContainerIds.has(c.id)) {
-                seenContainerIds.add(c.id);
-                uniqueContainers.push(c);
-            }
-        });
-
-        // Fetch packages for these containers
-        const containerIds = uniqueContainers.map(c => c.id);
-        const { data: packagesData } = await supabase
-            .from('packages')
-            .select('id, package_no, total_quantity, container_id, customers(name, code)')
-            .in('container_id', containerIds);
-
-        // Map packages to containers, deduplicate
-        const packagesMap = {};
-        packagesData?.forEach(p => {
-            if (!packagesMap[p.container_id]) packagesMap[p.container_id] = [];
-            if (!packagesMap[p.container_id].some(x => x.id === p.id)) packagesMap[p.container_id].push(p);
-        });
-
-        uniqueContainers.forEach(c => c.packages = packagesMap[c.id] || []);
-
-        // Group by customer
+        // Group by customer for Excel data
         const customersMap = {};
-        uniqueContainers.forEach(container => {
+        containers.forEach(container => {
             let customerName = 'Diğer';
-            if (container.packages.length > 0) {
-                const names = container.packages.map(p => p.customers?.name).filter(Boolean);
+            
+            if (container.packages && container.packages.length > 0) {
+                // Excel data already has packages
+                const names = container.packages.map(p => p.customer_name).filter(Boolean);
                 if (names.length > 0) customerName = [...new Set(names)].join(', ');
+            } else if (packagesData.length > 0) {
+                // Supabase data - find packages for this container
+                const containerPackages = packagesData.filter(p => p.container_id === container.id);
+                const names = containerPackages.map(p => p.customers?.name).filter(Boolean);
+                if (names.length > 0) customerName = [...new Set(names)].join(', ');
+                container.packages = containerPackages;
+                container.package_count = containerPackages.length;
+                container.total_quantity = containerPackages.reduce((sum, p) => sum + (p.total_quantity || 0), 0);
             }
+
             if (!customersMap[customerName]) customersMap[customerName] = [];
             customersMap[customerName].push(container);
         });
@@ -774,8 +802,8 @@ async function populateShippingTable(page = 0) {
                         <tr>
                             <td><input type="checkbox" value="${container.id}" class="container-checkbox"></td>
                             <td>${container.container_no}</td>
-                            <td>${container.packages.length}</td>
-                            <td>${container.packages.reduce((sum, p) => sum + (p.total_quantity || 0), 0)}</td>
+                            <td>${container.package_count || 0}</td>
+                            <td>${container.total_quantity || 0}</td>
                             <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                             <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
                             <td>
@@ -800,9 +828,6 @@ async function populateShippingTable(page = 0) {
             elements.shippingFolders.appendChild(folderDiv);
         });
 
-        // Render pagination buttons
-        renderPagination(count, page);
-
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
         showAlert('Sevkiyat tablosu yükleme hatası', 'error');
@@ -810,6 +835,9 @@ async function populateShippingTable(page = 0) {
         isShippingTableLoading = false;
     }
 }
+
+
+
 
 // Pagination buttons
 function renderPagination(totalCount, page) {
@@ -967,91 +995,76 @@ function debouncedPopulateShippingTable() {
   let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-async function populateStockTable() {
-    // Prevent multiple simultaneous calls
-    if (isStockTableLoading) return;
-    
-    // Debounce - prevent rapid successive calls
-    const now = Date.now();
-    if (now - lastStockFetchTime < 500) {
-        setTimeout(populateStockTable, 500);
-        return;
-    }
-    
-    isStockTableLoading = true;
-    lastStockFetchTime = now;
-    
+async function populateReportsTable() {
     try {
-        // Clear table only once
-        elements.stockTableBody.innerHTML = '';
-        
-        const { data: stockItems, error } = await supabase
-            .from('stock_items')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading stock items:', error);
-            showAlert('Stok verileri yüklenemedi', 'error');
+        const reportsContainer = document.getElementById('reportsTab');
+        if (!reportsContainer) {
+            console.error('Reports container not found');
             return;
         }
 
-        // Deduplicate stock items by code
-        const uniqueStockItems = [];
-        const seenStockCodes = new Set();
-        
-        if (stockItems && stockItems.length > 0) {
-            stockItems.forEach(item => {
-                if (!seenStockCodes.has(item.code)) {
-                    seenStockCodes.add(item.code);
-                    uniqueStockItems.push(item);
-                    
-                    const row = document.createElement('tr');
-                    
-                    // Determine stock status
-                    let statusClass = 'status-stokta';
-                    let statusText = 'Stokta';
-                    
-                    if (item.quantity <= 0) {
-                        statusClass = 'status-kritik';
-                        statusText = 'Kritik';
-                    } else if (item.quantity < 10) {
-                        statusClass = 'status-az-stok';
-                        statusText = 'Az Stok';
-                    }
-                    
-                    row.innerHTML = `
-                        <td>${item.code}</td>
-                        <td>${item.name}</td>
-                        <td class="editable-cell">
-                            <span class="stock-quantity">${item.quantity}</span>
-                            <input type="number" class="stock-quantity-input" value="${item.quantity}" style="display:none;">
-                        </td>
-                        <td>${item.unit || 'Adet'}</td>
-                        <td><span class="${statusClass}">${statusText}</span></td>
-                        <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                        <td>
-                            <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
-                            <div class="edit-buttons" style="display:none;">
-                                <button onclick="saveStockItem('${item.code}')" class="btn btn-success btn-sm">Kaydet</button>
-                                <button onclick="cancelEditStockItem('${item.code}', ${item.quantity})" class="btn btn-secondary btn-sm">İptal</button>
-                            </div>
-                        </td>
-                    `;
-                    elements.stockTableBody.appendChild(row);
+        let reportsData = [];
+
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Generate reports from Excel data
+            const today = new Date().toISOString().split('T')[0];
+            
+            const dailyPackages = excelPackages.filter(pkg => 
+                pkg.created_at && pkg.created_at.includes(today)
+            );
+            
+            const totalPackages = excelPackages.length;
+            const shippedPackages = excelPackages.filter(pkg => pkg.status === 'sevk-edildi').length;
+            const waitingPackages = excelPackages.filter(pkg => pkg.status === 'beklemede').length;
+
+            reportsData = [
+                {
+                    title: 'Günlük Paket Raporu',
+                    data: `Bugün oluşturulan paketler: ${dailyPackages.length}`,
+                    date: new Date().toLocaleDateString('tr-TR')
+                },
+                {
+                    title: 'Genel Paket Durumu',
+                    data: `Toplam: ${totalPackages}, Sevk Edilen: ${shippedPackages}, Bekleyen: ${waitingPackages}`,
+                    date: new Date().toLocaleDateString('tr-TR')
                 }
-            });
+            ];
         } else {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
-            elements.stockTableBody.appendChild(row);
+            // Use Supabase reports
+            const { data: supabaseReports, error } = await supabase
+                .from('reports')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (error) throw error;
+            reportsData = supabaseReports || [];
         }
+
+        let reportsHTML = '<h3>Raporlar</h3>';
         
+        if (reportsData.length === 0) {
+            reportsHTML += '<p style="text-align:center; color:#666; padding:20px;">Henüz rapor yok</p>';
+        } else {
+            reportsData.forEach(report => {
+                reportsHTML += `
+                    <div class="report-item" style="border:1px solid #ddd; padding:15px; margin:10px 0; border-radius:5px;">
+                        <h4>${report.title}</h4>
+                        <p>${report.data}</p>
+                        <small>Tarih: ${report.date}</small>
+                    </div>
+                `;
+            });
+        }
+
+        reportsContainer.innerHTML = reportsHTML;
+
     } catch (error) {
-        console.error('Error in populateStockTable:', error);
-        showAlert('Stok tablosu yükleme hatası', 'error');
-    } finally {
-        isStockTableLoading = false;
+        console.error('Error loading reports:', error);
+        const reportsContainer = document.getElementById('reportsTab');
+        if (reportsContainer) {
+            reportsContainer.innerHTML = '<p style="text-align:center; color:red;">Raporlar yüklenirken hata oluştu</p>';
+        }
     }
 }
 
@@ -1061,6 +1074,8 @@ function debouncedPopulateStockTable() {
     clearTimeout(stockTableTimeout);
     stockTableTimeout = setTimeout(populateStockTable, 300);
 }
+
+
 
 
  
