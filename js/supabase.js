@@ -1,4 +1,4 @@
-/// Supabase initialization - Varsayılan değerler
+// Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
@@ -661,205 +661,180 @@ const pageSize = 20; // number of containers per page
 let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
 
-async function populateShippingTable() {
-    console.log('=== populateShippingTable() called ===');
-    
-    if (isShippingTableLoading) {
-        console.log('Shipping table already loading, skipping...');
+async function populateShippingTable(page = 0) {
+    if (isShippingTableLoading) return;
+
+    const now = Date.now();
+    if (now - lastShippingFetchTime < 500) {
+        setTimeout(() => populateShippingTable(page), 500);
         return;
     }
 
     isShippingTableLoading = true;
+    lastShippingFetchTime = now;
 
     try {
-        const shippingFolders = document.getElementById('shippingFolders');
-        console.log('shippingFolders element:', shippingFolders);
-        
-        if (!shippingFolders) {
-            console.error('shippingFolders element not found!');
+        console.log('populateShippingTable called, page', page);
+
+        if (!elements.shippingFolders) {
+            console.error('shippingFolders element not found');
             return;
         }
 
-        // Show loading state
-        shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666; font-size:16px; border: 2px dashed #ccc;">🔄 Sevkiyat verileri yükleniyor...</div>';
-        console.log('Loading state set');
+        elements.shippingFolders.innerHTML = '';
+
+        const filter = elements.shippingFilter?.value || 'all';
 
         let containers = [];
         let packagesData = [];
 
         // Get data based on current mode
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            console.log('📊 Using Excel data for shipping');
+            // Use Excel data for containers
+            containers = excelPackages
+                .filter(pkg => pkg.container_id)
+                .reduce((acc, pkg) => {
+                    if (!acc.find(c => c.id === pkg.container_id)) {
+                        acc.push({
+                            id: pkg.container_id,
+                            container_no: pkg.container_id,
+                            customer: pkg.customer_name,
+                            package_count: 1,
+                            total_quantity: pkg.total_quantity,
+                            status: 'sevk-edildi',
+                            created_at: pkg.created_at,
+                            packages: [pkg]
+                        });
+                    } else {
+                        const container = acc.find(c => c.id === pkg.container_id);
+                        container.package_count += 1;
+                        container.total_quantity += pkg.total_quantity;
+                        container.packages.push(pkg);
+                    }
+                    return acc;
+                }, []);
             
-            // Create mock data for testing
-            containers = [
-                {
-                    id: 'test-container-1',
-                    container_no: 'CONT-123456',
-                    package_count: 3,
-                    total_quantity: 45,
-                    status: 'beklemede',
-                    created_at: new Date().toISOString(),
-                    customer: 'Test Müşteri A'
-                },
-                {
-                    id: 'test-container-2', 
-                    container_no: 'CONT-789012',
-                    package_count: 5,
-                    total_quantity: 78,
-                    status: 'sevk-edildi',
-                    created_at: new Date(Date.now() - 86400000).toISOString(),
-                    customer: 'Test Müşteri B'
-                }
-            ];
-            
-            console.log('Mock containers created:', containers.length);
-            
+            console.log('Excel containers:', containers);
         } else {
-            console.log('📊 Using Supabase data for shipping');
-            
-            try {
-                // Try to get containers from Supabase
-                const { data: supabaseContainers, error } = await supabase
-                    .from('containers')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+            // Use Supabase data
+            let query = supabase
+                .from('containers')
+                .select('*', { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(page * pageSize, (page + 1) * pageSize - 1);
 
-                if (error) {
-                    console.error('❌ Supabase containers error:', error);
-                    // Fallback to mock data
-                    containers = [
-                        {
-                            id: 'supabase-fallback-1',
-                            container_no: 'CONT-SUPABASE-001',
-                            package_count: 2,
-                            total_quantity: 30,
-                            status: 'beklemede',
-                            created_at: new Date().toISOString(),
-                            customer: 'Supabase Müşteri'
-                        }
-                    ];
-                    console.log('Using fallback mock data');
-                } else {
-                    containers = supabaseContainers || [];
-                    console.log('✅ Supabase containers loaded:', containers.length);
-                }
+            if (filter !== 'all') query = query.eq('status', filter);
 
-            } catch (supabaseError) {
-                console.error('❌ Supabase shipping data error:', supabaseError);
-                containers = [];
+            const { data: supabaseContainers, error: containersError, count } = await query;
+            if (containersError) throw containersError;
+            containers = supabaseContainers || [];
+
+            // Get packages for these containers
+            if (containers.length > 0) {
+                const containerIds = containers.map(c => c.id);
+                const { data: supabasePackages } = await supabase
+                    .from('packages')
+                    .select('id, package_no, total_quantity, container_id, customers(name, code)')
+                    .in('container_id', containerIds);
+                packagesData = supabasePackages || [];
             }
         }
 
-        // Clear previous content
-        shippingFolders.innerHTML = '';
-        console.log('Content cleared, ready to render');
-
         if (!containers || containers.length === 0) {
-            console.log('No containers found, showing empty state');
-            shippingFolders.innerHTML = `
-                <div style="text-align:center; padding:60px; color:#666; border: 2px dashed #ddd; border-radius: 8px;">
-                    <i class="fas fa-box-open" style="font-size:48px; margin-bottom:20px; opacity:0.5;"></i>
-                    <h3>Henüz konteyner bulunmamaktadır</h3>
-                    <p>Paketleri sevkiyat için konteynerlere ekleyin.</p>
-                    <button onclick="createNewContainer()" class="btn btn-primary" style="margin-top:15px;">
-                        <i class="fas fa-plus"></i> Yeni Konteyner Oluştur
-                    </button>
-                    <div style="margin-top: 10px; font-size: 12px; color: #999;">
-                        Containers array length: ${containers ? containers.length : 'null'}
-                    </div>
-                </div>
-            `;
+            elements.shippingFolders.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Sevkiyat verisi yok</p>';
             return;
         }
 
-        console.log(`🎯 Rendering ${containers.length} containers`);
+        // Group by customer for Excel data
+        const customersMap = {};
+        containers.forEach(container => {
+            let customerName = 'Diğer';
+            
+            if (container.packages && container.packages.length > 0) {
+                // Excel data already has packages
+                const names = container.packages.map(p => p.customer_name).filter(Boolean);
+                if (names.length > 0) customerName = [...new Set(names)].join(', ');
+            } else if (packagesData.length > 0) {
+                // Supabase data - find packages for this container
+                const containerPackages = packagesData.filter(p => p.container_id === container.id);
+                const names = containerPackages.map(p => p.customers?.name).filter(Boolean);
+                if (names.length > 0) customerName = [...new Set(names)].join(', ');
+                container.packages = containerPackages;
+                container.package_count = containerPackages.length;
+                container.total_quantity = containerPackages.reduce((sum, p) => sum + (p.total_quantity || 0), 0);
+            }
 
-        // Create a simple table instead of folders for testing
-        const tableHTML = `
-            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin-bottom: 15px; color: #333;">Sevkiyat Konteynerleri (${containers.length})</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Konteyner No</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">Paket Sayısı</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">Toplam Adet</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Durum</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Tarih</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">İşlemler</th>
+            if (!customersMap[customerName]) customersMap[customerName] = [];
+            customersMap[customerName].push(container);
+        });
+
+        // Render folders
+        Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'customer-folder';
+
+            const folderHeader = document.createElement('div');
+            folderHeader.className = 'folder-header';
+            folderHeader.innerHTML = `
+                <span>${customerName}</span>
+                <span class="folder-toggle"><i class="fas fa-chevron-right"></i></span>
+            `;
+
+            const folderContent = document.createElement('div');
+            folderContent.className = 'folder-content';
+
+            const table = document.createElement('table');
+            table.className = 'package-table';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)"></th>
+                        <th>Konteyner No</th>
+                        <th>Paket Sayısı</th>
+                        <th>Toplam Adet</th>
+                        <th>Tarih</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${customerContainers.map(container => `
+                        <tr>
+                            <td><input type="checkbox" value="${container.id}" class="container-checkbox"></td>
+                            <td>${container.container_no}</td>
+                            <td>${container.package_count || 0}</td>
+                            <td>${container.total_quantity || 0}</td>
+                            <td>${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                            <td><span class="status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                            <td>
+                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm">Detay</button>
+                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm">Paket Ekle</button>
+                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm">Sevk Et</button>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        ${containers.map(container => `
-                            <tr>
-                                <td style="padding: 10px; border: 1px solid #ddd;">
-                                    <strong>${container.container_no}</strong>
-                                </td>
-                                <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
-                                    ${container.package_count || 0}
-                                </td>
-                                <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
-                                    ${container.total_quantity || 0}
-                                </td>
-                                <td style="padding: 10px; border: 1px solid #ddd;">
-                                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; 
-                                        background: ${container.status === 'sevk-edildi' ? '#28a745' : '#ffc107'}; 
-                                        color: white;">
-                                        ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
-                                    </span>
-                                </td>
-                                <td style="padding: 10px; border: 1px solid #ddd;">
-                                    ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
-                                </td>
-                                <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
-                                    <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin: 2px; padding: 4px 8px; font-size: 12px;">
-                                        Detay
-                                    </button>
-                                    <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm" style="margin: 2px; padding: 4px 8px; font-size: 12px;">
-                                        Paket Ekle
-                                    </button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <div style="margin-top: 15px; font-size: 12px; color: #666; text-align: center;">
-                    Veri kaynağı: ${isUsingExcel ? 'Excel' : 'Supabase'} | Toplam: ${containers.length} konteyner
-                </div>
-            </div>
-        `;
+                    `).join('')}
+                </tbody>
+            `;
 
-        shippingFolders.innerHTML = tableHTML;
-        console.log('✅ Shipping table rendered successfully');
+            folderContent.appendChild(table);
+            folderDiv.appendChild(folderHeader);
+            folderDiv.appendChild(folderContent);
+
+            folderHeader.addEventListener('click', () => {
+                folderDiv.classList.toggle('folder-open');
+                folderContent.style.display = folderDiv.classList.contains('folder-open') ? 'block' : 'none';
+            });
+
+            elements.shippingFolders.appendChild(folderDiv);
+        });
 
     } catch (error) {
-        console.error('❌ Error in populateShippingTable:', error);
-        
-        const shippingFolders = document.getElementById('shippingFolders');
-        if (shippingFolders) {
-            shippingFolders.innerHTML = `
-                <div style="text-align:center; padding:40px; color:#dc3545; border: 2px solid #dc3545; border-radius: 8px;">
-                    <i class="fas fa-exclamation-triangle" style="font-size:48px; margin-bottom:20px;"></i>
-                    <h3>Sevkiyat verileri yüklenirken hata oluştu</h3>
-                    <p><strong>Hata:</strong> ${error.message}</p>
-                    <button onclick="populateShippingTable()" class="btn btn-primary" style="margin-top:15px;">
-                        <i class="fas fa-redo"></i> Tekrar Dene
-                    </button>
-                    <div style="margin-top: 10px; font-size: 12px;">
-                        <button onclick="console.error('Full error:', error)" class="btn btn-sm btn-outline-secondary">
-                            Hata Detayını Göster
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
+        console.error('Error in populateShippingTable:', error);
+        showAlert('Sevkiyat tablosu yükleme hatası', 'error');
     } finally {
         isShippingTableLoading = false;
-        console.log('=== populateShippingTable() completed ===');
     }
 }
-
 
 
 
@@ -1092,301 +1067,6 @@ async function populateReportsTable() {
         }
     }
 }
-
-
-
-
-// Fixed populateStockTable function
-async function populateStockTable() {
-    if (isStockTableLoading) return;
-    
-    const now = Date.now();
-    if (now - lastStockFetchTime < 500) {
-        setTimeout(() => populateStockTable(), 500);
-        return;
-    }
-    
-    isStockTableLoading = true;
-    lastStockFetchTime = now;
-    
-    try {
-        console.log('Populating stock table...');
-        
-        const stockTableBody = document.getElementById('stockTableBody');
-        if (!stockTableBody) {
-            console.error('Stock table body not found');
-            return;
-        }
-        
-        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
-        
-        let stockData = [];
-        
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use mock stock data for Excel mode
-            stockData = [
-                { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK002', name: 'Büyük Havlu', quantity: 200, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK003', name: 'Nevresim', quantity: 85, unit: 'Adet', status: 'Az Stok', updated_at: new Date().toISOString() },
-                { code: 'STK004', name: 'Çarşaf', quantity: 300, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK005', name: 'Havlu', quantity: 25, unit: 'Adet', status: 'Kritik', updated_at: new Date().toISOString() }
-            ];
-            console.log('Using mock stock data for Excel mode');
-        } else {
-            // Use Supabase data
-            try {
-                const { data, error } = await supabase
-                    .from('stock_items')
-                    .select('*')
-                    .order('name', { ascending: true });
-                
-                if (error) throw error;
-                stockData = data || [];
-                console.log('Loaded stock data from Supabase:', stockData.length);
-            } catch (error) {
-                console.warn('Supabase stock fetch failed, using mock data:', error);
-                stockData = [
-                    { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() }
-                ];
-            }
-        }
-        
-        // Clear loading message
-        stockTableBody.innerHTML = '';
-        
-        if (stockData.length === 0) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verisi bulunamadı</td></tr>';
-            return;
-        }
-        
-        // Populate stock table
-        stockData.forEach(item => {
-            const row = document.createElement('tr');
-            
-            // Determine status class
-            let statusClass = 'status-stokta';
-            let statusText = 'Stokta';
-            
-            if (item.quantity <= 0) {
-                statusClass = 'status-kritik';
-                statusText = 'Tükendi';
-            } else if (item.quantity < 10) {
-                statusClass = 'status-az-stok';
-                statusText = 'Az Stok';
-            } else if (item.quantity < 50) {
-                statusClass = 'status-uyari';
-                statusText = 'Düşük';
-            }
-            
-            row.innerHTML = `
-                <td>${escapeHtml(item.code || 'N/A')}</td>
-                <td>${escapeHtml(item.name || 'N/A')}</td>
-                <td>${item.quantity || 0}</td>
-                <td>${escapeHtml(item.unit || 'Adet')}</td>
-                <td><span class="${statusClass}">${statusText}</span></td>
-                <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>
-                    <button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
-                </td>
-            `;
-            
-            stockTableBody.appendChild(row);
-        });
-        
-        console.log('Stock table populated with', stockData.length, 'items');
-        
-    } catch (error) {
-        console.error('Error in populateStockTable:', error);
-        const stockTableBody = document.getElementById('stockTableBody');
-        if (stockTableBody) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Stok verileri yüklenirken hata oluştu</td></tr>';
-        }
-        showAlert('Stok verileri yüklenirken hata oluştu', 'error');
-    } finally {
-        isStockTableLoading = false;
-    }
-}
-
-// Fixed populateReportsTable function
-async function populateReportsTable() {
-    try {
-        console.log('Populating reports table...');
-        
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (!reportsTableBody) {
-            console.error('Reports table body not found');
-            return;
-        }
-        
-        reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
-        
-        let reportsData = [];
-        
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Generate mock reports data for Excel mode
-            const today = new Date();
-            reportsData = [
-                {
-                    id: 1,
-                    report_date: today.toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 15,
-                    total_quantity: 245,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: today.toISOString()
-                },
-                {
-                    id: 2,
-                    report_date: new Date(today.setDate(today.getDate() - 1)).toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 12,
-                    total_quantity: 198,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: new Date(today.setDate(today.getDate() - 1)).toISOString()
-                }
-            ];
-            console.log('Using mock reports data for Excel mode');
-        } else {
-            // Use Supabase data
-            try {
-                const { data, error } = await supabase
-                    .from('reports')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(50);
-                
-                if (error) throw error;
-                reportsData = data || [];
-                console.log('Loaded reports data from Supabase:', reportsData.length);
-            } catch (error) {
-                console.warn('Supabase reports fetch failed, using mock data:', error);
-                reportsData = [
-                    {
-                        id: 1,
-                        report_date: new Date().toISOString(),
-                        report_type: 'Günlük Rapor',
-                        package_count: 15,
-                        total_quantity: 245,
-                        created_by: currentUser?.name || 'Sistem',
-                        created_at: new Date().toISOString()
-                    }
-                ];
-            }
-        }
-        
-        // Clear loading message
-        reportsTableBody.innerHTML = '';
-        
-        if (reportsData.length === 0) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Henüz rapor bulunmamaktadır</td></tr>';
-            return;
-        }
-        
-        // Populate reports table
-        reportsData.forEach(report => {
-            const row = document.createElement('tr');
-            
-            row.innerHTML = `
-                <td>${report.report_date ? new Date(report.report_date).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>${escapeHtml(report.report_type || 'N/A')}</td>
-                <td>${report.package_count || 0}</td>
-                <td>${report.total_quantity || 0}</td>
-                <td>${escapeHtml(report.created_by || 'N/A')}</td>
-                <td>
-                    <button onclick="viewReport(${report.id})" class="btn btn-primary btn-sm">Görüntüle</button>
-                    <button onclick="exportReport(${report.id})" class="btn btn-success btn-sm">Dışa Aktar</button>
-                </td>
-            `;
-            
-            reportsTableBody.appendChild(row);
-        });
-        
-        console.log('Reports table populated with', reportsData.length, 'reports');
-        
-    } catch (error) {
-        console.error('Error in populateReportsTable:', error);
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (reportsTableBody) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">Raporlar yüklenirken hata oluştu</td></tr>';
-        }
-        showAlert('Raporlar yüklenirken hata oluştu', 'error');
-    }
-}
-
-// Add missing report functions
-async function generateCustomReport() {
-    const reportType = document.getElementById('reportType').value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    
-    if (reportType === 'custom' && (!startDate || !endDate)) {
-        showAlert('Özel rapor için başlangıç ve bitiş tarihi seçin', 'error');
-        return;
-    }
-    
-    showAlert('Rapor oluşturuluyor...', 'info');
-    
-    try {
-        // Simulate report generation
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Create report data
-        const reportData = {
-            report_type: reportType,
-            start_date: startDate,
-            end_date: endDate,
-            package_count: Math.floor(Math.random() * 100) + 1,
-            total_quantity: Math.floor(Math.random() * 1000) + 100,
-            created_by: currentUser?.name || 'Sistem'
-        };
-        
-        showAlert('Rapor başarıyla oluşturuldu', 'success');
-        await populateReportsTable();
-        
-    } catch (error) {
-        console.error('Error generating report:', error);
-        showAlert('Rapor oluşturulurken hata oluştu', 'error');
-    }
-}
-
-async function exportReports() {
-    showAlert('Raporlar dışa aktarılıyor...', 'info');
-    
-    try {
-        // Simulate export process
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        showAlert('Raporlar başarıyla dışa aktarıldı', 'success');
-    } catch (error) {
-        console.error('Error exporting reports:', error);
-        showAlert('Raporlar dışa aktarılırken hata oluştu', 'error');
-    }
-}
-
-function viewReport(reportId) {
-    showAlert(`Rapor #${reportId} görüntüleniyor...`, 'info');
-    // Implement report viewing logic here
-}
-
-function exportReport(reportId) {
-    showAlert(`Rapor #${reportId} dışa aktarılıyor...`, 'info');
-    // Implement report export logic here
-}
-
-// Add missing stock edit function
-function editStockItem(stockCode) {
-    showAlert(`Stok düzenleme: ${stockCode}`, 'info');
-    // Implement stock editing logic here
-}
-
-// Add loadReports function for the reports tab
-async function loadReports() {
-    await populateReportsTable();
-}
-
-
-
 
 // Debounced version to prevent rapid successive calls
 let stockTableTimeout;
@@ -1960,89 +1640,3 @@ async function sendToRamp(containerNo = null) {
 
 
 
-
-// Helper function to toggle select all checkboxes in a customer folder
-function toggleSelectAllCustomer(checkbox) {
-    const folder = checkbox.closest('.customer-folder');
-    const checkboxes = folder.querySelectorAll('.container-checkbox');
-    checkboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-    });
-}
-
-// Simple viewContainerDetails function for testing
-function viewContainerDetails(containerId) {
-    showAlert(`Konteyner detayları görüntüleniyor: ${containerId}`, 'info');
-    console.log('View container details:', containerId);
-}
-
-// Simple shipContainer function for testing
-function shipContainer(containerNo) {
-    if (confirm(`Konteyner ${containerNo} sevk edilecek. Emin misiniz?`)) {
-        showAlert(`Konteyner ${containerNo} sevk edildi`, 'success');
-        populateShippingTable(); // Refresh the table
-    }
-}
-
-
-
-
-function debugShippingElements() {
-    console.log('=== DEBUG SHIPPING ELEMENTS ===');
-    
-    // Check if shippingFolders exists
-    const shippingFolders = document.getElementById('shippingFolders');
-    console.log('shippingFolders element:', shippingFolders);
-    
-    // Check if shippingTab exists and is visible
-    const shippingTab = document.getElementById('shippingTab');
-    console.log('shippingTab element:', shippingTab);
-    if (shippingTab) {
-        console.log('shippingTab display style:', getComputedStyle(shippingTab).display);
-        console.log('shippingTab classList:', shippingTab.classList);
-    }
-    
-    // Check all elements in the shipping tab
-    const shippingElements = [
-        'shippingFolders', 'shippingFilter', 'containerSearch'
-    ];
-    
-    shippingElements.forEach(id => {
-        const element = document.getElementById(id);
-        console.log(`Element ${id}:`, element ? 'FOUND' : 'NOT FOUND', element);
-    });
-    
-    // Check if we're on the shipping tab
-    const activeTab = document.querySelector('.tab.active');
-    console.log('Active tab:', activeTab ? activeTab.getAttribute('data-tab') : 'None');
-}
-
-// Run this in console after switching to shipping tab
-
-
-
-// Simple helper functions for the buttons
-function viewContainerDetails(containerId) {
-    console.log('View container details:', containerId);
-    showAlert(`Konteyner detayları: ${containerId}`, 'info');
-}
-
-function createNewContainer() {
-    console.log('Create new container clicked');
-    showAlert('Yeni konteyner oluşturuluyor...', 'info');
-    
-    // Add a test container immediately
-    const shippingFolders = document.getElementById('shippingFolders');
-    if (shippingFolders) {
-        shippingFolders.innerHTML = `
-            <div style="text-align:center; padding:40px; color:green; border: 2px solid green; border-radius: 8px;">
-                <i class="fas fa-check-circle" style="font-size:48px; margin-bottom:20px;"></i>
-                <h3>Test Konteyner Oluşturuldu!</h3>
-                <p>CONT-TEST-${Date.now()} numaralı konteyner oluşturuldu.</p>
-                <button onclick="populateShippingTable()" class="btn btn-primary" style="margin-top:15px;">
-                    <i class="fas fa-list"></i> Konteynerleri Listele
-                </button>
-            </div>
-        `;
-    }
-}
