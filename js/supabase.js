@@ -2018,3 +2018,31 @@ function debugShippingElements() {
 }
 
 // Run this in console after switching to shipping tab
+
+
+
+// Simple helper functions for the buttons
+function viewContainerDetails(containerId) {
+    console.log('View container details:', containerId);
+    showAlert(`Konteyner detayları: ${containerId}`, 'info');
+}
+
+function createNewContainer() {
+    console.log('Create new container clicked');
+    showAlert('Yeni konteyner oluşturuluyor...', 'info');
+    
+    // Add a test container immediately
+    const shippingFolders = document.getElementById('shippingFolders');
+    if (shippingFolders) {
+        shippingFolders.innerHTML = `
+            <div style="text-align:center; padding:40px; color:green; border: 2px solid green; border-radius: 8px;">
+                <i class="fas fa-check-circle" style="font-size:48px; margin-bottom:20px;"></i>
+                <h3>Test Konteyner Oluşturuldu!</h3>
+                <p>CONT-TEST-${Date.now()} numaralı konteyner oluşturuldu.</p>
+                <button onclick="populateShippingTable()" class="btn btn-primary" style="margin-top:15px;">
+                    <i class="fas fa-list"></i> Konteynerleri Listele
+                </button>
+            </div>
+        `;
+    }
+}
