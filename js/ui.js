@@ -514,6 +514,18 @@ function addManualProduct() {
     closeManualModal();
 }
 
+
+// Open Extra Modal
+function openExtraModal() {
+    document.getElementById('extraModal').style.display = 'block';
+}
+
+// Close Extra Modal
+function closeExtraModal() {
+    document.getElementById('extraModal').style.display = 'none';
+}
+
+
 // Settings functions
 function showSettingsModal() {
     loadSettings(); // Load current settings
