@@ -69,37 +69,97 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
-// Initialize application
+
+
+
+// Safe application initialization
 async function initApp() {
-    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    console.log('Initializing app...');
     
-    // Populate dropdowns
-    await populateCustomers();
-    await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
-    
-    // Load data
-    await populatePackagesTable();
-    await populateStockTable();
-    await populateShippingTable();
-    
-    // Test connection
-    await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000); // Save every 5 seconds
-    
-    // Set up offline support
-    setupOfflineSupport();
-    
-    // Set up barcode scanner listener
-    setupBarcodeScanner();
-    
-    // Start daily auto-clear
-    scheduleDailyClear();
+    try {
+        // Wait a brief moment to ensure DOM is fully ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Ensure elements are initialized
+        if (!window.elements || Object.keys(window.elements).length === 0) {
+            console.warn('Elements not initialized, calling initializeElementsObject...');
+            initializeElementsObject();
+        }
+        
+        // Safely set current date
+        if (window.elements && window.elements.currentDate) {
+            window.elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+            console.log('Current date set successfully');
+        } else {
+            console.warn('currentDate element not found');
+        }
+        
+        // Populate dropdowns with error handling
+        try {
+            await populateCustomers();
+            console.log('Customers populated');
+        } catch (error) {
+            console.error('Error populating customers:', error);
+        }
+        
+        try {
+            await populatePersonnel();
+            console.log('Personnel populated');
+        } catch (error) {
+            console.error('Error populating personnel:', error);
+        }
+        
+        // Load saved state
+        loadAppState();
+        
+        // Load initial data for current tab
+        await loadInitialData();
+        
+        // Test connection
+        await testConnection();
+        
+        // Set up other features
+        setupOfflineSupport();
+        setupBarcodeScanner();
+        
+        console.log('App initialization completed successfully');
+        
+    } catch (error) {
+        console.error('Error in initApp:', error);
+        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+    }
 }
+
+// Load data for the currently active tab
+async function loadInitialData() {
+    const activeTab = document.querySelector('.tab.active');
+    const tabName = activeTab ? activeTab.getAttribute('data-tab') : 'packaging';
+    
+    console.log('Loading initial data for tab:', tabName);
+    
+    try {
+        switch(tabName) {
+            case 'packaging':
+                await populatePackagesTable();
+                break;
+            case 'shipping':
+                await populateShippingTable();
+                break;
+            case 'stock':
+                await populateStockTable();
+                break;
+            case 'reports':
+                await populateReportsTable();
+                break;
+            default:
+                await populatePackagesTable();
+        }
+    } catch (error) {
+        console.error('Error loading initial data for tab', tabName, ':', error);
+    }
+}
+
+
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
