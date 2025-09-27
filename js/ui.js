@@ -48,9 +48,9 @@ function initializeElementsObject() {
         containerSearch: 'containerSearch',
         settingsModal: 'settingsModal',
         closeSettingsModalBtn: 'closeSettingsModalBtn',
-        toggleThemeBtn: 'toggleThemeBtn',
-        downloadDataBtn: 'downloadDataBtn',
-        changeApiKeyBtn: 'changeApiKeyBtn',
+        toggleTheme: 'toggleTheme',
+        exportData: 'exportData',
+        showApiKeyModal: 'showApiKeyModal',
     };
     
     Object.keys(elementMap).forEach(key => {
