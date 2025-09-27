@@ -257,7 +257,6 @@ async function deleteContainer() {
     }
 }
 
-// Utility functions
 function switchTab(tabName) {
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
@@ -276,8 +275,26 @@ function switchTab(tabName) {
     if (selectedTab && selectedPane) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
+        
+        // Load data when tab is clicked
+        setTimeout(() => {
+            switch(tabName) {
+                case 'shipping':
+                    populateShippingTable();
+                    break;
+                case 'stock':
+                    populateStockTable();
+                    break;
+                case 'reports':
+                    populateReportsTable();
+                    break;
+            }
+        }, 100);
     }
 }
+
+
+
 
 function closeAllModals() {
     document.getElementById('customerModal').style.display = 'none';
