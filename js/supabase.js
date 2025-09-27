@@ -227,10 +227,48 @@ function generateSummaryData() {
     };
 }
 
-// Manual export function
-function manualExportToExcel() {
-    exportAllDataToExcel('manual');
+async function manualExportToExcel(sheetName, data, fileName) {
+    try {
+        console.log(`📤 Exporting ${sheetName} to Excel...`);
+
+        // 1. Create workbook + sheet
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data || []);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+        // 2. Convert to binary
+        const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const fileBlob = new Blob([wbout], { type: "application/octet-stream" });
+
+        // 3. Save locally (download to user machine)
+        const url = URL.createObjectURL(fileBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        // 4. Upload to Supabase (backup)
+        if (supabase) {
+            const { error } = await supabase.storage
+                .from("daily-data") // bucket must exist
+                .upload(fileName, fileBlob, {
+                    upsert: true,
+                    cacheControl: "3600"
+                });
+
+            if (error) {
+                console.error(`❌ Upload failed for ${fileName}:`, error.message);
+            } else {
+                console.log(`✅ Uploaded ${fileName} to Supabase`);
+            }
+        }
+
+    } catch (err) {
+        console.error("❌ manualExportToExcel error:", err);
+    }
 }
+
 
 // ==================== DATA OPERATIONS (EXCEL-BASED) ====================
 
