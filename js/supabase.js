@@ -1639,59 +1639,35 @@ function initializeFormElements() {
 }
 
 // Initialize app data with better error handling and retry logic
+// Geliştirilmiş app data initialization
 async function initializeAppData() {
     try {
         console.log('=== INITIALIZING APP DATA ===');
         
-        // Add a delay to ensure DOM is fully ready
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 1. Önce DOM'un tamamen hazır olduğundan emin ol
+        await ensureDOMReady();
+        console.log('✅ DOM is ready');
         
-        console.log('DOM readiness check...');
-        console.log('customerSelect exists:', !!document.getElementById('customerSelect'));
-        console.log('personnelSelect exists:', !!document.getElementById('personnelSelect'));
+        // 2. Kritik elementleri kontrol et
+        await verifyCriticalElements();
+        console.log('✅ Critical elements verified');
         
-        // Populate dropdowns with retry logic
-        console.log('🔄 Loading customers...');
-        let customerRetries = 0;
-        while (customerRetries < 3) {
-            try {
-                await populateCustomers();
-                const customerSelect = document.getElementById('customerSelect');
-                if (customerSelect && customerSelect.children.length > 1) {
-                    console.log('✅ Customers loaded successfully');
-                    break;
-                }
-                throw new Error('Customer dropdown still empty after populate');
-            } catch (error) {
-                customerRetries++;
-                console.warn(`Customer load attempt ${customerRetries} failed:`, error.message);
-                if (customerRetries < 3) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-            }
+        // 3. Elementleri başlat
+        if (typeof initializeElementsObject === 'function') {
+            initializeElementsObject();
+            console.log('✅ Elements initialized');
         }
+        
+        // 4. Dropdown'ları doldurmadan önce daha uzun bekle
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        console.log('🔄 Loading customers...');
+        await populateCustomersWithRetry();
         
         console.log('🔄 Loading personnel...');
-        let personnelRetries = 0;
-        while (personnelRetries < 3) {
-            try {
-                await populatePersonnel();
-                const personnelSelect = document.getElementById('personnelSelect');
-                if (personnelSelect && personnelSelect.children.length > 1) {
-                    console.log('✅ Personnel loaded successfully');
-                    break;
-                }
-                throw new Error('Personnel dropdown still empty after populate');
-            } catch (error) {
-                personnelRetries++;
-                console.warn(`Personnel load attempt ${personnelRetries} failed:`, error.message);
-                if (personnelRetries < 3) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-            }
-        }
+        await populatePersonnelWithRetry();
         
-        // Load transactional data from Excel/localData
+        // 5. Diğer verileri yükle
         console.log('🔄 Loading transactional data...');
         await populatePackagesTable();
         await populateStockTable();
@@ -1699,35 +1675,172 @@ async function initializeAppData() {
         
         console.log('✅ App data initialization completed');
         
-        // Final verification
-        const customerSelect = document.getElementById('customerSelect');
-        const personnelSelect = document.getElementById('personnelSelect');
-        
-        console.log('=== FINAL VERIFICATION ===');
-        console.log('Customer options count:', customerSelect?.children.length || 0);
-        console.log('Personnel options count:', personnelSelect?.children.length || 0);
-        
-        if (customerSelect?.children.length <= 1) {
-            console.error('❌ Customer dropdown is still empty!');
-            if (typeof showAlert === 'function') {
-                showAlert('Müşteri listesi yüklenemedi. Sayfayı yenilemeyi deneyin.', 'error');
-            }
-        }
-        
-        if (personnelSelect?.children.length <= 1) {
-            console.error('❌ Personnel dropdown is still empty!');
-            if (typeof showAlert === 'function') {
-                showAlert('Personel listesi yüklenemedi. Sayfayı yenilemeyi deneyin.', 'error');
-            }
-        }
-        
-        console.log('=== END APP DATA INIT ===');
-        
     } catch (error) {
         console.error('❌ Error initializing app data:', error);
-        console.error('Stack trace:', error.stack);
-        if (typeof showAlert === 'function') {
-            showAlert('Uygulama verileri yüklenirken hata oluştu: ' + error.message, 'error');
+        showAlert('Uygulama verileri yüklenirken hata oluştu: ' + error.message, 'error');
+        
+        // Hata durumunda tekrar dene
+        setTimeout(() => {
+            console.log('🔄 Retrying app data initialization...');
+            initializeAppData();
+        }, 2000);
+    }
+}
+
+// Geliştirilmiş müşteri doldurma fonksiyonu
+async function populateCustomersWithRetry(maxRetries = 5) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`🔄 Customer population attempt ${attempt}/${maxRetries}`);
+            
+            await populateCustomers();
+            
+            // Başarı kontrolü
+            const customerSelect = document.getElementById('customerSelect');
+            if (customerSelect && customerSelect.children.length > 1) {
+                console.log(`✅ Customers loaded successfully (${customerSelect.children.length - 1} customers)`);
+                return true;
+            }
+            
+            throw new Error('Customer dropdown is empty');
+            
+        } catch (error) {
+            console.warn(`❌ Customer load attempt ${attempt} failed:`, error.message);
+            
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Artan gecikme
+            } else {
+                console.error('❌ All customer load attempts failed');
+                // Acil durum müşterilerini yükle
+                await loadEmergencyCustomers();
+                return false;
+            }
         }
     }
 }
+
+// Geliştirilmiş personel doldurma fonksiyonu
+async function populatePersonnelWithRetry(maxRetries = 5) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`🔄 Personnel population attempt ${attempt}/${maxRetries}`);
+            
+            await populatePersonnel();
+            
+            // Başarı kontrolü
+            const personnelSelect = document.getElementById('personnelSelect');
+            if (personnelSelect && personnelSelect.children.length > 1) {
+                console.log(`✅ Personnel loaded successfully (${personnelSelect.children.length - 1} personnel)`);
+                return true;
+            }
+            
+            throw new Error('Personnel dropdown is empty');
+            
+        } catch (error) {
+            console.warn(`❌ Personnel load attempt ${attempt} failed:`, error.message);
+            
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            } else {
+                console.error('❌ All personnel load attempts failed');
+                // Acil durum personelini yükle
+                await loadEmergencyPersonnel();
+                return false;
+            }
+        }
+    }
+}
+
+// Acil durum müşteri yükleme
+async function loadEmergencyCustomers() {
+    console.log('🚨 Loading emergency customers...');
+    
+    const emergencyCustomers = [
+        { id: 'emergency-1', name: 'Yeditepe Otel', code: 'YEDITEPE', email: 'info@yeditepe.com' },
+        { id: 'emergency-2', name: 'Marmara Otel', code: 'MARMARA', email: 'info@marmara.com' },
+        { id: 'emergency-3', name: 'Grand Hotel', code: 'GRAND', email: 'info@grand.com' }
+    ];
+    
+    const customerSelect = document.getElementById('customerSelect');
+    if (!customerSelect) {
+        console.error('❌ Customer select not available for emergency load');
+        return;
+    }
+    
+    // Mevcut seçenekleri temizle (sadece "Müşteri Seç" kalacak)
+    customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
+    
+    // Acil durum müşterilerini ekle
+    emergencyCustomers.forEach(customer => {
+        const option = document.createElement('option');
+        option.value = customer.id;
+        option.textContent = `${customer.name} (${customer.code})`;
+        customerSelect.appendChild(option);
+    });
+    
+    // Local data'yı da güncelle
+    localData.customers = emergencyCustomers;
+    saveLocalData();
+    
+    console.log('✅ Emergency customers loaded');
+    showAlert('Acil durum müşteri listesi yüklendi', 'warning');
+}
+
+// Acil durum personel yükleme
+async function loadEmergencyPersonnel() {
+    console.log('🚨 Loading emergency personnel...');
+    
+    const emergencyPersonnel = [
+        { id: 'emergency-1', name: 'Ahmet Yılmaz', role: 'Operator' },
+        { id: 'emergency-2', name: 'Mehmet Demir', role: 'Supervisor' },
+        { id: 'emergency-3', name: 'Fatma Kaya', role: 'Staff' }
+    ];
+    
+    const personnelSelect = document.getElementById('personnelSelect');
+    if (!personnelSelect) {
+        console.error('❌ Personnel select not available for emergency load');
+        return;
+    }
+    
+    // Mevcut seçenekleri temizle
+    personnelSelect.innerHTML = '<option value="">Personel Seç</option>';
+    
+    // Acil durum personelini ekle
+    emergencyPersonnel.forEach(person => {
+        const option = document.createElement('option');
+        option.value = person.id;
+        option.textContent = `${person.name} (${person.role})`;
+        personnelSelect.appendChild(option);
+    });
+    
+    // Local data'yı da güncelle
+    localData.personnel = emergencyPersonnel;
+    saveLocalData();
+    
+    console.log('✅ Emergency personnel loaded');
+    showAlert('Acil durum personel listesi yüklendi', 'warning');
+}
+
+// DOM Content Loaded event listener'ını güncelle
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOM Content Loaded - Starting initialization...');
+    
+    // Hata yakalama
+    window.addEventListener('error', function(e) {
+        console.error('Global error caught:', e.error);
+    });
+    
+    // Promise hatalarını yakala
+    window.addEventListener('unhandledrejection', function(e) {
+        console.error('Unhandled promise rejection:', e.reason);
+    });
+    
+    // Ana initialization'ı başlat
+    setTimeout(async () => {
+        try {
+            await initializeAppData();
+        } catch (error) {
+            console.error('❌ Critical initialization error:', error);
+        }
+    }, 500);
+});
