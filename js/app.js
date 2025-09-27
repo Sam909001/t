@@ -258,6 +258,8 @@ async function deleteContainer() {
 }
 
 function switchTab(tabName) {
+    console.log('Switching to tab:', tabName);
+    
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.classList.remove('active');
@@ -276,22 +278,36 @@ function switchTab(tabName) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
         
-        // Load data when tab is clicked
-        setTimeout(() => {
-            switch(tabName) {
-                case 'shipping':
-                    populateShippingTable();
-                    break;
-                case 'stock':
-                    populateStockTable();
-                    break;
-                case 'reports':
-                    populateReportsTable();
-                    break;
+        // Load data when tab is clicked with proper error handling
+        setTimeout(async () => {
+            try {
+                switch(tabName) {
+                    case 'packaging':
+                        await populatePackagesTable();
+                        break;
+                    case 'shipping':
+                        await populateShippingTable();
+                        break;
+                    case 'stock':
+                        await populateStockTable();
+                        break;
+                    case 'reports':
+                        await populateReportsTable();
+                        break;
+                }
+                console.log(`Tab ${tabName} data loaded successfully`);
+            } catch (error) {
+                console.error(`Error loading ${tabName} tab data:`, error);
+                showAlert(`${tabName} verileri yüklenirken hata oluştu`, 'error');
             }
         }, 100);
+    } else {
+        console.error('Tab or pane not found:', tabName, selectedTab, selectedPane);
     }
 }
+
+
+
 
 
 
