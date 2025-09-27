@@ -1,13 +1,7 @@
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
-
-// ------------------- SQLite Connection -------------------
-const dbPath = path.join(__dirname, 'mydatabase.sqlite');
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) console.error('❌ SQLite DB Error:', err);
-    else console.log('✅ SQLite DB connected at', dbPath);
-});
+const fs = require('fs');
+const XLSX = require('xlsx');
 
 // ------------------- Multi-Monitor Windows -------------------
 let windows = []; // Keep references to windows
@@ -29,14 +23,14 @@ function createMonitorWindow(monitorIndex) {
     });
 
     win.loadFile('index.html');
-    windows.push({ window: win, monitorId: monitorIndex });
+    win.monitorId = monitorIndex;
+    windows.push(win);
 }
 
 app.whenReady().then(() => {
-    // Create a window for each monitor (adjust number as needed)
+    // Adjust number of monitors
     createMonitorWindow(0);
     createMonitorWindow(1);
-    createMonitorWindow(2);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createMonitorWindow(0);
@@ -47,18 +41,60 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 
+// ------------------- Excel Helpers -------------------
+
+function getExcelPath(monitorId) {
+    const today = new Date().toISOString().split('T')[0]; // daily file
+    return path.join(__dirname, `packages_monitor_${monitorId}_${today}.xlsx`);
+}
+
+function readExcel(monitorId) {
+    const filePath = getExcelPath(monitorId);
+    if (fs.existsSync(filePath)) {
+        const workbook = XLSX.readFile(filePath);
+        const ws = workbook.Sheets['Packages'];
+        if (ws) return XLSX.utils.sheet_to_json(ws, { defval: '' });
+    }
+    return [];
+}
+
+function writeExcel(monitorId, data) {
+    const filePath = getExcelPath(monitorId);
+    const ws = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, ws, 'Packages');
+    XLSX.writeFile(workbook, filePath);
+}
+
 // ------------------- IPC Handlers -------------------
 
-// 1️⃣ Silent One-Click Printing
-ipcMain.handle('print-barcode', async (event, htmlContent) => {
-    console.log('🖨️ Print request received in main process');
+// 1️⃣ Add a new package
+ipcMain.handle('add-package', async (event, packageData) => {
+    const monitorId = packageData.monitorId;
+    const existing = readExcel(monitorId);
+    existing.push({
+        Date: new Date().toLocaleString(),
+        PackageNo: packageData.packageNo,
+        Customer: packageData.customer,
+        Status: packageData.status
+    });
+    writeExcel(monitorId, existing);
+    return true;
+});
 
+// 2️⃣ Fetch packages for a monitor
+ipcMain.handle('fetch-packages', async (event, monitorId) => {
+    return readExcel(monitorId);
+});
+
+// 3️⃣ Print barcode (silent)
+ipcMain.handle('print-barcode', async (event, htmlContent) => {
     return new Promise((resolve) => {
         const printWindow = new BrowserWindow({
             show: false,
             width: 800,
             height: 600,
-            webPreferences: { nodeIntegration: false, contextIsolation: false, webSecurity: false }
+            webPreferences: { nodeIntegration: false, contextIsolation: false }
         });
 
         const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
@@ -71,78 +107,13 @@ ipcMain.handle('print-barcode', async (event, htmlContent) => {
                     margins: { marginType: 'none' }
                 }, (success, errorType) => {
                     setTimeout(() => { if (!printWindow.isDestroyed()) printWindow.destroy(); }, 100);
-                    console.log('Print completed:', success, errorType);
                     resolve(success);
                 });
-            }, 1000); // Wait for rendering
+            }, 500);
         }).catch(err => {
-            console.error('❌ Load error:', err);
+            console.error('❌ Print load error:', err);
             if (!printWindow.isDestroyed()) printWindow.destroy();
             resolve(false);
-        });
-    });
-});
-
-// 2️⃣ Fetch Containers (per monitor)
-ipcMain.handle('fetchContainers', async (event, { monitorId, filter = 'all', page = 0, pageSize = 20 }) => {
-    const offset = page * pageSize;
-    let query = 'SELECT * FROM containers';
-    const params = [];
-
-    if (filter !== 'all') {
-        query += ' WHERE status = ?';
-        params.push(filter);
-    }
-
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(pageSize, offset);
-
-    return new Promise((resolve, reject) => {
-        db.all(query, params, (err, rows) => {
-            if (err) reject(err);
-            else {
-                // Optional: filter per monitor if container has monitor_id column
-                const filtered = rows.filter(r => r.monitor_id === monitorId || r.monitor_id === null || r.monitor_id === undefined);
-                resolve(filtered);
-            }
-        });
-    });
-});
-
-// 3️⃣ Fetch Packages for Containers (per monitor)
-ipcMain.handle('fetchPackagesForContainers', async (event, { containerIds, monitorId }) => {
-    if (!containerIds || containerIds.length === 0) return [];
-    const query = `
-        SELECT p.id, p.package_no, p.total_quantity, p.container_id,
-               c.name AS customer_name, c.code AS customer_code
-        FROM packages p
-        LEFT JOIN customers c ON p.customer_id = c.id
-        WHERE p.container_id IN (${containerIds.map(() => '?').join(',')})
-        AND (p.monitor_id = ? OR p.monitor_id IS NULL)
-    `;
-    const params = [...containerIds, monitorId];
-
-    return new Promise((resolve, reject) => {
-        db.all(query, params, (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-        });
-    });
-});
-
-// 4️⃣ Count Containers (for pagination)
-ipcMain.handle('getContainersCount', async (event, { monitorId, filter = 'all' }) => {
-    let query = 'SELECT COUNT(*) as total FROM containers';
-    const params = [];
-    if (filter !== 'all') {
-        query += ' WHERE status = ?';
-        params.push(filter);
-    }
-
-    return new Promise((resolve, reject) => {
-        db.get(query, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row.total);
         });
     });
 });
