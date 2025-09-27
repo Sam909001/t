@@ -320,49 +320,67 @@ async function deleteContainer() {
 function switchTab(tabName) {
     console.log('Switching to tab:', tabName);
     
-    // Hide all tab panes
-    document.querySelectorAll('.tab-pane').forEach(pane => {
-        pane.classList.remove('active');
-    });
-    
-    // Deactivate all tabs
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Activate selected tab
-    const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
-    const selectedPane = document.getElementById(`${tabName}Tab`);
-    
-    if (selectedTab && selectedPane) {
-        selectedTab.classList.add('active');
-        selectedPane.classList.add('active');
+    try {
+        // Hide all tab panes
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active');
+        });
         
-        // Load data when tab is clicked with proper error handling
-        setTimeout(async () => {
-            try {
-                switch(tabName) {
-                    case 'packaging':
-                        await populatePackagesTable();
-                        break;
-                    case 'shipping':
-                        await populateShippingTable();
-                        break;
-                    case 'stock':
-                        await populateStockTable();
-                        break;
-                    case 'reports':
-                        await populateReportsTable();
-                        break;
-                }
-                console.log(`Tab ${tabName} data loaded successfully`);
-            } catch (error) {
-                console.error(`Error loading ${tabName} tab data:`, error);
-                showAlert(`${tabName} verileri yüklenirken hata oluştu`, 'error');
-            }
-        }, 100);
-    } else {
-        console.error('Tab or pane not found:', tabName, selectedTab, selectedPane);
+        // Deactivate all tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Activate selected tab
+        const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+        const selectedPane = document.getElementById(`${tabName}Tab`);
+        
+        if (selectedTab && selectedPane) {
+            selectedTab.classList.add('active');
+            selectedPane.classList.add('active');
+            
+            // Load data for the selected tab
+            loadTabData(tabName);
+        } else {
+            console.error('Tab or pane not found:', { tabName, selectedTab, selectedPane });
+            showAlert('Sekme yüklenirken hata oluştu', 'error');
+        }
+    } catch (error) {
+        console.error('Error switching tab:', error);
+        showAlert('Sekme değiştirilirken hata oluştu', 'error');
+    }
+}
+
+// Load data for specific tab
+async function loadTabData(tabName) {
+    console.log('Loading data for tab:', tabName);
+    
+    try {
+        switch(tabName) {
+            case 'packaging':
+                await populatePackagesTable();
+                break;
+                
+            case 'shipping':
+                await populateShippingTable();
+                break;
+                
+            case 'stock':
+                await populateStockTable();
+                break;
+                
+            case 'reports':
+                await populateReportsTable();
+                break;
+                
+            default:
+                console.warn('Unknown tab:', tabName);
+        }
+        
+        console.log('Tab data loaded successfully:', tabName);
+    } catch (error) {
+        console.error('Error loading tab data:', tabName, error);
+        showAlert(`${tabName} verileri yüklenirken hata oluştu`, 'error');
     }
 }
 
