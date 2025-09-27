@@ -393,7 +393,6 @@ async function manualExportToExcel(sheetName, data, fileName) {
 // ==================== DATA OPERATIONS (EXCEL-BASED) ====================
 
 // Customers
-// Fixed customer dropdown population
 async function populateCustomers() {
     try {
         console.log('Populating customers dropdown...');
@@ -403,33 +402,51 @@ async function populateCustomers() {
             return;
         }
 
-        // Save current selection
-        const currentValue = customerSelect.value;
-        
-        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
-
-        if (!localData.customers || localData.customers.length === 0) {
-            console.warn('No customers data available');
-            const option = document.createElement('option');
-            option.textContent = 'Müşteri bulunamadı';
-            option.disabled = true;
-            customerSelect.appendChild(option);
-            return;
+        // Try to load from Excel first
+        let customers = [];
+        try {
+            customers = await loadExcelData('customers');
+            console.log('Loaded customers from Excel:', customers.length);
+        } catch (excelError) {
+            console.warn('Excel load failed, using local data:', excelError);
+            customers = localData.customers || [];
         }
 
-        localData.customers.forEach(customer => {
-            const opt = document.createElement('option');
-            opt.value = customer.id;
-            opt.textContent = `${customer.name} (${customer.code})`;
-            customerSelect.appendChild(opt);
+        // If no data, create default customers
+        if (!customers || customers.length === 0) {
+            console.log('No customers found, creating default data');
+            customers = [
+                {
+                    ID: '1',
+                    Name: 'Yeditepe Otel',
+                    Code: 'YEDITEPE',
+                    Email: 'info@yeditepe.com',
+                    Created: new Date().toISOString()
+                },
+                {
+                    ID: '2',
+                    Name: 'Marmara Otel', 
+                    Code: 'MARMARA',
+                    Email: 'info@marmara.com',
+                    Created: new Date().toISOString()
+                }
+            ];
+            // Save to local data
+            localData.customers = customers;
+            saveLocalData();
+        }
+
+        // Clear and populate dropdown
+        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
+        
+        customers.forEach(customer => {
+            const option = document.createElement('option');
+            option.value = customer.ID || customer.id;
+            option.textContent = `${customer.Name || customer.name} (${customer.Code || customer.code})`;
+            customerSelect.appendChild(option);
         });
 
-        // Restore selection if still valid
-        if (currentValue && localData.customers.some(c => c.id === currentValue)) {
-            customerSelect.value = currentValue;
-        }
-
-        console.log(`Customers dropdown populated with ${localData.customers.length} customers`);
+        console.log(`Customers dropdown populated with ${customers.length} customers`);
 
     } catch (error) {
         console.error('populateCustomers error:', error);
@@ -547,6 +564,7 @@ async function showAllCustomers() {
 }
 
 // Fixed personnel dropdown population
+// Similar fix for populatePersonnel:
 async function populatePersonnel() {
     try {
         console.log('Populating personnel dropdown...');
@@ -556,40 +574,54 @@ async function populatePersonnel() {
             return;
         }
 
-        // Save current selection
-        const currentValue = personnelSelect.value;
-        
-        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
-
-        if (!localData.personnel || localData.personnel.length === 0) {
-            console.warn('No personnel data available');
-            const option = document.createElement('option');
-            option.textContent = 'Personel bulunamadı';
-            option.disabled = true;
-            personnelSelect.appendChild(option);
-            return;
+        // Try to load from Excel first
+        let personnel = [];
+        try {
+            personnel = await loadExcelData('personnel');
+            console.log('Loaded personnel from Excel:', personnel.length);
+        } catch (excelError) {
+            console.warn('Excel load failed, using local data:', excelError);
+            personnel = localData.personnel || [];
         }
 
-        localData.personnel.forEach(person => {
+        // If no data, create default personnel
+        if (!personnel || personnel.length === 0) {
+            console.log('No personnel found, creating default data');
+            personnel = [
+                {
+                    ID: '1',
+                    Name: 'Ahmet Yılmaz',
+                    Position: 'Operator',
+                    Created: new Date().toISOString()
+                },
+                {
+                    ID: '2',
+                    Name: 'Mehmet Demir',
+                    Position: 'Supervisor',
+                    Created: new Date().toISOString()
+                }
+            ];
+            localData.personnel = personnel;
+            saveLocalData();
+        }
+
+        // Clear and populate dropdown
+        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+        
+        personnel.forEach(person => {
             const option = document.createElement('option');
-            option.value = person.id;
-            option.textContent = person.name;
+            option.value = person.ID || person.id;
+            option.textContent = `${person.Name || person.name} (${person.Position || person.role})`;
             personnelSelect.appendChild(option);
         });
 
-        // Restore selection if still valid
-        if (currentValue && localData.personnel.some(p => p.id === currentValue)) {
-            personnelSelect.value = currentValue;
-        }
-
-        console.log(`Personnel dropdown populated with ${localData.personnel.length} personnel`);
+        console.log(`Personnel dropdown populated with ${personnel.length} personnel`);
 
     } catch (error) {
         console.error('populatePersonnel error:', error);
         showAlert('Personel listesi yüklenirken hata oluştu', 'error');
     }
 }
-
 
 
 
