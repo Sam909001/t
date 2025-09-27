@@ -13,58 +13,93 @@ function initializeElements() {
     return elements;
 }
 
+
+
+
+
 function initializeElementsObject() {
     const elementMap = {
+        // Core containers
         loginScreen: 'loginScreen',
         appContainer: 'appContainer',
+        
+        // Login elements
         loginButton: 'loginBtn',
         emailInput: 'email',
         passwordInput: 'password',
+        
+        // Packaging tab elements
         customerSelect: 'customerSelect',
         personnelSelect: 'personnelSelect',
         currentDate: 'currentDate',
         barcodeInput: 'barcodeInput',
         packagesTableBody: 'packagesTableBody',
         packageDetailContent: 'packageDetailContent',
+        selectAllPackages: 'selectAllPackages',
+        
+        // Shipping tab elements
         shippingFolders: 'shippingFolders',
+        shippingFilter: 'shippingFilter',
+        containerSearch: 'containerSearch',
+        
+        // Stock tab elements
         stockTableBody: 'stockTableBody',
+        stockSearch: 'stockSearch',
+        
+        // Reports tab elements
+        reportsTableBody: 'reportsTableBody',
+        reportType: 'reportType',
+        startDate: 'startDate',
+        endDate: 'endDate',
+        
+        // Customer modals
         customerList: 'customerList',
         allCustomersList: 'allCustomersList',
+        
+        // Quantity modal
+        quantityModal: 'quantityModal',
+        quantityInput: 'quantityInput',
+        quantityModalTitle: 'quantityModalTitle',
+        
+        // API key modal
+        apiKeyModal: 'apiKeyModal',
+        apiKeyInput: 'apiKeyInput',
+        
+        // Settings modal
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        
+        // Status elements
         toast: 'toast',
         containerNumber: 'containerNumber',
         totalPackages: 'totalPackages',
-        shippingFilter: 'shippingFilter',
-        stockSearch: 'stockSearch',
-        selectAllPackages: 'selectAllPackages',
-        apiKeyModal: 'apiKeyModal',
-        apiKeyInput: 'apiKeyInput',
-        quantityInput: 'quantityInput',
-        quantityModal: 'quantityModal',
-        quantityModalTitle: 'quantityModalTitle',
-        scannedBarcodes: 'scannedBarcodes',
         connectionStatus: 'connectionStatus',
         alertContainer: 'alertContainer',
         scannerToggle: 'scannerToggle',
-        containerSearch: 'containerSearch',
-        settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn',
-        toggleThemeBtn: 'toggleThemeBtn',
-        downloadDataBtn: 'downloadDataBtn',
-        changeApiKeyBtn: 'changeApiKeyBtn',
+        
+        // Barcode elements
+        scannedBarcodes: 'scannedBarcodes'
     };
+    
+    // Initialize elements object
+    window.elements = window.elements || {};
     
     Object.keys(elementMap).forEach(key => {
         const element = document.getElementById(elementMap[key]);
         if (element) {
-            elements[key] = element;
+            window.elements[key] = element;
         } else {
             console.warn(`Element ${elementMap[key]} not found`);
-            elements[key] = null;
+            window.elements[key] = null;
         }
     });
     
-    return elements;
+    return window.elements;
 }
+
+
+
+
 
 // Profesyonel alert sistemi
 // 1. Prevent duplicate alerts with debouncing
