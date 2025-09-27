@@ -77,33 +77,31 @@ function getTodayFileName(type) {
 
 async function loadExcelData(type) {
     const fileName = getTodayFileName(type);
-
+    
     try {
         const { data, error } = await supabase.storage
             .from('daily-data')
             .download(fileName);
-
+        
         if (error) {
-            if (error.statusCode === '404' || error.message.includes('No such file')) {
-                console.warn(`${fileName} not found, creating a new one...`);
-                await createEmptyExcelFile(type);
-                return [];
-            }
-            throw error; // real error, not "missing file"
+            // If file doesn't exist, create it
+            await createEmptyExcelFile(type);
+            return [];
         }
-
+        
         const arrayBuffer = await data.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
+        
         return jsonData;
-
-    } catch (err) {
-        console.error(`Error loading ${type} data:`, err.message);
+        
+    } catch (error) {
+        console.error(`Error loading ${type} data:`, error);
+        await createEmptyExcelFile(type);
         return [];
     }
-}
+} here ?
 
 
 
