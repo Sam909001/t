@@ -471,6 +471,8 @@ function scheduleDailyClear() {
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', function() {
+      // Initialize elements first
+    initializeElementsObject();
     // Settings button
     const settingsBtn = document.getElementById('settingsBtn');
     if (settingsBtn) {
