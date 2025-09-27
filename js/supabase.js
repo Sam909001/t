@@ -509,74 +509,90 @@ async function populatePackagesTable() {
         tableBody.innerHTML = '';
         if (totalPackagesElement) totalPackagesElement.textContent = '0';
 
-        if (!supabase) throw new Error('Supabase not initialized');
+        let packages = [];
 
-        // Fetch packages that are NOT shipped (status = 'beklemede')
-        const { data: packages, error } = await supabase
-            .from('packages')
-            .select(`*, customers (name, code)`)
-            .is('container_id', null)
-            .eq('status', 'beklemede')
-            .order('created_at', { ascending: false });
+        // Check if we should use Excel data
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Use Excel data
+            packages = excelPackages.filter(pkg => 
+                pkg.status === 'beklemede' && (!pkg.container_id || pkg.container_id === null)
+            );
+            console.log('Using Excel data:', packages.length, 'packages');
+        } else {
+            // Try to use Supabase data
+            try {
+                const { data: supabasePackages, error } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .is('container_id', null)
+                    .eq('status', 'beklemede')
+                    .order('created_at', { ascending: false });
 
-        if (error) throw error;
+                if (error) throw error;
+                packages = supabasePackages || [];
+                console.log('Using Supabase data:', packages.length, 'packages');
+            } catch (error) {
+                console.warn('Supabase fetch failed, using Excel data:', error);
+                packages = excelPackages.filter(pkg => 
+                    pkg.status === 'beklemede' && (!pkg.container_id || pkg.container_id === null)
+                );
+                isUsingExcel = true;
+            }
+        }
 
         if (!packages || packages.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Henüz paket yok</td>';
+            row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Henüz paket yok</td>';
             tableBody.appendChild(row);
             if (totalPackagesElement) totalPackagesElement.textContent = '0';
             return;
         }
 
-        // Deduplicate packages by ID
-        const uniquePackages = [];
-        const seenIds = new Set();
-        packages.forEach(pkg => {
-            if (!seenIds.has(pkg.id)) {
-                seenIds.add(pkg.id);
-                uniquePackages.push(pkg);
-            }
-        });
-
         // Render table rows
-        uniquePackages.forEach(pkg => {
+        packages.forEach(pkg => {
             const row = document.createElement('tr');
+            
+            // Determine storage source
+            const isExcelPackage = pkg.source === 'excel' || pkg.id.includes('excel-') || pkg.id.includes('pkg-');
+            const sourceIcon = isExcelPackage ? 
+                '<i class="fas fa-file-excel" title="Excel Kaynaklı" style="color: #217346;"></i>' :
+                '<i class="fas fa-database" title="Supabase Kaynaklı" style="color: #3ecf8e;"></i>';
 
-            // Ensure items is an array of objects { name, qty }
+            // Ensure items is properly formatted
             let itemsArray = [];
             if (pkg.items && typeof pkg.items === 'object') {
                 if (Array.isArray(pkg.items)) {
-                    itemsArray = pkg.items.map(it => ({
-                        name: it.name || it,
-                        qty: it.qty || 1
-                    }));
+                    itemsArray = pkg.items;
                 } else {
-                    itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ name, qty }));
+                    // Convert object to array
+                    itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ 
+                        name: name, 
+                        qty: qty 
+                    }));
                 }
             } else {
-                itemsArray = [{ name: pkg.product || 'Bilinmeyen Ürün', qty: 1 }];
+                // Fallback for packages without items array
+                itemsArray = [{ 
+                    name: pkg.product || 'Bilinmeyen Ürün', 
+                    qty: pkg.total_quantity || 1 
+                }];
             }
-
-            pkg.items = itemsArray; // overwrite pkg.items for printer use
-
-            // Build product info for table tooltip and preview
-            const productInfo = itemsArray.map(it => `${it.name}: ${it.qty}`).join(', ');
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
             row.innerHTML = `
                 <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
                 <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-                <td>${escapeHtml(pkg.customers?.name || 'N/A')}</td>
+                <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
                 <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-</td>
-<td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-</td>
+                    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+                </td>
+                <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+                </td>
                 <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                 <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                <td style="text-align: center;">${sourceIcon}</td>
             `;
 
             row.addEventListener('click', (e) => {
@@ -586,8 +602,11 @@ async function populatePackagesTable() {
             tableBody.appendChild(row);
         });
 
-        if (totalPackagesElement) totalPackagesElement.textContent = uniquePackages.length.toString();
-        console.log(`✅ Package table populated with ${uniquePackages.length} unique packages`);
+        if (totalPackagesElement) totalPackagesElement.textContent = packages.length.toString();
+        console.log(`✅ Package table populated with ${packages.length} packages`);
+
+        // Update storage indicator
+        updateStorageIndicator();
 
     } catch (error) {
         console.error('Error in populatePackagesTable:', error);
@@ -596,6 +615,10 @@ async function populatePackagesTable() {
         packagesTableLoading = false;
     }
 }
+
+
+
+
 
         
         
@@ -1320,7 +1343,6 @@ function debouncedPopulateStockTable() {
 
 
 
-// Complete current package
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -1337,51 +1359,79 @@ async function completePackage() {
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
+        // Convert items object to array for better handling
+        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
+            name: name,
+            qty: qty
+        }));
+
         const packageData = {
+            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
-            items: currentPackage.items,
+            customer_name: selectedCustomer.name,
+            items: itemsArray, // Use array instead of object
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            source: 'excel' // Mark as Excel source
         };
 
-        if (!navigator.onLine) {
-            saveOfflineData('packages', packageData);
-            showAlert(`Paket çevrimdışı oluşturuldu: ${packageNo}`, 'warning');
+        // Save to Excel first (always)
+        const excelSuccess = await saveToExcel(packageData);
+        
+        if (excelSuccess) {
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'success');
+            
+            // If online and Supabase available, try to sync
+            if (supabase && navigator.onLine) {
+                try {
+                    const { data, error } = await supabase
+                        .from('packages')
+                        .insert([packageData])
+                        .select();
+
+                    if (!error) {
+                        showAlert(`Paket Supabase'e de kaydedildi: ${packageNo}`, 'success');
+                        isUsingExcel = false;
+                    } else {
+                        addToSyncQueue('add', packageData);
+                    }
+                } catch (supabaseError) {
+                    addToSyncQueue('add', packageData);
+                }
+            } else {
+                addToSyncQueue('add', packageData);
+            }
         } else {
-            const { data, error } = await supabase
-                .from('packages')
-                .insert([packageData])
-                .select();
-
-            if (error) throw error;
-
-            showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+            showAlert('Paket kaydedilemedi', 'error');
+            return;
         }
 
         // Reset current package
         currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
 
-        // Mark scanned barcodes as processed
-        if (scannedBarcodes.length > 0 && navigator.onLine) {
-            const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
-            if (barcodeIds.length > 0) {
-                await supabase.from('barcodes').update({ processed: true }).in('id', barcodeIds);
-            }
-            scannedBarcodes = [];
-            displayScannedBarcodes();
-        }
-
+        // Refresh the table immediately
         await populatePackagesTable();
+        updateStorageIndicator();
+
+        // Auto-print if printer available
+        setTimeout(() => {
+            if (typeof printPackageWithSettings === 'function') {
+                printPackageWithSettings(packageData);
+            }
+        }, 500);
 
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası', 'error');
     }
 }
+
+
 
 
 
