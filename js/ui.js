@@ -17,85 +17,119 @@ function initializeElements() {
 
 
 
+// Robust elements initialization
 function initializeElementsObject() {
+    console.log('Initializing elements object...');
+    
+    // Element map with all required elements
     const elementMap = {
         // Core containers
-        loginScreen: 'loginScreen',
-        appContainer: 'appContainer',
+        'loginScreen': 'loginScreen',
+        'appContainer': 'appContainer',
         
-        // Login elements
-        loginButton: 'loginBtn',
-        emailInput: 'email',
-        passwordInput: 'password',
+        // Header elements
+        'currentDate': 'currentDate',
+        'userRole': 'userRole',
+        'containerNumber': 'containerNumber',
+        'totalPackages': 'totalPackages',
+        'connectionStatus': 'connectionStatus',
         
-        // Packaging tab elements
-        customerSelect: 'customerSelect',
-        personnelSelect: 'personnelSelect',
-        currentDate: 'currentDate',
-        barcodeInput: 'barcodeInput',
-        packagesTableBody: 'packagesTableBody',
-        packageDetailContent: 'packageDetailContent',
-        selectAllPackages: 'selectAllPackages',
+        // Packaging tab
+        'customerSelect': 'customerSelect',
+        'personnelSelect': 'personnelSelect',
+        'barcodeInput': 'barcodeInput',
+        'packagesTableBody': 'packagesTableBody',
+        'packageDetailContent': 'packageDetailContent',
+        'selectAllPackages': 'selectAllPackages',
         
-        // Shipping tab elements
-        shippingFolders: 'shippingFolders',
-        shippingFilter: 'shippingFilter',
-        containerSearch: 'containerSearch',
+        // Shipping tab
+        'shippingFolders': 'shippingFolders',
+        'shippingFilter': 'shippingFilter',
+        'containerSearch': 'containerSearch',
         
-        // Stock tab elements
-        stockTableBody: 'stockTableBody',
-        stockSearch: 'stockSearch',
+        // Stock tab
+        'stockTableBody': 'stockTableBody',
+        'stockSearch': 'stockSearch',
         
-        // Reports tab elements
-        reportsTableBody: 'reportsTableBody',
-        reportType: 'reportType',
-        startDate: 'startDate',
-        endDate: 'endDate',
+        // Reports tab
+        'reportsTableBody': 'reportsTableBody',
+        'reportType': 'reportType',
+        'startDate': 'startDate',
+        'endDate': 'endDate',
         
-        // Customer modals
-        customerList: 'customerList',
-        allCustomersList: 'allCustomersList',
-        
-        // Quantity modal
-        quantityModal: 'quantityModal',
-        quantityInput: 'quantityInput',
-        quantityModalTitle: 'quantityModalTitle',
+        // Modals
+        'customerList': 'customerList',
+        'allCustomersList': 'allCustomersList',
+        'quantityModal': 'quantityModal',
+        'quantityInput': 'quantityInput',
+        'quantityModalTitle': 'quantityModalTitle',
         
         // API key modal
-        apiKeyModal: 'apiKeyModal',
-        apiKeyInput: 'apiKeyInput',
+        'apiKeyModal': 'apiKeyModal',
+        'apiKeyInput': 'apiKeyInput',
         
         // Settings modal
-        settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn',
+        'settingsModal': 'settingsModal',
+        'closeSettingsModalBtn': 'closeSettingsModalBtn',
         
-        // Status elements
-        toast: 'toast',
-        containerNumber: 'containerNumber',
-        totalPackages: 'totalPackages',
-        connectionStatus: 'connectionStatus',
-        alertContainer: 'alertContainer',
-        scannerToggle: 'scannerToggle',
+        // Alert system
+        'alertContainer': 'alertContainer',
+        'toast': 'toast',
         
-        // Barcode elements
-        scannedBarcodes: 'scannedBarcodes'
+        // Buttons
+        'scannerToggle': 'scannerToggle',
+        'loginButton': 'loginBtn'
     };
     
-    // Initialize elements object
+    // Initialize or clear existing elements object
     window.elements = window.elements || {};
     
+    let foundCount = 0;
+    let missingCount = 0;
+    
+    // Find and assign elements
     Object.keys(elementMap).forEach(key => {
-        const element = document.getElementById(elementMap[key]);
+        const elementId = elementMap[key];
+        const element = document.getElementById(elementId);
+        
         if (element) {
             window.elements[key] = element;
+            foundCount++;
         } else {
-            console.warn(`Element ${elementMap[key]} not found`);
+            console.warn('Element not found:', elementId);
             window.elements[key] = null;
+            missingCount++;
         }
     });
     
+    console.log(`Elements initialized: ${foundCount} found, ${missingCount} missing`);
+    
+    // Set up critical element fallbacks
+    setupElementFallbacks();
+    
     return window.elements;
 }
+
+// Set up fallbacks for missing critical elements
+function setupElementFallbacks() {
+    // Ensure currentDate element exists
+    if (!window.elements.currentDate) {
+        const currentDateElement = document.getElementById('currentDate');
+        if (currentDateElement) {
+            window.elements.currentDate = currentDateElement;
+        } else {
+            console.error('Critical: currentDate element not found in DOM');
+            // Create a fallback
+            const fallbackDateElement = document.createElement('span');
+            fallbackDateElement.id = 'currentDate';
+            fallbackDateElement.textContent = new Date().toLocaleDateString('tr-TR');
+            document.querySelector('.customer-info')?.appendChild(fallbackDateElement);
+            window.elements.currentDate = fallbackDateElement;
+        }
+    }
+}
+
+
 
 
 
