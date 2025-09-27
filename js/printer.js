@@ -179,12 +179,12 @@ class PrinterServiceElectronWithSettings {
 <meta charset="UTF-8">
 <style>
     @page { 
-        size: 105mm 80mm portrait; 
+        size: 105mm 77mm portrait; 
         margin: 0; 
     }
     body { 
         width: 105mm; 
-        height: 80mm; 
+        height: 77mm; 
         margin: 0; 
         padding: 0; 
         font-family: 'Arial', sans-serif;
@@ -305,30 +305,37 @@ class PrinterServiceElectronWithSettings {
     }
     
     .footer { 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        font-size: 15px;
-        color: #333; 
-        margin-top: 0.5mm; 
-        padding-top: 0.5mm;
-        border-top: 0.5px solid #ccc;
-        line-height: 1.3;
-    }
-    
-    .date-info { 
-    font-weight: 600; 
-    margin-left: 2mm; /* move 2mm to the right */
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; /* align items at top initially */
+    font-size: 15px;
+    color: #333; 
+    margin-top: 0.5mm; 
+    padding-top: 0.5mm;
+    border-top: 0.5px solid #ccc;
+    line-height: 1.3;
+    flex-direction: column; /* stack elements vertically */
 }
 
-    
-    .total-info {
-        font-weight: bold;
-        background: #333;
-        color: white;
-        padding: 0.3mm 1mm;
-        border-radius: 1px;
-    }
+.footer-top {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.date-info { 
+    font-weight: 600; 
+    margin: 2mm 0 0 0; /* move below the border */
+}
+
+.total-info {
+    font-weight: bold;
+    background: #333;
+    color: white;
+    padding: 0.3mm 1mm;
+    border-radius: 1px;
+}
+
 </style>
 </head>
 <body>
@@ -397,10 +404,12 @@ class PrinterServiceElectronWithSettings {
         ${itemHTML}
     </div>
     <div class="footer">
-        <span class="date-info">${dateTime}</span>
+    <div class="footer-top">
         <span class="total-info">Toplam: ${totalItems} adet</span>
     </div>
+    <span class="date-info">${dateTime}</span>
 </div>
+
                     `;
                 }
             }
