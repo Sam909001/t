@@ -1513,3 +1513,21 @@ table {
 }
 
 
+/* Make the reports tab scrollable */
+#reportsTab {
+    max-height: calc(100vh - 180px); /* 100% viewport height minus header/footer */
+    overflow-y: auto;
+    padding-right: 10px; /* keep scrollbar from overlapping text */
+}
+
+/* Optional: style scrollbars for reports tab */
+#reportsTab::-webkit-scrollbar {
+    width: 8px;
+}
+#reportsTab::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 4px;
+}
+#reportsTab::-webkit-scrollbar-thumb:hover {
+    background: #888;
+}
