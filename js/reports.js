@@ -678,37 +678,34 @@ async function downloadReportPDF() {
 }
 
 // Function to check if Supabase Storage bucket exists
-async function checkStorageBucket() {
+// ✅ Simple check if 'reports' bucket is accessible
+async function checkReportsBucket() {
     try {
-        const { data, error } = await supabase.storage.getBucket('reports');
+        // Try listing files to confirm bucket exists
+        const { data, error } = await supabase.storage.from('reports').list();
+
         if (error) {
-            console.log('Reports bucket does not exist, creating...');
-            // Create the bucket if it doesn't exist
-            const { data: bucketData, error: bucketError } = await supabase.storage.createBucket('reports', {
-                public: true, // Make files publicly accessible
-                fileSizeLimit: 52428800, // 50MB limit
-            });
-            
-            if (bucketError) {
-                console.error('Bucket creation error:', bucketError);
-                return false;
-            }
-            console.log('Reports bucket created successfully');
+            console.error('Reports bucket access error:', error.message);
+            return false;
         }
+
+        console.log(`Reports bucket ready. Found ${data.length} files.`);
         return true;
-    } catch (error) {
-        console.error('Storage bucket check error:', error);
+    } catch (err) {
+        console.error('Reports bucket check failed:', err);
         return false;
     }
 }
 
-// Initialize storage bucket on app start
+// ✅ Initialize storage at app start
 async function initializeStorage() {
-    const bucketExists = await checkStorageBucket();
-    if (!bucketExists) {
-        console.warn('Storage bucket could not be initialized');
+    const ok = await checkReportsBucket();
+    if (!ok) {
+        showAlert('Reports bucket erişilemedi. Lütfen Supabase dashboarddan kontrol edin.', 'error');
     }
+    return ok;
 }
+
 
 // PDF Generation Function
 async function generatePDFReport(reportData) {
