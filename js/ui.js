@@ -13,6 +13,7 @@ function initializeElements() {
     return elements;
 }
 
+// Update the initializeElementsObject function:
 function initializeElementsObject() {
     const elementMap = {
         loginScreen: 'loginScreen',
@@ -41,16 +42,13 @@ function initializeElementsObject() {
         quantityInput: 'quantityInput',
         quantityModal: 'quantityModal',
         quantityModalTitle: 'quantityModalTitle',
-        scannedBarcodes: 'scannedBarcodes',
         connectionStatus: 'connectionStatus',
         alertContainer: 'alertContainer',
         scannerToggle: 'scannerToggle',
         containerSearch: 'containerSearch',
         settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn',
-        toggleTheme: 'toggleTheme',
-        exportData: 'exportData',
-        showApiKeyModal: 'showApiKeyModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn'
+        // Removed missing elements: scannedBarcodes, toggleTheme, exportData, showApiKeyModal
     };
     
     Object.keys(elementMap).forEach(key => {
@@ -58,13 +56,76 @@ function initializeElementsObject() {
         if (element) {
             elements[key] = element;
         } else {
-            console.warn(`Element ${elementMap[key]} not found`);
+            // Only log critical missing elements, ignore optional ones
+            const criticalElements = ['loginScreen', 'appContainer', 'customerSelect', 'packagesTableBody'];
+            if (criticalElements.includes(key)) {
+                console.warn(`Critical element ${elementMap[key]} not found`);
+            }
             elements[key] = null;
         }
     });
     
     return elements;
 }
+
+
+// Update the initializeElementsObject function:
+function initializeElementsObject() {
+    const elementMap = {
+        loginScreen: 'loginScreen',
+        appContainer: 'appContainer',
+        loginButton: 'loginBtn',
+        emailInput: 'email',
+        passwordInput: 'password',
+        customerSelect: 'customerSelect',
+        personnelSelect: 'personnelSelect',
+        currentDate: 'currentDate',
+        barcodeInput: 'barcodeInput',
+        packagesTableBody: 'packagesTableBody',
+        packageDetailContent: 'packageDetailContent',
+        shippingFolders: 'shippingFolders',
+        stockTableBody: 'stockTableBody',
+        customerList: 'customerList',
+        allCustomersList: 'allCustomersList',
+        toast: 'toast',
+        containerNumber: 'containerNumber',
+        totalPackages: 'totalPackages',
+        shippingFilter: 'shippingFilter',
+        stockSearch: 'stockSearch',
+        selectAllPackages: 'selectAllPackages',
+        apiKeyModal: 'apiKeyModal',
+        apiKeyInput: 'apiKeyInput',
+        quantityInput: 'quantityInput',
+        quantityModal: 'quantityModal',
+        quantityModalTitle: 'quantityModalTitle',
+        connectionStatus: 'connectionStatus',
+        alertContainer: 'alertContainer',
+        scannerToggle: 'scannerToggle',
+        containerSearch: 'containerSearch',
+        settingsModal: 'settingsModal',
+        closeSettingsModalBtn: 'closeSettingsModalBtn'
+        // Removed missing elements: scannedBarcodes, toggleTheme, exportData, showApiKeyModal
+    };
+    
+    Object.keys(elementMap).forEach(key => {
+        const element = document.getElementById(elementMap[key]);
+        if (element) {
+            elements[key] = element;
+        } else {
+            // Only log critical missing elements, ignore optional ones
+            const criticalElements = ['loginScreen', 'appContainer', 'customerSelect', 'packagesTableBody'];
+            if (criticalElements.includes(key)) {
+                console.warn(`Critical element ${elementMap[key]} not found`);
+            }
+            elements[key] = null;
+        }
+    });
+    
+    return elements;
+}
+
+
+
 
 // Profesyonel alert sistemi
 // 1. Prevent duplicate alerts with debouncing
