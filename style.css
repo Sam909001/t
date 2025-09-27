@@ -1557,20 +1557,3 @@ table {
     border-radius: 8px;
     box-shadow: 0 2px 4px var(--shadow);
 }
-
-
-
-
-
-
-/* Debug borders - remove after fixing */
-#shippingTab { border: 2px solid red !important; }
-#shippingFolders { border: 2px solid blue !important; min-height: 200px; }
-.tab-pane.active { border: 2px solid green !important; }
-
-
-#shippingFolders {
-    border: 3px solid red !important;
-    min-height: 200px !important;
-    background-color: #f0f8ff !important;
-}
