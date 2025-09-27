@@ -334,134 +334,204 @@ async function manualExportToExcel(sheetName, data, fileName) {
 // UPDATED: Populate customers from Supabase first, fallback to localData
 async function populateCustomers() {
     try {
-        console.log('Populating customers dropdown...');
+        console.log('=== POPULATING CUSTOMERS DEBUG ===');
+        
+        // Wait a bit to ensure DOM is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const customerSelect = document.getElementById('customerSelect');
+        console.log('Customer select element:', customerSelect);
+        
         if (!customerSelect) {
-            console.error('Customer select element not found');
+            console.error('❌ Customer select element not found! Available elements:');
+            console.log('Available select elements:', document.querySelectorAll('select'));
+            
+            // Try alternative selectors
+            const altSelects = document.querySelectorAll('select[name*="customer"], select[id*="customer"], .customer-select');
+            console.log('Alternative customer selects found:', altSelects);
+            
+            if (altSelects.length > 0) {
+                console.log('Using alternative selector:', altSelects[0]);
+                altSelects[0].id = 'customerSelect'; // Set the ID for future use
+                return populateCustomers(); // Retry
+            }
             return;
         }
 
+        console.log('✅ Customer select found, clearing options...');
         customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
         let customers = [];
 
         // Try Supabase first
         if (supabase) {
             try {
+                console.log('🔄 Trying Supabase for customers...');
                 const { data: supabaseCustomers, error } = await supabase
                     .from('customers')
                     .select('*')
                     .order('name');
                 
+                console.log('Supabase response:', { data: supabaseCustomers, error });
+                
                 if (!error && supabaseCustomers && supabaseCustomers.length > 0) {
                     customers = supabaseCustomers;
                     // Update local cache
                     localData.customers = customers;
-                    console.log(`Loaded ${customers.length} customers from Supabase`);
+                    console.log(`✅ Loaded ${customers.length} customers from Supabase`);
                 } else {
-                    console.log('No customers from Supabase or error occurred, using fallback');
-                    throw new Error('Supabase fetch failed');
+                    console.log('⚠️ No customers from Supabase or error occurred, using fallback');
+                    throw new Error('Supabase fetch failed: ' + (error?.message || 'No data'));
                 }
             } catch (supabaseError) {
-                console.warn('Supabase customers fetch failed:', supabaseError.message);
+                console.warn('❌ Supabase customers fetch failed:', supabaseError.message);
                 // Fallback to local data
-                customers = localData.customers;
+                customers = localData.customers || [];
+                console.log('📁 Using local customers:', customers.length);
             }
         } else {
-            console.log('Supabase not available, using local data');
-            customers = localData.customers;
+            console.log('⚠️ Supabase not available, using local data');
+            customers = localData.customers || [];
         }
 
         // If no customers available, create defaults
         if (!customers || customers.length === 0) {
-            console.log('No customers found, creating defaults');
+            console.log('🔧 No customers found, creating defaults');
             customers = [
-                { id: '1', name: 'Yeditepe Otel', code: 'YEDITEPE', email: 'info@yeditepe.com' },
-                { id: '2', name: 'Marmara Otel', code: 'MARMARA', email: 'info@marmara.com' }
+                { id: '1', name: 'Yeditepe Otel', code: 'YEDITEPE', email: 'info@yeditepe.com', created_at: new Date().toISOString() },
+                { id: '2', name: 'Marmara Otel', code: 'MARMARA', email: 'info@marmara.com', created_at: new Date().toISOString() },
+                { id: '3', name: 'Grand Hotel', code: 'GRAND', email: 'info@grand.com', created_at: new Date().toISOString() }
             ];
             localData.customers = customers;
             saveLocalData();
+            console.log('✅ Default customers created and saved');
         }
 
         // Populate dropdown
-        customers.forEach(customer => {
-            const option = document.createElement('option');
-            option.value = customer.id;
-            option.textContent = `${customer.name} (${customer.code})`;
-            customerSelect.appendChild(option);
+        console.log('🔄 Populating dropdown with', customers.length, 'customers');
+        customers.forEach((customer, index) => {
+            try {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = `${customer.name} (${customer.code})`;
+                customerSelect.appendChild(option);
+                console.log(`  ✅ Added option ${index + 1}: ${customer.name} (${customer.code})`);
+            } catch (optionError) {
+                console.error(`❌ Error creating option for customer ${customer.name}:`, optionError);
+            }
         });
 
-        console.log(`Customer dropdown populated with ${customers.length} customers`);
+        console.log(`✅ Customer dropdown populated with ${customers.length} customers`);
+        console.log('Final dropdown HTML:', customerSelect.innerHTML);
+        console.log('=== END CUSTOMERS DEBUG ===');
 
     } catch (error) {
-        console.error('Error populating customers:', error);
-        showAlert('Müşteri listesi yüklenirken hata oluştu', 'error');
+        console.error('❌ Fatal error in populateCustomers:', error);
+        console.error('Stack trace:', error.stack);
+        if (typeof showAlert === 'function') {
+            showAlert('Müşteri listesi yüklenirken hata oluştu: ' + error.message, 'error');
+        }
     }
 }
 
 // UPDATED: Populate personnel from Supabase first, fallback to localData
 async function populatePersonnel() {
     try {
-        console.log('Populating personnel dropdown...');
+        console.log('=== POPULATING PERSONNEL DEBUG ===');
+        
+        // Wait a bit to ensure DOM is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const personnelSelect = document.getElementById('personnelSelect');
+        console.log('Personnel select element:', personnelSelect);
+        
         if (!personnelSelect) {
-            console.error('Personnel select element not found');
+            console.error('❌ Personnel select element not found! Available elements:');
+            console.log('Available select elements:', document.querySelectorAll('select'));
+            
+            // Try alternative selectors
+            const altSelects = document.querySelectorAll('select[name*="personnel"], select[id*="personnel"], .personnel-select');
+            console.log('Alternative personnel selects found:', altSelects);
+            
+            if (altSelects.length > 0) {
+                console.log('Using alternative selector:', altSelects[0]);
+                altSelects[0].id = 'personnelSelect'; // Set the ID for future use
+                return populatePersonnel(); // Retry
+            }
             return;
         }
 
+        console.log('✅ Personnel select found, clearing options...');
         personnelSelect.innerHTML = '<option value="">Personel Seç</option>';
         let personnel = [];
 
         // Try Supabase first
         if (supabase) {
             try {
+                console.log('🔄 Trying Supabase for personnel...');
                 const { data: supabasePersonnel, error } = await supabase
                     .from('personnel')
                     .select('*')
                     .order('name');
                 
+                console.log('Supabase response:', { data: supabasePersonnel, error });
+                
                 if (!error && supabasePersonnel && supabasePersonnel.length > 0) {
                     personnel = supabasePersonnel;
                     // Update local cache
                     localData.personnel = personnel;
-                    console.log(`Loaded ${personnel.length} personnel from Supabase`);
+                    console.log(`✅ Loaded ${personnel.length} personnel from Supabase`);
                 } else {
-                    console.log('No personnel from Supabase or error occurred, using fallback');
-                    throw new Error('Supabase fetch failed');
+                    console.log('⚠️ No personnel from Supabase or error occurred, using fallback');
+                    throw new Error('Supabase fetch failed: ' + (error?.message || 'No data'));
                 }
             } catch (supabaseError) {
-                console.warn('Supabase personnel fetch failed:', supabaseError.message);
+                console.warn('❌ Supabase personnel fetch failed:', supabaseError.message);
                 // Fallback to local data
-                personnel = localData.personnel;
+                personnel = localData.personnel || [];
+                console.log('📁 Using local personnel:', personnel.length);
             }
         } else {
-            console.log('Supabase not available, using local data');
-            personnel = localData.personnel;
+            console.log('⚠️ Supabase not available, using local data');
+            personnel = localData.personnel || [];
         }
 
         // If no personnel available, create defaults
         if (!personnel || personnel.length === 0) {
-            console.log('No personnel found, creating defaults');
+            console.log('🔧 No personnel found, creating defaults');
             personnel = [
-                { id: '1', name: 'Ahmet Yılmaz', role: 'Operator' },
-                { id: '2', name: 'Mehmet Demir', role: 'Supervisor' }
+                { id: '1', name: 'Ahmet Yılmaz', role: 'Operator', created_at: new Date().toISOString() },
+                { id: '2', name: 'Mehmet Demir', role: 'Supervisor', created_at: new Date().toISOString() },
+                { id: '3', name: 'Fatma Kaya', role: 'Staff', created_at: new Date().toISOString() }
             ];
             localData.personnel = personnel;
             saveLocalData();
+            console.log('✅ Default personnel created and saved');
         }
 
         // Populate dropdown
-        personnel.forEach(person => {
-            const option = document.createElement('option');
-            option.value = person.id;
-            option.textContent = `${person.name} (${person.role || 'Staff'})`;
-            personnelSelect.appendChild(option);
+        console.log('🔄 Populating dropdown with', personnel.length, 'personnel');
+        personnel.forEach((person, index) => {
+            try {
+                const option = document.createElement('option');
+                option.value = person.id;
+                option.textContent = `${person.name} (${person.role || 'Staff'})`;
+                personnelSelect.appendChild(option);
+                console.log(`  ✅ Added option ${index + 1}: ${person.name} (${person.role || 'Staff'})`);
+            } catch (optionError) {
+                console.error(`❌ Error creating option for person ${person.name}:`, optionError);
+            }
         });
 
-        console.log(`Personnel dropdown populated with ${personnel.length} personnel`);
+        console.log(`✅ Personnel dropdown populated with ${personnel.length} personnel`);
+        console.log('Final dropdown HTML:', personnelSelect.innerHTML);
+        console.log('=== END PERSONNEL DEBUG ===');
 
     } catch (error) {
-        console.error('Error populating personnel:', error);
-        showAlert('Personel listesi yüklenirken hata oluştu', 'error');
+        console.error('❌ Fatal error in populatePersonnel:', error);
+        console.error('Stack trace:', error.stack);
+        if (typeof showAlert === 'function') {
+            showAlert('Personel listesi yüklenirken hata oluştu: ' + error.message, 'error');
+        }
     }
 }
 
@@ -1568,25 +1638,96 @@ function initializeFormElements() {
     }
 }
 
-// Initialize app data
+// Initialize app data with better error handling and retry logic
 async function initializeAppData() {
     try {
-        console.log('Initializing app data...');
+        console.log('=== INITIALIZING APP DATA ===');
         
-        // Populate dropdowns - customers and personnel from Supabase first
-        await populateCustomers();
-        await populatePersonnel();
+        // Add a delay to ensure DOM is fully ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        console.log('DOM readiness check...');
+        console.log('customerSelect exists:', !!document.getElementById('customerSelect'));
+        console.log('personnelSelect exists:', !!document.getElementById('personnelSelect'));
+        
+        // Populate dropdowns with retry logic
+        console.log('🔄 Loading customers...');
+        let customerRetries = 0;
+        while (customerRetries < 3) {
+            try {
+                await populateCustomers();
+                const customerSelect = document.getElementById('customerSelect');
+                if (customerSelect && customerSelect.children.length > 1) {
+                    console.log('✅ Customers loaded successfully');
+                    break;
+                }
+                throw new Error('Customer dropdown still empty after populate');
+            } catch (error) {
+                customerRetries++;
+                console.warn(`Customer load attempt ${customerRetries} failed:`, error.message);
+                if (customerRetries < 3) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+        }
+        
+        console.log('🔄 Loading personnel...');
+        let personnelRetries = 0;
+        while (personnelRetries < 3) {
+            try {
+                await populatePersonnel();
+                const personnelSelect = document.getElementById('personnelSelect');
+                if (personnelSelect && personnelSelect.children.length > 1) {
+                    console.log('✅ Personnel loaded successfully');
+                    break;
+                }
+                throw new Error('Personnel dropdown still empty after populate');
+            } catch (error) {
+                personnelRetries++;
+                console.warn(`Personnel load attempt ${personnelRetries} failed:`, error.message);
+                if (personnelRetries < 3) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+        }
         
         // Load transactional data from Excel/localData
+        console.log('🔄 Loading transactional data...');
         await populatePackagesTable();
         await populateStockTable();
         await populateShippingTable();
         
-        console.log('App data initialization completed');
+        console.log('✅ App data initialization completed');
+        
+        // Final verification
+        const customerSelect = document.getElementById('customerSelect');
+        const personnelSelect = document.getElementById('personnelSelect');
+        
+        console.log('=== FINAL VERIFICATION ===');
+        console.log('Customer options count:', customerSelect?.children.length || 0);
+        console.log('Personnel options count:', personnelSelect?.children.length || 0);
+        
+        if (customerSelect?.children.length <= 1) {
+            console.error('❌ Customer dropdown is still empty!');
+            if (typeof showAlert === 'function') {
+                showAlert('Müşteri listesi yüklenemedi. Sayfayı yenilemeyi deneyin.', 'error');
+            }
+        }
+        
+        if (personnelSelect?.children.length <= 1) {
+            console.error('❌ Personnel dropdown is still empty!');
+            if (typeof showAlert === 'function') {
+                showAlert('Personel listesi yüklenemedi. Sayfayı yenilemeyi deneyin.', 'error');
+            }
+        }
+        
+        console.log('=== END APP DATA INIT ===');
+        
     } catch (error) {
-        console.error('Error initializing app data:', error);
+        console.error('❌ Error initializing app data:', error);
+        console.error('Stack trace:', error.stack);
         if (typeof showAlert === 'function') {
-            showAlert('Uygulama verileri yüklenirken hata oluştu', 'error');
+            showAlert('Uygulama verileri yüklenirken hata oluştu: ' + error.message, 'error');
         }
     }
 }
