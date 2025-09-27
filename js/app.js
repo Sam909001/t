@@ -1,12 +1,70 @@
-// Sayfa yüklendiğinde API anahtarını sessionStorage'dan yükle
+// Replace the DOMContentLoaded listener at the top of app.js:
 document.addEventListener('DOMContentLoaded', () => {
-    const savedApiKey = sessionStorage.getItem('procleanApiKey');
+    // Use localStorage instead of sessionStorage for persistence
+    const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
         SUPABASE_ANON_KEY = savedApiKey;
         initializeSupabase();
-        console.log('API key loaded from sessionStorage');
+        console.log('API key loaded from localStorage');
+        
+        // Check if user is already authenticated
+        checkExistingAuth();
     }
 });
+
+// Add this new function to app.js:
+async function checkExistingAuth() {
+    try {
+        if (!supabase) return;
+        
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+            console.log('No existing session:', error.message);
+            showLoginScreen();
+            return;
+        }
+        
+        if (session && session.user) {
+            // User is already logged in, proceed to app
+            currentUser = {
+                email: session.user.email,
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
+            };
+            
+            showAppScreen();
+        } else {
+            showLoginScreen();
+        }
+    } catch (error) {
+        console.error('Auth check error:', error);
+        showLoginScreen();
+    }
+}
+
+// Also update the saveApiKey function in supabase.js to use localStorage:
+function saveApiKey() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    if (!apiKey) {
+        showAlert('Lütfen bir API anahtarı girin', 'error');
+        return;
+    }
+    
+    SUPABASE_ANON_KEY = apiKey;
+    localStorage.setItem('procleanApiKey', apiKey); // Change to localStorage
+    
+    const newClient = initializeSupabase();
+    
+    if (newClient) {
+        document.getElementById('apiKeyModal').style.display = 'none';
+        showAlert('API anahtarı kaydedildi', 'success');
+        testConnection();
+    }
+}
+
+
+
 
 // State management functions - Excel based
 function saveAppState() {
