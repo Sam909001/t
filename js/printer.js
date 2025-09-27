@@ -319,10 +319,13 @@ class PrinterServiceElectronWithSettings {
 
 .total-info {
     font-weight: bold;
-    background: #333;
+    background: #fff; /* match page background to hide border */
     color: white;
+    background-color: #333; /* keep the dark background */
     padding: 0.3mm 1mm;
     border-radius: 1px;
+    position: relative;
+    top: -0.5mm; /* lift slightly above border */
 }
 
 /* Date placed outside */
@@ -332,6 +335,7 @@ class PrinterServiceElectronWithSettings {
     font-weight: 600;
     text-align: left; /* or center if you prefer */
 }
+
 
 
 </style>
