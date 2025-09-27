@@ -306,35 +306,34 @@ class PrinterServiceElectronWithSettings {
     
 .footer {
     display: flex;
-    justify-content: flex-end; /* push total-info to right */
+    justify-content: flex-end; /* keep total on the right */
     align-items: center;
     font-size: 15px;
     color: #333;
     margin-top: 0.5mm;
     padding-top: 0.5mm;
-    border-top: 0.5px solid #ccc;
+    border-top: 0.5px solid #ccc; /* line stays only for footer */
     line-height: 1.3;
     position: relative;
 }
 
 .total-info {
     font-weight: bold;
-    background: #fff; /* match page background to hide border */
+    background: #333;
     color: white;
-    background-color: #333; /* keep the dark background */
     padding: 0.3mm 1mm;
     border-radius: 1px;
     position: relative;
-    top: -0.5mm; /* lift slightly above border */
+    top: -0.5mm; /* makes it sit slightly above the border */
 }
 
-/* Date placed outside */
 .date-info {
     display: block;
-    margin-top: 1mm;
+    margin-top: 1mm; /* space below footer border */
     font-weight: 600;
-    text-align: left; /* or center if you prefer */
+    text-align: left; /* change to center if needed */
 }
+
 
 
 
@@ -405,7 +404,7 @@ class PrinterServiceElectronWithSettings {
     <div class="items-section">
         ${itemHTML}
     </div>
-   <div class="footer">
+<div class="footer">
     <span class="total-info">Toplam: ${totalItems} adet</span>
 </div>
 <span class="date-info">${dateTime}</span>
