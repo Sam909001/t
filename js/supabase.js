@@ -548,69 +548,122 @@ function addToSyncQueue(operationType, data) {
     localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
 }
 
-// FIXED: API anahtarını kaydet ve istemciyi başlat
-function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
+
+
+
+
+// Enhanced API key saving with better error handling
+async function saveApiKey() {
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    if (!apiKeyInput) {
+        showAlert('API anahtarı girişi bulunamadı', 'error');
+        return;
+    }
+
+    const apiKey = apiKeyInput.value.trim();
     if (!apiKey) {
         showAlert('Lütfen bir API anahtarı girin', 'error');
         return;
     }
-    
-    // Eski client'ı temizle
-    supabase = null;
-    
-    // Yeni API key'i ayarla
-    SUPABASE_ANON_KEY = apiKey;
-    localStorage.setItem('procleanApiKey', apiKey);
-    
-    // Yeni client oluştur
-    const newClient = initializeSupabase();
-    
-    if (newClient) {
-        document.getElementById('apiKeyModal').style.display = 'none';
-        showAlert('API anahtarı kaydedildi', 'success');
-        testConnection();
+
+    try {
+        // Test the API key before saving
+        showAlert('API anahtarı test ediliyor...', 'info');
         
-        // Çevrimiçi olunca senkronize et
-        setTimeout(syncExcelWithSupabase, 2000);
+        // Create a temporary client to test the key
+        const tempClient = window.supabase.createClient(SUPABASE_URL, apiKey);
+        const { data, error } = await tempClient.from('customers').select('*').limit(1);
+        
+        if (error) {
+            throw new Error(`API anahtarı geçersiz: ${error.message}`);
+        }
+
+        // Save the valid key
+        SUPABASE_ANON_KEY = apiKey;
+        localStorage.setItem('procleanApiKey', apiKey);
+        
+        // Reinitialize Supabase client
+        supabase = initializeSupabase();
+        
+        if (supabase) {
+            document.getElementById('apiKeyModal').style.display = 'none';
+            showAlert('API anahtarı başarıyla kaydedildi ve doğrulandı!', 'success');
+            
+            // Reset connection alert flag to allow new success message
+            connectionAlertShown = false;
+            
+            // Test connection
+            await testConnection();
+            
+            // Sync data if online
+            if (navigator.onLine) {
+                setTimeout(async () => {
+                    await syncExcelWithSupabase();
+                    await loadPackagesData();
+                }, 2000);
+            }
+        } else {
+            throw new Error('Supabase istemcisi başlatılamadı');
+        }
+        
+    } catch (error) {
+        console.error('API key save error:', error);
+        showAlert(`API anahtarı kaydedilemedi: ${error.message}`, 'error');
+        
+        // Fall back to Excel mode
+        isUsingExcel = true;
+        updateStorageIndicator();
     }
 }
 
-        
-let connectionAlertShown = false; // Prevent duplicate success alert
-
-// FIXED: Supabase bağlantısını test et
+// Enhanced connection test with better recovery
 async function testConnection() {
     if (!supabase) {
         console.warn('Supabase client not initialized for connection test');
         if (!connectionAlertShown) {
             showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
-            connectionAlertShown = true; // mark as shown to avoid repeating
+            connectionAlertShown = true;
         }
         return false;
     }
     
     try {
-        const { data, error } = await supabase.from('customers').select('*').limit(1);
+        const { data, error } = await supabase.from('customers').select('*').limit(1).timeout(10000);
         if (error) throw error;
         
         console.log('Supabase connection test successful:', data);
         
         if (!connectionAlertShown) {
             showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
-            connectionAlertShown = true; // ensure alert shows only once
+            connectionAlertShown = true;
+        }
+
+        // Switch back to Supabase mode if we were in Excel mode
+        if (isUsingExcel) {
+            isUsingExcel = false;
+            updateStorageIndicator();
+            showAlert('Çevrimiçi moda geçildi', 'success');
         }
 
         return true;
     } catch (e) {
         console.error('Supabase connection test failed:', e.message);
+        
+        // Switch to Excel mode
+        if (!isUsingExcel) {
+            isUsingExcel = true;
+            updateStorageIndicator();
+            showAlert('Veritabanına bağlanılamıyor. Excel moduna geçiliyor.', 'warning');
+        }
+        
         if (!connectionAlertShown) {
-            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+            showAlert('Veritabanına bağlanılamıyor. Çevrimdışı modda çalışıyorsunuz.', 'error');
             connectionAlertShown = true;
         }
         return false;
     }
 }
+
 
 
 
