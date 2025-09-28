@@ -1219,6 +1219,7 @@ async function importExcelData(event) {
 }
 
 // Main initialization
+// Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     try {
         console.log('Initializing ProClean application with daily file management...');
@@ -1236,7 +1237,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         console.log('Workspace initialized:', window.workspaceManager.currentWorkspace);
         
-        // Initialize daily file manager SECOND
+        // Initialize daily file manager SECOND (before supabase)
         window.dailyFileManager = new DailyFileManager();
         await window.dailyFileManager.initialize();
         
@@ -1255,11 +1256,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                 setupAuthListener();
                 console.log('Supabase client initialized successfully');
             } else {
-                console.warn('Failed to initialize Supabase client');
+                console.warn('Failed to initialize Supabase client - using Excel mode');
+                isUsingExcel = true;
+                updateStorageIndicator();
             }
         } else {
             console.log('No saved API key found, showing API key modal');
             showApiKeyModal();
+            isUsingExcel = true;
+            updateStorageIndicator();
         }
 
         // Initialize settings when app loads
@@ -1285,8 +1290,27 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 });
 
+
+
+
 // Global error handler
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
     showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
 });
+
+
+
+// Add this function to app.js
+function updateStorageIndicator() {
+    const indicator = document.getElementById('storageIndicator');
+    if (!indicator) return;
+    
+    if (isUsingExcel || !supabase || !navigator.onLine) {
+        indicator.innerHTML = '<i class="fas fa-file-excel"></i> Excel Modu';
+        indicator.className = 'storage-indicator excel-mode';
+    } else {
+        indicator.innerHTML = '<i class="fas fa-database"></i> Supabase Modu';
+        indicator.className = 'storage-indicator supabase-mode';
+    }
+}
