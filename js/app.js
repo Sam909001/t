@@ -70,46 +70,56 @@ function clearAppState() {
 }
 
 // Initialize application
-// REPLACE the existing initApp function with this:
+// Initialize application
 async function initApp() {
-    // Initialize workspace system first
-    await window.workspaceManager.initialize();
-    
-    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-    
-    // Initialize workspace-aware UI
-    initializeWorkspaceUI();
-    setupWorkspaceAwareUI();
-    
-    // Populate dropdowns
-    await populateCustomers();
-    await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
-    
-    // Load workspace-specific data
-    await loadPackagesData();
-    await populateStockTable();
-    await populateShippingTable();
-    
-    // Test connection
-    await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000);
-    
-    // Set up offline support
-    setupOfflineSupport();
-    
-    // Set up barcode scanner listener
-    setupBarcodeScanner();
-    
-    // Start daily auto-clear
-    scheduleDailyClear();
-    
-    console.log(`App initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
+    try {
+        // Initialize workspace system first - wait for it to complete
+        if (!window.workspaceManager.initialized) {
+            await window.workspaceManager.initialize();
+            window.workspaceManager.initialized = true;
+        }
+        
+        elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        
+        // Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+        
+        // Populate dropdowns
+        await populateCustomers();
+        await populatePersonnel();
+        
+        // Load saved state
+        loadAppState();
+        
+        // Load workspace-specific data
+        await loadPackagesData();
+        await populateStockTable();
+        await populateShippingTable();
+        
+        // Test connection
+        await testConnection();
+        
+        // Set up auto-save
+        setInterval(saveAppState, 5000);
+        
+        // Set up offline support
+        setupOfflineSupport();
+        
+        // Set up barcode scanner listener
+        setupBarcodeScanner();
+        
+        // Start daily auto-clear
+        scheduleDailyClear();
+        
+        console.log(`App initialized for workspace: ${window.workspaceManager.currentWorkspace?.name || 'Default'}`);
+        
+    } catch (error) {
+        console.error('Error in initApp:', error);
+        showAlert('Uygulama başlatılırken hata oluştu', 'error');
+    }
 }
+
 
 
 
@@ -825,6 +835,12 @@ async function completePackage() {
         return;
     }
 
+    // Check workspace permissions with safety checks
+    if (!window.workspaceManager?.currentWorkspace) {
+        showAlert('Çalışma istasyonu tanımlanmadı. Lütfen sayfayı yenileyin.', 'error');
+        return;
+    }
+
     // Check workspace permissions
     if (!window.workspaceManager.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
@@ -832,9 +848,10 @@ async function completePackage() {
     }
 
     try {
-        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
+        const workspace = window.workspaceManager.currentWorkspace;
+        const packageNo = `PKG-${workspace.id}-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect.value;
+        const selectedPersonnel = elements.personnelSelect?.value;
 
         const packageData = {
             id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -847,8 +864,8 @@ async function completePackage() {
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
-            station_name: window.workspaceManager.currentWorkspace.name
+            workspace_id: workspace.id, // Workspace identifier
+            station_name: workspace.name
         };
 
         // Save based on connectivity and workspace settings
@@ -861,20 +878,20 @@ async function completePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                showAlert(`Paket oluşturuldu: ${packageNo} (${workspace.name})`, 'success');
                 await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
                 await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${workspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
             await saveToExcel(packageData);
             addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${workspace.name})`, 'warning');
             isUsingExcel = true;
         }
 
@@ -886,9 +903,11 @@ async function completePackage() {
 
     } catch (error) {
         console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası', 'error');
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
+
+
 
 
 
