@@ -973,72 +973,61 @@ function debouncedPopulateShippingTable() {
 
 
 
- // Konteyner detaylarını görüntüle
-        async function viewContainerDetails(containerId) {
-            try {
-                const { data: container, error } = await supabase
-                    .from('containers')
-                    .select(`
-                        *,
-                        packages (
-                            *,
-                            customers (name, code)
-                        )
-                    `)
-                    .eq('id', containerId)
-                    .single();
+async function viewContainerDetails(containerId) {
+    console.log('🔍 viewContainerDetails called with:', containerId);
+    
+    try {
+        let containerData;
+        let packages = [];
 
-                if (error) throw error;
-                
-                currentContainerDetails = container;
-                
-                const modalTitle = document.getElementById('containerDetailTitle');
-                const modalContent = document.getElementById('containerDetailContent');
-                
-                modalTitle.textContent = `Konteyner: ${container.container_no}`;
-                
-                let contentHTML = `
-                    <p><strong>Durum:</strong> <span class="container-status status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></p>
-                    <p><strong>Oluşturulma Tarihi:</strong> ${new Date(container.created_at).toLocaleDateString('tr-TR')}</p>
-                    <p><strong>Paket Sayısı:</strong> ${container.package_count || 0}</p>
-                    <p><strong>Toplam Adet:</strong> ${container.total_quantity || 0}</p>
-                `;
-                
-                if (container.packages && container.packages.length > 0) {
-                    contentHTML += `
-                        <h4>Paketler</h4>
-                        <table class="package-table">
-                            <thead>
-                                <tr>
-                                    <th>Paket No</th>
-                                    <th>Müşteri</th>
-                                    <th>Adet</th>
-                                    <th>Durum</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${container.packages.map(pkg => `
-                                    <tr>
-                                        <td>${pkg.package_no}</td>
-                                        <td>${pkg.customers?.name || 'N/A'}</td>
-                                        <td>${pkg.total_quantity}</td>
-                                        <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                }
-                
-                modalContent.innerHTML = contentHTML;
-                document.getElementById('containerDetailModal').style.display = 'flex';
-                
-            } catch (error) {
-                console.error('Error loading container details:', error);
-                showAlert('Konteyner detayları yüklenirken hata oluştu', 'error');
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Excel mode
+            const containerPackages = excelPackages.filter(pkg => pkg.container_id === containerId);
+            containerData = {
+                id: containerId,
+                container_no: containerId,
+                package_count: containerPackages.length,
+                total_quantity: containerPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0),
+                status: containerPackages[0]?.status || 'beklemede',
+                created_at: containerPackages[0]?.created_at || new Date().toISOString()
+            };
+            packages = containerPackages;
+        } else {
+            // Supabase mode - get container with packages
+            const { data: container, error } = await supabase
+                .from('containers')
+                .select(`
+                    *,
+                    packages (*, customers(name))
+                `)
+                .eq('id', containerId)
+                .single();
+
+            if (error) {
+                console.error('Container details error:', error);
+                throw new Error('Konteyner detayları yüklenemedi: ' + error.message);
             }
+
+            containerData = container;
+            packages = container.packages || [];
         }
 
+        // Show details in a simple alert for now
+        const packageList = packages.map(pkg => 
+            `• ${pkg.package_no}: ${pkg.total_quantity} adet (${pkg.customers?.name || pkg.customer_name || 'Müşteri yok'})`
+        ).join('\n');
+
+        alert(`Konteyner: ${containerData.container_no}\n\n` +
+              `Durum: ${containerData.status}\n` +
+              `Paket Sayısı: ${containerData.package_count}\n` +
+              `Toplam Adet: ${containerData.total_quantity}\n\n` +
+              `Paketler:\n${packageList || 'Paket bulunamadı'}`);
+
+    } catch (error) {
+        console.error('Error in viewContainerDetails:', error);
+        showAlert('Konteyner detayları yüklenirken hata oluştu: ' + error.message, 'error');
+    }
+}
 
 
 
@@ -1989,33 +1978,121 @@ async function sendToRamp(containerNo = null) {
 
 
         
-        async function shipContainer(containerNo) {
-            try {
-                // First get the container ID
-                const { data: container, error: fetchError } = await supabase
-                    .from('containers')
-                    .select('id')
-                    .eq('container_no', containerNo)
-                    .single();
+      async function shipContainer(containerNo) {
+    console.log('🚢 shipContainer called with:', containerNo);
+    
+    if (!containerNo) {
+        showAlert('Konteyner numarası geçersiz', 'error');
+        return;
+    }
 
-                if (fetchError) throw fetchError;
-
-                // Update container status
-                const { error: updateError } = await supabase
-                    .from('containers')
-                    .update({ status: 'sevk-edildi' })
-                    .eq('id', container.id);
-
-                if (updateError) throw updateError;
-
-                showAlert(`Konteyner ${containerNo} sevk edildi`, 'success');
-                await populateShippingTable();
-                
-            } catch (error) {
-                console.error('Error shipping container:', error);
-                showAlert('Konteyner sevk edilirken hata oluştu: ' + error.message, 'error');
+    try {
+        // First get the container data safely
+        let containerData;
+        
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Excel mode - find container in excelPackages
+            const containerPackages = excelPackages.filter(pkg => pkg.container_id === containerNo);
+            if (containerPackages.length === 0) {
+                throw new Error('Konteyner Excel verilerinde bulunamadı');
             }
+            
+            containerData = {
+                id: containerNo,
+                container_no: containerNo,
+                package_count: containerPackages.length,
+                total_quantity: containerPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
+            };
+        } else {
+            // Supabase mode
+            const { data: container, error: fetchError } = await supabase
+                .from('containers')
+                .select('id, container_no, package_count, total_quantity, status')
+                .eq('container_no', containerNo)
+                .single(); // Use single() to get one record
+
+            if (fetchError) {
+                console.error('Container fetch error:', fetchError);
+                throw new Error('Konteyner veritabanında bulunamadı: ' + fetchError.message);
+            }
+            
+            if (!container) {
+                throw new Error('Konteyner bulunamadı: ' + containerNo);
+            }
+            
+            containerData = container;
         }
+
+        console.log('Container data:', containerData);
+
+        // Confirm shipment
+        if (!confirm(`"${containerNo}" numaralı konteyneri sevk etmek istediğinize emin misiniz?\n\nPaket Sayısı: ${containerData.package_count || 0}\nToplam Adet: ${containerData.total_quantity || 0}`)) {
+            return;
+        }
+
+        // Update container status
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Excel mode - update packages locally
+            excelPackages.forEach(pkg => {
+                if (pkg.container_id === containerNo) {
+                    pkg.status = 'sevk-edildi';
+                    pkg.updated_at = new Date().toISOString();
+                }
+            });
+            
+            // Save to Excel
+            await ExcelJS.writeFile(ExcelJS.toExcelFormat(excelPackages));
+            
+            showAlert(`Konteyner ${containerNo} Excel modunda sevk edildi`, 'success');
+            
+        } else {
+            // Supabase mode - update in database
+            const { error: updateError } = await supabase
+                .from('containers')
+                .update({ 
+                    status: 'sevk-edildi',
+                    shipped_at: new Date().toISOString()
+                })
+                .eq('container_no', containerNo);
+
+            if (updateError) {
+                console.error('Container update error:', updateError);
+                throw new Error('Konteyner güncellenirken hata oluştu: ' + updateError.message);
+            }
+
+            // Also update packages status
+            const { error: packagesError } = await supabase
+                .from('packages')
+                .update({ status: 'sevk-edildi' })
+                .eq('container_id', containerData.id);
+
+            if (packagesError) {
+                console.warn('Packages update warning:', packagesError);
+                // Don't throw error for packages update, just log it
+            }
+
+            showAlert(`Konteyner ${containerNo} başarıyla sevk edildi ✅`, 'success');
+        }
+
+        // Refresh the shipping table
+        await populateShippingTable();
+        
+    } catch (error) {
+        console.error('❌ Error in shipContainer:', error);
+        
+        let errorMessage = 'Konteyner sevk edilirken hata oluştu';
+        
+        if (error.message.includes('JSON')) {
+            errorMessage = 'Veri işleme hatası. Lütfen sayfayı yenileyin.';
+        } else if (error.message.includes('single row')) {
+            errorMessage = 'Konteyner bulunamadı veya birden fazla eşleşen kayıt var.';
+        } else {
+            errorMessage = error.message;
+        }
+        
+        showAlert(errorMessage, 'error');
+    }
+}  
 
 
         
