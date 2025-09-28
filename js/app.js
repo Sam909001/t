@@ -114,6 +114,100 @@ async function initApp() {
 
 
 
+// NEW FUNCTION: Load packages data with workspace support
+async function loadPackagesData() {
+    if (!window.workspaceManager?.currentWorkspace) {
+        console.warn('Workspace not initialized, using default');
+    }
+    
+    try {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        
+        console.log(`📦 Loading packages data for workspace: ${workspaceId}`);
+        
+        // Load from enhanced Excel storage
+        const excelData = await ExcelJS.readFile();
+        const excelPackagesList = excelData.packages || [];
+        
+        // Filter by workspace
+        const workspacePackages = excelPackagesList.filter(pkg => 
+            pkg.workspace_id === workspaceId
+        );
+        
+        console.log(`📁 Loaded from ${window.workspaceManager?.currentWorkspace?.name || 'Default'} Excel:`, workspacePackages.length, 'packages');
+        window.packages = workspacePackages;
+        
+        // Load from Supabase with workspace filtering (if online and available)
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                console.log('🔄 Attempting to load from Supabase...');
+                const { data: supabasePackages, error } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .is('container_id', null)
+                    .eq('status', 'beklemede')
+                    .eq('workspace_id', workspaceId)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.warn('Supabase query error:', error);
+                    throw error;
+                }
+                
+                if (supabasePackages && supabasePackages.length > 0) {
+                    console.log(`✅ Loaded from Supabase:`, supabasePackages.length, 'packages');
+                    
+                    // Merge with Excel data (Supabase takes priority)
+                    const mergedPackages = mergePackages(workspacePackages, supabasePackages);
+                    window.packages = mergedPackages;
+                    
+                    // Update Excel storage with merged data
+                    const currentData = await ExcelJS.readFile();
+                    currentData.packages = mergedPackages;
+                    await ExcelJS.writeFile(currentData);
+                    
+                    console.log('✅ Data merged and saved to Excel');
+                } else {
+                    console.log('ℹ️ No packages found in Supabase for this workspace');
+                }
+            } catch (supabaseError) {
+                console.warn('❌ Supabase load failed, using Excel data:', supabaseError);
+                isUsingExcel = true;
+                updateStorageIndicator();
+            }
+        } else {
+            console.log('ℹ️ Using Excel data (offline or Excel mode)');
+            isUsingExcel = true;
+            updateStorageIndicator();
+        }
+        
+        await populatePackagesTable();
+        console.log('✅ Packages data loading completed');
+        
+    } catch (error) {
+        console.error('❌ Error loading packages data:', error);
+        showAlert('Paket verileri yüklenirken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Helper function to merge packages
+function mergePackages(excelPackages, supabasePackages) {
+    const merged = [...excelPackages];
+    const excelIds = new Set(excelPackages.map(p => p.id));
+    
+    for (const supabasePkg of supabasePackages) {
+        if (!excelIds.has(supabasePkg.id)) {
+            merged.push(supabasePkg);
+        }
+    }
+    
+    return merged;
+}
+
+
+
+
+
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
     try {
