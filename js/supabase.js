@@ -328,11 +328,11 @@ function generateUUID() {
 // Elementleri bir defa tanımla
 const elements = {};
 
-// Excel.js library (simple implementation)
+// REPLACE in supabase.js - around line 120
 const ExcelJS = {
-    readFile: async function() {
+    readFile: async function(tableName = 'packages') {
         try {
-            const data = localStorage.getItem('excelPackages');
+            const data = localStorage.getItem(`excel_${tableName}_${getCurrentDateKey()}`);
             return data ? JSON.parse(data) : [];
         } catch (error) {
             console.error('Excel read error:', error);
@@ -340,9 +340,9 @@ const ExcelJS = {
         }
     },
     
-    writeFile: async function(data) {
+    writeFile: async function(data, tableName = 'packages') {
         try {
-            localStorage.setItem('excelPackages', JSON.stringify(data));
+            localStorage.setItem(`excel_${tableName}_${getCurrentDateKey()}`, JSON.stringify(data));
             return true;
         } catch (error) {
             console.error('Excel write error:', error);
@@ -350,20 +350,39 @@ const ExcelJS = {
         }
     },
     
-    // Simple XLSX format simulation
+    // Enhanced Excel format with all required fields
     toExcelFormat: function(packages) {
         return packages.map(pkg => ({
-            id: pkg.id || `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            // Required identification fields
+            id: pkg.id || `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             package_no: pkg.package_no,
+            
+            // Customer information
             customer_id: pkg.customer_id,
             customer_name: pkg.customer_name,
-            items: pkg.items,
-            total_quantity: pkg.total_quantity,
-            status: pkg.status,
-            packer: pkg.packer,
-            created_at: pkg.created_at,
+            customer_code: pkg.customer_code,
+            
+            // Package content
+            items: Array.isArray(pkg.items) ? pkg.items : (pkg.items ? Object.entries(pkg.items).map(([name, qty]) => ({ name, qty })) : []),
+            product: pkg.product || 'Mixed Products',
+            total_quantity: pkg.total_quantity || 0,
+            
+            // Status and tracking
+            status: pkg.status || 'beklemede',
+            container_id: pkg.container_id || null,
+            packer: pkg.packer || 'Unknown',
+            
+            // Dates
+            created_at: pkg.created_at || new Date().toISOString(),
             updated_at: pkg.updated_at || new Date().toISOString(),
-            source: 'excel'
+            
+            // Workspace information
+            workspace_id: pkg.workspace_id || 'default',
+            station_name: pkg.station_name || 'Default Station',
+            
+            // Source tracking
+            source: 'excel',
+            sync_status: pkg.sync_status || 'pending'
         }));
     },
     
@@ -372,8 +391,104 @@ const ExcelJS = {
             ...row,
             items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items
         }));
+    },
+    
+    // NEW: Get all tables
+    getAllTables: async function() {
+        const dateKey = getCurrentDateKey();
+        const tables = ['packages', 'containers', 'customers', 'stock'];
+        const result = {};
+        
+        for (const table of tables) {
+            const data = localStorage.getItem(`excel_${table}_${dateKey}`);
+            result[table] = data ? JSON.parse(data) : [];
+        }
+        
+        return result;
+    },
+    
+    // NEW: Clear daily data
+    clearDailyData: function() {
+        const dateKey = getCurrentDateKey();
+        const tables = ['packages', 'containers'];
+        
+        tables.forEach(table => {
+            localStorage.removeItem(`excel_${table}_${dateKey}`);
+        });
     }
 };
+
+// NEW: Date-based storage key
+function getCurrentDateKey() {
+    return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+// NEW: Initialize daily Excel storage
+async function initializeDailyExcelStorage() {
+    const dateKey = getCurrentDateKey();
+    
+    // Check if we have data for today
+    const todayPackages = await ExcelJS.readFile('packages');
+    const todayContainers = await ExcelJS.readFile('containers');
+    
+    if (todayPackages.length === 0 && todayContainers.length === 0) {
+        console.log('Initializing new daily Excel storage for:', dateKey);
+        
+        // Initialize empty arrays for today
+        await ExcelJS.writeFile([], 'packages');
+        await ExcelJS.writeFile([], 'containers');
+        
+        // Sync previous day's pending data if any
+        await syncPreviousDayData();
+    }
+    
+    return {
+        packages: todayPackages,
+        containers: todayContainers
+    };
+}
+
+// NEW: Sync previous day's pending data
+async function syncPreviousDayData() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().split('T')[0];
+    
+    const yesterdayPackages = localStorage.getItem(`excel_packages_${yesterdayKey}`);
+    
+    if (yesterdayPackages) {
+        const packages = JSON.parse(yesterdayPackages);
+        const pendingPackages = packages.filter(pkg => pkg.sync_status === 'pending');
+        
+        if (pendingPackages.length > 0 && supabase && navigator.onLine) {
+            console.log(`Syncing ${pendingPackages.length} pending packages from yesterday`);
+            
+            for (const pkg of pendingPackages) {
+                try {
+                    const { error } = await supabase
+                        .from('packages')
+                        .insert([{
+                            ...pkg,
+                            sync_status: 'synced',
+                            synced_at: new Date().toISOString()
+                        }]);
+                    
+                    if (!error) {
+                        // Mark as synced in yesterday's storage
+                        const updatedPackages = packages.map(p => 
+                            p.id === pkg.id ? { ...p, sync_status: 'synced' } : p
+                        );
+                        localStorage.setItem(`excel_packages_${yesterdayKey}`, JSON.stringify(updatedPackages));
+                    }
+                } catch (error) {
+                    console.error('Failed to sync package:', pkg.id, error);
+                }
+            }
+        }
+    }
+}
+
+
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
