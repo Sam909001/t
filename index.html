@@ -188,6 +188,15 @@ document.addEventListener("DOMContentLoaded", function() {
                         </div>
                         
                         <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="width:100%; margin-top:1rem;">Manuel Giriş</button>
+                            <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;">Extra</button>
+                        </div>
+
+<div class="status-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+<div class="quick-btn status-btn" id="Lekeli" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli">Lekeli</div>
+<div class="quick-btn status-btn" id="Yırtık" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık">Yırtık</div>
+<div class="quick-btn status-btn" id="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan">Çıkmayan</div>
+<div class="quick-btn status-btn" id="Discard" onclick="openStatusQuantityModal('Discard')" data-status="Discard">Discard</div>
+</div>
                         <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:0.5rem;" id="scannerToggle">
                             <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
                         </button>
