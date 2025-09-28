@@ -8,6 +8,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+
+// Initialize elements object - ADD THIS FUNCTION
+function initializeElementsObject() {
+    elements = {
+        // Login elements
+        loginScreen: document.getElementById('loginScreen'),
+        appContainer: document.getElementById('appContainer'),
+        emailInput: document.getElementById('email'),
+        passwordInput: document.getElementById('password'),
+        loginButton: document.getElementById('loginBtn'),
+        
+        // Main app elements
+        currentDate: document.getElementById('currentDate'),
+        customerSelect: document.getElementById('customerSelect'),
+        personnelSelect: document.getElementById('personnelSelect'),
+        containerNumber: document.getElementById('containerNumber'),
+        connectionStatus: document.getElementById('connectionStatus'),
+        
+        // Quantity badges
+        quantityBadges: {
+            tshirt: document.getElementById('tshirtQuantity'),
+            pants: document.getElementById('pantsQuantity'),
+            underwear: document.getElementById('underwearQuantity'),
+            towel: document.getElementById('towelQuantity'),
+            bedsheet: document.getElementById('bedsheetQuantity'),
+            pillowcase: document.getElementById('pillowcaseQuantity'),
+            duvetCover: document.getElementById('duvetCoverQuantity'),
+            tablecloth: document.getElementById('tableclothQuantity'),
+            other: document.getElementById('otherQuantity')
+        },
+        
+        // Modal elements
+        quantityInput: document.getElementById('quantityInput'),
+        
+        // Table elements
+        packagesTableBody: document.getElementById('packagesTableBody'),
+        stockTableBody: document.getElementById('stockTableBody'),
+        shippingTableBody: document.getElementById('shippingTableBody')
+    };
+    
+    console.log('Elements object initialized');
+}
+
+// Also add these missing global variable declarations at the top of your file (before any functions)
+let elements = {};
+let selectedCustomer = null;
+let currentContainer = null;
+let currentPackage = {};
+let currentUser = null;
+let supabase = null;
+let isUsingExcel = false;
+let excelPackages = [];
+let SUPABASE_ANON_KEY = '';
+let currentReportData = null;
+
+
 // State management functions
 function saveAppState() {
     const state = {
