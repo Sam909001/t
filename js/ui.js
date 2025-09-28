@@ -1742,39 +1742,49 @@ function clearStockSearch() {
 // Add this at the BOTTOM of ui.js (after all existing functions)
 
 function initializeWorkspaceUI() {
-    // Create workspace indicator if it doesn't exist
-    if (!document.getElementById('workspaceIndicator')) {
-        const header = document.querySelector('.app-header');
-        if (header) {
-            const indicator = document.createElement('div');
-            indicator.id = 'workspaceIndicator';
-            indicator.className = 'workspace-indicator';
-            indicator.style.cssText = `
-                padding: 0.5rem 1rem;
-                background: var(--primary);
-                color: white;
-                border-radius: 20px;
-                font-size: 0.9rem;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                margin-left: auto;
-                margin-right: 1rem;
-            `;
-            
-            // Insert before settings button if exists
-            const settingsBtn = document.getElementById('settingsBtn');
-            if (settingsBtn) {
-                header.insertBefore(indicator, settingsBtn);
-            } else {
-                header.appendChild(indicator);
-            }
-        }
+    // Check if workspace indicator already exists
+    if (document.getElementById('workspaceIndicator')) {
+        return; // Already initialized
+    }
+
+    const header = document.querySelector('.app-header');
+    if (!header) {
+        console.warn('App header not found, delaying workspace UI initialization');
+        setTimeout(initializeWorkspaceUI, 1000);
+        return;
+    }
+
+    const indicator = document.createElement('div');
+    indicator.id = 'workspaceIndicator';
+    indicator.className = 'workspace-indicator';
+    indicator.style.cssText = `
+        padding: 0.5rem 1rem;
+        background: var(--primary);
+        color: white;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: auto;
+        margin-right: 1rem;
+    `;
+
+    // Safe insertion - find a reliable reference point
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn && settingsBtn.parentNode === header) {
+        header.insertBefore(indicator, settingsBtn);
+    } else {
+        // Fallback: append to header
+        header.appendChild(indicator);
     }
     
     // Add workspace switching capability
     addWorkspaceSwitchHandler();
 }
+
+
+
 
 function addWorkspaceSwitchHandler() {
     const indicator = document.getElementById('workspaceIndicator');
@@ -1833,4 +1843,83 @@ function setupWorkspaceAwareUI() {
     
     // Initial update
     setTimeout(updateUIVisibility, 1000);
+}
+
+
+
+
+// Daily File Management
+function showDailyFilesModal() {
+    const files = ExcelJS.getAllFiles();
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+        align-items: center; z-index: 10000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h2>Günlük Dosya Yönetimi</h2>
+            <p>Her gün için ayrı Excel dosyası oluşturulur ve Supabase'e yüklenir.</p>
+            
+            <div style="margin: 1rem 0;">
+                <strong>Bugünkü Dosya:</strong> ${ExcelJS.getCurrentFileName()}
+            </div>
+            
+            <h3>Geçmiş Dosyalar</h3>
+            <div id="dailyFilesList" style="margin: 1rem 0;">
+                ${files.length === 0 ? 
+                    '<p style="text-align:center; color:#666;">Henüz dosya yok</p>' : 
+                    files.map(file => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
+                            <div>
+                                <strong>${file.date}</strong>
+                                <small style="margin-left: 1rem;">${file.data.length} kayıt</small>
+                            </div>
+                            <div>
+                                <button onclick="ExcelJS.exportFile('${file.date}')" class="btn btn-sm btn-success">
+                                    <i class="fas fa-download"></i> İndir
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')
+                }
+            </div>
+            
+            <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                <button onclick="manualUploadToSupabase()" class="btn btn-primary">
+                    <i class="fas fa-cloud-upload-alt"></i> Supabase'e Yükle
+                </button>
+                <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn btn-secondary">
+                    Kapat
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Manual upload function
+async function manualUploadToSupabase() {
+    try {
+        showAlert('Supabase yükleniyor...', 'info');
+        
+        const files = ExcelJS.getAllFiles();
+        let uploadedCount = 0;
+        
+        for (const file of files) {
+            const success = await ExcelJS.uploadToSupabase(file.data, file.date);
+            if (success) uploadedCount++;
+        }
+        
+        showAlert(`${uploadedCount} dosya Supabase'e yüklendi`, 'success');
+        
+    } catch (error) {
+        console.error('Manual upload error:', error);
+        showAlert('Yükleme hatası: ' + error.message, 'error');
+    }
 }
