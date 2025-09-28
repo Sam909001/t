@@ -1,3 +1,27 @@
+// Ensure workspaceManager exists
+if (!window.workspaceManager) {
+    window.workspaceManager = new WorkspaceManager();
+}
+
+// Make initializeSupabase available globally
+window.initializeSupabase = function() {
+    if (!SUPABASE_ANON_KEY) {
+        console.warn('Supabase API key not set');
+        return null;
+    }
+    
+    try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase client initialized successfully');
+        isUsingExcel = false;
+        return supabase;
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
+        isUsingExcel = true;
+        return null;
+    }
+};
+
 // Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
