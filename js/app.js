@@ -69,79 +69,81 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
-// Initialize application
-// Enhanced application initialization
+
+
+
+
+// Final enhanced application initialization
 async function initApp() {
     try {
         console.log('🚀 Initializing ProClean application...');
         
-        // Initialize workspace system FIRST
+        // Initialize workspace system
         await window.workspaceManager.initialize();
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
         
-        // Initialize elements
+        // Initialize all systems
         initializeElementsObject();
-        
-        // Initialize performance optimizations
         setupDebouncedSearch();
         cleanupEventListeners();
-        
-        // Initialize UX enhancements
         UXEnhancements.setupKeyboardNavigation();
-        
-        // Initialize advanced features
         AdvancedSearch.init();
         BulkOperations.init();
         
         // Set current date
         elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
         
-        // Initialize workspace-aware UI
+        // Initialize UI
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
-        
-        // Update storage indicator
         updateStorageIndicator();
         
-        // Populate dropdowns
+        // Load data
         await populateCustomers();
         await populatePersonnel();
-        
-        // Load saved state
         loadAppState();
-        
-        // Load data
         await loadPackagesData();
         await populateStockTable();
         await populateShippingTable();
         
-        // Test connection
+        // Initialize connections
         await testConnection();
-        
-        // Set up auto-save
-        setInterval(saveAppState, 5000);
-        
-        // Set up offline support
         setupOfflineSupport();
-        
-        // Set up barcode scanner
         setupBarcodeScanner();
         
-        // Start daily auto-clear
+        // Start background services
+        setInterval(saveAppState, 5000);
+        setInterval(() => AuditLogger.syncQueuedLogs(), 30000); // Sync audit logs every 30 seconds
         scheduleDailyClear();
         
-        // Load settings
+        // Load settings and permissions
         loadAllSettings();
+        UserManager.applyUserPermissions();
         
-        console.log('🎉 ProClean application fully initialized');
+        console.log('🎉 ProClean application fully initialized with all enhancements');
         showAlert('Uygulama başarıyla başlatıldı', 'success');
+        
+        // Log successful initialization
+        AuditLogger.log('app_initialized', {
+            workspace: window.workspaceManager.currentWorkspace.name,
+            user: currentUser?.email,
+            version: '2.0.0'
+        });
         
     } catch (error) {
         console.error('❌ Application initialization failed:', error);
         ErrorHandler.handle(error, 'Uygulama başlatma');
-        showAlert('Uygulama başlatılırken hata oluştu. Bazı özellikler çalışmayabilir.', 'error');
+        
+        // Log initialization failure
+        AuditLogger.log('app_initialization_failed', {
+            error: error.message,
+            workspace: window.workspaceManager?.currentWorkspace?.name
+        });
     }
 }
+
+
+
 
 // Update DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', async function() {
