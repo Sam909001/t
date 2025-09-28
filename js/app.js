@@ -421,6 +421,242 @@ function clearDailyAppState() {
     currentContainer = null;
     currentPackage = {};
 
+
+
+    // ==================== DAILY FILE MANAGEMENT SYSTEM ====================
+class DailyFileManager {
+    constructor() {
+        this.currentDateKey = getCurrentDateKey();
+        this.autoSyncInterval = null;
+    }
+    
+    async initialize() {
+        console.log('Initializing daily file manager for:', this.currentDateKey);
+        
+        // Check if date changed
+        this.checkDateChange();
+        
+        // Start auto-sync
+        this.startAutoSync();
+        
+        // Initialize today's files
+        return await initializeDailyExcelStorage();
+    }
+    
+    checkDateChange() {
+        const todayKey = getCurrentDateKey();
+        if (todayKey !== this.currentDateKey) {
+            console.log('Date changed from', this.currentDateKey, 'to', todayKey);
+            this.currentDateKey = todayKey;
+            
+            // Trigger daily cleanup and new file creation
+            this.initializeNewDay();
+        }
+    }
+    
+    async initializeNewDay() {
+        console.log('Initializing new day:', this.currentDateKey);
+        
+        // Sync yesterday's pending data
+        await syncPreviousDayData();
+        
+        // Create new empty files for today
+        await ExcelJS.writeFile([], 'packages');
+        await ExcelJS.writeFile([], 'containers');
+        
+        // Clear frontend state
+        clearDailyAppState();
+        
+        showAlert(`Yeni gün başlatıldı: ${this.currentDateKey}`, 'info');
+    }
+    
+    startAutoSync() {
+        // Sync every 2 minutes if online
+        this.autoSyncInterval = setInterval(async () => {
+            if (navigator.onLine && supabase) {
+                await this.syncPendingData();
+            }
+        }, 120000); // 2 minutes
+    }
+    
+    async syncPendingData() {
+        try {
+            const packages = await ExcelJS.readFile('packages');
+            const pendingPackages = packages.filter(pkg => pkg.sync_status === 'pending');
+            
+            if (pendingPackages.length > 0) {
+                console.log(`Auto-syncing ${pendingPackages.length} pending packages`);
+                
+                for (const pkg of pendingPackages) {
+                    try {
+                        const supabasePackage = { ...pkg };
+                        delete supabasePackage.source;
+                        delete supabasePackage.sync_status;
+                        
+                        const { error } = await supabase
+                            .from('packages')
+                            .insert([supabasePackage]);
+                        
+                        if (!error) {
+                            // Mark as synced
+                            const updatedPackages = packages.map(p => 
+                                p.id === pkg.id ? { ...p, sync_status: 'synced' } : p
+                            );
+                            await ExcelJS.writeFile(updatedPackages, 'packages');
+                        }
+                    } catch (error) {
+                        console.error('Auto-sync failed for package:', pkg.id, error);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Auto-sync error:', error);
+        }
+    }
+    
+    stopAutoSync() {
+        if (this.autoSyncInterval) {
+            clearInterval(this.autoSyncInterval);
+        }
+    }
+}
+
+// Date-based storage key
+function getCurrentDateKey() {
+    return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+// Initialize daily Excel storage
+async function initializeDailyExcelStorage() {
+    const dateKey = getCurrentDateKey();
+    
+    // Check if we have data for today
+    const todayPackages = await ExcelJS.readFile('packages');
+    const todayContainers = await ExcelJS.readFile('containers');
+    
+    if (todayPackages.length === 0 && todayContainers.length === 0) {
+        console.log('Initializing new daily Excel storage for:', dateKey);
+        
+        // Initialize empty arrays for today
+        await ExcelJS.writeFile([], 'packages');
+        await ExcelJS.writeFile([], 'containers');
+        
+        // Sync previous day's pending data if any
+        await syncPreviousDayData();
+    }
+    
+    return {
+        packages: todayPackages,
+        containers: todayContainers
+    };
+}
+
+// Sync previous day's pending data
+async function syncPreviousDayData() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().split('T')[0];
+    
+    const yesterdayPackages = localStorage.getItem(`excel_packages_${yesterdayKey}`);
+    
+    if (yesterdayPackages) {
+        const packages = JSON.parse(yesterdayPackages);
+        const pendingPackages = packages.filter(pkg => pkg.sync_status === 'pending');
+        
+        if (pendingPackages.length > 0 && supabase && navigator.onLine) {
+            console.log(`Syncing ${pendingPackages.length} pending packages from yesterday`);
+            
+            for (const pkg of pendingPackages) {
+                try {
+                    const { error } = await supabase
+                        .from('packages')
+                        .insert([{
+                            ...pkg,
+                            sync_status: 'synced',
+                            synced_at: new Date().toISOString()
+                        }]);
+                    
+                    if (!error) {
+                        // Mark as synced in yesterday's storage
+                        const updatedPackages = packages.map(p => 
+                            p.id === pkg.id ? { ...p, sync_status: 'synced' } : p
+                        );
+                        localStorage.setItem(`excel_packages_${yesterdayKey}`, JSON.stringify(updatedPackages));
+                    }
+                } catch (error) {
+                    console.error('Failed to sync package:', pkg.id, error);
+                }
+            }
+        }
+    }
+}
+
+// Enhanced package data merging
+function mergePackageData(excelData, supabaseData) {
+    const merged = [...excelData];
+    const excelIds = new Set(excelData.map(p => p.id));
+    
+    // Add Supabase packages not in Excel
+    for (const supabasePkg of supabaseData) {
+        if (!excelIds.has(supabasePkg.id)) {
+            merged.push({
+                ...supabasePkg,
+                source: 'supabase',
+                sync_status: 'synced'
+            });
+        } else {
+            // Update existing Excel packages with Supabase data
+            const index = merged.findIndex(p => p.id === supabasePkg.id);
+            if (index !== -1) {
+                merged[index] = {
+                    ...merged[index],
+                    ...supabasePkg,
+                    source: 'supabase',
+                    sync_status: 'synced'
+                };
+            }
+        }
+    }
+    
+    return merged;
+}
+
+// Export today's Excel data
+async function exportTodaysData() {
+    try {
+        const dateKey = getCurrentDateKey();
+        const packages = await ExcelJS.readFile('packages');
+        const containers = await ExcelJS.readFile('containers');
+        
+        const exportData = {
+            export_date: new Date().toISOString(),
+            date_key: dateKey,
+            packages: packages,
+            containers: containers,
+            metadata: {
+                total_packages: packages.length,
+                total_containers: containers.length,
+                workspace: window.workspaceManager?.currentWorkspace?.name || 'default'
+            }
+        };
+        
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `proclean-data-${dateKey}.json`;
+        link.click();
+        
+        showAlert(`Bugünün verileri dışa aktarıldı: ${dateKey}`, 'success');
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert('Dışa aktarma hatası', 'error');
+    }
+}
+
+    
     // Reset UI
     if (elements.customerSelect) elements.customerSelect.value = '';
     if (elements.personnelSelect) elements.personnelSelect.value = '';
@@ -468,26 +704,8 @@ function scheduleDailyClear() {
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
-    // Settings button
-    const settingsBtn = document.getElementById('settingsBtn');
-    if (settingsBtn) {
-        settingsBtn.addEventListener('click', function() {
-            console.log('Settings button clicked');
-            showSettingsModal();
-        });
-        console.log('Settings button listener added successfully');
-    } else {
-        console.error('Settings button not found in DOM');
-    }
-
-    // Close settings modal
-    const closeBtn = document.getElementById('closeSettingsModalBtn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeSettingsModal);
-    }
-
     try {
-        console.log('Initializing ProClean application...');
+        console.log('Initializing ProClean application with daily file management...');
         
         // Initialize workspace system FIRST
         window.workspaceManager = new WorkspaceManager();
@@ -495,102 +713,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         console.log('Workspace initialized:', window.workspaceManager.currentWorkspace);
         
+        // Initialize daily file manager SECOND
+        window.dailyFileManager = new DailyFileManager();
+        await window.dailyFileManager.initialize();
+        
+        console.log('Daily file manager initialized');
+        
         // Then initialize elements
         initializeElementsObject();
         
-        // Check critical elements exist before adding listeners
-        const loginBtn = elements.loginButton;
-        const emailInput = elements.emailInput;
-        const passwordInput = elements.passwordInput;
-        
-        if (loginBtn) {
-            loginBtn.addEventListener('click', login);
-            console.log('Login button listener added');
-        } else {
-            console.error('Login button not found - check HTML structure');
-            showAlert('Giriş butonu bulunamadı', 'error');
-        }
-        
-        // Logout button
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', logout);
-        }
-        
-        // Enter key listeners
-        if (emailInput) {
-            emailInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    login();
-                }
-            });
-        }
-        
-        if (passwordInput) {
-            passwordInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    login();
-                }
-            });
-        }
-        
-        // Quantity modal enter key
-        if (elements.quantityInput) {
-            elements.quantityInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    confirmQuantity();
-                }
-            });
-        }
-        
-        // Customer select change listener
-        if (elements.customerSelect) {
-            elements.customerSelect.addEventListener('change', function() {
-                const customerId = this.value;
-                if (customerId) {
-                    const selectedOption = this.options[this.selectedIndex];
-                    selectedCustomer = {
-                        id: customerId,
-                        name: selectedOption.textContent.split(' (')[0],
-                        code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                    };
-                    showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
-                } else {
-                    selectedCustomer = null;
-                }
-            });
-        }
-        
-        // Tab click events
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                const tabName = this.getAttribute('data-tab');
-                if (tabName) {
-                    switchTab(tabName);
-                }
-            });
-        });
-
-        function applySavedTheme() {
-            const savedTheme = localStorage.getItem('procleanTheme');
-            if (savedTheme === 'dark') {
-                document.body.classList.add('dark-mode');
-            }
-        }
-
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            if (document.body.classList.contains('dark-mode')) {
-                localStorage.setItem('procleanTheme', 'dark');
-                showAlert('Koyu tema etkinleştirildi.', 'info');
-            } else {
-                localStorage.setItem('procleanTheme', 'light');
-                showAlert('Açık tema etkinleştirildi.', 'info');
-            }
-        }
+        // Setup basic event listeners
+        setupBasicEventListeners();
         
         // API key initialization
         if (loadApiKey()) {
@@ -609,17 +742,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Initialize settings when app loads
         initializeSettings();
 
-        // Add settings button event listener
-        document.getElementById('settingsBtn').addEventListener('click', showSettingsModal);
-        document.getElementById('closeSettingsModalBtn').addEventListener('click', closeSettingsModal);
-
-        // Close modal when clicking outside
-        window.addEventListener('click', function(event) {
-            if (event.target === document.getElementById('settingsModal')) {
-                closeSettingsModal();
-            }
-        });
-        
         // Set initial display states
         if (elements.loginScreen) {
             elements.loginScreen.style.display = 'flex';
@@ -639,13 +761,135 @@ document.addEventListener('DOMContentLoaded', async function() {
         showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
     }
 });
+
 // Global error handler
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
     showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
 });
 
+// NEW: Basic event listeners setup function
+function setupBasicEventListeners() {
+    // Settings button
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', function() {
+            console.log('Settings button clicked');
+            showSettingsModal();
+        });
+        console.log('Settings button listener added successfully');
+    } else {
+        console.error('Settings button not found in DOM');
+    }
 
+    // Close settings modal
+    const closeBtn = document.getElementById('closeSettingsModalBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeSettingsModal);
+    }
+    
+    // Check critical elements exist before adding listeners
+    const loginBtn = elements.loginButton;
+    const emailInput = elements.emailInput;
+    const passwordInput = elements.passwordInput;
+    
+    if (loginBtn) {
+        loginBtn.addEventListener('click', login);
+        console.log('Login button listener added');
+    } else {
+        console.error('Login button not found - check HTML structure');
+        showAlert('Giriş butonu bulunamadı', 'error');
+    }
+    
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+    
+    // Enter key listeners
+    if (emailInput) {
+        emailInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                login();
+            }
+        });
+    }
+    
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                login();
+            }
+        });
+    }
+    
+    // Quantity modal enter key
+    if (elements.quantityInput) {
+        elements.quantityInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmQuantity();
+            }
+        });
+    }
+    
+    // Customer select change listener
+    if (elements.customerSelect) {
+        elements.customerSelect.addEventListener('change', function() {
+            const customerId = this.value;
+            if (customerId) {
+                const selectedOption = this.options[this.selectedIndex];
+                selectedCustomer = {
+                    id: customerId,
+                    name: selectedOption.textContent.split(' (')[0],
+                    code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
+                showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+            } else {
+                selectedCustomer = null;
+            }
+        });
+    }
+    
+    // Tab click events
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            if (tabName) {
+                switchTab(tabName);
+            }
+        });
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target === document.getElementById('settingsModal')) {
+            closeSettingsModal();
+        }
+    });
+}
+
+// NEW: Theme functions
+function applySavedTheme() {
+    const savedTheme = localStorage.getItem('procleanTheme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    if (document.body.classList.contains('dark-mode')) {
+        localStorage.setItem('procleanTheme', 'dark');
+        showAlert('Koyu tema etkinleştirildi.', 'info');
+    } else {
+        localStorage.setItem('procleanTheme', 'light');
+        showAlert('Açık tema etkinleştirildi.', 'info');
+    }
+}
 
 
 
@@ -823,6 +1067,7 @@ function mergePackages(excelPackages, supabasePackages) {
 }
 
 // REPLACE the existing completePackage function with this:
+// REPLACE in app.js - the completePackage function
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -834,70 +1079,167 @@ async function completePackage() {
         return;
     }
 
-    // Check workspace permissions
-    if (!window.workspaceManager.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
     try {
-        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
+        const packageNo = `PKG-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
+
+        // Convert items to proper format
+        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
+            name: name,
+            qty: qty
+        }));
 
         const packageData = {
             id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
-            items: currentPackage.items,
+            customer_code: selectedCustomer.code,
+            items: itemsArray,
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
-            station_name: window.workspaceManager.currentWorkspace.name
+            workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default',
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default',
+            source: 'excel',
+            sync_status: 'pending'
         };
 
-        // Save based on connectivity and workspace settings
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
+        // ALWAYS save to Excel first for persistence
+        const currentPackages = await ExcelJS.readFile('packages');
+        currentPackages.push(packageData);
+        const success = await ExcelJS.writeFile(currentPackages, 'packages');
+        
+        if (success) {
+            // Update global state
+            excelPackages = currentPackages;
+            
+            // Try to sync with Supabase if online
+            if (supabase && navigator.onLine) {
+                try {
+                    const supabasePackage = { ...packageData };
+                    delete supabasePackage.source; // Remove Excel-specific fields
+                    
+                    const { data, error } = await supabase
+                        .from('packages')
+                        .insert([supabasePackage])
+                        .select();
 
-                if (error) throw error;
-
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-                isUsingExcel = true;
+                    if (!error) {
+                        // Update Excel record with sync status
+                        const updatedPackages = currentPackages.map(p => 
+                            p.id === packageData.id ? { ...p, sync_status: 'synced' } : p
+                        );
+                        await ExcelJS.writeFile(updatedPackages, 'packages');
+                        excelPackages = updatedPackages;
+                        
+                        showAlert(`Paket oluşturuldu ve senkronize edildi: ${packageNo}`, 'success');
+                    } else {
+                        throw error;
+                    }
+                } catch (supabaseError) {
+                    console.warn('Supabase sync failed, package saved locally:', supabaseError);
+                    showAlert(`Paket oluşturuldu (Yerel Kayıt): ${packageNo}`, 'warning');
+                }
+            } else {
+                showAlert(`Paket oluşturuldu (Çevrimdışı): ${packageNo}`, 'warning');
             }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-            isUsingExcel = true;
-        }
 
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
+            // Reset UI state
+            currentPackage = {};
+            document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+            
+            // Refresh display
+            await populatePackagesTable();
+            updateStorageIndicator();
+        }
 
     } catch (error) {
         console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası', 'error');
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
+
+// REPLACE the loadPackagesData function in app.js
+async function loadPackagesData() {
+    try {
+        // Initialize daily storage
+        const dailyData = await initializeDailyExcelStorage();
+        excelPackages = dailyData.packages;
+        
+        console.log('Loaded from daily Excel:', excelPackages.length, 'packages');
+        
+        // If online, try to sync and merge with Supabase
+        if (supabase && navigator.onLine) {
+            try {
+                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+                
+                const { data: supabasePackages, error } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .eq('workspace_id', workspaceId)
+                    .gte('created_at', new Date().toISOString().split('T')[0]) // Today's packages only
+                    .order('created_at', { ascending: false });
+
+                if (!error && supabasePackages) {
+                    console.log('Loaded from Supabase:', supabasePackages.length, 'packages');
+                    
+                    // Merge strategies: Supabase takes precedence
+                    const mergedPackages = mergePackageData(excelPackages, supabasePackages);
+                    
+                    // Update Excel storage with merged data
+                    if (mergedPackages.length !== excelPackages.length) {
+                        await ExcelJS.writeFile(mergedPackages, 'packages');
+                        excelPackages = mergedPackages;
+                    }
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase load failed, using Excel data:', supabaseError);
+            }
+        }
+        
+        window.packages = excelPackages;
+        await populatePackagesTable();
+        
+    } catch (error) {
+        console.error('Error loading packages data:', error);
+        showAlert('Paket verileri yüklenirken hata oluştu', 'error');
+    }
+}
+
+// NEW: Enhanced package data merging
+function mergePackageData(excelData, supabaseData) {
+    const merged = [...excelData];
+    const excelIds = new Set(excelData.map(p => p.id));
+    
+    // Add Supabase packages not in Excel
+    for (const supabasePkg of supabaseData) {
+        if (!excelIds.has(supabasePkg.id)) {
+            merged.push({
+                ...supabasePkg,
+                source: 'supabase',
+                sync_status: 'synced'
+            });
+        } else {
+            // Update existing Excel packages with Supabase data
+            const index = merged.findIndex(p => p.id === supabasePkg.id);
+            if (index !== -1) {
+                merged[index] = {
+                    ...merged[index],
+                    ...supabasePkg,
+                    source: 'supabase',
+                    sync_status: 'synced'
+                };
+            }
+        }
+    }
+    
+    return merged;
+}
+
 
 
 
