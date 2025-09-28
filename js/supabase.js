@@ -775,48 +775,48 @@ async function populatePersonnel() {
 
 
 async function populatePackagesTable() {
-    if (packagesTableLoading) {
-        console.log('Package table already loading, skipping...');
-        return;
-    }
-    
+    if (packagesTableLoading) return;
     packagesTableLoading = true;
 
     try {
-        const tableBody = elements.packagesTableBody || document.getElementById('packagesTableBody');
-        const totalPackagesElement = elements.totalPackages || document.getElementById('totalPackages');
-
+        const tableBody = elements.packagesTableBody;
         if (!tableBody) throw new Error('Package table body not found');
 
         tableBody.innerHTML = '';
-        if (totalPackagesElement) totalPackagesElement.textContent = '0';
-
+        
         let packages = [];
+        const currentWorkspaceId = window.workspaceManager?.currentWorkspace?.id;
 
-        // Check if we should use Excel data
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use Excel data
+            // Use Excel data with workspace filtering
             packages = excelPackages.filter(pkg => 
-                pkg.status === 'beklemede' && (!pkg.container_id || pkg.container_id === null)
+                pkg.status === 'beklemede' && 
+                (!pkg.container_id || pkg.container_id === null) &&
+                (!pkg.workspace_id || pkg.workspace_id === currentWorkspaceId) // 👈 WORKSPACE FILTER
             );
-            console.log('Using Excel data:', packages.length, 'packages');
         } else {
-            // Try to use Supabase data
+            // Use Supabase data with workspace filtering
             try {
-                const { data: supabasePackages, error } = await supabase
+                let query = supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
-                    .eq('status', 'beklemede')
-                    .order('created_at', { ascending: false });
+                    .eq('status', 'beklemede');
+
+                // Add workspace filter if available
+                if (currentWorkspaceId) {
+                    query = query.eq('workspace_id', currentWorkspaceId);
+                }
+
+                const { data: supabasePackages, error } = await query.order('created_at', { ascending: false });
 
                 if (error) throw error;
                 packages = supabasePackages || [];
-                console.log('Using Supabase data:', packages.length, 'packages');
             } catch (error) {
-                console.warn('Supabase fetch failed, using Excel data:', error);
                 packages = excelPackages.filter(pkg => 
-                    pkg.status === 'beklemede' && (!pkg.container_id || pkg.container_id === null)
+                    pkg.status === 'beklemede' && 
+                    (!pkg.container_id || pkg.container_id === null) &&
+                    (!pkg.workspace_id || pkg.workspace_id === currentWorkspaceId)
                 );
                 isUsingExcel = true;
             }
