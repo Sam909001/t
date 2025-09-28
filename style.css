@@ -1512,20 +1512,76 @@ table {
     border-left: 4px solid #1976d2;
 }
 
-/* Fix Reports Tab Scroll */
-#reportsTab {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-}
 
-#reportsTab .reports-container {
+/* ===== FIXED TAB SYSTEM FOR SCROLLING ===== */
+
+/* Tab content container */
+.tab-content { 
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 0;
+    padding: 1.2rem;
+}
+
+/* Base tab pane - ALL tabs start hidden */
+.tab-pane { 
+    display: none !important;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+}
+
+/* Only active tab is visible */
+.tab-pane.active { 
+    display: flex !important;
+}
+
+/* ===== STOCK TAB SPECIFIC FIXES ===== */
+#stockTab {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 15px;
+}
+
+#stockTab .stock-search {
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 15px;
+    background: var(--surface);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow);
+    margin: 0;
+}
+
+#stockTab .stock-table-container {
+    flex: 1;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+#stockTab .file-upload {
+    flex-shrink: 0;
+    padding: 15px;
+    background: var(--surface);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow);
+    margin: 0;
+}
+
+/* ===== REPORTS TAB SPECIFIC FIXES ===== */
+#reportsTab {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 15px;
 }
 
 #reportsTab .packaging-header {
@@ -1533,7 +1589,7 @@ table {
     background: var(--surface);
     padding: 15px 20px;
     margin: 0;
-    border-bottom: 1px solid var(--border);
+    border-radius: 8px;
     box-shadow: 0 2px 4px var(--shadow);
 }
 
@@ -1542,63 +1598,35 @@ table {
     background: var(--surface);
     padding: 15px 20px;
     margin: 0;
-    border-bottom: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow);
 }
 
 #reportsTab .reports-table-container {
     flex: 1;
     overflow: auto;
-    padding: 0 20px 20px 20px;
-}
-
-#reportsTab table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--surface);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px var(--shadow);
-}
-
-#reportsTab table th {
-    position: sticky;
-    top: 0;
-    background: var(--light);
-    z-index: 10;
-}
-
-/* Ensure all tab panes have proper scrolling */
-.tab-pane {
-    display: none;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-}
-
-.tab-pane.active {
-    display: flex;
-}
-
-/* Fix table container scrolling */
-.stock-table-container,
-.reports-table-container {
-    flex: 1;
-    overflow: auto;
     border: 1px solid var(--border);
     border-radius: 8px;
-    margin: 10px 0;
+    background: var(--surface);
+    box-shadow: 0 2px 4px var(--shadow);
+    padding: 0;
 }
 
-/* Ensure tables are scrollable */
-.stock-table,
-.package-table {
-    min-width: 100%;
+/* ===== SCROLLABLE TABLE CONTAINERS ===== */
+.stock-table-container,
+.reports-table-container {
+    position: relative;
+}
+
+.stock-table-container table,
+.reports-table-container table {
+    width: 100%;
     margin: 0;
+    border-collapse: collapse;
 }
 
-/* Fix header positioning for scrollable tables */
-.stock-table thead th,
-.package-table thead th {
+.stock-table-container thead th,
+.reports-table-container thead th {
     position: sticky;
     top: 0;
     background: var(--light);
@@ -1606,10 +1634,90 @@ table {
     box-shadow: 0 1px 0 var(--border);
 }
 
-body.dark-mode .stock-table thead th,
-body.dark-mode .package-table thead th {
+body.dark-mode .stock-table-container thead th,
+body.dark-mode .reports-table-container thead th {
     background: var(--dark);
 }
+
+/* ===== REMOVE CONFLICTING STYLES ===== */
+/* Remove these conflicting styles */
+.tab-pane[style*="height"] {
+    height: 100% !important;
+}
+
+/* Remove any fixed heights that prevent scrolling */
+#stockTab[style*="height"],
+#reportsTab[style*="height"] {
+    height: 100% !important;
+}
+
+/* ===== ENSURE PROPER SCROLLING ===== */
+.stock-table-container::-webkit-scrollbar,
+.reports-table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.stock-table-container::-webkit-scrollbar-track,
+.reports-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+body.dark-mode .stock-table-container::-webkit-scrollbar-track,
+body.dark-mode .reports-table-container::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
+.stock-table-container::-webkit-scrollbar-thumb,
+.reports-table-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+body.dark-mode .stock-table-container::-webkit-scrollbar-thumb,
+body.dark-mode .reports-table-container::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}
+
+/* ===== EMERGENCY OVERRIDES ===== */
+/* Force scrolling to work */
+#stockTab,
+#reportsTab {
+    overflow: hidden !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.stock-table-container,
+.reports-table-container {
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    min-height: 200px !important;
+}
+
+/* Ensure tables are properly contained */
+.stock-table-container table,
+.reports-table-container table {
+    min-width: 100%;
+    table-layout: auto;
+}
+
+/* ===== RESPONSIVE FIXES ===== */
+@media (max-width: 768px) {
+    #stockTab .stock-search,
+    #reportsTab .report-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    #stockTab .stock-search input,
+    #reportsTab .report-filters .info-group {
+        width: 100%;
+    }
+}
+
 
 /* Status indicators */
 .status-stokta { color: #28a745; font-weight: bold; }
@@ -1635,32 +1743,4 @@ body.dark-mode .package-table thead th {
 .storage-indicator.supabase-mode {
     background-color: #3ecf8e;
     color: white;
-}
-
-/* Tab content styling */
-.tab-pane {
-    display: none;
-}
-
-.tab-pane.active {
-    display: block;
-}
-
-/* Table styling */
-.stock-table, .package-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 10px 0;
-}
-
-.stock-table th, .stock-table td,
-.package-table th, .package-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
-}
-
-.stock-table th, .package-table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
 }
