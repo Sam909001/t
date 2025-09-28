@@ -405,25 +405,79 @@ function handleSupabaseError(error, context) {
     }
 }
 
-// ==========================
-// DAILY AUTO-CLEAR FUNCTION
-// ==========================
 
-// Clear local app state (frontend only)
-function clearDailyAppState() {
-    console.log('[Daily Clear] Clearing frontend state...');
+// ==================== DAILY FILE MANAGEMENT SYSTEM ====================
+
+// Date-based storage key
+function getCurrentDateKey() {
+    return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+// Sync previous day's pending data
+async function syncPreviousDayData() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().split('T')[0];
     
-    // Clear saved state in localStorage
-    localStorage.removeItem('procleanState');
+    const yesterdayPackages = localStorage.getItem(`excel_packages_${yesterdayKey}`);
+    
+    if (yesterdayPackages) {
+        const packages = JSON.parse(yesterdayPackages);
+        const pendingPackages = packages.filter(pkg => pkg.sync_status === 'pending');
+        
+        if (pendingPackages.length > 0 && supabase && navigator.onLine) {
+            console.log(`Syncing ${pendingPackages.length} pending packages from yesterday`);
+            
+            for (const pkg of pendingPackages) {
+                try {
+                    const { error } = await supabase
+                        .from('packages')
+                        .insert([{
+                            ...pkg,
+                            sync_status: 'synced',
+                            synced_at: new Date().toISOString()
+                        }]);
+                    
+                    if (!error) {
+                        // Mark as synced in yesterday's storage
+                        const updatedPackages = packages.map(p => 
+                            p.id === pkg.id ? { ...p, sync_status: 'synced' } : p
+                        );
+                        localStorage.setItem(`excel_packages_${yesterdayKey}`, JSON.stringify(updatedPackages));
+                    }
+                } catch (error) {
+                    console.error('Failed to sync package:', pkg.id, error);
+                }
+            }
+        }
+    }
+}
 
-    // Reset global variables
-    selectedCustomer = null;
-    currentContainer = null;
-    currentPackage = {};
+// Initialize daily Excel storage
+async function initializeDailyExcelStorage() {
+    const dateKey = getCurrentDateKey();
+    
+    // Check if we have data for today
+    const todayPackages = await ExcelJS.readFile('packages');
+    const todayContainers = await ExcelJS.readFile('containers');
+    
+    if (todayPackages.length === 0 && todayContainers.length === 0) {
+        console.log('Initializing new daily Excel storage for:', dateKey);
+        
+        // Initialize empty arrays for today
+        await ExcelJS.writeFile([], 'packages');
+        await ExcelJS.writeFile([], 'containers');
+        
+        // Sync previous day's pending data if any
+        await syncPreviousDayData();
+    }
+    
+    return {
+        packages: todayPackages,
+        containers: todayContainers
+    };
+}
 
-
-
-    // ==================== DAILY FILE MANAGEMENT SYSTEM ====================
 class DailyFileManager {
     constructor() {
         this.currentDateKey = getCurrentDateKey();
@@ -521,73 +575,129 @@ class DailyFileManager {
     }
 }
 
-// Date-based storage key
-function getCurrentDateKey() {
-    return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+// ==========================
+// DAILY AUTO-CLEAR FUNCTION
+// ==========================
+
+// Clear local app state (frontend only)
+function clearDailyAppState() {
+    console.log('[Daily Clear] Clearing frontend state...');
+    
+    // Clear saved state in localStorage
+    localStorage.removeItem('procleanState');
+
+    // Reset global variables
+    selectedCustomer = null;
+    currentContainer = null;
+    currentPackage = {};
+
+    // Reset UI
+    if (elements.customerSelect) elements.customerSelect.value = '';
+    if (elements.personnelSelect) elements.personnelSelect.value = '';
+    if (elements.containerNumber) elements.containerNumber.textContent = 'Yok';
+    document.querySelectorAll('.quantity-badge').forEach(b => b.textContent = '0');
+    const packageDetail = document.getElementById('packageDetailContent');
+    if (packageDetail) packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+
+    // Reload today's data from Supabase
+    loadTodaysData();
 }
 
-// Initialize daily Excel storage
-async function initializeDailyExcelStorage() {
-    const dateKey = getCurrentDateKey();
-    
-    // Check if we have data for today
-    const todayPackages = await ExcelJS.readFile('packages');
-    const todayContainers = await ExcelJS.readFile('containers');
-    
-    if (todayPackages.length === 0 && todayContainers.length === 0) {
-        console.log('Initializing new daily Excel storage for:', dateKey);
-        
-        // Initialize empty arrays for today
-        await ExcelJS.writeFile([], 'packages');
-        await ExcelJS.writeFile([], 'containers');
-        
-        // Sync previous day's pending data if any
-        await syncPreviousDayData();
+// Load today's packages/containers from Supabase
+async function loadTodaysData() {
+    try {
+        if (!supabase) return;
+
+        // Fetch today's packages
+        window.packages = await fetchTodaysPackages();
+        window.containers = await fetchTodaysContainers();
+
+        // Re-render UI tables
+        renderPackagesTable();
+        renderShippingTable();
+
+        console.log('[Daily Clear] Data reloaded from Supabase');
+    } catch (error) {
+        console.error('Error loading today\'s data:', error);
     }
-    
-    return {
-        packages: todayPackages,
-        containers: todayContainers
-    };
 }
 
-// Sync previous day's pending data
-async function syncPreviousDayData() {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayKey = yesterday.toISOString().split('T')[0];
+// Schedule daily clear at next midnight
+function scheduleDailyClear() {
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5); // 5 sec buffer
+    const msUntilMidnight = nextMidnight - now;
+
+    console.log(`[Daily Clear] Next clear in ${Math.round(msUntilMidnight / 1000)} seconds`);
+
+    setTimeout(() => {
+        clearDailyAppState();
+        scheduleDailyClear();  // reschedule for next day
+    }, msUntilMidnight);
+}
+
+// Enhanced package data merging
+function mergePackageData(excelData, supabaseData) {
+    const merged = [...excelData];
+    const excelIds = new Set(excelData.map(p => p.id));
     
-    const yesterdayPackages = localStorage.getItem(`excel_packages_${yesterdayKey}`);
-    
-    if (yesterdayPackages) {
-        const packages = JSON.parse(yesterdayPackages);
-        const pendingPackages = packages.filter(pkg => pkg.sync_status === 'pending');
-        
-        if (pendingPackages.length > 0 && supabase && navigator.onLine) {
-            console.log(`Syncing ${pendingPackages.length} pending packages from yesterday`);
-            
-            for (const pkg of pendingPackages) {
-                try {
-                    const { error } = await supabase
-                        .from('packages')
-                        .insert([{
-                            ...pkg,
-                            sync_status: 'synced',
-                            synced_at: new Date().toISOString()
-                        }]);
-                    
-                    if (!error) {
-                        // Mark as synced in yesterday's storage
-                        const updatedPackages = packages.map(p => 
-                            p.id === pkg.id ? { ...p, sync_status: 'synced' } : p
-                        );
-                        localStorage.setItem(`excel_packages_${yesterdayKey}`, JSON.stringify(updatedPackages));
-                    }
-                } catch (error) {
-                    console.error('Failed to sync package:', pkg.id, error);
-                }
+    // Add Supabase packages not in Excel
+    for (const supabasePkg of supabaseData) {
+        if (!excelIds.has(supabasePkg.id)) {
+            merged.push({
+                ...supabasePkg,
+                source: 'supabase',
+                sync_status: 'synced'
+            });
+        } else {
+            // Update existing Excel packages with Supabase data
+            const index = merged.findIndex(p => p.id === supabasePkg.id);
+            if (index !== -1) {
+                merged[index] = {
+                    ...merged[index],
+                    ...supabasePkg,
+                    source: 'supabase',
+                    sync_status: 'synced'
+                };
             }
         }
+    }
+    
+    return merged;
+}
+
+// Export today's Excel data
+async function exportTodaysData() {
+    try {
+        const dateKey = getCurrentDateKey();
+        const packages = await ExcelJS.readFile('packages');
+        const containers = await ExcelJS.readFile('containers');
+        
+        const exportData = {
+            export_date: new Date().toISOString(),
+            date_key: dateKey,
+            packages: packages,
+            containers: containers,
+            metadata: {
+                total_packages: packages.length,
+                total_containers: containers.length,
+                workspace: window.workspaceManager?.currentWorkspace?.name || 'default'
+            }
+        };
+        
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `proclean-data-${dateKey}.json`;
+        link.click();
+        
+        showAlert(`Bugünün verileri dışa aktarıldı: ${dateKey}`, 'success');
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert('Dışa aktarma hatası', 'error');
     }
 }
 
