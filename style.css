@@ -1512,26 +1512,104 @@ table {
     border-left: 4px solid #1976d2;
 }
 
-
-/* Make the reports tab scrollable */
+/* Fix Reports Tab Scroll */
 #reportsTab {
-    max-height: calc(100vh - 180px); /* 100% viewport height minus header/footer */
-    overflow-y: auto;
-    padding-right: 10px; /* keep scrollbar from overlapping text */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
 }
 
-/* Optional: style scrollbars for reports tab */
-#reportsTab::-webkit-scrollbar {
-    width: 8px;
-}
-#reportsTab::-webkit-scrollbar-thumb {
-    background: #bbb;
-    border-radius: 4px;
-}
-#reportsTab::-webkit-scrollbar-thumb:hover {
-    background: #888;
+#reportsTab .reports-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
 }
 
+#reportsTab .packaging-header {
+    flex-shrink: 0;
+    background: var(--surface);
+    padding: 15px 20px;
+    margin: 0;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+#reportsTab .report-filters {
+    flex-shrink: 0;
+    background: var(--surface);
+    padding: 15px 20px;
+    margin: 0;
+    border-bottom: 1px solid var(--border);
+}
+
+#reportsTab .reports-table-container {
+    flex: 1;
+    overflow: auto;
+    padding: 0 20px 20px 20px;
+}
+
+#reportsTab table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+#reportsTab table th {
+    position: sticky;
+    top: 0;
+    background: var(--light);
+    z-index: 10;
+}
+
+/* Ensure all tab panes have proper scrolling */
+.tab-pane {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.tab-pane.active {
+    display: flex;
+}
+
+/* Fix table container scrolling */
+.stock-table-container,
+.reports-table-container {
+    flex: 1;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+/* Ensure tables are scrollable */
+.stock-table,
+.package-table {
+    min-width: 100%;
+    margin: 0;
+}
+
+/* Fix header positioning for scrollable tables */
+.stock-table thead th,
+.package-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--light);
+    z-index: 10;
+    box-shadow: 0 1px 0 var(--border);
+}
+
+body.dark-mode .stock-table thead th,
+body.dark-mode .package-table thead th {
+    background: var(--dark);
+}
 
 /* Status indicators */
 .status-stokta { color: #28a745; font-weight: bold; }
