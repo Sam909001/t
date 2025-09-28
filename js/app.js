@@ -1,15 +1,3 @@
-// Global variable declarations
-// elements is already declared in ui.js, so we reference the existing global
-let selectedCustomer = null;
-let currentContainer = null;
-let currentPackage = {};
-let currentUser = null;
-let supabase = null;
-let isUsingExcel = false;
-let excelPackages = [];
-let SUPABASE_ANON_KEY = '';
-let currentReportData = null;
-
 // Initialize elements object
 function initializeElementsObject() {
     elements = {
@@ -1219,37 +1207,46 @@ async function importExcelData(event) {
 }
 
 // Main initialization
+
 // Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     try {
-        console.log('Initializing ProClean application with daily file management...');
+        console.log('Initializing ProClean application with error handling...');
         
-        // First load API key if exists
+        // Step 1: Load essential polyfills and libraries
+        ensureJsPDF();
+        loadReportsScript();
+        
+        // Step 2: Initialize error handlers
+        setupEthereumHandler();
+        setupExtensionConnection();
+        
+        // Step 3: Load API key if exists
         const savedApiKey = localStorage.getItem('procleanApiKey');
         if (savedApiKey) {
             SUPABASE_ANON_KEY = savedApiKey;
             console.log('API key loaded from localStorage');
         }
         
-        // Initialize workspace system FIRST
+        // Step 4: Initialize workspace system
         window.workspaceManager = new WorkspaceManager();
         await window.workspaceManager.initialize();
         
         console.log('Workspace initialized:', window.workspaceManager.currentWorkspace);
         
-        // Initialize daily file manager SECOND (before supabase)
+        // Step 5: Initialize daily file manager
         window.dailyFileManager = new DailyFileManager();
         await window.dailyFileManager.initialize();
         
         console.log('Daily file manager initialized');
         
-        // Then initialize elements
+        // Step 6: Initialize elements
         initializeElementsObject();
         
-        // Setup basic event listeners
+        // Step 7: Setup basic event listeners
         setupBasicEventListeners();
         
-        // API key initialization
+        // Step 8: API key initialization
         if (loadApiKey()) {
             supabase = initializeSupabase();
             if (supabase) {
@@ -1267,10 +1264,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             updateStorageIndicator();
         }
 
-        // Initialize settings when app loads
+        // Step 9: Initialize settings
         initializeSettings();
 
-        // Set initial display states
+        // Step 10: Set initial display states
         if (elements.loginScreen) {
             elements.loginScreen.style.display = 'flex';
         }
@@ -1278,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             elements.appContainer.style.display = 'none';
         }
         
-        // Initialize workspace-aware UI
+        // Step 11: Initialize workspace-aware UI
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
         
@@ -1292,13 +1289,38 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 
 
-
-// Global error handler
+// Comprehensive error handling
 window.addEventListener('error', function(e) {
-    console.error('Global error:', e.error);
-    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+    console.error('Global error caught:', {
+        message: e.message,
+        filename: e.filename,
+        lineno: e.lineno,
+        colno: e.colno,
+        error: e.error
+    });
+    
+    // Don't show alert for minor errors
+    const minorErrors = [
+        'favicon.ico',
+        'chrome-extension',
+        'ResizeObserver',
+        'ethereum'
+    ];
+    
+    const shouldShowAlert = !minorErrors.some(minorError => 
+        e.message.includes(minorError) || e.filename.includes(minorError)
+    );
+    
+    if (shouldShowAlert) {
+        showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+    }
 });
 
+// Handle unhandled promise rejections
+window.addEventListener('unhandledrejection', function(e) {
+    console.error('Unhandled promise rejection:', e.reason);
+    // Don't show alert for common promise rejections
+});
 
 
 // Add this function to app.js
@@ -1314,3 +1336,20 @@ function updateStorageIndicator() {
         indicator.className = 'storage-indicator supabase-mode';
     }
 }
+
+
+// Cleanup function
+function cleanupApp() {
+    if (window.dailyFileManager) {
+        window.dailyFileManager.stopAutoSync();
+    }
+    
+    // Clear any intervals
+    const maxIntervalId = setTimeout(() => {}, 0);
+    for (let i = 0; i < maxIntervalId; i++) {
+        clearInterval(i);
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', cleanupApp);
