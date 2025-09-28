@@ -1582,3 +1582,144 @@ table {
 }
 
 
+
+
+
+
+/*  extra if not work you can remove /*
+
+
+/* Enhanced CSS for new features */
+
+/* Settings navigation */
+.settings-nav-btn {
+    background: none;
+    border: none;
+    padding: 10px 15px;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    transition: background-color 0.2s;
+}
+
+.settings-nav-btn:hover {
+    background: #f5f5f5;
+}
+
+.settings-nav-btn.active {
+    background: #007bff;
+    color: white;
+}
+
+/* Audit log styles */
+.audit-action {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.audit-action.login { background: #d4edda; color: #155724; }
+.audit-action.package_create { background: #cce7ff; color: #004085; }
+.audit-action.package_delete { background: #f8d7da; color: #721c24; }
+.audit-action.stock_update { background: #fff3cd; color: #856404; }
+.audit-action.settings_change { background: #e2e3e5; color: #383d41; }
+
+/* Bulk actions panel */
+.bulk-actions-panel {
+    transition: all 0.3s ease;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading states */
+.global-loading {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Undo notification */
+.undo-notification {
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Advanced search panels */
+.advanced-search-panel {
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+}
+
+/* User role badges */
+.role-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.role-admin { background: #dc3545; color: white; }
+.role-manager { background: #fd7e14; color: white; }
+.role-operator { background: #007bff; color: white; }
+.role-viewer { background: #6c757d; color: white; }
+
+/* Performance optimizations */
+.loading-overlay {
+    backdrop-filter: blur(2px);
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .settings-nav {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+    
+    .settings-nav-btn {
+        white-space: nowrap;
+    }
+    
+    .bulk-actions-panel {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .advanced-search-panel > div {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Print optimizations */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .bulk-actions-panel,
+    .advanced-search-panel,
+    .settings-nav {
+        display: none !important;
+    }
+}
