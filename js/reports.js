@@ -11,7 +11,7 @@ async function generateDailyReport() {
         const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
         const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
 
-        // Fetch ALL packages (both waiting and shipped) for the day
+        /// Fetch ALL packages (both waiting and shipped) for the day
         const { data: allPackages, error: packagesError } = await supabase
             .from('packages')
             .select('*, customers (name, code)')
