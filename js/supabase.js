@@ -25,6 +25,227 @@ let excelSyncQueue = [];
 let isUsingExcel = false;
 
 
+
+
+// Add to supabase.js - Workspace management
+class WorkspaceManager {
+    constructor() {
+        this.currentWorkspace = null;
+        this.workspaceKey = 'proclean_current_workspace';
+        this.availableWorkspaces = [];
+    }
+    
+    // Initialize workspace system
+    async initialize() {
+        await this.loadWorkspaces();
+        await this.detectOrCreateWorkspace();
+    }
+    
+    // Load available workspaces from localStorage
+    loadWorkspaces() {
+        const saved = localStorage.getItem('proclean_workspaces');
+        this.availableWorkspaces = saved ? JSON.parse(saved) : [];
+        
+        if (this.availableWorkspaces.length === 0) {
+            // Create default workspaces
+            this.availableWorkspaces = [
+                { id: 'station-1', name: 'İstasyon 1', type: 'packaging', created: new Date().toISOString() },
+                { id: 'station-2', name: 'İstasyon 2', type: 'packaging', created: new Date().toISOString() },
+                { id: 'station-3', name: 'İstasyon 3', type: 'shipping', created: new Date().toISOString() },
+                { id: 'station-4', name: 'İstasyon 4', type: 'quality', created: new Date().toISOString() }
+            ];
+            this.saveWorkspaces();
+        }
+    }
+    
+    // Detect or create workspace for current monitor
+    async detectOrCreateWorkspace() {
+        // Try to get workspace from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const workspaceId = urlParams.get('workspace');
+        
+        if (workspaceId) {
+            const workspace = this.availableWorkspaces.find(ws => ws.id === workspaceId);
+            if (workspace) {
+                this.setCurrentWorkspace(workspace);
+                return;
+            }
+        }
+        
+        // Try to get from localStorage
+        const savedWorkspace = localStorage.getItem(this.workspaceKey);
+        if (savedWorkspace) {
+            const workspace = this.availableWorkspaces.find(ws => ws.id === savedWorkspace);
+            if (workspace) {
+                this.setCurrentWorkspace(workspace);
+                return;
+            }
+        }
+        
+        // Show workspace selection modal
+        await this.showWorkspaceSelection();
+    }
+    
+    // Set current workspace
+    setCurrentWorkspace(workspace) {
+        this.currentWorkspace = workspace;
+        localStorage.setItem(this.workspaceKey, workspace.id);
+        
+        // Update UI to show current workspace
+        this.updateWorkspaceUI();
+        
+        // Initialize workspace-specific storage
+        this.initializeWorkspaceStorage();
+    }
+    
+    // Update UI to show current workspace
+    updateWorkspaceUI() {
+        const workspaceIndicator = document.getElementById('workspaceIndicator');
+        if (workspaceIndicator) {
+            workspaceIndicator.innerHTML = `
+                <i class="fas fa-desktop"></i> 
+                ${this.currentWorkspace.name}
+                <span class="workspace-type">${this.getWorkspaceTypeLabel()}</span>
+            `;
+            workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
+        }
+        
+        // Update document title
+        document.title = `ProClean - ${this.currentWorkspace.name}`;
+    }
+    
+    // Get workspace type label
+    getWorkspaceTypeLabel() {
+        const types = {
+            'packaging': 'Paketleme',
+            'shipping': 'Sevkiyat',
+            'quality': 'Kalite Kontrol',
+            'admin': 'Yönetici'
+        };
+        return types[this.currentWorkspace.type] || this.currentWorkspace.type;
+    }
+    
+    // Initialize workspace-specific Excel storage
+    initializeWorkspaceStorage() {
+        // Modify ExcelJS to use workspace-specific storage
+        const originalReadFile = ExcelJS.readFile;
+        const originalWriteFile = ExcelJS.writeFile;
+        
+        ExcelJS.readFile = async function() {
+            try {
+                const data = localStorage.getItem(`excelPackages_${window.workspaceManager.currentWorkspace.id}`);
+                return data ? JSON.parse(data) : [];
+            } catch (error) {
+                console.error('Workspace Excel read error:', error);
+                return [];
+            }
+        };
+        
+        ExcelJS.writeFile = async function(data) {
+            try {
+                localStorage.setItem(`excelPackages_${window.workspaceManager.currentWorkspace.id}`, JSON.stringify(data));
+                return true;
+            } catch (error) {
+                console.error('Workspace Excel write error:', error);
+                return false;
+            }
+        };
+    }
+    
+    // Show workspace selection modal
+    async showWorkspaceSelection() {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+                align-items: center; z-index: 10000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%;">
+                    <h2>Çalışma İstasyonu Seçin</h2>
+                    <p>Lütfen bu monitör için bir çalışma istasyonu seçin:</p>
+                    <div id="workspaceOptions" style="margin: 1rem 0;"></div>
+                    <button onclick="window.workspaceManager.createNewWorkspace()" 
+                            style="margin-top: 1rem; padding: 0.5rem 1rem;">
+                        <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Populate workspace options
+            const optionsContainer = document.getElementById('workspaceOptions');
+            this.availableWorkspaces.forEach(workspace => {
+                const button = document.createElement('button');
+                button.style.cssText = `
+                    display: block; width: 100%; padding: 1rem; margin: 0.5rem 0; 
+                    text-align: left; border: 1px solid #ddd; border-radius: 5px;
+                    background: #f9f9f9; cursor: pointer;
+                `;
+                button.innerHTML = `
+                    <strong>${workspace.name}</strong><br>
+                    <small>Tip: ${this.getWorkspaceTypeLabel(workspace.type)}</small>
+                `;
+                button.onclick = () => {
+                    this.setCurrentWorkspace(workspace);
+                    document.body.removeChild(modal);
+                    resolve();
+                };
+                optionsContainer.appendChild(button);
+            });
+        });
+    }
+    
+    // Create new workspace
+    createNewWorkspace() {
+        const name = prompt('Yeni istasyon adını girin:');
+        if (!name) return;
+        
+        const newWorkspace = {
+            id: 'station-' + Date.now(),
+            name: name,
+            type: 'packaging',
+            created: new Date().toISOString()
+        };
+        
+        this.availableWorkspaces.push(newWorkspace);
+        this.saveWorkspaces();
+        this.setCurrentWorkspace(newWorkspace);
+        
+        // Remove modal
+        const modal = document.querySelector('.modal');
+        if (modal) document.body.removeChild(modal);
+    }
+    
+    // Save workspaces to localStorage
+    saveWorkspaces() {
+        localStorage.setItem('proclean_workspaces', JSON.stringify(this.availableWorkspaces));
+    }
+    
+    // Check if current workspace can perform an action
+    canPerformAction(action) {
+        const permissions = {
+            'packaging': ['create_package', 'view_packages', 'edit_package'],
+            'shipping': ['view_packages', 'ship_packages', 'view_containers'],
+            'quality': ['view_packages', 'quality_check', 'view_reports'],
+            'admin': ['all']
+        };
+        
+        return permissions[this.currentWorkspace.type]?.includes(action) || 
+               permissions.admin.includes('all');
+    }
+}
+
+// Initialize workspace manager
+window.workspaceManager = new WorkspaceManager();
+
+
+
+
 // Generate proper UUID v4 for Excel packages
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
