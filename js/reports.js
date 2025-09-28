@@ -678,22 +678,19 @@ async function downloadReportPDF() {
 }
 
 // Function to check if Supabase Storage bucket exists
+// Function to check if Supabase Storage bucket exists
 async function checkStorageBucket() {
     try {
+        // Check if supabase is initialized
+        if (!supabase) {
+            console.warn('Supabase not initialized for storage check');
+            return false;
+        }
+        
         const { data, error } = await supabase.storage.getBucket('reports');
         if (error) {
-            console.log('Reports bucket does not exist, creating...');
-            // Create the bucket if it doesn't exist
-            const { data: bucketData, error: bucketError } = await supabase.storage.createBucket('reports', {
-                public: true, // Make files publicly accessible
-                fileSizeLimit: 52428800, // 50MB limit
-            });
-            
-            if (bucketError) {
-                console.error('Bucket creation error:', bucketError);
-                return false;
-            }
-            console.log('Reports bucket created successfully');
+            console.log('Reports bucket does not exist or cannot be accessed:', error.message);
+            return false;
         }
         return true;
     } catch (error) {
@@ -701,6 +698,9 @@ async function checkStorageBucket() {
         return false;
     }
 }
+
+
+
 
 // Initialize storage bucket on app start
 async function initializeStorage() {
@@ -936,8 +936,24 @@ function initializeEmailJS() {
     }
 }
 
+
+
 // Call initialization when script loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Wait for jsPDF to load
+    setTimeout(() => {
+        if (typeof window.jspdf !== 'undefined') {
+            initializeEmailJS();
+            initializeStorage(); // Initialize storage bucket
+        } else {
+            console.warn('jsPDF not loaded yet, retrying...');
+            setTimeout(() => {
+                initializeEmailJS();
+                initializeStorage();
+            }, 1000);
+        }
+    }, 500);
+});
     initializeEmailJS();
     initializeStorage(); // Initialize storage bucket
 });
