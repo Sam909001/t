@@ -429,7 +429,7 @@ function switchTab(tabName) {
                     console.log('Loading reports table...');
                     populateReportsTable();
                     break;
-                case 'packages':
+                case 'packaging': // Fixed: changed from 'packages' to 'packaging'
                     console.log('Loading packages table...');
                     populatePackagesTable();
                     break;
@@ -444,14 +444,13 @@ function switchTab(tabName) {
             paneElement: !!selectedPane
         });
         
-        // Fallback: try to show packages tab
-        if (tabName !== 'packages') {
-            console.log('Falling back to packages tab');
-            switchTab('packages');
+        // Fallback: try to show packaging tab
+        if (tabName !== 'packaging') {
+            console.log('Falling back to packaging tab');
+            switchTab('packaging');
         }
     }
 }
-
 
 
 
