@@ -1553,51 +1553,6 @@ table {
 
 
 
-
-
-
-
-
-/* Add to your CSS file */
-.workspace-indicator {
-    position: relative;
-    transition: all 0.3s ease;
-}
-
-.workspace-indicator:hover {
-    background: var(--primary-dark) !important;
-    transform: scale(1.05);
-}
-
-.workspace-type {
-    font-size: 0.7rem;
-    opacity: 0.8;
-    background: rgba(255,255,255,0.2);
-    padding: 0.2rem 0.5rem;
-    border-radius: 10px;
-}
-
-.workspace-restricted {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-.workspace-restricted::after {
-    content: "Bu işlem bu istasyonda kısıtlı";
-    position: absolute;
-    background: #ff6b6b;
-    color: white;
-    padding: 0.5rem;
-    border-radius: 5px;
-    font-size: 0.8rem;
-    z-index: 1000;
-}
-
-
-
-
-
-
 /* Ensure table columns have proper widths */
 #packagesTable {
     table-layout: fixed;
@@ -1627,8 +1582,4 @@ table {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-
-
-
-
 
