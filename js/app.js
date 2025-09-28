@@ -1,1925 +1,1121 @@
-// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
-function initializeElements() {
-    const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
-    const elements = {};
-    
-    elementIds.forEach(id => {
-        elements[id] = document.getElementById(id);
-        if (!elements[id]) {
-            console.error(`Element ${id} not found`);
-        }
-    });
-    
-    return elements;
-}
-
-function initializeElementsObject() {
-    const elementMap = {
-        loginScreen: 'loginScreen',
-        appContainer: 'appContainer',
-        loginButton: 'loginBtn',
-        emailInput: 'email',
-        passwordInput: 'password',
-        customerSelect: 'customerSelect',
-        personnelSelect: 'personnelSelect',
-        currentDate: 'currentDate',
-        barcodeInput: 'barcodeInput',
-        packagesTableBody: 'packagesTableBody',
-        packageDetailContent: 'packageDetailContent',
-        shippingFolders: 'shippingFolders',
-        stockTableBody: 'stockTableBody',
-        customerList: 'customerList',
-        allCustomersList: 'allCustomersList',
-        toast: 'toast',
-        containerNumber: 'containerNumber',
-        totalPackages: 'totalPackages',
-        shippingFilter: 'shippingFilter',
-        stockSearch: 'stockSearch',
-        selectAllPackages: 'selectAllPackages',
-        apiKeyModal: 'apiKeyModal',
-        apiKeyInput: 'apiKeyInput',
-        quantityInput: 'quantityInput',
-        quantityModal: 'quantityModal',
-        quantityModalTitle: 'quantityModalTitle',
-        scannedBarcodes: 'scannedBarcodes',
-        connectionStatus: 'connectionStatus',
-        alertContainer: 'alertContainer',
-        scannerToggle: 'scannerToggle',
-        containerSearch: 'containerSearch',
-        settingsModal: 'settingsModal',
-        closeSettingsModalBtn: 'closeSettingsModalBtn',
-        toggleThemeBtn: 'toggleThemeBtn',
-        downloadDataBtn: 'downloadDataBtn',
-        changeApiKeyBtn: 'changeApiKeyBtn',
-    };
-    
-    Object.keys(elementMap).forEach(key => {
-        const element = document.getElementById(elementMap[key]);
-        if (element) {
-            elements[key] = element;
-        } else {
-            console.warn(`Element ${elementMap[key]} not found`);
-            elements[key] = null;
-        }
-    });
-    
-    return elements;
-}
-
-// Profesyonel alert sistemi
-// 1. Prevent duplicate alerts with debouncing
-let alertQueue = new Set(); // Track active alerts
-
-function showAlert(message, type = 'info', duration = 5000) {
-    // Prevent duplicate alerts
-    const alertKey = `${message}-${type}`;
-    if (alertQueue.has(alertKey)) {
-        return; // Already showing this alert
-    }
-    
-    alertQueue.add(alertKey);
-    
-    if (!elements.alertContainer) {
-        console.error('Alert container not found, using console instead');
-        console.log(`${type.toUpperCase()}: ${message}`);
-        alertQueue.delete(alertKey);
-        return;
-    }
-    
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type}`;
-    
-    const span = document.createElement('span');
-    span.textContent = message;
-    
-    const button = document.createElement('button');
-    button.className = 'alert-close';
-    button.textContent = '×';
-    
-    alert.appendChild(span);
-    alert.appendChild(button);
-    
-    elements.alertContainer.appendChild(alert);
-    
-    // Close button event
-    button.addEventListener('click', () => {
-        alert.classList.add('hide');
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.remove();
-                alertQueue.delete(alertKey);
-            }
-        }, 300);
-    });
-    
-    // Auto close
-    if (duration > 0) {
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.classList.add('hide');
-                setTimeout(() => {
-                    if (alert.parentNode) {
-                        alert.remove();
-                        alertQueue.delete(alertKey);
-                    }
-                }, 300);
-            }
-        }, duration);
-    }
-    
-    return alert;
-}
-
-// Yardımcı fonksiyonlar
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast ${type} show`;
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
-}
-
-// Form doğrulama fonksiyonu
-let validationTimeout = null;
-
-function validateFormDebounced(inputs, callback) {
-    // Clear previous timeout
-    if (validationTimeout) {
-        clearTimeout(validationTimeout);
-    }
-    
-    // Debounce validation
-    validationTimeout = setTimeout(() => {
-        const isValid = validateForm(inputs);
-        if (callback) callback(isValid);
-    }, 200);
-}
-        
-function isValidEmail(email) {
-    const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    return re.test(String(email).toLowerCase());
-}
-
-// API anahtarı modalını göster
-function showApiKeyModal() {
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    if (apiKeyInput) {
-        apiKeyInput.value = SUPABASE_ANON_KEY || '';
-        document.getElementById('apiKeyModal').style.display = 'flex';
-    }
-}
-
-// API anahtarı yardımı göster
-function showApiKeyHelp() {
-    const helpWindow = window.open('', '_blank');
-    helpWindow.document.write(`
-        <html>
-        <head>
-            <title>Supabase API Anahtarı Alma Rehberi</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
-                h1 { color: #2c3e50; }
-                .step { margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 5px; }
-            </style>
-        </head>
-        <body>
-            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
-            <div class="step">
-                <h3>1. Supabase hesabınıza giriş yapın</h3>
-                <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
-            </div>
-            <div class="step">
-                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
-            </div>
-            <div class="step">
-                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
-            </div>
-            <div class="step">
-                <h3>4. API sekmesine gidin</h3>
-            </div>
-            <div class="step">
-                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
-                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
-            </div>
-            <div class="step">
-                <h3>Önemli Not:</h3>
-                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
-            </div>
-        </body>
-        </html>
-    `);
-}
-
-// Barkod tarayıcı modunu aç/kapa
-function toggleScannerMode() {
-    scannerMode = !scannerMode;
-    
-    if (scannerMode) {
-        elements.barcodeInput.classList.add('scanner-active');
-        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
-        elements.barcodeInput.focus();
-        showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
-    } else {
-        elements.barcodeInput.classList.remove('scanner-active');
-        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
-        showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
-    }
-}
-
-// Barkod tarayıcı dinleyicisi
-let barcodeListenerAttached = false;
-
-function setupBarcodeScanner() {
-    if (!elements.barcodeInput) {
-        console.error('Barcode input element not found');
-        return;
-    }
-    
-    // Prevent multiple listeners
-    if (barcodeListenerAttached) {
-        return;
-    }
-    
-    let barcodeBuffer = '';
-    let lastKeyTime = Date.now();
-    
-    // Single event listener
-    const barcodeHandler = function(e) {
-        const currentTime = Date.now();
-        
-        if (scannerMode || currentTime - lastKeyTime < 50) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (barcodeBuffer.length > 5) {
-                    elements.barcodeInput.value = barcodeBuffer;
-                    processBarcode();
-                }
-                barcodeBuffer = '';
-            } else {
-                barcodeBuffer += e.key;
-            }
-        } else {
-            barcodeBuffer = '';
-        }
-        
-        lastKeyTime = currentTime;
-    };
-    
-    elements.barcodeInput.addEventListener('keypress', barcodeHandler);
-    barcodeListenerAttached = true;
-}
-
-// Stok düzenleme fonksiyonları
-let currentEditingRow = null;
-
-function editStockItem(button, code) {
-    // Prevent multiple edits
-    if (currentEditingRow && currentEditingRow !== code) {
-        showAlert('Önce mevcut düzenlemeyi tamamlayın', 'warning');
-        return;
-    }
-    
-    currentEditingRow = code;
-    
-    const row = button.closest('tr');
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const editButton = row.querySelector('button');
-    const editButtons = row.querySelector('.edit-buttons');
-    
-    // Switch to edit mode
-    quantitySpan.style.display = 'none';
-    quantityInput.style.display = 'block';
-    editButton.style.display = 'none';
-    editButtons.style.display = 'flex';
-    
-    editingStockItem = code;
-}
-
-// Add missing saveStockItem function
-async function saveStockItem(code, input) {
-    // Prevent multiple saves
-    if (input.disabled) {
-        return;
-    }
-    
-    const newQuantity = parseInt(input.value);
-    
-    if (isNaN(newQuantity) || newQuantity < 0) {
-        showAlert('Geçerli bir sayı girin (0 veya üzeri)', 'error');
-        input.focus();
-        return;
-    }
-    
-    const originalQuantity = input.getAttribute('data-original');
-    
-    if (newQuantity.toString() === originalQuantity) {
-        cancelEditStockItem(code, originalQuantity);
-        return;
-    }
-    
-    try {
-        input.disabled = true;
-        
-        // Only show one loading message
-        const loadingAlert = showAlert('Güncelleniyor...', 'info', 1000);
-        
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Update the UI
-        const row = input.closest('tr');
-        const quantityCell = row.querySelector('td:nth-child(3)');
-        const actionsCell = row.querySelector('td:last-child');
-        const statusCell = row.querySelector('td:nth-child(5)');
-        const lastUpdateCell = row.querySelector('td:nth-child(6)');
-        
-        quantityCell.textContent = newQuantity;
-        
-        if (statusCell) {
-            if (newQuantity === 0) {
-                statusCell.innerHTML = '<span class="status-badge out-of-stock">Tükendi</span>';
-            } else if (newQuantity <= 5) {
-                statusCell.innerHTML = '<span class="status-badge low-stock">Düşük</span>';
-            } else {
-                statusCell.innerHTML = '<span class="status-badge in-stock">Mevcut</span>';
-            }
-        }
-        
-        if (lastUpdateCell) {
-            lastUpdateCell.textContent = new Date().toLocaleDateString('tr-TR');
-        }
-        
-        restoreEditButton(actionsCell, code);
-        editingStockItem = null;
-        currentEditingRow = null;
-        
-        showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
-        
-    } catch (error) {
-        console.error('Stok güncelleme hatası:', error);
-        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
-        input.disabled = false;
-        input.focus();
-    }
-}
-
-function cancelEditStockItem(code, originalQuantity) {
-    const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const editButton = row.querySelector('button');
-    const editButtons = row.querySelector('.edit-buttons');
-    
-    // Değişiklikleri iptal et
-    quantityInput.value = originalQuantity;
-    quantitySpan.style.display = 'block';
-    quantityInput.style.display = 'none';
-    editButton.style.display = 'block';
-    editButtons.style.display = 'none';
-    
-    editingStockItem = null;
-}
-
-function checkOnlineStatus() {
-    if (!navigator.onLine) {
-        showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
-        return false;
-    }
-    return true;
-}
-
-// Konteyner detay modalını kapat
-function closeContainerDetailModal() {
-    document.getElementById('containerDetailModal').style.display = 'none';
-    currentContainerDetails = null;
-}
-
-// Müşteri klasöründeki tüm konteynerleri seç
-function toggleSelectAllCustomer(checkbox) {
-    const folder = checkbox.closest('.customer-folder');
-    const checkboxes = folder.querySelectorAll('.container-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
-}
-
-// Taranan barkodları göster
-function displayScannedBarcodes() {
-    const container = document.getElementById('scannedBarcodes');
-    container.innerHTML = '';
-    
-    if (scannedBarcodes.length === 0) {
-        container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Henüz barkod taranmadı</p>';
-        return;
-    }
-    
-    const list = document.createElement('ul');
-    list.style = 'list-style: none; padding: 0; margin: 0; font-size: 0.8rem;';
-    
-    scannedBarcodes.forEach(barcode => {
-        const item = document.createElement('li');
-        item.style = 'padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;';
-        item.innerHTML = `
-            <span>${barcode.barcode}</span>
-            <span style="color: ${barcode.processed ? 'green' : 'orange'}">
-                ${barcode.processed ? 'İşlendi' : 'Beklemede'}
-            </span>
-        `;
-        list.appendChild(item);
-    });
-    
-    container.appendChild(list);
-}
-
-function selectCustomerFromModal(customer) {
-    selectedCustomer = customer;
-    elements.customerSelect.value = customer.id;
-    closeModal();
-    showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
-}
-        
-// Package operations
-function openQuantityModal(product) {
-    selectedProduct = product;
-    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
-}
-
-
-function openStatusQuantityModal(status) {
-    selectedProduct = status; // 👈 reuse the same global
-    elements.quantityModalTitle.textContent = `${status} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
-}
-
-
-
-function confirmQuantity() {
-    const quantity = parseInt(elements.quantityInput.value);
-    
-    // Doğrulama
-    if (!quantity || quantity <= 0) {
-        document.getElementById('quantityError').style.display = 'block';
-        return;
-    }
-
-    // Update quantity badge
-    const badge = document.getElementById(`${selectedProduct}-quantity`);
-    if (badge) {
-        const currentQuantity = parseInt(badge.textContent) || 0;
-        badge.textContent = currentQuantity + quantity;
-    }
-
-    // Add to current package
-    if (!currentPackage.items) currentPackage.items = {};
-    currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
-
-    showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-    closeQuantityModal();
-}
-        
-function openManualEntry() {
-    document.getElementById('manualModal').style.display = 'flex';
-    document.getElementById('manualProduct').focus();
-}
-        
-function addManualProduct() {
-    const product = document.getElementById('manualProduct').value.trim();
-    const quantity = parseInt(document.getElementById('manualQuantity').value);
-
-    // Form doğrulama
-    if (!validateForm([
-        { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
-        { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
-    ])) {
-        return;
-    }
-
-    // Add to current package
-    if (!currentPackage.items) currentPackage.items = {};
-    currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
-
-    showAlert(`${product}: ${quantity} adet eklendi`, 'success');
-    
-    // Clear form
-    document.getElementById('manualProduct').value = '';
-    document.getElementById('manualQuantity').value = '';
-    closeManualModal();
-}
-
-
-// Open Extra Modal
-function openExtraModal() {
-    document.getElementById('extraModal').style.display = 'block';
-}
-
-// Close Extra Modal
-function closeExtraModal() {
-    document.getElementById('extraModal').style.display = 'none';
-}
-
-
-// Settings functions
-function showSettingsModal() {
-    loadSettings(); // Load current settings
-    checkSystemStatus(); // Update status indicators
-    document.getElementById('settingsModal').style.display = 'flex';
-}
-
-function closeSettingsModal() {
-    document.getElementById('settingsModal').style.display = 'none';
-}
-
-function loadSettings() {
-    // Load saved settings from localStorage
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-
-    // Theme
-    if (settings.theme === 'dark') {
-        document.getElementById('themeToggle').checked = true;
-        document.body.classList.add('dark-mode');
-    }
-
-    // Language
-    if (settings.language) {
-        document.getElementById('languageSelect').value = settings.language;
-    }
-    
-    // Auto-save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
-}
-
-// ---------------- LOAD SETTINGS ----------------
-function loadPrinterSettings(settings) {
-    document.getElementById('printerScaling').value = settings.printerScaling || '100%';
-    document.getElementById('copiesNumber').value = settings.copies || 1;
-    document.getElementById('fontName').value = settings.fontName || 'Arial';
-    document.getElementById('fontSize').value = settings.fontSize || 10;
-    document.getElementById('orientation').value = settings.orientation || 'portrait';
-    document.getElementById('marginTop').value = settings.marginTop ?? 5;
-    document.getElementById('marginBottom').value = settings.marginBottom ?? 5;
-    document.getElementById('labelHeader').value = settings.labelHeader || 'Yeditepe';
-}
-
-// ---------------- SAVE SETTINGS ----------------
-function savePrinterSettings() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-
-    settings.printerScaling = document.getElementById('printerScaling').value;
-    settings.copies = parseInt(document.getElementById('copiesNumber').value, 10);
-    settings.fontName = document.getElementById('fontName').value;
-    settings.fontSize = parseInt(document.getElementById('fontSize').value, 10);
-    settings.orientation = document.getElementById('orientation').value;
-    settings.marginTop = parseInt(document.getElementById('marginTop').value, 10);
-    settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
-    settings.labelHeader = document.getElementById('labelHeader').value || 'Yeditepe';
-
-    localStorage.setItem('procleanSettings', JSON.stringify(settings));
-    console.log('Printer settings saved', settings);
-}
-
-// ---------------- INIT ----------------
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
 document.addEventListener('DOMContentLoaded', () => {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    loadPrinterSettings(settings);
-
-    const inputIds = [
-        'printerScaling', 'copiesNumber', 'fontName',
-        'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
-    ];
-
-    inputIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', savePrinterSettings);
-    });
-
-    const testBtn = document.getElementById('test-printer-yazdir');
-    if (testBtn) {
-        testBtn.addEventListener('click', async () => {
-            savePrinterSettings();
-            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-            const printerInstance = getPrinter();
-
-            const originalText = testBtn.textContent;
-            testBtn.disabled = true;
-            testBtn.textContent = 'Test Ediliyor...';
-
-            try {
-                // Use labelHeader for test print
-                await printerInstance.testPrint(settings, settings.labelHeader);
-            } catch (error) {
-                console.error('Test print error:', error);
-                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
-            } finally {
-                testBtn.disabled = false;
-                testBtn.textContent = originalText;
-            }
-        });
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        initializeSupabase();
+        console.log('API key loaded from localStorage');
     }
 });
 
-// ---------------- PRINT PACKAGE WITH SETTINGS ----------------
-async function printPackageWithSettings(packageData) {
+// State management functions
+function saveAppState() {
+    const state = {
+        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
+        selectedPersonnelId: elements.personnelSelect.value,
+        currentContainer: currentContainer,
+    };
+    localStorage.setItem('procleanState', JSON.stringify(state));
+}
+
+function loadAppState() {
+    const savedState = localStorage.getItem('procleanState');
+    if (savedState) {
+        const state = JSON.parse(savedState);
+        
+        // Restore customer selection
+        if (state.selectedCustomerId) {
+            elements.customerSelect.value = state.selectedCustomerId;
+            // Find and set the selectedCustomer object
+            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+            if (option) {
+                selectedCustomer = {
+                    id: state.selectedCustomerId,
+                    name: option.textContent.split(' (')[0],
+                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
+            }
+        }
+        
+        // Restore personnel selection
+        if (state.selectedPersonnelId) {
+            elements.personnelSelect.value = state.selectedPersonnelId;
+        }
+        
+        // Restore current container
+        if (state.currentContainer) {
+            currentContainer = state.currentContainer;
+            elements.containerNumber.textContent = currentContainer;
+        }
+    }
+}
+
+function clearAppState() {
+    localStorage.removeItem('procleanState');
+    selectedCustomer = null;
+    elements.customerSelect.value = '';
+    elements.personnelSelect.value = '';
+    currentContainer = null;
+    elements.containerNumber.textContent = 'Yok';
+    currentPackage = {};
+    
+    // Reset quantity badges
+    document.querySelectorAll('.quantity-badge').forEach(badge => {
+        badge.textContent = '0';
+    });
+    
+    // Clear package details
+    document.getElementById('packageDetailContent').innerHTML = 
+        '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+}
+
+// Initialize application
+// REPLACE the existing initApp function with this:
+async function initApp() {
+    console.log('Initializing enhanced daily Excel system...');
+    
+    // Initialize workspace system first
+    await window.workspaceManager.initialize();
+    
+    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    
+    // Initialize workspace-aware UI
+    setTimeout(() => {
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+    }, 1000);
+    
+    // Setup daily exports bucket
+    await setupDailyExportsBucket();
+    
+    // Populate dropdowns
+    await populateCustomers();
+    await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
+    
+    // Load daily Excel data
+    await loadPackagesData();
+    await populateStockTable();
+    await populateShippingTable();
+    
+    // Test connection
+    await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000);
+    
+    // Set up offline support
+    setupOfflineSupport();
+    
+    // Set up barcode scanner listener
+    setupBarcodeScanner();
+    
+    // Start daily auto-clear and file management
+    scheduleDailyClear();
+    
+    console.log(`App initialized with daily Excel system for workspace: ${window.workspaceManager.currentWorkspace.name}`);
+}
+
+
+
+
+// Storage bucket kontrolü ve oluşturma fonksiyonu
+async function setupStorageBucket() {
     try {
-        const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        const printerInstance = getPrinter();
-
-        const barcode = packageData.package_no;
-        const labelText = `${packageData.customer_name} - ${packageData.product}`;
-        const header = settings.labelHeader || 'Yeditepe';
-
-        return await printerInstance.printBarcode(barcode, labelText, packageData, settings, header);
+        // Storage bucket var mı kontrol et
+        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+        
+        if (bucketsError) {
+            console.warn('Bucket listeleme hatası:', bucketsError);
+            return false;
+        }
+        
+        const reportsBucketExists = buckets.some(bucket => bucket.name === 'reports');
+        
+        if (!reportsBucketExists) {
+            console.log('Reports bucket bulunamadı, oluşturuluyor...');
+            // Bucket oluşturmaya çalış (admin yetkisi gerektirir)
+            try {
+                const { data: newBucket, error: createError } = await supabase.storage.createBucket('reports', {
+                    public: true,
+                    fileSizeLimit: 5242880, // 5MB
+                    allowedMimeTypes: ['application/pdf']
+                });
+                
+                if (createError) {
+                    console.warn('Bucket oluşturulamadı:', createError);
+                    return false;
+                }
+                
+                console.log('Reports bucket oluşturuldu:', newBucket);
+                return true;
+            } catch (createError) {
+                console.warn('Bucket oluşturma hatası:', createError);
+                return false;
+            }
+        }
+        
+        return true;
     } catch (error) {
-        console.error('Print with settings error:', error);
-        showAlert('Yazdırma hatası: ' + error.message, 'error');
+        console.warn('Storage setup hatası:', error);
         return false;
     }
 }
 
-// Language - SIMULATION MODE to prevent errors
-function changeLanguage(lang) {
-    // SIMULATION MODE - just log the change without actual implementation
-    console.log('Language change simulated:', lang);
-    showAlert(`Dil değiştirildi (simülasyon): ${lang}`, 'info');
+
+async function previewReport() {
+    if (!currentReportData) {
+        showAlert('Önce rapor oluşturmalısınız', 'error');
+        return;
+    }
     
-    // Update HTML lang attribute (safe operation)
-    if (document.documentElement) {
-        document.documentElement.lang = lang || 'tr';
+    try {
+        // Generate PDF
+        const pdfBlob = await generatePDFReport(currentReportData);
+        
+        // Create object URL for the PDF
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        
+        // Open PDF in a new window
+        const reportWindow = window.open(pdfUrl, '_blank');
+        
+        // Clean up the URL when window is closed
+        if (reportWindow) {
+            reportWindow.onbeforeunload = function() {
+                URL.revokeObjectURL(pdfUrl);
+            };
+        }
+    } catch (error) {
+        console.error('Rapor önizleme hatası:', error);
+        showAlert('Rapor önizlenemedi', 'error');
     }
 }
 
-// Update font size throughout the application
-function updateFontSize(size) {
-    const elements = document.querySelectorAll('body, button, input, select, textarea');
-    elements.forEach(element => {
-        element.style.fontSize = size + 'px';
+// Container operations
+function loadCurrentContainer() {
+    showAlert('Mevcut konteyner yüklendi', 'success');
+}
+
+async function createNewContainer() {
+    try {
+        const timestamp = new Date().getTime();
+        const containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+
+        const { data: newContainer, error } = await supabase
+            .from('containers')
+            .insert([{
+                container_no: containerNo,
+                customer: null,           // leave blank initially
+                package_count: 0,
+                total_quantity: 0,
+                status: 'beklemede'
+            }])
+            .select('*');                // get inserted row back
+
+        if (error) throw error;
+
+        elements.containerNumber.textContent = containerNo;
+        currentContainer = containerNo;
+        saveAppState();
+
+        showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+        await populateShippingTable();
+
+    } catch (error) {
+        console.error('Error creating container:', error);
+        showAlert('Konteyner oluşturulurken hata oluştu', 'error');
+    }
+}
+
+async function deleteContainer() {
+    // Seçili konteynerleri al
+    const selectedContainers = Array.from(document.querySelectorAll('.container-checkbox:checked'))
+        .map(cb => cb.value);
+        
+    if (selectedContainers.length === 0) {
+        showAlert('Silinecek konteyner seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        // Önce bu konteynerlere bağlı paketleri güncelle
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ 
+                container_id: null,
+                status: 'beklemede'
+            })
+            .in('container_id', selectedContainers);
+
+        if (updateError) throw updateError;
+
+        // Sonra konteynerleri sil
+        const { error: deleteError } = await supabase
+            .from('containers')
+            .delete()
+            .in('id', selectedContainers);
+
+        if (deleteError) throw deleteError;
+
+        // Eğer silinen konteyner aktif konteyner ise sıfırla
+        if (currentContainer && selectedContainers.includes(currentContainer)) {
+            currentContainer = null;
+            elements.containerNumber.textContent = 'Yok';
+            saveAppState();
+        }
+        
+        showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
+        await populateShippingTable();
+        
+    } catch (error) {
+        console.error('Error deleting container:', error);
+        showAlert('Konteyner silinirken hata oluştu', 'error');
+    }
+}
+
+function switchTab(tabName) {
+    // Hide all tab panes
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+    
+    // Deactivate all tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Activate selected tab
+    const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+    const selectedPane = document.getElementById(`${tabName}Tab`);
+    
+    if (selectedTab && selectedPane) {
+        selectedTab.classList.add('active');
+        selectedPane.classList.add('active');
+        
+        // Load data when tab is clicked
+        setTimeout(() => {
+            switch(tabName) {
+                case 'shipping':
+                    populateShippingTable();
+                    break;
+                case 'stock':
+                    populateStockTable();
+                    break;
+                case 'reports':
+                    populateReportsTable();
+                    break;
+            }
+        }, 100);
+    }
+}
+
+
+
+
+function closeAllModals() {
+    document.getElementById('customerModal').style.display = 'none';
+    document.getElementById('allCustomersModal').style.display = 'none';
+    document.getElementById('emailModal').style.display = 'none';
+    document.getElementById('quantityModal').style.display = 'none';
+    document.getElementById('manualModal').style.display = 'none';
+    document.getElementById('containerDetailModal').style.display = 'none';
+}
+
+function closeModal() {
+    document.getElementById('customerModal').style.display = 'none';
+}
+
+function closeAllCustomersModal() {
+    document.getElementById('allCustomersModal').style.display = 'none';
+}
+
+function closeQuantityModal() {
+    document.getElementById('quantityModal').style.display = 'none';
+}
+
+function closeManualModal() {
+    document.getElementById('manualModal').style.display = 'none';
+}
+
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Initialize auth state listener
+function setupAuthListener() {
+    if (!supabase) return;
+    
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change:', event, session?.user?.email || 'No user');
+        
+        if (session) {
+            currentUser = {
+                email: session.user.email,
+                uid: session.user.id,
+                name: session.user.email.split('@')[0]
+            };
+            
+            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+            document.getElementById('loginScreen').style.display = "none";
+            document.getElementById('appContainer').style.display = "flex";
+            
+            initApp();
+        } else {
+            document.getElementById('loginScreen').style.display = "flex";
+            document.getElementById('appContainer').style.display = "none";
+        }
     });
 }
 
-// Update printer settings in real-time
-function updatePrinterSettings(settings) {
-    if (window.printerElectron && settings) {
-        // Update printer instance with new settings
-        window.printerElectron.settings = settings;
+// Load API key from localStorage
+function loadApiKey() {
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        return true;
+    }
+    return false;
+}
+
+// API hata yönetimi
+function handleSupabaseError(error, context) {
+    console.error(`Supabase error in ${context}:`, error);
+    
+    let userMessage = `${context} sırasında bir hata oluştu.`;
+    
+    if (error.code === '42501') {
+        userMessage = 'Bu işlem için yetkiniz bulunmamaktadır.';
+    } else if (error.code === '42P01') {
+        userMessage = 'Veritabanı tablosu bulunamadı. Lütfen yönetici ile iletişime geçin.';
+    } else if (error.code === '08006') {
+        userMessage = 'Veritabanı bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.';
+    } else if (error.message) {
+        userMessage += ' ' + error.message;
+    }
+    
+    showAlert(userMessage, 'error');
+    
+    // Switch to offline mode if connection issue
+    if (!navigator.onLine && elements.connectionStatus) {
+        elements.connectionStatus.textContent = 'Çevrimdışı';
+        document.getElementById('offlineIndicator')?.style.setProperty('display', 'block');
     }
 }
 
-// Setup event listeners for settings changes
-function setupSettingsEventListeners() {
-    // Theme toggle
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-        themeToggle.addEventListener('change', function() {
-            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-            settings.theme = this.checked ? 'dark' : 'light';
-            localStorage.setItem('procleanSettings', JSON.stringify(settings));
-            applySettings(settings);
-        });
+// ==========================
+// DAILY AUTO-CLEAR FUNCTION
+// ==========================
+
+// Clear local app state (frontend only)
+function clearDailyAppState() {
+    console.log('[Daily Clear] Clearing frontend state...');
+    
+    // Clear saved state in localStorage
+    localStorage.removeItem('procleanState');
+
+    // Reset global variables
+    selectedCustomer = null;
+    currentContainer = null;
+    currentPackage = {};
+
+    // Reset UI
+    if (elements.customerSelect) elements.customerSelect.value = '';
+    if (elements.personnelSelect) elements.personnelSelect.value = '';
+    if (elements.containerNumber) elements.containerNumber.textContent = 'Yok';
+    document.querySelectorAll('.quantity-badge').forEach(b => b.textContent = '0');
+    const packageDetail = document.getElementById('packageDetailContent');
+    if (packageDetail) packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+
+    // Reload today's data from Supabase
+    loadTodaysData();
+}
+
+// Load today's packages/containers from Supabase
+async function loadTodaysData() {
+    try {
+        if (!supabase) return;
+
+        // Fetch today's packages
+        window.packages = await fetchTodaysPackages();
+        window.containers = await fetchTodaysContainers();
+
+        // Re-render UI tables
+        renderPackagesTable();
+        renderShippingTable();
+
+        console.log('[Daily Clear] Data reloaded from Supabase');
+    } catch (error) {
+        console.error('Error loading today\'s data:', error);
     }
-    
-    // Real-time settings updates
-    const realTimeSettings = ['printerScaling', 'copiesNumber', 'fontSizeSelect', 
-                             'printQualitySelect', 'barcodeTypeSelect', 'paperSizeSelect',
-                             'printerFontSize', 'printerMargin', 'barcodeHeight', 
-                             'labelWidth', 'labelHeight'];
-    
-    realTimeSettings.forEach(settingId => {
-        const element = document.getElementById(settingId);
-        if (element) {
-            element.addEventListener('change', function() {
-                // Auto-save when these settings change
-                setTimeout(saveAllSettings, 100);
+}
+
+// Schedule daily clear at next midnight
+function scheduleDailyClear() {
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5); // 5 sec buffer
+    const msUntilMidnight = nextMidnight - now;
+
+    console.log(`[Daily Clear] Next clear in ${Math.round(msUntilMidnight / 1000)} seconds`);
+
+    setTimeout(() => {
+        clearDailyAppState();
+        scheduleDailyClear();  // reschedule for next day
+    }, msUntilMidnight);
+}
+
+// ================= MAIN INITIALIZATION =================
+document.addEventListener('DOMContentLoaded', async function () {
+    console.log('DOM Content Loaded - Starting initialization...');
+
+    try {
+        // 1. Initialize elements first
+        console.log('Step 1: Initializing elements...');
+        initializeElementsObject();
+
+        // 2. Check for critical elements
+        const loginBtn = elements.loginButton;
+        const emailInput = elements.emailInput;
+        const passwordInput = elements.passwordInput;
+
+        if (!loginBtn || !emailInput || !passwordInput) {
+            console.error('Critical elements missing:', {
+                loginBtn: !!loginBtn,
+                emailInput: !!emailInput,
+                passwordInput: !!passwordInput,
             });
+            throw new Error('Critical UI elements not found');
         }
-    });
-    
-    // Toggle settings
-    const toggleSettings = ['soundToggle', 'notificationsToggle', 'backupToggle', 'autoSaveToggle'];
-    toggleSettings.forEach(toggleId => {
-        const element = document.getElementById(toggleId);
-        if (element) {
-            element.addEventListener('change', saveAllSettings);
+
+        // 3. Add basic event listeners first
+        console.log('Step 2: Setting up basic event listeners...');
+        loginBtn.addEventListener('click', login);
+
+        emailInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') login();
+        });
+
+        passwordInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') login();
+        });
+
+        // 4. Initialize workspace system
+        console.log('Step 3: Initializing workspace system...');
+        window.workspaceManager = new WorkspaceManager();
+        await window.workspaceManager.initialize();
+
+        // 5. Initialize workspace UI (with delay to ensure DOM is ready)
+        setTimeout(() => {
+            initializeWorkspaceUI();
+            setupWorkspaceAwareUI();
+        }, 500);
+
+        // 6. Continue with other initializations...
+        console.log('Step 4: Continuing with app initialization...');
+
+        // Settings button
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', showSettingsModal);
+            console.log('Settings button listener added');
         }
-    });
-    
-    // Language select
-    const languageSelect = document.getElementById('languageSelect');
-    if (languageSelect) {
-        languageSelect.addEventListener('change', function() {
-            changeLanguage(this.value);
-            saveAllSettings();
-        });
-    }
-}
 
-// Setup auto-save functionality - FIX #4: toggleAutoSave defined
-function toggleAutoSave() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    settings.autoSave = !settings.autoSave;
-    localStorage.setItem('procleanSettings', JSON.stringify(settings));
-    
-    const autoSaveToggle = document.getElementById('autoSaveToggle');
-    if (autoSaveToggle) {
-        autoSaveToggle.checked = settings.autoSave;
-    }
-    
-    showAlert(`Otomatik kaydetme ${settings.autoSave ? 'açıldı' : 'kapatıldı'}`, 'info');
-    
-    if (settings.autoSave) {
-        setupAutoSave();
-    }
-}
+        // Close settings modal
+        const closeBtn = document.getElementById('closeSettingsModalBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeSettingsModal);
+        }
 
-function setupAutoSave() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    
-    if (settings.autoSave !== false) { // default enabled
-        // Auto-save every 30 seconds
-        setInterval(() => {
-            if (window.saveAppState) {
-                window.saveAppState();
-                console.log('Auto-save completed');
+        // API key initialization
+        if (loadApiKey()) {
+            supabase = initializeSupabase();
+            if (supabase) {
+                setupAuthListener();
+                console.log('Supabase client initialized successfully');
+            } else {
+                console.warn('Failed to initialize Supabase client');
             }
-        }, 30000);
-        
-        // Also save on page unload
-        window.addEventListener('beforeunload', () => {
-            if (window.saveAppState) {
-                window.saveAppState();
+        } else {
+            console.log('No saved API key found, showing API key modal');
+            showApiKeyModal();
+        }
+
+        // Set initial display states
+        if (elements.loginScreen) {
+            elements.loginScreen.style.display = 'flex';
+        }
+        if (elements.appContainer) {
+            elements.appContainer.style.display = 'none';
+        }
+
+        // Initialize settings when app loads
+        initializeSettings();
+
+        // Extra listeners for modal
+        const settingsModal = document.getElementById('settingsModal');
+        window.addEventListener('click', function (event) {
+            if (event.target === settingsModal) {
+                closeSettingsModal();
             }
         });
+
+        // Final workspace-aware UI init
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+
+        console.log(
+            'ProClean application initialized successfully for workspace:',
+            window.workspaceManager.currentWorkspace.name
+        );
+    } catch (error) {
+        console.error('Critical error during initialization:', error);
+        showAlert(
+            'Uygulama başlatılırken hata oluştu: ' + error.message,
+            'error'
+        );
+
+        // Fallback: Try to show API key modal
+        setTimeout(showApiKeyModal, 1000);
+    }
+});
+
+// ================= THEME MANAGEMENT =================
+function applySavedTheme() {
+    const savedTheme = localStorage.getItem('procleanTheme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
     }
 }
 
-// FIX #3: toggleDebugMode defined
-function toggleDebugMode() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    settings.debugMode = !settings.debugMode;
-    localStorage.setItem('procleanSettings', JSON.stringify(settings));
-    
-    const debugToggle = document.getElementById('debugToggle');
-    if (debugToggle) {
-        debugToggle.checked = settings.debugMode;
-    }
-    
-    // Apply debug mode
-    if (settings.debugMode) {
-        console.log('Debug mode enabled');
-        window.DEBUG_MODE = true;
-        document.body.classList.add('debug-mode');
-        showAlert('Debug modu açıldı - Konsol logları aktif', 'info');
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    if (document.body.classList.contains('dark-mode')) {
+        localStorage.setItem('procleanTheme', 'dark');
+        showAlert('Koyu tema etkinleştirildi.', 'info');
     } else {
-        console.log('Debug mode disabled');
-        window.DEBUG_MODE = false;
-        document.body.classList.remove('debug-mode');
-        showAlert('Debug modu kapatıldı', 'info');
+        localStorage.setItem('procleanTheme', 'light');
+        showAlert('Açık tema etkinleştirildi.', 'info');
     }
 }
 
-// FIX #1: runPerformanceTest function
-function runPerformanceTest() {
-    showAlert('Performans testi başlatılıyor...', 'info');
+// ================= GLOBAL ERROR HANDLER =================
+window.addEventListener('error', function (e) {
+    console.error('Global error:', e.error);
+    showAlert(
+        'Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.',
+        'error'
+    );
+});
+
+
+// Setup daily exports bucket
+async function setupDailyExportsBucket() {
+    if (!supabase) return false;
     
-    const startTime = performance.now();
-    const results = {
-        domOperations: 0,
-        calculations: 0,
-        localStorage: 0,
-        rendering: 0
-    };
-    
-    // Test DOM operations
-    const domStart = performance.now();
-    for (let i = 0; i < 1000; i++) {
-        const div = document.createElement('div');
-        div.innerHTML = `Test element ${i}`;
-        document.body.appendChild(div);
-        document.body.removeChild(div);
-    }
-    results.domOperations = performance.now() - domStart;
-    
-    // Test calculations
-    const calcStart = performance.now();
-    for (let i = 0; i < 100000; i++) {
-        Math.sqrt(i * Math.PI);
-    }
-    results.calculations = performance.now() - calcStart;
-    
-    // Test localStorage
-    const localStorageStart = performance.now();
-    for (let i = 0; i < 1000; i++) {
-        localStorage.setItem(`test_${i}`, JSON.stringify({data: i}));
-        localStorage.getItem(`test_${i}`);
-        localStorage.removeItem(`test_${i}`);
-    }
-    results.localStorage = performance.now() - localStorageStart;
-    
-    // Test rendering
-    const renderStart = performance.now();
-    const testTable = document.createElement('table');
-    for (let i = 0; i < 100; i++) {
-        const row = testTable.insertRow();
-        for (let j = 0; j < 5; j++) {
-            const cell = row.insertCell();
-            cell.textContent = `Cell ${i}-${j}`;
+    try {
+        // Check if bucket exists
+        const { data: buckets, error } = await supabase.storage.listBuckets();
+        
+        if (error) {
+            console.warn('Bucket list error:', error);
+            return false;
         }
+        
+        const exportsBucketExists = buckets.some(bucket => bucket.name === 'daily-exports');
+        
+        if (!exportsBucketExists) {
+            console.log('Creating daily-exports bucket...');
+            // Note: Bucket creation might require admin privileges
+            showAlert('Günlük export bucketı oluşturuluyor...', 'info');
+        }
+        
+        return true;
+    } catch (error) {
+        console.warn('Bucket setup error:', error);
+        return false;
     }
-    document.body.appendChild(testTable);
-    document.body.removeChild(testTable);
-    results.rendering = performance.now() - renderStart;
-    
-    const totalTime = performance.now() - startTime;
-    
-    // Display results
-    const resultsWindow = window.open('', '_blank', 'width=600,height=500');
-    resultsWindow.document.write(`
-        <html>
-        <head>
-            <title>Performance Test Results</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }
-                .good { background: #d4edda; }
-                .warning { background: #fff3cd; }
-                .poor { background: #f8d7da; }
-            </style>
-        </head>
-        <body>
-            <h2>Performance Test Results</h2>
-            <div class="result ${results.domOperations < 100 ? 'good' : results.domOperations < 200 ? 'warning' : 'poor'}">
-                <strong>DOM Operations:</strong> ${results.domOperations.toFixed(2)}ms
-            </div>
-            <div class="result ${results.calculations < 50 ? 'good' : results.calculations < 100 ? 'warning' : 'poor'}">
-                <strong>Mathematical Calculations:</strong> ${results.calculations.toFixed(2)}ms
-            </div>
-            <div class="result ${results.localStorage < 200 ? 'good' : results.localStorage < 400 ? 'warning' : 'poor'}">
-                <strong>LocalStorage Operations:</strong> ${results.localStorage.toFixed(2)}ms
-            </div>
-            <div class="result ${results.rendering < 100 ? 'good' : results.rendering < 200 ? 'warning' : 'poor'}">
-                <strong>Rendering Operations:</strong> ${results.rendering.toFixed(2)}ms
-            </div>
-            <div class="result">
-                <strong>Total Test Time:</strong> ${totalTime.toFixed(2)}ms
-            </div>
-            <div class="result">
-                <strong>Browser:</strong> ${navigator.userAgent}
-            </div>
-            <div class="result">
-                <strong>Memory Usage:</strong> ${performance.memory ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB` : 'Not available'}
-            </div>
-            <div class="result">
-                <strong>Test Date:</strong> ${new Date().toLocaleString()}
-            </div>
-        </body>
-        </html>
-    `);
-    
-    showAlert(`Performans testi tamamlandı! Toplam süre: ${totalTime.toFixed(2)}ms`, 'success');
-    console.log('Performance test results:', results);
 }
 
-// FIX #2: showConsoleLogs function
-function showConsoleLogs() {
-    // Store original console methods
-    const originalLog = console.log;
-    const originalError = console.error;
-    const originalWarn = console.warn;
-    const originalInfo = console.info;
+
+
+
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+document.addEventListener('DOMContentLoaded', () => {
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        initializeSupabase();
+        console.log('API key loaded from localStorage');
+    }
     
-    // Create logs window
-    const logsWindow = window.open('', '_blank', 'width=800,height=600');
-    logsWindow.document.write(`
-        <html>
-        <head>
-            <title>Console Logs - ProClean</title>
-            <style>
-                body { font-family: 'Courier New', monospace; padding: 10px; background: #1e1e1e; color: #fff; margin: 0; }
-                .log-entry { margin: 2px 0; padding: 5px; border-radius: 3px; word-wrap: break-word; }
-                .log { background: #2d2d2d; }
-                .error { background: #d32f2f; color: white; }
-                .warn { background: #ff9800; color: black; }
-                .info { background: #2196f3; color: white; }
-                .timestamp { color: #888; font-size: 12px; }
-                #controls { position: fixed; top: 10px; right: 10px; z-index: 1000; }
-                button { margin: 0 5px; padding: 5px 10px; }
-                #logs { margin-top: 50px; max-height: calc(100vh - 100px); overflow-y: auto; }
-            </style>
-        </head>
-        <body>
-            <div id="controls">
-                <button onclick="clearLogs()">Clear Logs</button>
-                <button onclick="window.close()">Close</button>
-                <button onclick="exportLogs()">Export</button>
-            </div>
-            <div id="logs"></div>
-            <script>
-                function clearLogs() {
-                    document.getElementById('logs').innerHTML = '';
-                }
-                function exportLogs() {
-                    const logs = document.getElementById('logs').innerText;
-                    const blob = new Blob([logs], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'proclean-logs-' + new Date().toISOString().slice(0, 10) + '.txt';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                }
-                function addLog(message, type = 'log') {
-                    const logs = document.getElementById('logs');
-                    const entry = document.createElement('div');
-                    entry.className = 'log-entry ' + type;
-                    entry.innerHTML = '<span class="timestamp">[' + new Date().toLocaleTimeString() + ']</span> ' + message;
-                    logs.appendChild(entry);
-                    logs.scrollTop = logs.scrollHeight;
-                }
-            </script>
-        </body>
-        </html>
-    `);
-    
-    const logsDiv = logsWindow.document.getElementById('logs');
-    
-    // Override console methods to show in logs window
-    console.log = function(...args) {
-        originalLog.apply(console, args);
-        if (logsWindow && !logsWindow.closed) {
-            logsWindow.addLog(args.join(' '), 'log');
-        }
-    };
-    
-    console.error = function(...args) {
-        originalError.apply(console, args);
-        if (logsWindow && !logsWindow.closed) {
-            logsWindow.addLog(args.join(' '), 'error');
-        }
-    };
-    
-    console.warn = function(...args) {
-        originalWarn.apply(console, args);
-        if (logsWindow && !logsWindow.closed) {
-            logsWindow.addLog(args.join(' '), 'warn');
-        }
-    };
-    
-    console.info = function(...args) {
-        originalInfo.apply(console, args);
-        if (logsWindow && !logsWindow.closed) {
-            logsWindow.addLog(args.join(' '), 'info');
-        }
-    };
-    
-    // Restore original console methods when window closes
-    logsWindow.addEventListener('beforeunload', () => {
-        console.log = originalLog;
-        console.error = originalError;
-        console.warn = originalWarn;
-        console.info = originalInfo;
+    // Excel storage'ı başlat
+    initializeExcelStorage().then(() => {
+        console.log('Excel storage initialized');
     });
-    
-    showAlert('Console logs penceresi açıldı', 'success');
-    console.log('Console logs monitoring started');
+});
+
+// State management functions
+function saveAppState() {
+    const state = {
+        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
+        selectedPersonnelId: elements.personnelSelect.value,
+        currentContainer: currentContainer,
+        isUsingExcel: isUsingExcel
+    };
+    localStorage.setItem('procleanState', JSON.stringify(state));
 }
 
-// Reset settings to defaults
-function resetSettings() {
-    if (confirm('Tüm ayarlar varsayılan değerlere sıfırlanacak. Emin misiniz?')) {
-        const defaultSettings = {
-            theme: 'light',
-            printerScaling: '100',
-            copies: 1,
-            language: 'tr',
-            autoSave: true,
-            fontSize: '14',
-            printQuality: 'normal',
-            barcodeType: 'code128',
-            paperSize: '80x100',
-            soundEnabled: true,
-            notificationsEnabled: true,
-            backupEnabled: true,
-            printerFontSize: '12',
-            printerMargin: '3',
-            barcodeHeight: '25',
-            labelWidth: '100',
-            labelHeight: '80',
-            debugMode: false
-        };
+function loadAppState() {
+    const savedState = localStorage.getItem('procleanState');
+    if (savedState) {
+        const state = JSON.parse(savedState);
         
-        localStorage.setItem('procleanSettings', JSON.stringify(defaultSettings));
-        applySettings(defaultSettings);
-        loadSettings();
+        // Restore customer selection
+        if (state.selectedCustomerId) {
+            elements.customerSelect.value = state.selectedCustomerId;
+            // Find and set the selectedCustomer object
+            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+            if (option) {
+                selectedCustomer = {
+                    id: state.selectedCustomerId,
+                    name: option.textContent.split(' (')[0],
+                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
+            }
+        }
         
-        showAlert('Ayarlar varsayılan değerlere sıfırlandı', 'success');
+        // Restore personnel selection
+        if (state.selectedPersonnelId) {
+            elements.personnelSelect.value = state.selectedPersonnelId;
+        }
+        
+        // Restore current container
+        if (state.currentContainer) {
+            currentContainer = state.currentContainer;
+            elements.containerNumber.textContent = currentContainer;
+        }
+        
+        // Restore Excel mode
+        if (state.isUsingExcel !== undefined) {
+            isUsingExcel = state.isUsingExcel;
+            updateStorageIndicator();
+        }
     }
 }
 
-// Import settings from file
-function importSettings(event) {
+// Initialize application
+async function initApp() {
+    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    
+    // Storage indicator'ı güncelle
+    updateStorageIndicator();
+    
+    // Populate dropdowns
+    await populateCustomers();
+    await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
+    
+    // Load data - önce Excel'den, sonra Supabase'den
+    await loadPackagesData();
+    await populateStockTable();
+    await populateShippingTable();
+    
+    // Test connection
+    await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000); // Save every 5 seconds
+    
+    // Set up offline support
+    setupOfflineSupport();
+    
+    // Set up barcode scanner listener
+    setupBarcodeScanner();
+    
+    // Start daily auto-clear
+    scheduleDailyClear();
+}
+
+// REPLACE the existing loadPackagesData function with this:
+async function loadPackagesData() {
+    if (!window.workspaceManager?.currentWorkspace) {
+        console.warn('Workspace not initialized, using default');
+    }
+    
+    try {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        
+        // Load from workspace-specific Excel
+        const excelData = await ExcelJS.readFile();
+        const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
+        
+        // Filter by workspace
+        const workspacePackages = excelPackagesList.filter(pkg => 
+            pkg.workspace_id === workspaceId
+        );
+        
+        console.log(`Loaded from ${window.workspaceManager?.currentWorkspace?.name || 'Default'} Excel:`, workspacePackages.length, 'packages');
+        window.packages = workspacePackages;
+        
+        // Load from Supabase with workspace filtering
+        if (supabase && navigator.onLine) {
+            try {
+                const { data: supabasePackages, error } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .is('container_id', null)
+                    .eq('status', 'beklemede')
+                    .eq('workspace_id', workspaceId)
+                    .order('created_at', { ascending: false });
+                
+                if (!error && supabasePackages && supabasePackages.length > 0) {
+                    console.log(`Loaded from Supabase:`, supabasePackages.length, 'packages');
+                    
+                    // Merge with Excel data (Supabase takes priority)
+                    const mergedPackages = mergePackages(workspacePackages, supabasePackages);
+                    window.packages = mergedPackages;
+                    
+                    // Update Excel storage with merged data
+                    const excelData = ExcelJS.toExcelFormat(mergedPackages);
+                    await ExcelJS.writeFile(excelData);
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase load failed, using Excel data:', supabaseError);
+            }
+        }
+        
+        await populatePackagesTable();
+        
+    } catch (error) {
+        console.error('Error loading packages data:', error);
+        showAlert('Paket verileri yüklenirken hata oluştu', 'error');
+    }
+}
+
+
+
+
+function mergePackages(excelPackages, supabasePackages) {
+    const merged = [...excelPackages];
+    const excelIds = new Set(excelPackages.map(p => p.id));
+    
+    for (const supabasePkg of supabasePackages) {
+        if (!excelIds.has(supabasePkg.id)) {
+            merged.push(supabasePkg);
+        }
+    }
+    
+    return merged;
+}
+
+// REPLACE the existing completePackage function with this:
+async function completePackage() {
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    try {
+        const packageNo = `PKG-${Date.now()}`;
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect.value;
+
+        // Convert items object to array for better handling
+        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
+            name: name,
+            qty: qty
+        }));
+
+        const packageId = generateUUID();
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+
+        const packageData = {
+            id: packageId,
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            items: itemsArray,
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            workspace_id: workspaceId,
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default',
+            // New fields for enhanced tracking
+            storage_type: 'excel_daily',
+            daily_file: ExcelJS.getCurrentFileName()
+        };
+
+        // Save to daily Excel file
+        const currentData = await ExcelJS.readFile();
+        currentData.push(packageData);
+        const excelSuccess = await ExcelJS.writeFile(currentData);
+        
+        if (excelSuccess) {
+            showAlert(`Paket oluşturuldu: ${packageNo} (Günlük Excel)`, 'success');
+            
+            // Try to sync with Supabase if online
+            if (supabase && navigator.onLine) {
+                try {
+                    const { data, error } = await supabase
+                        .from('packages')
+                        .insert([packageData])
+                        .select();
+
+                    if (!error) {
+                        console.log('Package also saved to Supabase');
+                    }
+                } catch (supabaseError) {
+                    console.warn('Supabase save failed:', supabaseError);
+                }
+            }
+        }
+
+        // Reset and refresh
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        await populatePackagesTable();
+        updateStorageIndicator();
+
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+    }
+}
+
+
+
+
+
+
+// Modified deleteSelectedPackages function
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        // Online ve Supabase bağlı ise önce Supabase'den sil
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { error } = await supabase
+                    .from('packages')
+                    .delete()
+                    .in('id', packageIds);
+
+                if (error) throw error;
+
+                // Sonra Excel'den sil
+                for (const id of packageIds) {
+                    await deleteFromExcel(id);
+                }
+                
+                showAlert(`${packageIds.length} paket silindi (Online)`, 'success');
+                
+            } catch (supabaseError) {
+                console.warn('Supabase delete failed, deleting from Excel:', supabaseError);
+                // Supabase başarısız olursa Excel'den sil
+                for (const id of packageIds) {
+                    await deleteFromExcel(id);
+                    addToSyncQueue('delete', { id: id });
+                }
+                showAlert(`${packageIds.length} paket Excel'den silindi (Çevrimdışı)`, 'warning');
+                isUsingExcel = true;
+            }
+        } else {
+            // Offline ise direkt Excel'den sil
+            for (const id of packageIds) {
+                await deleteFromExcel(id);
+                addToSyncQueue('delete', { id: id });
+            }
+            showAlert(`${packageIds.length} paket Excel'den silindi (Çevrimdışı)`, 'warning');
+            isUsingExcel = true;
+        }
+
+        await populatePackagesTable();
+        updateStorageIndicator();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
+    }
+}
+
+// New function to update storage indicator
+function updateStorageIndicator() {
+    const indicator = document.getElementById('storageIndicator');
+    if (!indicator) return;
+    
+    if (isUsingExcel || !supabase || !navigator.onLine) {
+        indicator.innerHTML = '<i class="fas fa-file-excel"></i> Excel Modu';
+        indicator.className = 'storage-indicator excel-mode';
+    } else {
+        indicator.innerHTML = '<i class="fas fa-database"></i> Supabase Modu';
+        indicator.className = 'storage-indicator supabase-mode';
+    }
+}
+
+// New function to manually sync data
+async function manualSync() {
+    if (!supabase) {
+        showAlert('Supabase bağlantısı yok', 'error');
+        return;
+    }
+    
+    if (!navigator.onLine) {
+        showAlert('İnternet bağlantısı yok', 'error');
+        return;
+    }
+    
+    showAlert('Manuel senkronizasyon başlatılıyor...', 'info');
+    
+    const success = await syncExcelWithSupabase();
+    if (success) {
+        isUsingExcel = false;
+        updateStorageIndicator();
+        await loadPackagesData(); // Verileri yeniden yükle
+    }
+}
+
+// New function to export Excel data
+async function exportExcelData() {
+    try {
+        const packages = await ExcelJS.readFile();
+        if (packages.length === 0) {
+            showAlert('Excel verisi yok', 'info');
+            return;
+        }
+        
+        const dataStr = JSON.stringify(packages, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `packages-backup-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        
+        showAlert('Excel verileri yedeklendi', 'success');
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert('Yedekleme hatası', 'error');
+    }
+}
+
+// New function to import Excel data
+async function importExcelData(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const settings = JSON.parse(e.target.result);
-            localStorage.setItem('procleanSettings', JSON.stringify(settings));
-            applySettings(settings);
-            loadSettings();
-            showAlert('Ayarlar başarıyla içe aktarıldı', 'success');
-        } catch (error) {
-            showAlert('Ayar dosyası geçersiz', 'error');
-        }
-    };
-    reader.readAsText(file);
-    
-    // Reset file input
-    event.target.value = '';
-}
-
-// FIX #6: Save all settings with fixed changeLanguage reference
-function saveAllSettings() {
-    const settings = {
-        theme: document.getElementById('themeToggle')?.checked ? 'dark' : 'light',
-        printerScaling: document.getElementById('printerScaling')?.value || '100',
-        copies: parseInt(document.getElementById('copiesNumber')?.value) || 1,
-        language: document.getElementById('languageSelect')?.value || 'tr',
-        autoSave: document.getElementById('autoSaveToggle')?.checked !== false,
-        fontSize: document.getElementById('fontSizeSelect')?.value || '14',
-        printQuality: document.getElementById('printQualitySelect')?.value || 'normal',
-        barcodeType: document.getElementById('barcodeTypeSelect')?.value || 'code128',
-        paperSize: document.getElementById('paperSizeSelect')?.value || '80x100',
-        soundEnabled: document.getElementById('soundToggle')?.checked !== false,
-        notificationsEnabled: document.getElementById('notificationsToggle')?.checked !== false,
-        backupEnabled: document.getElementById('backupToggle')?.checked !== false,
-        debugMode: document.getElementById('debugToggle')?.checked || false,
-        // FIX #7: Real printer settings (not fake)
-        printerFontSize: parseInt(document.getElementById('printerFontSize')?.value) || 12,
-        printerMargin: parseInt(document.getElementById('printerMargin')?.value) || 3,
-        barcodeHeight: parseInt(document.getElementById('barcodeHeight')?.value) || 25,
-        labelWidth: parseInt(document.getElementById('labelWidth')?.value) || 100,
-        labelHeight: parseInt(document.getElementById('labelHeight')?.value) || 80,
-        // Additional real printer settings
-        printDensity: document.getElementById('printDensity')?.value || 'medium',
-        printSpeed: document.getElementById('printSpeed')?.value || 'normal',
-        paperType: document.getElementById('paperType')?.value || 'thermal',
-        printerPort: document.getElementById('printerPort')?.value || 'USB001',
-        printerModel: document.getElementById('printerModel')?.value || 'Generic'
-    };
-    
-    localStorage.setItem('procleanSettings', JSON.stringify(settings));
-    applySettings(settings);
-    showAlert('Ayarlar kaydedildi', 'success');
-    
-    // Update printer settings in real-time
-    updatePrinterSettings(settings);
-}
-
-// Apply settings to the application - FIX #6: Fixed changeLanguage reference
-function applySettings(settings) {
-    // Apply theme
-    if (settings.theme === 'dark') {
-        document.body.classList.add('dark-mode');
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) themeToggle.checked = true;
-    } else {
-        document.body.classList.remove('dark-mode');
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) themeToggle.checked = false;
-    }
-    
-    // Apply language (safe simulation mode)
-    if (settings.language && typeof changeLanguage === 'function') {
-        changeLanguage(settings.language);
-    }
-    
-    // Apply font size
-    if (settings.fontSize) {
-        document.documentElement.style.setProperty('--base-font-size', settings.fontSize + 'px');
-        updateFontSize(settings.fontSize);
-    }
-    
-    // Apply sound settings
-    if (settings.soundEnabled !== undefined) {
-        window.soundEnabled = settings.soundEnabled;
-    }
-    
-    // Apply notification settings
-    if (settings.notificationsEnabled !== undefined) {
-        window.notificationsEnabled = settings.notificationsEnabled;
-    }
-    
-    // Apply UI scaling
-    if (settings.printerScaling) {
-        document.documentElement.style.setProperty('--ui-scale', (parseInt(settings.printerScaling) / 100));
-    }
-    
-    // Apply debug mode
-    if (settings.debugMode !== undefined) {
-        window.DEBUG_MODE = settings.debugMode;
-        if (settings.debugMode) {
-            document.body.classList.add('debug-mode');
-        } else {
-            document.body.classList.remove('debug-mode');
-        }
-    }
-    
-    console.log('Settings applied:', settings);
-}
-
-function toggleTheme() {
-    const isDark = document.getElementById('themeToggle')?.checked;
-    document.body.classList.toggle('dark-mode', isDark);
-    const themeStatus = document.getElementById('themeStatus');
-    if (themeStatus) {
-        themeStatus.textContent = isDark ? 'Koyu' : 'Açık';
-    }
-}
-
-function checkSystemStatus() {
-    // --- Database connection ---
-    const dbStatus = document.getElementById('dbConnectionStatus');
-    if (dbStatus) {
-        if (window.supabase) {
-            dbStatus.textContent = 'Bağlı';
-            dbStatus.className = 'status-indicator connected';
-        } else {
-            dbStatus.textContent = 'Bağlantı Yok';
-            dbStatus.className = 'status-indicator disconnected';
-        }
-    }
-
-    // --- Printer connection ---
-    const printerStatus = document.getElementById('printerConnectionStatus');
-    if (printerStatus) {
-        const printerInstance = typeof getPrinterElectron === 'function' ? getPrinterElectron() : null;
-
-        if (printerInstance && printerInstance.isConnected) {
-            printerStatus.textContent = 'Bağlı';
-            printerStatus.className = 'status-indicator connected';
-        } else {
-            printerStatus.textContent = 'Bağlantı Yok';
-            printerStatus.className = 'status-indicator disconnected';
-        }
-    }
-}
-
-async function exportData(format) {
-    if (!format) {
-        showAlert('⚠️ Format belirtilmedi!', 'error');
-        return;
-    }
-
-    format = format.toLowerCase().trim();
-
     try {
-        showAlert('📊 Veriler toplanıyor...', 'info');
-
-        // Collect all data from the app
-        const allData = await collectAllAppData();
-
-        if (Object.keys(allData).length === 0) {
-            showAlert('⚠️ Dışa aktarılacak veri bulunamadı!', 'info');
-            return;
-        }
-
-        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const filename = `proclean_full_backup_${timestamp}`;
-
-        if (format === 'json') {
-            await exportToJSON(allData, filename);
-        } else if (format === 'excel') {
-            await exportToExcel(allData, filename);
-        } else {
-            showAlert('⚠️ Geçersiz format seçildi! Sadece JSON veya Excel desteklenir.', 'error');
-        }
-
-    } catch (error) {
-        console.error('Export error:', error);
-        showAlert(`❌ Dışa aktarma hatası: ${error.message}`, 'error');
-    }
-}
-
-// Collect all data from the application
-async function collectAllAppData() {
-    const allData = {
-        metadata: {
-            exportDate: new Date().toISOString(),
-            appVersion: '1.0.0',
-            totalRecords: 0
-        },
-        settings: {},
-        customers: [],
-        packages: [],
-        containers: [],
-        stock: [],
-        personnel: [],
-        reports: [],
-        shipping: [],
-        users: [],
-        auditLogs: []
-    };
-
-    try {
-        // 1. Export Settings and Local Storage
-        allData.settings = {
-            theme: localStorage.getItem('procleanTheme'),
-            apiKey: localStorage.getItem('procleanApiKey') ? '***HIDDEN***' : null,
-            appState: JSON.parse(localStorage.getItem('procleanState') || '{}'),
-            userPreferences: JSON.parse(localStorage.getItem('procleanPreferences') || '{}')
-        };
-
-        // 2. Export Customers
-        if (window.packages && window.packages.length > 0) {
-            const uniqueCustomers = [...new Set(window.packages.map(p => p.customer_name))].filter(Boolean);
-            allData.customers = uniqueCustomers.map(name => ({
-                name: name,
-                totalPackages: window.packages.filter(p => p.customer_name === name).length,
-                totalItems: window.packages.filter(p => p.customer_name === name)
-                    .reduce((sum, p) => sum + (p.total_quantity || 0), 0)
-            }));
-        }
-
-        // 3. Export Packages (Current Session)
-        if (window.packages) {
-            allData.packages = window.packages.map(pkg => ({
-                package_no: pkg.package_no,
-                customer_name: pkg.customer_name,
-                product: pkg.product,
-                total_quantity: pkg.total_quantity,
-                status: pkg.status,
-                container_id: pkg.container_id,
-                created_at: pkg.created_at,
-                packer: pkg.packer,
-                barcode: pkg.barcode
-            }));
-        }
-
-        // 4. Export Containers
-        if (window.containers) {
-            allData.containers = window.containers.map(container => ({
-                container_no: container.container_no,
-                customer: container.customer,
-                package_count: container.package_count,
-                total_quantity: container.total_quantity,
-                status: container.status,
-                created_at: container.created_at,
-                shipped_at: container.shipped_at
-            }));
-        }
-
-        // 5. Export Stock Items
-        const stockTable = document.getElementById('stockTableBody');
-        if (stockTable) {
-            const stockRows = Array.from(stockTable.querySelectorAll('tr'));
-            allData.stock = stockRows.map(tr => {
-                const tds = tr.querySelectorAll('td');
-                return {
-                    code: tds[0]?.textContent.trim(),
-                    name: tds[1]?.textContent.trim(),
-                    quantity: parseInt(tds[2]?.textContent) || 0,
-                    unit: tds[3]?.textContent.trim(),
-                    category: tds[4]?.textContent.trim(),
-                    critical_level: parseInt(tds[5]?.textContent) || 0
-                };
-            }).filter(item => item.code && item.name);
-        }
-
-        // 6. Export Personnel
-        const personnelSelect = document.getElementById('personnelSelect');
-        if (personnelSelect) {
-            allData.personnel = Array.from(personnelSelect.options).map(option => ({
-                id: option.value,
-                name: option.textContent.trim(),
-                isActive: option.value === personnelSelect.value
-            })).filter(p => p.id); // Remove empty options
-        }
-
-        // 7. Export Current Session State
-        allData.currentSession = {
-            selectedCustomer: window.selectedCustomer,
-            currentContainer: window.currentContainer,
-            currentPackage: window.currentPackage,
-            currentUser: window.currentUser,
-            connectionStatus: navigator.onLine ? 'online' : 'offline'
-        };
-
-        // 8. Export Shipping/Container Data
-        const shippingTable = document.getElementById('shippingTableBody');
-        if (shippingTable) {
-            const shippingRows = Array.from(shippingTable.querySelectorAll('tr'));
-            allData.shipping = shippingRows.map(tr => {
-                const tds = tr.querySelectorAll('td');
-                const checkbox = tr.querySelector('input[type="checkbox"]');
-                return {
-                    selected: checkbox?.checked || false,
-                    container_no: tds[1]?.textContent.trim(),
-                    customer: tds[2]?.textContent.trim(),
-                    package_count: parseInt(tds[3]?.textContent) || 0,
-                    total_quantity: parseInt(tds[4]?.textContent) || 0,
-                    status: tds[5]?.textContent.trim(),
-                    created_date: tds[6]?.textContent.trim()
-                };
-            }).filter(item => item.container_no);
-        }
-
-        // 9. Try to fetch additional data from Supabase if available
-        if (window.supabase) {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
             try {
-                // Export users data
-                const { data: users } = await supabase
-                    .from('users')
-                    .select('*')
-                    .limit(100); // Limit for safety
-                if (users) allData.users = users;
-
-                // Export reports data
-                const { data: reports } = await supabase
-                    .from('reports')
-                    .select('*')
-                    .limit(50);
-                if (reports) allData.reports = reports;
-
-            } catch (dbError) {
-                console.warn('Database export limited:', dbError);
-                allData.databaseExport = 'partial - some tables unavailable';
+                const importedData = JSON.parse(e.target.result);
+                const excelData = ExcelJS.toExcelFormat(importedData);
+                
+                await ExcelJS.writeFile(excelData);
+                excelPackages = importedData;
+                
+                showAlert('Excel verileri içe aktarıldı', 'success');
+                await populatePackagesTable();
+                
+            } catch (parseError) {
+                console.error('Import parse error:', parseError);
+                showAlert('Geçersiz dosya formatı', 'error');
             }
-        }
-
-        // 10. Export UI State and Statistics
-        allData.uiState = {
-            activeTab: document.querySelector('.tab.active')?.getAttribute('data-tab') || 'unknown',
-            totalPackagesCount: window.packages ? window.packages.length : 0,
-            totalContainersCount: window.containers ? window.containers.length : 0,
-            waitingPackages: window.packages ? window.packages.filter(p => !p.container_id).length : 0,
-            shippedPackages: window.packages ? window.packages.filter(p => p.container_id).length : 0,
-            criticalStockItems: allData.stock.filter(item => item.quantity <= item.critical_level).length
         };
-
-        // Calculate total records
-        allData.metadata.totalRecords = 
-            allData.packages.length +
-            allData.containers.length +
-            allData.stock.length +
-            allData.customers.length +
-            allData.personnel.length +
-            allData.users.length +
-            allData.reports.length;
-
-        return allData;
-
+        reader.readAsText(file);
+        
+        // Reset file input
+        event.target.value = '';
     } catch (error) {
-        console.error('Data collection error:', error);
-        throw new Error(`Veri toplama hatası: ${error.message}`);
+        console.error('Import error:', error);
+        showAlert('İçe aktarma hatası', 'error');
     }
 }
 
-// Export to JSON function
-async function exportToJSON(data, filename) {
+
+
+
+// Add this function to app.js if it doesn't exist
+async function addItemToPackage(productName, quantity = 1) {
     try {
-        // Create a pretty-printed JSON string
-        const jsonString = JSON.stringify(data, null, 2);
-        
-        // Create blob and download
-        const blob = new Blob([jsonString], { 
-            type: 'application/json;charset=utf-8' 
-        });
-        
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        showAlert(`✅ Tüm veriler JSON formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt)`, 'success');
-        
-        // Optional: Log export summary
-        console.log('📊 Export Summary:', {
-            packages: data.packages.length,
-            containers: data.containers.length,
-            stock: data.stock.length,
-            customers: data.customers.length,
-            personnel: data.personnel.length
-        });
-
-    } catch (error) {
-        throw new Error(`JSON export failed: ${error.message}`);
-    }
-}
-
-// Export to Excel function
-async function exportToExcel(data, filename) {
-    if (typeof XLSX === 'undefined') {
-        throw new Error('XLSX kütüphanesi bulunamadı! Lütfen SheetJS kütüphanesini yükleyin.');
-    }
-
-    try {
-        const wb = XLSX.utils.book_new();
-        
-        // Create worksheets for each data type
-        const sheets = [
-            { name: 'Paketler', data: data.packages },
-            { name: 'Konteynerler', data: data.containers },
-            { name: 'Stok', data: data.stock },
-            { name: 'Müşteriler', data: data.customers },
-            { name: 'Personel', data: data.personnel },
-            { name: 'Raporlar', data: data.reports },
-            { name: 'Kullanıcılar', data: data.users },
-            { name: 'Ayarlar', data: [data.settings] },
-            { name: 'Oturum', data: [data.currentSession] },
-            { name: 'UI_Durum', data: [data.uiState] },
-            { name: 'Metadata', data: [data.metadata] }
-        ];
-
-        // Add each sheet to workbook
-        sheets.forEach(sheet => {
-            if (sheet.data && sheet.data.length > 0) {
-                const ws = XLSX.utils.json_to_sheet(sheet.data);
-                XLSX.utils.book_append_sheet(wb, ws, sheet.name);
-            }
-        });
-
-        // Export to Excel file
-        XLSX.writeFile(wb, `${filename}.xlsx`);
-        
-        showAlert(`✅ Tüm veriler Excel formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt, ${sheets.filter(s => s.data.length > 0).length} sayfa)`, 'success');
-
-    } catch (error) {
-        throw new Error(`Excel export failed: ${error.message}`);
-    }
-}
-
-// Quick export functions for specific data types
-async function exportPackages(format) {
-    if (!window.packages || window.packages.length === 0) {
-        showAlert('⚠️ Dışa aktarılacak paket bulunamadı!', 'info');
-        return;
-    }
-
-    const data = {
-        packages: window.packages.map(pkg => ({
-            package_no: pkg.package_no,
-            customer_name: pkg.customer_name,
-            product: pkg.product,
-            total_quantity: pkg.total_quantity,
-            status: pkg.status,
-            container_id: pkg.container_id,
-            created_at: pkg.created_at,
-            packer: pkg.packer
-        })),
-        metadata: {
-            exportDate: new Date().toISOString(),
-            totalPackages: window.packages.length,
-            waitingPackages: window.packages.filter(p => !p.container_id).length,
-            shippedPackages: window.packages.filter(p => p.container_id).length
-        }
-    };
-
-    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    
-    if (format === 'json') {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `proclean_packages_${timestamp}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showAlert(`✅ Paketler dışa aktarıldı! (${data.packages.length} paket)`, 'success');
-    } else if (format === 'excel') {
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(data.packages);
-        XLSX.utils.book_append_sheet(wb, ws, 'Paketler');
-        XLSX.writeFile(wb, `proclean_packages_${timestamp}.xlsx`);
-        showAlert(`✅ Paketler Excel formatında dışa aktarıldı!`, 'success');
-    }
-}
-
-// Add to your HTML for easy access:
-function addExportButtons() {
-    // Create export buttons container if it doesn't exist
-    let exportContainer = document.getElementById('export-buttons-container');
-    if (!exportContainer) {
-        exportContainer = document.createElement('div');
-        exportContainer.id = 'export-buttons-container';
-        exportContainer.style.margin = '10px 0';
-        exportContainer.style.padding = '10px';
-        exportContainer.style.border = '1px solid #ddd';
-        exportContainer.style.borderRadius = '5px';
-        
-        // Add to settings panel or wherever appropriate
-        const settingsPanel = document.querySelector('.settings-panel') || document.body;
-        settingsPanel.appendChild(exportContainer);
-    }
-
-    exportContainer.innerHTML = `
-        <h4>📊 Veri Dışa Aktarma</h4>
-        <button onclick="exportData('json')" class="btn btn-success">📁 Tüm Veriyi JSON Olarak İndir</button>
-        <button onclick="exportData('excel')" class="btn btn-primary">📊 Tüm Veriyi Excel Olarak İndir</button>
-        <button onclick="exportPackages('json')" class="btn btn-outline-success">📦 Sadece Paketleri JSON İndir</button>
-        <button onclick="exportPackages('excel')" class="btn btn-outline-primary">📦 Sadece Paketleri Excel İndir</button>
-        <p style="font-size:12px; color:#666; margin-top:5px;">
-            Tüm veri: Paketler, konteynerler, stok, müşteriler, personel, ayarlar ve daha fazlası
-        </p>
-    `;
-}
-
-// Initialize export buttons when app loads
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(addExportButtons, 2000); // Add after app initializes
-});
-
-function clearFrontendData() {
-    const password = prompt('Tüm frontend veriler silinecek. Lütfen şifreyi girin:');
-
-    if (password !== '8823') {
-        alert('⚠️ Şifre yanlış! İşlem iptal edildi.');
-        return;
-    }
-
-    // ------------------- LOCALSTORAGE -------------------
-    localStorage.removeItem('procleanState');
-    localStorage.removeItem('procleanOfflineData');
-    localStorage.removeItem('procleanSettings');
-
-    // ------------------- TABLES -------------------
-    const tables = document.querySelectorAll('table');
-    tables.forEach(table => {
-        const tbody = table.querySelector('tbody');
-        if (tbody) tbody.innerHTML = '';
-    });
-
-    // ------------------- INPUTS & TEXTAREAS -------------------
-    const inputs = document.querySelectorAll('input, textarea');
-    inputs.forEach(input => input.value = '');
-
-    // ------------------- SELECTS -------------------
-    const selects = document.querySelectorAll('select');
-    selects.forEach(select => select.selectedIndex = 0);
-
-    // ------------------- CONTAINERS -------------------
-    const containers = document.querySelectorAll(
-        '.container, .packages-container, .reports-container, .stock-container, .stock-items'
-    );
-    containers.forEach(container => container.innerHTML = '');
-
-    // ------------------- CHECKBOXES / TOGGLES -------------------
-    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(cb => cb.checked = false);
-
-    const toggles = document.querySelectorAll('input[type="radio"]');
-    toggles.forEach(toggle => toggle.checked = false);
-
-    showAlert('Tüm frontend veriler temizlendi', 'success');
-}
-
-function initializeSettings() {
-    try {
-        const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        if (savedSettings && typeof applySettings === 'function') {
-            applySettings(savedSettings);
-        }
-    } catch (error) {
-        console.error('⚠️ Error loading settings:', error);
-    }
-}
-
-function selectPackage(pkg) {
-    try {
-        // Validate input
-        if (!pkg || !pkg.id) {
-            console.error('Invalid package data:', pkg);
-            showAlert('Geçersiz paket verisi', 'error');
-            return;
+        if (!currentPackage.items) {
+            currentPackage.items = {};
         }
         
-        // Remove selected class from all rows
-        document.querySelectorAll('#packagesTableBody tr').forEach(row => {
-            row.classList.remove('selected');
-        });
-        
-        // Find and select the target row
-        const targetCheckbox = document.querySelector(`#packagesTableBody input[value="${pkg.id}"]`);
-        const targetRow = targetCheckbox?.closest('tr');
-        
-        if (targetRow) {
-            targetRow.classList.add('selected');
+        // Add or update item quantity
+        if (currentPackage.items[productName]) {
+            currentPackage.items[productName] += quantity;
         } else {
-            console.warn('Could not find row for package:', pkg.id);
+            currentPackage.items[productName] = quantity;
         }
         
-        // Update detail content
-        const detailContent = document.getElementById('packageDetailContent');
-        if (detailContent) {
-            updatePackageDetails(pkg, detailContent);
-        }
+        // Update the quantity badge if it exists
+        updateQuantityBadge(productName, currentPackage.items[productName]);
+        
+        showAlert(`${productName} pakete eklendi: ${quantity} adet`, 'success');
+        
+        // ✅ Refresh the packages table immediately
+        await populatePackagesTable();
         
     } catch (error) {
-        console.error('Error in selectPackage:', error);
-        showAlert('Paket seçilirken hata oluştu', 'error');
+        console.error('Error adding item to package:', error);
+        showAlert('Ürün pakete eklenirken hata oluştu', 'error');
     }
 }
 
-function updatePackageDetails(pkg, container) {
-    // Safe date formatting
-    let dateStr = 'N/A';
-    if (pkg.created_at) {
-        try {
-            const date = new Date(pkg.created_at);
-            dateStr = isNaN(date.getTime()) ? 'Geçersiz tarih' : date.toLocaleDateString('tr-TR');
-        } catch (e) {
-            dateStr = 'Geçersiz tarih';
+// Also add this helper function if needed
+function updateQuantityBadge(productName, quantity) {
+    const badge = document.querySelector(`[data-product="${productName}"] .quantity-badge`);
+    if (badge) {
+        badge.textContent = quantity;
+        badge.style.display = quantity > 0 ? 'inline-block' : 'none';
+    }
+}
+
+
+function updatePackageDisplay() {
+    const packageItemsContainer = document.getElementById('packageItems');
+    if (packageItemsContainer) {
+        packageItemsContainer.innerHTML = '';
+        
+        if (currentPackage.items && Object.keys(currentPackage.items).length > 0) {
+            Object.entries(currentPackage.items).forEach(([itemName, quantity]) => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'package-item';
+                itemElement.innerHTML = `
+                    <span>${itemName}</span>
+                    <span>${quantity} adet</span>
+                `;
+                packageItemsContainer.appendChild(itemElement);
+            });
         }
     }
-
-    container.innerHTML = `
-        <h4>Paket: ${pkg.package_no || 'N/A'}</h4>
-        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
-        <p><strong>Tarih:</strong> ${dateStr}</p>
-        <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
-        <div class="items-section">
-            <div style="display:flex; justify-content:space-between; font-weight:bold; border-bottom:2px solid #000; padding-bottom:0.3rem;">
-                <span>Ürün</span>
-                <span>Adet</span>
-            </div>
-        </div>
-    `;
-
-    if (Array.isArray(pkg.items) && pkg.items.length > 0) {
-        const itemsSection = container.querySelector('.items-section');
-        pkg.items.forEach(item => {
-            const itemDiv = document.createElement('div');
-            itemDiv.style.display = 'flex';
-            itemDiv.style.justifyContent = 'space-between';
-            itemDiv.style.padding = '0.2rem 0';
-            itemDiv.textContent = ''; // We'll use spans
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = item.name || 'Bilinmeyen Ürün';
-            const qtySpan = document.createElement('span');
-            qtySpan.textContent = item.qty != null ? item.qty : 1;
-            itemDiv.appendChild(nameSpan);
-            itemDiv.appendChild(qtySpan);
-            itemsSection.appendChild(itemDiv);
-        });
-    }
-}
-
-
-
-function getSelectedPackage() {
-    const selectedRow = document.querySelector('#packagesTableBody tr.selected');
-    if (!selectedRow) return null;
     
-    const packageId = selectedRow.querySelector('input[type="checkbox"]').value;
-    
-    return {
-        id: packageId,
-        package_no: selectedRow.cells[1].textContent,
-        customers: { name: selectedRow.cells[2].textContent },
-        total_quantity: selectedRow.cells[3].textContent.trim(), // now as text
-        created_at: selectedRow.cells[4].textContent
-    };
-}
-
-function toggleSelectAll() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const selectAll = document.getElementById('selectAllPackages').checked;
-    
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = selectAll;
-    });
-}
-
-function updatePackageSelection() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    
-    document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-}
-
-// Stock operations
-function searchStock() {
-    if (!elements.stockSearch) {
-        console.error('Stock search input not found');
-        return;
-    }
-    
-    if (!elements.stockTableBody) {
-        console.error('Stock table body not found');
-        return;
-    }
-    
-    const searchTerm = elements.stockSearch.value.toLowerCase();
-    const rows = elements.stockTableBody.querySelectorAll('tr');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-    });
-}
-
-function clearStockSearch() {
-    elements.stockSearch.value = '';
-    const rows = elements.stockTableBody.querySelectorAll('tr');
-    rows.forEach(row => {
-        row.style.display = '';
-    });
-}
-
-
-
-// ==================== WORKSPACE UI FUNCTIONS ====================
-// Add this at the BOTTOM of ui.js (after all existing functions)
-
-function initializeWorkspaceUI() {
-    // Check if workspace indicator already exists
-    if (document.getElementById('workspaceIndicator')) {
-        return; // Already initialized
-    }
-
-    const header = document.querySelector('.app-header');
-    if (!header) {
-        console.warn('App header not found, delaying workspace UI initialization');
-        setTimeout(initializeWorkspaceUI, 1000);
-        return;
-    }
-
-    const indicator = document.createElement('div');
-    indicator.id = 'workspaceIndicator';
-    indicator.className = 'workspace-indicator';
-    indicator.style.cssText = `
-        padding: 0.5rem 1rem;
-        background: var(--primary);
-        color: white;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-left: auto;
-        margin-right: 1rem;
-    `;
-
-    // Safe insertion - find a reliable reference point
-    const settingsBtn = document.getElementById('settingsBtn');
-    if (settingsBtn && settingsBtn.parentNode === header) {
-        header.insertBefore(indicator, settingsBtn);
-    } else {
-        // Fallback: append to header
-        header.appendChild(indicator);
-    }
-    
-    // Add workspace switching capability
-    addWorkspaceSwitchHandler();
-}
-
-
-
-
-function addWorkspaceSwitchHandler() {
-    const indicator = document.getElementById('workspaceIndicator');
-    if (indicator) {
-        indicator.style.cursor = 'pointer';
-        indicator.title = 'İstasyonu değiştirmek için tıklayın';
-        indicator.onclick = () => window.workspaceManager.showWorkspaceSelection();
-    }
-}
-
-// Modify existing UI functions to respect workspace permissions
-function setupWorkspaceAwareUI() {
-    // Hide/show UI elements based on workspace permissions
-    const updateUIVisibility = () => {
-        if (!window.workspaceManager?.currentWorkspace) return;
-        
-        const canCreatePackages = window.workspaceManager.canPerformAction('create_package');
-        const canShipPackages = window.workspaceManager.canPerformAction('ship_packages');
-        const canViewReports = window.workspaceManager.canPerformAction('view_reports');
-        
-        // Show/hide package creation UI
-        const packageCreationSection = document.querySelector('.package-creation-section, .package-controls');
-        if (packageCreationSection) {
-            packageCreationSection.style.display = canCreatePackages ? 'block' : 'none';
-        }
-        
-        // Show/hide complete package button
-        const completeBtn = document.querySelector('button[onclick*="completePackage"]');
-        if (completeBtn) {
-            completeBtn.style.display = canCreatePackages ? 'inline-block' : 'none';
-        }
-        
-        // Show/hide shipping buttons
-        const shippingButtons = document.querySelectorAll('.shipping-action, .ship-container-btn');
-        shippingButtons.forEach(btn => {
-            btn.style.display = canShipPackages ? 'inline-block' : 'none';
-        });
-        
-        // Show/hide reports tab
-        const reportsTab = document.querySelector('[data-tab="reports"]');
-        if (reportsTab) {
-            reportsTab.style.display = canViewReports ? 'flex' : 'none';
-        }
-        
-        console.log(`UI updated for ${window.workspaceManager.currentWorkspace.name}:`, {
-            canCreatePackages,
-            canShipPackages,
-            canViewReports
-        });
-    };
-    
-    // Update UI when workspace changes
-    if (window.workspaceManager) {
-        window.workspaceManager.onWorkspaceChange = updateUIVisibility;
-    }
-    
-    // Initial update
-    setTimeout(updateUIVisibility, 1000);
-}
-
-
-
-
-// Daily File Management
-function showDailyFilesModal() {
-    const files = ExcelJS.getAllFiles();
-    
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-        background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
-        align-items: center; z-index: 10000;
-    `;
-    
-    modal.innerHTML = `
-        <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
-            <h2>Günlük Dosya Yönetimi</h2>
-            <p>Her gün için ayrı Excel dosyası oluşturulur ve Supabase'e yüklenir.</p>
-            
-            <div style="margin: 1rem 0;">
-                <strong>Bugünkü Dosya:</strong> ${ExcelJS.getCurrentFileName()}
-            </div>
-            
-            <h3>Geçmiş Dosyalar</h3>
-            <div id="dailyFilesList" style="margin: 1rem 0;">
-                ${files.length === 0 ? 
-                    '<p style="text-align:center; color:#666;">Henüz dosya yok</p>' : 
-                    files.map(file => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
-                            <div>
-                                <strong>${file.date}</strong>
-                                <small style="margin-left: 1rem;">${file.data.length} kayıt</small>
-                            </div>
-                            <div>
-                                <button onclick="ExcelJS.exportFile('${file.date}')" class="btn btn-sm btn-success">
-                                    <i class="fas fa-download"></i> İndir
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')
-                }
-            </div>
-            
-            <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                <button onclick="manualUploadToSupabase()" class="btn btn-primary">
-                    <i class="fas fa-cloud-upload-alt"></i> Supabase'e Yükle
-                </button>
-                <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn btn-secondary">
-                    Kapat
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
-
-// Manual upload function
-async function manualUploadToSupabase() {
-    try {
-        showAlert('Supabase yükleniyor...', 'info');
-        
-        const files = ExcelJS.getAllFiles();
-        let uploadedCount = 0;
-        
-        for (const file of files) {
-            const success = await ExcelJS.uploadToSupabase(file.data, file.date);
-            if (success) uploadedCount++;
-        }
-        
-        showAlert(`${uploadedCount} dosya Supabase'e yüklendi`, 'success');
-        
-    } catch (error) {
-        console.error('Manual upload error:', error);
-        showAlert('Yükleme hatası: ' + error.message, 'error');
-    }
+    // ✅ Refresh the packages table
+    populatePackagesTable();
 }
