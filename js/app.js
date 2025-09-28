@@ -473,25 +473,25 @@ function scheduleDailyClear() {
     }, msUntilMidnight);
 }
 
-// Main initialization - UPDATED VERSION
-document.addEventListener('DOMContentLoaded', async function() {
+// ================= MAIN INITIALIZATION =================
+document.addEventListener('DOMContentLoaded', async function () {
     console.log('DOM Content Loaded - Starting initialization...');
 
     try {
         // 1. Initialize elements first
         console.log('Step 1: Initializing elements...');
         initializeElementsObject();
-        
+
         // 2. Check for critical elements
         const loginBtn = elements.loginButton;
         const emailInput = elements.emailInput;
         const passwordInput = elements.passwordInput;
-        
+
         if (!loginBtn || !emailInput || !passwordInput) {
             console.error('Critical elements missing:', {
                 loginBtn: !!loginBtn,
                 emailInput: !!emailInput,
-                passwordInput: !!passwordInput
+                passwordInput: !!passwordInput,
             });
             throw new Error('Critical UI elements not found');
         }
@@ -499,12 +499,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 3. Add basic event listeners first
         console.log('Step 2: Setting up basic event listeners...');
         loginBtn.addEventListener('click', login);
-        
-        emailInput.addEventListener('keypress', function(e) {
+
+        emailInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') login();
         });
-        
-        passwordInput.addEventListener('keypress', function(e) {
+
+        passwordInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') login();
         });
 
@@ -512,7 +512,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('Step 3: Initializing workspace system...');
         window.workspaceManager = new WorkspaceManager();
         await window.workspaceManager.initialize();
-        
+
         // 5. Initialize workspace UI (with delay to ensure DOM is ready)
         setTimeout(() => {
             initializeWorkspaceUI();
@@ -521,7 +521,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         // 6. Continue with other initializations...
         console.log('Step 4: Continuing with app initialization...');
-        
+
         // Settings button
         const settingsBtn = document.getElementById('settingsBtn');
         if (settingsBtn) {
@@ -541,57 +541,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (supabase) {
                 setupAuthListener();
                 console.log('Supabase client initialized successfully');
-            }
-        } else {
-            console.log('No saved API key found');
-            showApiKeyModal();
-        }
-
-        // Set initial display states
-        if (elements.loginScreen) {
-            elements.loginScreen.style.display = 'flex';
-        }
-        if (elements.appContainer) {
-            elements.appContainer.style.display = 'none';
-        }
-        
-        console.log('App initialization completed successfully');
-
-    } catch (error) {
-        console.error('Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
-        
-        // Fallback: Try to show API key modal
-        setTimeout(showApiKeyModal, 1000);
-    }
-});
-
-
-
-        function applySavedTheme() {
-            const savedTheme = localStorage.getItem('procleanTheme');
-            if (savedTheme === 'dark') {
-                document.body.classList.add('dark-mode');
-            }
-        }
-
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            if (document.body.classList.contains('dark-mode')) {
-                localStorage.setItem('procleanTheme', 'dark');
-                showAlert('Koyu tema etkinleştirildi.', 'info');
-            } else {
-                localStorage.setItem('procleanTheme', 'light');
-                showAlert('Açık tema etkinleştirildi.', 'info');
-            }
-        }
-        
-        // API key initialization
-        if (loadApiKey()) {
-            supabase = initializeSupabase();
-            if (supabase) {
-                setupAuthListener();
-                console.log('Supabase client initialized successfully');
             } else {
                 console.warn('Failed to initialize Supabase client');
             }
@@ -600,20 +549,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             showApiKeyModal();
         }
 
-        // Initialize settings when app loads
-        initializeSettings();
-
-        // Add settings button event listener
-        document.getElementById('settingsBtn').addEventListener('click', showSettingsModal);
-        document.getElementById('closeSettingsModalBtn').addEventListener('click', closeSettingsModal);
-
-        // Close modal when clicking outside
-        window.addEventListener('click', function(event) {
-            if (event.target === document.getElementById('settingsModal')) {
-                closeSettingsModal();
-            }
-        });
-        
         // Set initial display states
         if (elements.loginScreen) {
             elements.loginScreen.style.display = 'flex';
@@ -621,22 +556,64 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (elements.appContainer) {
             elements.appContainer.style.display = 'none';
         }
-        
-        // Initialize workspace-aware UI
+
+        // Initialize settings when app loads
+        initializeSettings();
+
+        // Extra listeners for modal
+        const settingsModal = document.getElementById('settingsModal');
+        window.addEventListener('click', function (event) {
+            if (event.target === settingsModal) {
+                closeSettingsModal();
+            }
+        });
+
+        // Final workspace-aware UI init
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
-        
-        console.log('ProClean application initialized successfully for workspace:', window.workspaceManager.currentWorkspace.name);
-        
+
+        console.log(
+            'ProClean application initialized successfully for workspace:',
+            window.workspaceManager.currentWorkspace.name
+        );
     } catch (error) {
-        console.error('Critical error during DOMContentLoaded:', error);
-        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
+        console.error('Critical error during initialization:', error);
+        showAlert(
+            'Uygulama başlatılırken hata oluştu: ' + error.message,
+            'error'
+        );
+
+        // Fallback: Try to show API key modal
+        setTimeout(showApiKeyModal, 1000);
     }
 });
-// Global error handler
-window.addEventListener('error', function(e) {
+
+// ================= THEME MANAGEMENT =================
+function applySavedTheme() {
+    const savedTheme = localStorage.getItem('procleanTheme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    if (document.body.classList.contains('dark-mode')) {
+        localStorage.setItem('procleanTheme', 'dark');
+        showAlert('Koyu tema etkinleştirildi.', 'info');
+    } else {
+        localStorage.setItem('procleanTheme', 'light');
+        showAlert('Açık tema etkinleştirildi.', 'info');
+    }
+}
+
+// ================= GLOBAL ERROR HANDLER =================
+window.addEventListener('error', function (e) {
     console.error('Global error:', e.error);
-    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+    showAlert(
+        'Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.',
+        'error'
+    );
 });
 
 
