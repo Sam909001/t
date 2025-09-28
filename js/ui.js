@@ -1739,8 +1739,6 @@ function clearStockSearch() {
 
 
 // ==================== WORKSPACE UI FUNCTIONS ====================
-// Add this at the BOTTOM of ui.js (after all existing functions)
-
 function initializeWorkspaceUI() {
     // Create workspace indicator if it doesn't exist
     if (!document.getElementById('workspaceIndicator')) {
@@ -1762,15 +1760,21 @@ function initializeWorkspaceUI() {
                 margin-right: 1rem;
             `;
             
-            // Insert before settings button if exists
-            const settingsBtn = document.getElementById('settingsBtn');
-            if (settingsBtn) {
-                header.insertBefore(indicator, settingsBtn);
+            // SAFE INSERTION: Check if header has child nodes
+            if (header.children.length > 0) {
+                header.insertBefore(indicator, header.lastChild);
             } else {
                 header.appendChild(indicator);
             }
         }
     }
+    
+    // Add workspace switching capability
+    addWorkspaceSwitchHandler();
+}
+
+
+
     
     // Add workspace switching capability
     addWorkspaceSwitchHandler();
