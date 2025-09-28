@@ -1595,3 +1595,40 @@ table {
 
 
 
+
+
+
+/* Ensure table columns have proper widths */
+#packagesTable {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#packagesTable th:nth-child(1) { width: 40px; } /* Checkbox */
+#packagesTable th:nth-child(2) { width: 120px; } /* Package No */
+#packagesTable th:nth-child(3) { width: 150px; } /* Customer */
+#packagesTable th:nth-child(4) { width: 200px; } /* Items */
+#packagesTable th:nth-child(5) { width: 80px; } /* Quantity */
+#packagesTable th:nth-child(6) { width: 100px; } /* Date */
+#packagesTable th:nth-child(7) { width: 100px; } /* Status */
+#packagesTable th:nth-child(8) { width: 60px; } /* Source */
+
+/* Ensure text wrapping */
+#packagesTable td {
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+/* Customer names and other long text */
+#packagesTable td:nth-child(3),
+#packagesTable td:nth-child(4) {
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+
+
+
