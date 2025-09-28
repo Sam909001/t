@@ -11,7 +11,7 @@ async function generateDailyReport() {
         const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
         const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
 
-        /// Fetch ALL packages (both waiting and shipped) for the day
+        // Fetch ALL packages (both waiting and shipped) for the day
         const { data: allPackages, error: packagesError } = await supabase
             .from('packages')
             .select('*, customers (name, code)')
@@ -61,9 +61,9 @@ async function generateDailyReport() {
             containers: allContainers.length,
             customers: [...new Set(allPackages.map(p => p.customers?.name))].length,
             allPackages: allPackages,
-            waitingPackages: waitingPackages,
-            shippedPackages: shippedPackages,
-            containers: allContainers,
+            waitingPackagesList: waitingPackages,
+            shippedPackagesList: shippedPackages,
+            containersList: allContainers,
             criticalStock: criticalStock,
             operator: user.user_metadata?.full_name || 'Bilinmiyor',
             user_id: user.id
@@ -125,10 +125,6 @@ async function generateProfessionalPDFReport(reportData) {
             const margin = 15;
             let currentY = margin;
 
-            // ==================== TURKISH CHARACTER FIX ====================
-            // Use a font that supports Turkish characters
-            // First, let's use the standard font but encode Turkish characters properly
-            
             // Helper function to encode Turkish text
             function encodeTurkishText(text) {
                 if (typeof text !== 'string') return String(text);
@@ -147,9 +143,8 @@ async function generateProfessionalPDFReport(reportData) {
                 return text.replace(/[ğĞüÜşŞıİöÖçÇ]/g, char => turkishMap[char] || char);
             }
 
-            // Alternative: Use built-in fonts that might work better
-            const availableFonts = ['helvetica', 'times', 'courier'];
-            const currentFont = 'helvetica'; // Try different fonts
+            // Use built-in fonts
+            const currentFont = 'helvetica';
             
             doc.setFont(currentFont);
             doc.setFontSize(10);
@@ -260,7 +255,7 @@ async function generateProfessionalPDFReport(reportData) {
             currentY += 15;
 
             // ==================== PACKAGE DETAILS ====================
-            if (reportData.allPackages && reportData.allPackages.length > 0 && doc.autoTable) {
+            if (reportData.allPackages && reportData.allPackages.length > 0) {
                 if (currentY > pageHeight - 100) {
                     doc.addPage();
                     currentY = margin;
@@ -272,58 +267,41 @@ async function generateProfessionalPDFReport(reportData) {
                 doc.text(encodeTurkishText('TÜM PAKET DETAYLARI'), margin, currentY);
                 currentY += 10;
 
-                // Encode Turkish text in package data
-                const packageData = reportData.allPackages.map(pkg => [
-                    pkg.package_no || 'N/A',
-                    encodeTurkishText(pkg.customers?.name || 'N/A'),
-                    (pkg.total_quantity || 0).toString(),
-                    pkg.container_id ? 'Sevk Edildi' : 'Bekliyor',
-                    pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'
-                ]);
+                // Simple table without autoTable
+                doc.setFontSize(8);
+                doc.setFont(currentFont, 'bold');
+                doc.text(encodeTurkishText('Paket No'), margin, currentY);
+                doc.text(encodeTurkishText('Müşteri'), margin + 40, currentY);
+                doc.text(encodeTurkishText('Adet'), margin + 80, currentY);
+                doc.text(encodeTurkishText('Durum'), margin + 100, currentY);
+                doc.text(encodeTurkishText('Tarih'), margin + 130, currentY);
+                
+                currentY += 5;
+                doc.line(margin, currentY, pageWidth - margin, currentY);
+                currentY += 5;
 
-                doc.autoTable({
-                    startY: currentY,
-                    head: [[
-                        encodeTurkishText('Paket No'), 
-                        encodeTurkishText('Müşteri'), 
-                        encodeTurkishText('Adet'), 
-                        encodeTurkishText('Durum'), 
-                        encodeTurkishText('Tarih')
-                    ]],
-                    body: packageData,
-                    theme: 'grid',
-                    headStyles: { 
-                        fillColor: [41, 128, 185],
-                        textColor: [255, 255, 255],
-                        font: currentFont,
-                        fontStyle: 'bold'
-                    },
-                    styles: {
-                        font: currentFont,
-                        fontStyle: 'normal',
-                        fontSize: 8,
-                        cellPadding: 3
-                    },
-                    margin: { top: 10 },
-                    pageBreak: 'auto',
-                    didDrawCell: (data) => {
-                        if (data.column.index === 3 && data.cell.raw === 'Sevk Edildi') {
-                            doc.setFillColor(46, 204, 113);
-                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                            doc.setTextColor(255, 255, 255);
-                        } else if (data.column.index === 3 && data.cell.raw === 'Bekliyor') {
-                            doc.setFillColor(241, 196, 15);
-                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                            doc.setTextColor(0, 0, 0);
-                        }
+                doc.setFont(currentFont, 'normal');
+                
+                reportData.allPackages.forEach((pkg, index) => {
+                    if (currentY > pageHeight - 20) {
+                        doc.addPage();
+                        currentY = margin + 20;
                     }
+                    
+                    doc.text(pkg.package_no || 'N/A', margin, currentY);
+                    doc.text(encodeTurkishText(pkg.customers?.name || 'N/A'), margin + 40, currentY);
+                    doc.text((pkg.total_quantity || 0).toString(), margin + 80, currentY);
+                    doc.text(pkg.container_id ? 'Sevk Edildi' : 'Bekliyor', margin + 100, currentY);
+                    doc.text(pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A', margin + 130, currentY);
+                    
+                    currentY += 5;
                 });
 
-                currentY = doc.lastAutoTable.finalY + 15;
+                currentY += 15;
             }
 
             // ==================== CONTAINER DETAILS ====================
-            if (reportData.containers && reportData.containers.length > 0 && doc.autoTable) {
+            if (reportData.containersList && reportData.containersList.length > 0) {
                 if (currentY > pageHeight - 100) {
                     doc.addPage();
                     currentY = margin;
@@ -335,46 +313,41 @@ async function generateProfessionalPDFReport(reportData) {
                 doc.text(encodeTurkishText('KONTEYNER DETAYLARI'), margin, currentY);
                 currentY += 10;
 
-                const containerData = reportData.containers.map(container => [
-                    container.container_no || 'N/A',
-                    (container.package_count || 0).toString(),
-                    (container.total_quantity || 0).toString(),
-                    container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Hazırlanıyor',
-                    container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'
-                ]);
+                // Simple container table
+                doc.setFontSize(8);
+                doc.setFont(currentFont, 'bold');
+                doc.text(encodeTurkishText('Konteyner No'), margin, currentY);
+                doc.text(encodeTurkishText('Paket Sayısı'), margin + 40, currentY);
+                doc.text(encodeTurkishText('Toplam Adet'), margin + 70, currentY);
+                doc.text(encodeTurkishText('Durum'), margin + 100, currentY);
+                doc.text(encodeTurkishText('Tarih'), margin + 130, currentY);
+                
+                currentY += 5;
+                doc.line(margin, currentY, pageWidth - margin, currentY);
+                currentY += 5;
 
-                doc.autoTable({
-                    startY: currentY,
-                    head: [[
-                        encodeTurkishText('Konteyner No'), 
-                        encodeTurkishText('Paket Sayısı'), 
-                        encodeTurkishText('Toplam Adet'), 
-                        encodeTurkishText('Durum'), 
-                        encodeTurkishText('Tarih')
-                    ]],
-                    body: containerData,
-                    theme: 'grid',
-                    headStyles: { 
-                        fillColor: [155, 89, 182],
-                        textColor: [255, 255, 255],
-                        font: currentFont,
-                        fontStyle: 'bold'
-                    },
-                    styles: {
-                        font: currentFont,
-                        fontStyle: 'normal',
-                        fontSize: 8,
-                        cellPadding: 3
-                    },
-                    margin: { top: 10 },
-                    pageBreak: 'auto'
+                doc.setFont(currentFont, 'normal');
+                
+                reportData.containersList.forEach((container) => {
+                    if (currentY > pageHeight - 20) {
+                        doc.addPage();
+                        currentY = margin + 20;
+                    }
+                    
+                    doc.text(container.container_no || 'N/A', margin, currentY);
+                    doc.text((container.package_count || 0).toString(), margin + 40, currentY);
+                    doc.text((container.total_quantity || 0).toString(), margin + 70, currentY);
+                    doc.text(container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Hazırlanıyor', margin + 100, currentY);
+                    doc.text(container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A', margin + 130, currentY);
+                    
+                    currentY += 5;
                 });
 
-                currentY = doc.lastAutoTable.finalY + 15;
+                currentY += 15;
             }
 
             // ==================== CRITICAL STOCK ====================
-            if (reportData.criticalStock && reportData.criticalStock.length > 0 && doc.autoTable) {
+            if (reportData.criticalStock && reportData.criticalStock.length > 0) {
                 if (currentY > pageHeight - 80) {
                     doc.addPage();
                     currentY = margin;
@@ -386,36 +359,32 @@ async function generateProfessionalPDFReport(reportData) {
                 doc.text(encodeTurkishText('KRİTİK STOK UYARILARI'), margin, currentY);
                 currentY += 10;
 
-                const stockData = reportData.criticalStock.map(item => [
-                    item.code || 'N/A',
-                    encodeTurkishText(item.name || 'N/A'),
-                    (item.quantity || 0).toString(),
-                    item.quantity <= 0 ? 'STOK TÜKENDİ' : 'AZ STOK'
-                ]);
+                // Simple stock table
+                doc.setFontSize(8);
+                doc.setFont(currentFont, 'bold');
+                doc.text(encodeTurkishText('Stok Kodu'), margin, currentY);
+                doc.text(encodeTurkishText('Ürün Adı'), margin + 30, currentY);
+                doc.text(encodeTurkishText('Mevcut Adet'), margin + 80, currentY);
+                doc.text(encodeTurkishText('Durum'), margin + 110, currentY);
+                
+                currentY += 5;
+                doc.line(margin, currentY, pageWidth - margin, currentY);
+                currentY += 5;
 
-                doc.autoTable({
-                    startY: currentY,
-                    head: [[
-                        encodeTurkishText('Stok Kodu'), 
-                        encodeTurkishText('Ürün Adı'), 
-                        encodeTurkishText('Mevcut Adet'), 
-                        encodeTurkishText('Durum')
-                    ]],
-                    body: stockData,
-                    theme: 'grid',
-                    headStyles: { 
-                        fillColor: [231, 76, 60],
-                        textColor: [255, 255, 255],
-                        font: currentFont,
-                        fontStyle: 'bold'
-                    },
-                    styles: {
-                        font: currentFont,
-                        fontStyle: 'normal',
-                        fontSize: 8,
-                        cellPadding: 3
-                    },
-                    margin: { top: 10 }
+                doc.setFont(currentFont, 'normal');
+                
+                reportData.criticalStock.forEach((item) => {
+                    if (currentY > pageHeight - 20) {
+                        doc.addPage();
+                        currentY = margin + 20;
+                    }
+                    
+                    doc.text(item.code || 'N/A', margin, currentY);
+                    doc.text(encodeTurkishText(item.name || 'N/A'), margin + 30, currentY);
+                    doc.text((item.quantity || 0).toString(), margin + 80, currentY);
+                    doc.text(item.quantity <= 0 ? 'STOK TÜKENDİ' : 'AZ STOK', margin + 110, currentY);
+                    
+                    currentY += 5;
                 });
             }
 
@@ -445,64 +414,6 @@ async function generateProfessionalPDFReport(reportData) {
     });
 }
 
-// Alternative solution with better Turkish character support
-async function generateProfessionalPDFReportV2(reportData) {
-    return new Promise((resolve, reject) => {
-        try {
-            const { jsPDF } = window.jspdf;
-            
-            // Create PDF with better encoding support
-            const doc = new jsPDF();
-            
-            // Better Turkish character solution using text encoding
-            function fixTurkishText(text) {
-                if (typeof text !== 'string') return String(text);
-                
-                // Direct character replacement for Turkish letters
-                return text
-                    .replace(/ğ/g, 'g')
-                    .replace(/Ğ/g, 'G')
-                    .replace(/ü/g, 'u')
-                    .replace(/Ü/g, 'U')
-                    .replace(/ş/g, 's')
-                    .replace(/Ş/g, 'S')
-                    .replace(/ı/g, 'i')
-                    .replace(/İ/g, 'I')
-                    .replace(/ö/g, 'o')
-                    .replace(/Ö/g, 'O')
-                    .replace(/ç/g, 'c')
-                    .replace(/Ç/g, 'C');
-            }
-
-            // Use a simple font that handles basic characters better
-            doc.setFont('helvetica');
-            doc.setFontSize(12);
-
-            // Add content with fixed Turkish text
-            doc.text(fixTurkishText('PROCLEAN ÇAMAŞIRHANE'), 20, 20);
-            doc.text(fixTurkishText('Günlük Rapor'), 20, 30);
-            doc.text(fixTurkishText(`Tarih: ${reportData.date}`), 20, 40);
-            doc.text(fixTurkishText(`Operatör: ${reportData.operator}`), 20, 50);
-
-            // Add summary
-            doc.text(fixTurkishText(`Toplam Paket: ${reportData.totalPackages}`), 20, 70);
-            doc.text(fixTurkishText(`Bekleyen Paket: ${reportData.waitingPackages}`), 20, 80);
-            doc.text(fixTurkishText(`Sevk Edilen: ${reportData.shippedPackages}`), 20, 90);
-
-            const pdfBlob = doc.output('blob');
-            resolve(pdfBlob);
-
-        } catch (error) {
-            reject(error);
-        }
-    });
-}
-
-
-
-
-
-
 // Upload PDF to Supabase Storage
 async function uploadPDFToSupabase(pdfBlob, reportData) {
     try {
@@ -514,7 +425,7 @@ async function uploadPDFToSupabase(pdfBlob, reportData) {
         
         // Upload to Supabase Storage
         const { data, error } = await supabase.storage
-            .from('reports') // Make sure you have a 'reports' bucket in Supabase
+            .from('reports')
             .upload(fileName, pdfFile, {
                 cacheControl: '3600',
                 upsert: false
@@ -591,13 +502,13 @@ async function sendDailyReport() {
 
         console.log('E-posta parametreleri:', templateParams);
 
-        // Send email using EmailJS - USE YOUR ACTUAL CREDENTIALS!
+        // Send email using EmailJS
         try {
             const response = await emailjs.send(
-                'service_4rt2w5g',  // REPLACE WITH YOUR REAL SERVICE ID
-                'template_2jf8cvh', // REPLACE WITH YOUR REAL TEMPLATE ID
+                'service_4rt2w5g',
+                'template_2jf8cvh',
                 templateParams,
-                'jH-KlJ2ffs_lGwfsp'  // REPLACE WITH YOUR REAL PUBLIC KEY
+                'jH-KlJ2ffs_lGwfsp'
             );
 
             console.log('EmailJS response:', response);
@@ -678,7 +589,6 @@ async function downloadReportPDF() {
 }
 
 // Function to check if Supabase Storage bucket exists
-// Function to check if Supabase Storage bucket exists
 async function checkStorageBucket() {
     try {
         // Check if supabase is initialized
@@ -698,9 +608,6 @@ async function checkStorageBucket() {
         return false;
     }
 }
-
-
-
 
 // Initialize storage bucket on app start
 async function initializeStorage() {
@@ -723,8 +630,7 @@ async function generatePDFReport(reportData) {
             const doc = new jsPDF();
             
             // Set default font
-           doc.setFont("Roboto", "normal");
-           doc.setFont("Roboto", "bold");
+            doc.setFont("helvetica", "normal");
             
             // Title
             doc.setFontSize(16);
@@ -763,85 +669,16 @@ async function generatePDFReport(reportData) {
                 doc.text('KRİTİK STOKLAR', 20, currentY);
                 currentY += 10;
                 
-                const criticalStockData = reportData.criticalStock.map(item => [
-                    item.code || 'N/A',
-                    item.name || 'N/A',
-                    item.quantity?.toString() || '0'
-                ]);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
                 
-                // Use autoTable if available, otherwise create simple table
-                if (doc.autoTable) {
-                    doc.autoTable({
-                        startY: currentY,
-                        head: [['Stok Kodu', 'Ürün Adı', 'Mevcut Adet']],
-                        body: criticalStockData,
-                        theme: 'grid',
-                        headStyles: { 
-                            fillColor: [231, 76, 60],
-                            textColor: [255, 255, 255],
-                            fontStyle: 'bold'
-                        },
-                        styles: {
-                            fontSize: 9,
-                            cellPadding: 3
-                        }
-                    });
-                    currentY = doc.lastAutoTable.finalY + 15;
-                } else {
-                    // Simple table without autoTable
-                    criticalStockData.forEach((row, index) => {
-                        if (currentY < 280) {
-                            doc.text(row.join(' | '), 20, currentY);
-                            currentY += 7;
-                        }
-                    });
-                    currentY += 10;
-                }
-            }
-            
-            // Package details table
-            if (reportData.packages && reportData.packages.length > 0) {
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.text('PAKET DETAYLARI', 20, currentY);
+                reportData.criticalStock.forEach((item, index) => {
+                    if (currentY < 280) {
+                        doc.text(`${item.code} - ${item.name}: ${item.quantity} adet`, 25, currentY);
+                        currentY += 7;
+                    }
+                });
                 currentY += 10;
-                
-                const packageData = reportData.packages.map(pkg => [
-                    pkg.package_no || 'N/A',
-                    pkg.customers?.name || 'N/A',
-                    pkg.total_quantity?.toString() || '0',
-                    pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A',
-                    pkg.packer || 'Bilinmiyor'
-                ]);
-                
-                if (doc.autoTable) {
-                    doc.autoTable({
-                        startY: currentY,
-                        head: [['Paket No', 'Müşteri', 'Adet', 'Tarih', 'Paketleyen']],
-                        body: packageData,
-                        theme: 'grid',
-                        headStyles: { 
-                            fillColor: [52, 152, 219],
-                            textColor: [255, 255, 255],
-                            fontStyle: 'bold'
-                        },
-                        styles: {
-                            fontSize: 8,
-                            cellPadding: 2
-                        },
-                        margin: { top: 10 },
-                        pageBreak: 'auto'
-                    });
-                    currentY = doc.lastAutoTable.finalY + 15;
-                } else {
-                    packageData.forEach((row, index) => {
-                        if (currentY < 280) {
-                            doc.text(row.join(' | '), 20, currentY);
-                            currentY += 7;
-                        }
-                    });
-                    currentY += 10;
-                }
             }
             
             // Footer
@@ -929,14 +766,12 @@ function closeEmailModal() {
 function initializeEmailJS() {
     if (typeof emailjs !== 'undefined') {
         // Initialize with your EmailJS public key
-        emailjs.init("jH-KlJ2ffs_lGwfsp"); // Your EmailJS public key
+        emailjs.init("jH-KlJ2ffs_lGwfsp");
         console.log('EmailJS initialized');
     } else {
         console.warn('EmailJS not loaded');
     }
 }
-
-
 
 // Call initialization when script loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -944,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         if (typeof window.jspdf !== 'undefined') {
             initializeEmailJS();
-            initializeStorage(); // Initialize storage bucket
+            initializeStorage();
         } else {
             console.warn('jsPDF not loaded yet, retrying...');
             setTimeout(() => {
@@ -953,7 +788,4 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 1000);
         }
     }, 500);
-});
-    initializeEmailJS();
-    initializeStorage(); // Initialize storage bucket
 });
