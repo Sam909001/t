@@ -1211,15 +1211,13 @@ async function importExcelData(event) {
 // Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     try {
-        console.log('Initializing ProClean application with error handling...');
+        console.log('Initializing ProClean application...');
         
-        // Step 1: Load essential polyfills and libraries
-        ensureJsPDF();
-        loadReportsScript();
-        
-        // Step 2: Initialize error handlers
+        // Step 1: Setup error handlers first
         setupEthereumHandler();
-        setupExtensionConnection();
+        
+        // Step 2: Load essential libraries
+        await ensureJsPDF();
         
         // Step 3: Load API key if exists
         const savedApiKey = localStorage.getItem('procleanApiKey');
@@ -1283,7 +1281,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         
     } catch (error) {
         console.error('Critical error during DOMContentLoaded:', error);
-        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
+        // Use console instead of showAlert to avoid dependency issues
+        console.error('Uygulama başlatılırken kritik hata oluştu: ' + error.message);
+        
+        // Fallback: Show basic error to user
+        alert('Uygulama başlatılırken hata oluştu. Lütfen sayfayı yenileyin. Hata: ' + error.message);
     }
 });
 
@@ -1304,24 +1306,38 @@ window.addEventListener('error', function(e) {
         'favicon.ico',
         'chrome-extension',
         'ResizeObserver',
-        'ethereum'
+        'ethereum',
+        'injected.bundle.js'
     ];
     
     const shouldShowAlert = !minorErrors.some(minorError => 
-        e.message.includes(minorError) || e.filename.includes(minorError)
+        e.message.includes(minorError) || (e.filename && e.filename.includes(minorError))
     );
     
     if (shouldShowAlert) {
-        showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+        console.error('Critical error:', e.message);
     }
 });
 
 // Handle unhandled promise rejections
 window.addEventListener('unhandledrejection', function(e) {
     console.error('Unhandled promise rejection:', e.reason);
-    // Don't show alert for common promise rejections
+    
+    // Ignore common promise rejections
+    const ignoreRejections = [
+        'ethereum',
+        'setExternalProvider',
+        'injected.bundle.js'
+    ];
+    
+    const shouldLog = !ignoreRejections.some(ignore => 
+        e.reason && e.reason.toString().includes(ignore)
+    );
+    
+    if (shouldLog) {
+        console.error('Unhandled promise rejection:', e.reason);
+    }
 });
-
 
 // Add this function to app.js
 function updateStorageIndicator() {
