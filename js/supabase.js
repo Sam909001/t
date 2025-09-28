@@ -123,20 +123,15 @@ class WorkspaceManager {
         }
     }
     
-    // Update UI to show current workspace
-    updateWorkspaceUI() {
-        const workspaceIndicator = document.getElementById('workspaceIndicator');
-        if (workspaceIndicator && this.currentWorkspace) {
-            workspaceIndicator.innerHTML = `
-                <i class="fas fa-desktop"></i> 
-                ${this.currentWorkspace.name}
-                <span class="workspace-type">${this.getWorkspaceTypeLabel()}</span>
-            `;
-            workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
-            console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
-        } else {
-            console.warn('⚠️ Workspace indicator element not found');
-        }
+ updateWorkspaceUI() {
+    // Silently check for indicator - no warning if missing
+    const workspaceIndicator = document.getElementById('workspaceIndicator');
+    if (workspaceIndicator && this.currentWorkspace) {
+        workspaceIndicator.innerHTML = `
+            <i class="fas fa-desktop"></i> 
+            ${this.currentWorkspace.name}
+        `;
+    }
         
         // Update document title
         document.title = `ProClean - ${this.currentWorkspace.name}`;
