@@ -25,14 +25,14 @@ let excelSyncQueue = [];
 let isUsingExcel = false;
 
 
-
-
-// Add to supabase.js - Workspace management
+// Add this RIGHT AFTER the existing global variables (around line 25)
+// ==================== WORKSPACE MANAGEMENT ====================
 class WorkspaceManager {
     constructor() {
         this.currentWorkspace = null;
         this.workspaceKey = 'proclean_current_workspace';
         this.availableWorkspaces = [];
+        this.onWorkspaceChange = null;
     }
     
     // Initialize workspace system
@@ -96,6 +96,11 @@ class WorkspaceManager {
         
         // Initialize workspace-specific storage
         this.initializeWorkspaceStorage();
+        
+        // Notify about workspace change
+        if (this.onWorkspaceChange) {
+            this.onWorkspaceChange();
+        }
     }
     
     // Update UI to show current workspace
@@ -127,13 +132,17 @@ class WorkspaceManager {
     
     // Initialize workspace-specific Excel storage
     initializeWorkspaceStorage() {
-        // Modify ExcelJS to use workspace-specific storage
-        const originalReadFile = ExcelJS.readFile;
-        const originalWriteFile = ExcelJS.writeFile;
+        // Store original functions
+        if (!this.originalExcelRead) {
+            this.originalExcelRead = ExcelJS.readFile;
+            this.originalExcelWrite = ExcelJS.writeFile;
+        }
         
+        // Override with workspace-specific versions
         ExcelJS.readFile = async function() {
             try {
-                const data = localStorage.getItem(`excelPackages_${window.workspaceManager.currentWorkspace.id}`);
+                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
                 return data ? JSON.parse(data) : [];
             } catch (error) {
                 console.error('Workspace Excel read error:', error);
@@ -143,13 +152,22 @@ class WorkspaceManager {
         
         ExcelJS.writeFile = async function(data) {
             try {
-                localStorage.setItem(`excelPackages_${window.workspaceManager.currentWorkspace.id}`, JSON.stringify(data));
+                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
                 return true;
             } catch (error) {
                 console.error('Workspace Excel write error:', error);
                 return false;
             }
         };
+    }
+    
+    // Restore original Excel functions
+    restoreOriginalExcelFunctions() {
+        if (this.originalExcelRead) {
+            ExcelJS.readFile = this.originalExcelRead;
+            ExcelJS.writeFile = this.originalExcelWrite;
+        }
     }
     
     // Show workspace selection modal
@@ -235,14 +253,10 @@ class WorkspaceManager {
             'admin': ['all']
         };
         
-        return permissions[this.currentWorkspace.type]?.includes(action) || 
-               permissions.admin.includes('all');
+        const workspacePermissions = permissions[this.currentWorkspace.type] || [];
+        return workspacePermissions.includes(action) || permissions.admin.includes('all');
     }
 }
-
-// Initialize workspace manager
-window.workspaceManager = new WorkspaceManager();
-
 
 
 
