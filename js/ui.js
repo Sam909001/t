@@ -3094,5 +3094,291 @@ class BulkOperations {
 
 
 
+// Enhanced backup and restore system
+class BackupManager {
+    static async createBackup(includeSettings = true, includeAuditLogs = true) {
+        try {
+            UXEnhancements.showLoading('Yedek oluşturuluyor...');
+
+            const backup = {
+                metadata: {
+                    version: '2.0.0',
+                    created: new Date().toISOString(),
+                    createdBy: currentUser?.email || 'unknown',
+                    workspace: window.workspaceManager?.currentWorkspace?.name || 'default'
+                },
+                data: {}
+            };
+
+            // Backup packages
+            const packages = await ExcelJS.readFile();
+            backup.data.packages = packages;
+
+            // Backup settings
+            if (includeSettings) {
+                backup.data.settings = {
+                    appSettings: JSON.parse(localStorage.getItem('procleanSettings') || '{}'),
+                    apiKey: localStorage.getItem('procleanApiKey'),
+                    appState: JSON.parse(localStorage.getItem('procleanState') || '{}')
+                };
+            }
+
+            // Backup audit logs
+            if (includeAuditLogs) {
+                backup.data.auditLogs = JSON.parse(localStorage.getItem('proclean_audit_logs') || '[]');
+            }
+
+            // Backup sync queue
+            backup.data.syncQueue = JSON.parse(localStorage.getItem('excelSyncQueue') || '[]');
+
+            // Backup workspace configuration
+            backup.data.workspace = {
+                current: window.workspaceManager?.currentWorkspace,
+                all: window.workspaceManager?.availableWorkspaces || []
+            };
+
+            UXEnhancements.hideLoading();
+            return backup;
+
+        } catch (error) {
+            UXEnhancements.hideLoading();
+            ErrorHandler.handle(error, 'Yedek oluşturma');
+            return null;
+        }
+    }
+
+    static async downloadBackup() {
+        const backup = await this.createBackup(true, true);
+        if (!backup) return;
+
+        const backupStr = JSON.stringify(backup, null, 2);
+        const blob = new Blob([backupStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `proclean-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showAlert('Yedek başarıyla indirildi', 'success');
+        
+        // Log the backup operation
+        AuditLogger.log('backup_created', {
+            items: backup.data.packages.length,
+            includeSettings: true,
+            includeAuditLogs: true
+        });
+    }
+
+    static async restoreBackup(file) {
+        try {
+            if (!file) {
+                showAlert('Lütfen bir yedek dosyası seçin', 'error');
+                return;
+            }
+
+            const confirmed = await UXEnhancements.showConfirmation(
+                'Yedek yüklenecek. Mevcut verilerin üzerine yazılacak. Devam etmek istiyor musunuz?'
+            );
+
+            if (!confirmed) return;
+
+            UXEnhancements.showLoading('Yedek yükleniyor...');
+
+            const fileText = await this.readFileAsText(file);
+            const backup = JSON.parse(fileText);
+
+            // Validate backup structure
+            if (!this.validateBackup(backup)) {
+                throw new Error('Geçersiz yedek dosyası formatı');
+            }
+
+            // Restore packages
+            if (backup.data.packages) {
+                await ExcelJS.writeFile(ExcelJS.toExcelFormat(backup.data.packages));
+                excelPackages = backup.data.packages;
+            }
+
+            // Restore settings
+            if (backup.data.settings) {
+                if (backup.data.settings.appSettings) {
+                    localStorage.setItem('procleanSettings', JSON.stringify(backup.data.settings.appSettings));
+                }
+                if (backup.data.settings.apiKey) {
+                    localStorage.setItem('procleanApiKey', backup.data.settings.apiKey);
+                }
+                if (backup.data.settings.appState) {
+                    localStorage.setItem('procleanState', JSON.stringify(backup.data.settings.appState));
+                }
+            }
+
+            // Restore audit logs
+            if (backup.data.auditLogs) {
+                localStorage.setItem('proclean_audit_logs', JSON.stringify(backup.data.auditLogs));
+            }
+
+            // Restore sync queue
+            if (backup.data.syncQueue) {
+                localStorage.setItem('excelSyncQueue', JSON.stringify(backup.data.syncQueue));
+            }
+
+            // Restore workspace configuration
+            if (backup.data.workspace) {
+                localStorage.setItem('proclean_workspaces', JSON.stringify(backup.data.workspace.all));
+                if (backup.data.workspace.current) {
+                    localStorage.setItem('proclean_current_workspace', backup.data.workspace.current.id);
+                }
+            }
+
+            // Reload application
+            await this.reloadApplication();
+
+            UXEnhancements.hideLoading();
+            showAlert('Yedek başarıyla yüklendi', 'success');
+
+            // Log the restore operation
+            AuditLogger.log('backup_restored', {
+                backupDate: backup.metadata.created,
+                items: backup.data.packages?.length || 0
+            });
+
+        } catch (error) {
+            UXEnhancements.hideLoading();
+            ErrorHandler.handle(error, 'Yedek yükleme');
+        }
+    }
+
+    static readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+
+    static validateBackup(backup) {
+        return backup && 
+               backup.metadata && 
+               backup.metadata.version && 
+               backup.data;
+    }
+
+    static async reloadApplication() {
+        // Reload all data
+        await loadPackagesData();
+        await populateStockTable();
+        await populateShippingTable();
+        
+        // Reload settings
+        loadAllSettings();
+        
+        // Reinitialize workspace
+        if (window.workspaceManager) {
+            await window.workspaceManager.initialize();
+        }
+    }
+
+    static showBackupManager() {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+            align-items: center; z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%;">
+                <h2 style="margin-top: 0;">Yedekleme ve Geri Yükleme</h2>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3>Yedek Oluştur</h3>
+                    <p>Tüm verilerinizi yedekleyin:</p>
+                    <button onclick="BackupManager.downloadBackup()" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">
+                        <i class="fas fa-download"></i> Tam Yedek İndir
+                    </button>
+                    <small style="color: #666;">Paketler, ayarlar, denetim kayıtları ve senkronizasyon kuyruğu</small>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3>Geri Yükle</h3>
+                    <p>Önceden oluşturulmuş bir yedeği yükleyin:</p>
+                    <input type="file" id="backupFileInput" accept=".json" style="width: 100%; margin-bottom: 10px; padding: 8px;">
+                    <button onclick="BackupManager.handleFileUpload()" class="btn btn-warning" style="width: 100%;">
+                        <i class="fas fa-upload"></i> Yedek Yükle
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3>Veri İstatistikleri</h3>
+                    <div id="backupStats" style="background: #f5f5f5; padding: 1rem; border-radius: 5px;">
+                        <!-- Stats will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="BackupManager.showAuditLogs()" class="btn btn-info">
+                        <i class="fas fa-history"></i> Denetim Kayıtları
+                    </button>
+                    <button onclick="this.closest('.modal').remove()" class="btn btn-secondary" style="margin-left: auto;">
+                        Kapat
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        this.updateBackupStats();
+    }
+
+    static async updateBackupStats() {
+        const stats = {
+            packages: excelPackages.length,
+            settings: localStorage.getItem('procleanSettings') ? 1 : 0,
+            auditLogs: JSON.parse(localStorage.getItem('proclean_audit_logs') || '[]').length,
+            syncQueue: JSON.parse(localStorage.getItem('excelSyncQueue') || '[]').length,
+            lastBackup: this.getLastBackupDate()
+        };
+
+        const statsHtml = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>Paketler: <strong>${stats.packages}</strong></div>
+                <div>Ayarlar: <strong>${stats.settings ? 'Mevcut' : 'Yok'}</strong></div>
+                <div>Denetim Kayıtları: <strong>${stats.auditLogs}</strong></div>
+                <div>Senkronizasyon Bekleyen: <strong>${stats.syncQueue}</strong></div>
+                <div colspan="2">Son Yedek: <strong>${stats.lastBackup}</strong></div>
+            </div>
+        `;
+
+        const statsEl = document.getElementById('backupStats');
+        if (statsEl) {
+            statsEl.innerHTML = statsHtml;
+        }
+    }
+
+    static getLastBackupDate() {
+        // This would ideally come from a stored value
+        return 'Hiç yedek alınmamış';
+    }
+
+    static handleFileUpload() {
+        const fileInput = document.getElementById('backupFileInput');
+        if (fileInput.files.length > 0) {
+            this.restoreBackup(fileInput.files[0]);
+        } else {
+            showAlert('Lütfen bir dosya seçin', 'error');
+        }
+    }
+}
+
+
+
+
+
+
 
 
