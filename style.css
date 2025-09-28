@@ -1538,3 +1538,25 @@ table {
     background-color: #3ecf8e;
     color: white;
 }
+
+
+/* ===== SCROLL FIX FOR RAPORLAR TAB ONLY ===== */
+#reportsTab {
+    display: block !important;
+    height: auto !important;
+    max-height: calc(100vh - 200px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+#reportsTab .reports-table-container {
+    overflow: visible !important;
+}
+
+#reportsTab table {
+    width: 100% !important;
+}
+
+#reportsTab tbody {
+    display: table-row-group !important;
+}
