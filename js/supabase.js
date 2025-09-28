@@ -37,44 +37,29 @@ class WorkspaceManager {
     
     // Initialize workspace system
     async initialize() {
-        console.log('🔄 Initializing workspace system...');
         await this.loadWorkspaces();
         await this.detectOrCreateWorkspace();
-        this.initializeWorkspaceStorage();
-        console.log('✅ Workspace system ready:', this.currentWorkspace);
-        return this.currentWorkspace;
     }
     
     // Load available workspaces from localStorage
     loadWorkspaces() {
-        try {
-            const saved = localStorage.getItem('proclean_workspaces');
-            this.availableWorkspaces = saved ? JSON.parse(saved) : [];
-            
-            if (this.availableWorkspaces.length === 0) {
-                // Create default workspaces
-                this.availableWorkspaces = [
-                    { id: 'station-1', name: 'İstasyon 1', type: 'packaging', created: new Date().toISOString() },
-                    { id: 'station-2', name: 'İstasyon 2', type: 'packaging', created: new Date().toISOString() },
-                    { id: 'station-3', name: 'İstasyon 3', type: 'shipping', created: new Date().toISOString() },
-                    { id: 'station-4', name: 'İstasyon 4', type: 'quality', created: new Date().toISOString() }
-                ];
-                this.saveWorkspaces();
-                console.log('✅ Default workspaces created');
-            }
-            
-            console.log('📋 Available workspaces:', this.availableWorkspaces.length);
-            return this.availableWorkspaces;
-        } catch (error) {
-            console.error('❌ Error loading workspaces:', error);
-            return [];
+        const saved = localStorage.getItem('proclean_workspaces');
+        this.availableWorkspaces = saved ? JSON.parse(saved) : [];
+        
+        if (this.availableWorkspaces.length === 0) {
+            // Create default workspaces
+            this.availableWorkspaces = [
+                { id: 'station-1', name: 'İstasyon 1', type: 'packaging', created: new Date().toISOString() },
+                { id: 'station-2', name: 'İstasyon 2', type: 'packaging', created: new Date().toISOString() },
+                { id: 'station-3', name: 'İstasyon 3', type: 'shipping', created: new Date().toISOString() },
+                { id: 'station-4', name: 'İstasyon 4', type: 'quality', created: new Date().toISOString() }
+            ];
+            this.saveWorkspaces();
         }
     }
     
     // Detect or create workspace for current monitor
     async detectOrCreateWorkspace() {
-        console.log('🔍 Detecting workspace...');
-        
         // Try to get workspace from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const workspaceId = urlParams.get('workspace');
@@ -83,7 +68,6 @@ class WorkspaceManager {
             const workspace = this.availableWorkspaces.find(ws => ws.id === workspaceId);
             if (workspace) {
                 this.setCurrentWorkspace(workspace);
-                console.log('✅ Workspace from URL:', workspaceId);
                 return;
             }
         }
@@ -94,13 +78,11 @@ class WorkspaceManager {
             const workspace = this.availableWorkspaces.find(ws => ws.id === savedWorkspace);
             if (workspace) {
                 this.setCurrentWorkspace(workspace);
-                console.log('✅ Workspace from localStorage:', savedWorkspace);
                 return;
             }
         }
         
         // Show workspace selection modal
-        console.log('🔄 Showing workspace selection modal');
         await this.showWorkspaceSelection();
     }
     
@@ -108,8 +90,6 @@ class WorkspaceManager {
     setCurrentWorkspace(workspace) {
         this.currentWorkspace = workspace;
         localStorage.setItem(this.workspaceKey, workspace.id);
-        
-        console.log('🎯 Current workspace set:', workspace.name);
         
         // Update UI to show current workspace
         this.updateWorkspaceUI();
@@ -126,16 +106,13 @@ class WorkspaceManager {
     // Update UI to show current workspace
     updateWorkspaceUI() {
         const workspaceIndicator = document.getElementById('workspaceIndicator');
-        if (workspaceIndicator && this.currentWorkspace) {
+        if (workspaceIndicator) {
             workspaceIndicator.innerHTML = `
                 <i class="fas fa-desktop"></i> 
                 ${this.currentWorkspace.name}
                 <span class="workspace-type">${this.getWorkspaceTypeLabel()}</span>
             `;
             workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
-            console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
-        } else {
-            console.warn('⚠️ Workspace indicator element not found');
         }
         
         // Update document title
@@ -154,61 +131,36 @@ class WorkspaceManager {
     }
     
     // Initialize workspace-specific Excel storage
-    initializeWorkspaceStorage() {
-        if (!this.currentWorkspace) {
-            console.warn('⚠️ No current workspace for storage initialization');
-            return;
-        }
-        
-        console.log('💾 Initializing workspace storage for:', this.currentWorkspace.id);
-        
-        // Store original functions
-        if (!this.originalExcelRead) {
-            this.originalExcelRead = ExcelJS.readFile;
-            this.originalExcelWrite = ExcelJS.writeFile;
-        }
-        
-        // Override with workspace-specific versions
-        ExcelJS.readFile = async function() {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-                const packages = data ? JSON.parse(data) : [];
-                console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
-                return packages;
-            } catch (error) {
-                console.error('❌ Workspace Excel read error:', error);
-                return [];
-            }
-        };
-        
-        ExcelJS.writeFile = async function(data) {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
-                console.log(`💾 Saved ${data.length} packages to workspace: ${workspaceId}`);
-                return true;
-            } catch (error) {
-                console.error('❌ Workspace Excel write error:', error);
-                return false;
-            }
-        };
-        
-        // Initialize excelPackages for current workspace
-        this.loadWorkspaceData();
+   initializeWorkspaceStorage() {
+    // Store original functions
+    if (!this.originalExcelRead) {
+        this.originalExcelRead = ExcelJS.readFile;
+        this.originalExcelWrite = ExcelJS.writeFile;
     }
     
-    // Load workspace-specific data
-    async loadWorkspaceData() {
+    // Override with workspace-specific versions
+    ExcelJS.readFile = async function() {
         try {
-            excelPackages = await ExcelJS.readFile();
-            console.log(`📦 Workspace data loaded: ${excelPackages.length} packages`);
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+            return data ? JSON.parse(data) : [];
         } catch (error) {
-            console.error('❌ Error loading workspace data:', error);
-            excelPackages = [];
+            console.error('Workspace Excel read error:', error);
+            return [];
         }
-    }
-  
+    };
+    
+    ExcelJS.writeFile = async function(data) {
+        try {
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error('Workspace Excel write error:', error);
+            return false;
+        }
+    };
+}
     
     // Restore original Excel functions
     restoreOriginalExcelFunctions() {
