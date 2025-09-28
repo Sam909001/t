@@ -1531,3 +1531,58 @@ table {
 #reportsTab::-webkit-scrollbar-thumb:hover {
     background: #888;
 }
+
+
+/* Status indicators */
+.status-stokta { color: #28a745; font-weight: bold; }
+.status-az-stok { color: #ffc107; font-weight: bold; }
+.status-uyari { color: #fd7e14; font-weight: bold; }
+.status-kritik { color: #dc3545; font-weight: bold; }
+.status-beklemede { color: #6c757d; font-weight: bold; }
+.status-sevk-edildi { color: #007bff; font-weight: bold; }
+
+/* Storage indicator */
+.storage-indicator {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+.storage-indicator.excel-mode {
+    background-color: #217346;
+    color: white;
+}
+
+.storage-indicator.supabase-mode {
+    background-color: #3ecf8e;
+    color: white;
+}
+
+/* Tab content styling */
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* Table styling */
+.stock-table, .package-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+}
+
+.stock-table th, .stock-table td,
+.package-table th, .package-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.stock-table th, .package-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
