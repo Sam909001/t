@@ -526,100 +526,6 @@ function closeExtraModal() {
 }
 
 
-
-
-function closeSettingsModal() {
-    document.getElementById('settingsModal').style.display = 'none';
-}
-
-function loadSettings() {
-    // Load saved settings from localStorage
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-
-    // Theme
-    if (settings.theme === 'dark') {
-        document.getElementById('themeToggle').checked = true;
-        document.body.classList.add('dark-mode');
-    }
-
-    // Language
-    if (settings.language) {
-        document.getElementById('languageSelect').value = settings.language;
-    }
-    
-    // Auto-save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
-}
-
-// ---------------- LOAD SETTINGS ----------------
-function loadPrinterSettings(settings) {
-    document.getElementById('printerScaling').value = settings.printerScaling || '100%';
-    document.getElementById('copiesNumber').value = settings.copies || 1;
-    document.getElementById('fontName').value = settings.fontName || 'Arial';
-    document.getElementById('fontSize').value = settings.fontSize || 10;
-    document.getElementById('orientation').value = settings.orientation || 'portrait';
-    document.getElementById('marginTop').value = settings.marginTop ?? 5;
-    document.getElementById('marginBottom').value = settings.marginBottom ?? 5;
-    document.getElementById('labelHeader').value = settings.labelHeader || 'Yeditepe';
-}
-
-// ---------------- SAVE SETTINGS ----------------
-function savePrinterSettings() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-
-    settings.printerScaling = document.getElementById('printerScaling').value;
-    settings.copies = parseInt(document.getElementById('copiesNumber').value, 10);
-    settings.fontName = document.getElementById('fontName').value;
-    settings.fontSize = parseInt(document.getElementById('fontSize').value, 10);
-    settings.orientation = document.getElementById('orientation').value;
-    settings.marginTop = parseInt(document.getElementById('marginTop').value, 10);
-    settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
-    settings.labelHeader = document.getElementById('labelHeader').value || 'Yeditepe';
-
-    localStorage.setItem('procleanSettings', JSON.stringify(settings));
-    console.log('Printer settings saved', settings);
-}
-
-// ---------------- INIT ----------------
-document.addEventListener('DOMContentLoaded', () => {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    loadPrinterSettings(settings);
-
-    const inputIds = [
-        'printerScaling', 'copiesNumber', 'fontName',
-        'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
-    ];
-
-    inputIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', savePrinterSettings);
-    });
-
-    const testBtn = document.getElementById('test-printer-yazdir');
-    if (testBtn) {
-        testBtn.addEventListener('click', async () => {
-            savePrinterSettings();
-            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-            const printerInstance = getPrinter();
-
-            const originalText = testBtn.textContent;
-            testBtn.disabled = true;
-            testBtn.textContent = 'Test Ediliyor...';
-
-            try {
-                // Use labelHeader for test print
-                await printerInstance.testPrint(settings, settings.labelHeader);
-            } catch (error) {
-                console.error('Test print error:', error);
-                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
-            } finally {
-                testBtn.disabled = false;
-                testBtn.textContent = originalText;
-            }
-        });
-    }
-});
-
 // ---------------- PRINT PACKAGE WITH SETTINGS ----------------
 async function printPackageWithSettings(packageData) {
     try {
@@ -2155,12 +2061,6 @@ class SettingsNavigation {
         `;
     }
 }
-
-// Replace the original showSettingsModal function
-function showSettingsModal() {
-    showEnhancedSettingsModal();
-}
-
 
 
 
