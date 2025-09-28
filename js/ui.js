@@ -2190,3 +2190,909 @@ function cancelStockEdit(stockCode, originalQuantity) {
 
     currentEditingStockItem = null;
 }
+
+
+
+
+
+// Performance optimization utilities
+class PerformanceOptimizer {
+    static debounce(func, wait, immediate = false) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                timeout = null;
+                if (!immediate) func.apply(this, args);
+            };
+            const callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(this, args);
+        };
+    }
+
+    static throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
+    static createVirtualScroll(container, items, renderItem, itemHeight = 50, buffer = 5) {
+        let visibleStart = 0;
+        let visibleEnd = 0;
+        
+        function updateVisibleItems() {
+            const scrollTop = container.scrollTop;
+            const visibleHeight = container.clientHeight;
+            
+            visibleStart = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
+            visibleEnd = Math.min(items.length, Math.ceil((scrollTop + visibleHeight) / itemHeight) + buffer);
+            
+            const visibleItems = items.slice(visibleStart, visibleEnd);
+            const offset = visibleStart * itemHeight;
+            
+            container.innerHTML = '';
+            const wrapper = document.createElement('div');
+            wrapper.style.height = `${items.length * itemHeight}px`;
+            wrapper.style.position = 'relative';
+            
+            visibleItems.forEach((item, index) => {
+                const element = renderItem(item, visibleStart + index);
+                element.style.position = 'absolute';
+                element.style.top = `${(visibleStart + index) * itemHeight}px`;
+                element.style.width = '100%';
+                wrapper.appendChild(element);
+            });
+            
+            container.appendChild(wrapper);
+        }
+        
+        container.addEventListener('scroll', PerformanceOptimizer.throttle(updateVisibleItems, 16));
+        updateVisibleItems();
+        
+        return {
+            updateItems: (newItems) => {
+                items = newItems;
+                updateVisibleItems();
+            }
+        };
+    }
+}
+
+// Enhanced table population with debouncing and incremental updates
+let tableUpdateQueue = new Set();
+let tableUpdateTimeout = null;
+
+async function queueTableUpdate(tableType, force = false) {
+    tableUpdateQueue.add(tableType);
+    
+    if (force) {
+        await executeTableUpdates();
+    } else {
+        clearTimeout(tableUpdateTimeout);
+        tableUpdateTimeout = setTimeout(executeTableUpdates, 300);
+    }
+}
+
+async function executeTableUpdates() {
+    if (tableUpdateQueue.size === 0) return;
+    
+    const updates = Array.from(tableUpdateQueue);
+    tableUpdateQueue.clear();
+    
+    showLoadingState(updates);
+    
+    try {
+        // Batch updates
+        if (updates.includes('packages')) {
+            await populatePackagesTable();
+        }
+        if (updates.includes('shipping')) {
+            await populateShippingTable();
+        }
+        if (updates.includes('stock')) {
+            await populateStockTable();
+        }
+        if (updates.includes('reports')) {
+            await populateReportsTable();
+        }
+        
+        hideLoadingState();
+    } catch (error) {
+        ErrorHandler.handle(error, 'Tablo güncelleme');
+        hideLoadingState();
+    }
+}
+
+function showLoadingState(updates) {
+    updates.forEach(update => {
+        const container = document.getElementById(`${update}Tab`);
+        if (container) {
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'loading-overlay';
+            loadingEl.id = `${update}Loading`;
+            loadingEl.innerHTML = '<div class="spinner"></div><p>Yükleniyor...</p>';
+            loadingEl.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255,255,255,0.8);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 10;
+            `;
+            container.style.position = 'relative';
+            container.appendChild(loadingEl);
+        }
+    });
+}
+
+function hideLoadingState() {
+    document.querySelectorAll('.loading-overlay').forEach(el => el.remove());
+}
+
+// Enhanced search with debouncing
+const debouncedSearchStock = PerformanceOptimizer.debounce(searchStock, 300);
+const debouncedSearchContainers = PerformanceOptimizer.debounce(searchContainers, 300);
+
+// Update search functions to use debounced versions
+function setupDebouncedSearch() {
+    const stockSearch = document.getElementById('stockSearch');
+    const containerSearch = document.getElementById('containerSearch');
+    
+    if (stockSearch) {
+        stockSearch.addEventListener('input', (e) => {
+            debouncedSearchStock();
+        });
+    }
+    
+    if (containerSearch) {
+        containerSearch.addEventListener('input', (e) => {
+            debouncedSearchContainers();
+        });
+    }
+}
+
+// Memory leak prevention
+function cleanupEventListeners() {
+    // Store references to cleanup functions
+    if (!window._procleanListeners) {
+        window._procleanListeners = new Map();
+    }
+}
+
+function addSafeEventListener(element, event, handler, options = {}) {
+    if (!window._procleanListeners) {
+        window._procleanListeners = new Map();
+    }
+    
+    const key = `${element.id}-${event}`;
+    element.addEventListener(event, handler, options);
+    
+    window._procleanListeners.set(key, {
+        element,
+        event,
+        handler,
+        options
+    });
+}
+
+function removeAllEventListeners() {
+    if (window._procleanListeners) {
+        window._procleanListeners.forEach((listener, key) => {
+            listener.element.removeEventListener(listener.event, listener.handler, listener.options);
+        });
+        window._procleanListeners.clear();
+    }
+}
+
+// Call this when switching tabs or closing modals
+function cleanupTabListeners(tabName) {
+    if (window._procleanListeners) {
+        const listenersToRemove = [];
+        window._procleanListeners.forEach((listener, key) => {
+            if (key.includes(tabName)) {
+                listener.element.removeEventListener(listener.event, listener.handler, listener.options);
+                listenersToRemove.push(key);
+            }
+        });
+        listenersToRemove.forEach(key => window._procleanListeners.delete(key));
+    }
+}
+
+
+
+
+// Enhanced UX features
+class UXEnhancements {
+    static showLoading(message = 'Yükleniyor...') {
+        const loadingId = 'global-loading';
+        let loadingEl = document.getElementById(loadingId);
+        
+        if (!loadingEl) {
+            loadingEl = document.createElement('div');
+            loadingEl.id = loadingId;
+            loadingEl.className = 'global-loading';
+            loadingEl.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 20px 30px;
+                border-radius: 8px;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            `;
+            document.body.appendChild(loadingEl);
+        }
+        
+        loadingEl.innerHTML = `
+            <div class="spinner" style="
+                width: 20px;
+                height: 20px;
+                border: 2px solid transparent;
+                border-top: 2px solid white;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            "></div>
+            <span>${message}</span>
+        `;
+        loadingEl.style.display = 'flex';
+        
+        return loadingId;
+    }
+    
+    static hideLoading(loadingId = 'global-loading') {
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) {
+            loadingEl.style.display = 'none';
+        }
+    }
+    
+    static showUndoAction(message, undoCallback, timeout = 5000) {
+        const undoId = 'undo-notification';
+        let undoEl = document.getElementById(undoId);
+        
+        if (!undoEl) {
+            undoEl = document.createElement('div');
+            undoEl.id = undoId;
+            undoEl.className = 'undo-notification';
+            undoEl.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #333;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 6px;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            document.body.appendChild(undoEl);
+        }
+        
+        undoEl.innerHTML = `
+            <span>${message}</span>
+            <button onclick="UXEnhancements.executeUndo()" 
+                    style="background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                Geri Al
+            </button>
+            <button onclick="UXEnhancements.hideUndo()" 
+                    style="background: transparent; color: #ccc; border: none; cursor: pointer; padding: 4px;">
+                ×
+            </button>
+        `;
+        undoEl.style.display = 'flex';
+        
+        // Store undo callback globally
+        window._pendingUndo = undoCallback;
+        
+        // Auto hide after timeout
+        setTimeout(() => {
+            if (document.getElementById(undoId)?.style.display === 'flex') {
+                UXEnhancements.hideUndo();
+            }
+        }, timeout);
+        
+        return undoId;
+    }
+    
+    static executeUndo() {
+        if (window._pendingUndo) {
+            window._pendingUndo();
+            window._pendingUndo = null;
+        }
+        this.hideUndo();
+    }
+    
+    static hideUndo() {
+        const undoEl = document.getElementById('undo-notification');
+        if (undoEl) {
+            undoEl.style.display = 'none';
+            window._pendingUndo = null;
+        }
+    }
+    
+    static setupKeyboardNavigation() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+S: Save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveAppState();
+                showAlert('Durum kaydedildi', 'success');
+            }
+            
+            // Escape: Close modals
+            if (e.key === 'Escape') {
+                closeAllModals();
+                UXEnhancements.hideUndo();
+            }
+            
+            // Tab navigation in modals
+            if (e.key === 'Tab' && e.target.closest('.modal-content')) {
+                const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+                const modal = e.target.closest('.modal-content');
+                const focusable = Array.from(modal.querySelectorAll(focusableElements));
+                const firstElement = focusable[0];
+                const lastElement = focusable[focusable.length - 1];
+                
+                if (e.shiftKey) {
+                    if (document.activeElement === firstElement) {
+                        lastElement.focus();
+                        e.preventDefault();
+                    }
+                } else {
+                    if (document.activeElement === lastElement) {
+                        firstElement.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
+        });
+    }
+    
+    static showConfirmation(message, confirmCallback, cancelCallback = null) {
+        return new Promise((resolve) => {
+            const confirmationId = 'custom-confirmation';
+            let confirmEl = document.getElementById(confirmationId);
+            
+            if (!confirmEl) {
+                confirmEl = document.createElement('div');
+                confirmEl.id = confirmationId;
+                confirmEl.className = 'custom-confirmation';
+                confirmEl.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                `;
+                document.body.appendChild(confirmEl);
+            }
+            
+            confirmEl.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 400px; width: 90%;">
+                    <h3 style="margin-top: 0;">Onay</h3>
+                    <p>${message}</p>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem;">
+                        <button onclick="UXEnhancements.handleConfirmation(true)" 
+                                style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Evet
+                        </button>
+                        <button onclick="UXEnhancements.handleConfirmation(false)" 
+                                style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Hayır
+                        </button>
+                    </div>
+                </div>
+            `;
+            confirmEl.style.display = 'flex';
+            
+            // Store callbacks
+            window._confirmationCallbacks = {
+                confirm: confirmCallback,
+                cancel: cancelCallback,
+                resolve: resolve
+            };
+        });
+    }
+    
+    static handleConfirmation(confirmed) {
+        const confirmEl = document.getElementById('custom-confirmation');
+        if (confirmEl) {
+            confirmEl.style.display = 'none';
+        }
+        
+        if (window._confirmationCallbacks) {
+            if (confirmed && window._confirmationCallbacks.confirm) {
+                window._confirmationCallbacks.confirm();
+            } else if (!confirmed && window._confirmationCallbacks.cancel) {
+                window._confirmationCallbacks.cancel();
+            }
+            window._confirmationCallbacks.resolve(confirmed);
+            window._confirmationCallbacks = null;
+        }
+    }
+}
+
+// Enhanced delete functions with undo support
+async function deleteSelectedPackagesWithUndo() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    const packageIds = Array.from(checkboxes).map(cb => cb.value);
+    const packageData = [];
+    
+    // Store package data for undo
+    checkboxes.forEach(cb => {
+        const packageDataStr = cb.getAttribute('data-package');
+        if (packageDataStr) {
+            packageData.push(JSON.parse(packageDataStr.replace(/&quot;/g, '"')));
+        }
+    });
+
+    const confirmed = await UXEnhancements.showConfirmation(
+        `${packageIds.length} paketi silmek istediğinize emin misiniz?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        // Store original data for undo
+        const originalData = [...packageData];
+        
+        // Perform deletion
+        await deleteSelectedPackages();
+        
+        // Show undo option
+        UXEnhancements.showUndoAction(
+            `${packageIds.length} paket silindi`,
+            async () => {
+                await restorePackages(originalData);
+            },
+            10000
+        );
+    } catch (error) {
+        ErrorHandler.handle(error, 'Paket silme');
+    }
+}
+
+async function restorePackages(packagesData) {
+    try {
+        UXEnhancements.showLoading('Paketler geri yükleniyor...');
+        
+        for (const pkg of packagesData) {
+            if (supabase && navigator.onLine && !isUsingExcel) {
+                const { error } = await supabase
+                    .from('packages')
+                    .insert([pkg]);
+                    
+                if (error) {
+                    // If Supabase fails, save to Excel
+                    await saveToExcel(pkg);
+                    addToSyncQueue('add', pkg);
+                }
+            } else {
+                await saveToExcel(pkg);
+                addToSyncQueue('add', pkg);
+            }
+        }
+        
+        await populatePackagesTable();
+        UXEnhancements.hideLoading();
+        showAlert(`${packagesData.length} paket geri yüklendi`, 'success');
+    } catch (error) {
+        UXEnhancements.hideLoading();
+        ErrorHandler.handle(error, 'Paketleri geri yükleme');
+    }
+}
+
+// Replace original delete function calls with undo versions
+function setupEnhancedDeletions() {
+    // Replace onclick handlers in HTML or add event listeners
+    const deleteButtons = document.querySelectorAll('[onclick*="deleteSelectedPackages"]');
+    deleteButtons.forEach(btn => {
+        btn.setAttribute('onclick', 'deleteSelectedPackagesWithUndo()');
+    });
+}
+
+
+
+
+
+// Advanced search and filtering system
+class AdvancedSearch {
+    static init() {
+        this.setupPackageSearch();
+        this.setupShippingSearch();
+        this.setupStockSearch();
+    }
+    
+    static setupPackageSearch() {
+        const searchHTML = `
+            <div class="advanced-search-panel" style="margin: 10px 0; padding: 15px; background: #f5f5f5; border-radius: 5px;">
+                <h4 style="margin-top: 0;">Gelişmiş Paket Arama</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label>Müşteri</label>
+                        <input type="text" id="packageCustomerSearch" placeholder="Müşteri ara..." 
+                               style="width: 100%; padding: 5px;">
+                    </div>
+                    <div>
+                        <label>Paket No</label>
+                        <input type="text" id="packageNoSearch" placeholder="Paket no ara..." 
+                               style="width: 100%; padding: 5px;">
+                    </div>
+                    <div>
+                        <label>Durum</label>
+                        <select id="packageStatusSearch" style="width: 100%; padding: 5px;">
+                            <option value="">Tümü</option>
+                            <option value="beklemede">Beklemede</option>
+                            <option value="sevk-edildi">Sevk Edildi</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="AdvancedSearch.searchPackages()" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Ara
+                    </button>
+                    <button onclick="AdvancedSearch.clearPackageSearch()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Temizle
+                    </button>
+                    <button onclick="AdvancedSearch.exportPackageResults()" class="btn btn-success">
+                        <i class="fas fa-download"></i> Dışa Aktar
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        const packagesTab = document.getElementById('packagingTab');
+        const pendingPackages = packagesTab.querySelector('.pending-packages');
+        if (pendingPackages) {
+            pendingPackages.insertAdjacentHTML('beforebegin', searchHTML);
+        }
+    }
+    
+    static async searchPackages() {
+        const customerFilter = document.getElementById('packageCustomerSearch').value.toLowerCase();
+        const packageNoFilter = document.getElementById('packageNoSearch').value.toLowerCase();
+        const statusFilter = document.getElementById('packageStatusSearch').value;
+        
+        const rows = document.querySelectorAll('#packagesTableBody tr');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const customer = row.cells[2].textContent.toLowerCase();
+            const packageNo = row.cells[1].textContent.toLowerCase();
+            const status = row.cells[5].textContent.toLowerCase();
+            
+            const customerMatch = !customerFilter || customer.includes(customerFilter);
+            const packageNoMatch = !packageNoFilter || packageNo.includes(packageNoFilter);
+            const statusMatch = !statusFilter || status.includes(statusFilter);
+            
+            if (customerMatch && packageNoMatch && statusMatch) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        showAlert(`${visibleCount} paket bulundu`, 'info');
+    }
+    
+    static clearPackageSearch() {
+        document.getElementById('packageCustomerSearch').value = '';
+        document.getElementById('packageNoSearch').value = '';
+        document.getElementById('packageStatusSearch').value = '';
+        
+        const rows = document.querySelectorAll('#packagesTableBody tr');
+        rows.forEach(row => row.style.display = '');
+        
+        showAlert('Arama temizlendi', 'info');
+    }
+    
+    static async exportPackageResults() {
+        const visibleRows = Array.from(document.querySelectorAll('#packagesTableBody tr'))
+            .filter(row => row.style.display !== 'none');
+            
+        if (visibleRows.length === 0) {
+            showAlert('Dışa aktarılacak veri yok', 'warning');
+            return;
+        }
+        
+        const data = visibleRows.map(row => ({
+            package_no: row.cells[1].textContent,
+            customer: row.cells[2].textContent,
+            product: row.cells[3].textContent,
+            quantity: row.cells[4].textContent,
+            date: row.cells[5].textContent,
+            status: row.cells[6].textContent
+        }));
+        
+        const csv = this.convertToCSV(data);
+        this.downloadCSV(csv, 'paket-arama-sonuclari.csv');
+        showAlert(`${visibleRows.length} paket dışa aktarıldı`, 'success');
+    }
+    
+    static convertToCSV(data) {
+        if (data.length === 0) return '';
+        
+        const headers = Object.keys(data[0]);
+        const csvRows = [headers.join(',')];
+        
+        for (const row of data) {
+            const values = headers.map(header => {
+                const value = row[header] || '';
+                const escaped = String(value).replace(/"/g, '""');
+                return `"${escaped}"`;
+            });
+            csvRows.push(values.join(','));
+        }
+        
+        return csvRows.join('\n');
+    }
+    
+    static downloadCSV(csv, filename) {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    static setupShippingSearch() {
+        // Similar implementation for shipping search
+    }
+    
+    static setupStockSearch() {
+        // Similar implementation for stock search
+    }
+}
+
+
+
+
+// Bulk operations system
+class BulkOperations {
+    static init() {
+        this.setupBulkPackageActions();
+        this.setupBulkStockActions();
+    }
+    
+    static setupBulkPackageActions() {
+        const bulkHTML = `
+            <div class="bulk-actions-panel" style="margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 5px; display: none;">
+                <strong style="margin-right: 15px;">Toplu İşlemler:</strong>
+                <button onclick="BulkOperations.bulkUpdateStatus()" class="btn btn-warning btn-sm">
+                    <i class="fas fa-exchange-alt"></i> Durum Güncelle
+                </button>
+                <button onclick="BulkOperations.bulkAssignContainer()" class="btn btn-info btn-sm">
+                    <i class="fas fa-box"></i> Konteyner Ata
+                </button>
+                <button onclick="BulkOperations.bulkExport()" class="btn btn-success btn-sm">
+                    <i class="fas fa-file-export"></i> Dışa Aktar
+                </button>
+                <button onclick="BulkOperations.bulkPrint()" class="btn btn-primary btn-sm">
+                    <i class="fas fa-print"></i> Toplu Yazdır
+                </button>
+                <span id="bulkSelectionCount" style="margin-left: 15px; font-weight: bold;"></span>
+                <button onclick="BulkOperations.hideBulkActions()" class="btn btn-secondary btn-sm" style="margin-left: auto;">
+                    <i class="fas fa-times"></i> Kapat
+                </button>
+            </div>
+        `;
+        
+        const packagesTab = document.getElementById('packagingTab');
+        const pendingPackages = packagesTab.querySelector('.pending-packages');
+        if (pendingPackages) {
+            pendingPackages.insertAdjacentHTML('afterbegin', bulkHTML);
+        }
+        
+        // Update selection count when checkboxes change
+        document.addEventListener('change', (e) => {
+            if (e.target.matches('#packagesTableBody input[type="checkbox"]')) {
+                this.updateBulkSelectionCount();
+            }
+        });
+    }
+    
+    static updateBulkSelectionCount() {
+        const selectedCount = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked').length;
+        const bulkPanel = document.querySelector('.bulk-actions-panel');
+        const countElement = document.getElementById('bulkSelectionCount');
+        
+        if (selectedCount > 0) {
+            bulkPanel.style.display = 'flex';
+            bulkPanel.style.alignItems = 'center';
+            countElement.textContent = `${selectedCount} öğe seçildi`;
+        } else {
+            bulkPanel.style.display = 'none';
+        }
+    }
+    
+    static hideBulkActions() {
+        document.querySelector('.bulk-actions-panel').style.display = 'none';
+        document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+    }
+    
+    static async bulkUpdateStatus() {
+        const selectedPackages = this.getSelectedPackages();
+        if (selectedPackages.length === 0) {
+            showAlert('Lütfen paket seçin', 'warning');
+            return;
+        }
+        
+        const newStatus = prompt('Yeni durumu girin (beklemede/sevk-edildi):', 'sevk-edildi');
+        if (!newStatus) return;
+        
+        if (!['beklemede', 'sevk-edildi'].includes(newStatus)) {
+            showAlert('Geçersiz durum. Sadece "beklemede" veya "sevk-edildi" kullanabilirsiniz.', 'error');
+            return;
+        }
+        
+        try {
+            UXEnhancements.showLoading('Durum güncelleniyor...');
+            
+            for (const pkg of selectedPackages) {
+                if (supabase && navigator.onLine && !isUsingExcel) {
+                    const { error } = await supabase
+                        .from('packages')
+                        .update({ status: newStatus })
+                        .eq('id', pkg.id);
+                        
+                    if (error) throw error;
+                }
+                
+                // Update local data
+                const excelData = await ExcelJS.readFile();
+                const updatedData = excelData.map(item => 
+                    item.id === pkg.id ? { ...item, status: newStatus } : item
+                );
+                await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedData));
+            }
+            
+            await populatePackagesTable();
+            UXEnhancements.hideLoading();
+            showAlert(`${selectedPackages.length} paketin durumu güncellendi`, 'success');
+            
+        } catch (error) {
+            UXEnhancements.hideLoading();
+            ErrorHandler.handle(error, 'Toplu durum güncelleme');
+        }
+    }
+    
+    static async bulkAssignContainer() {
+        const selectedPackages = this.getSelectedPackages();
+        if (selectedPackages.length === 0) {
+            showAlert('Lütfen paket seçin', 'warning');
+            return;
+        }
+        
+        const containerNo = prompt('Konteyner numarasını girin:');
+        if (!containerNo) return;
+        
+        try {
+            UXEnhancements.showLoading('Konteyner atanıyor...');
+            
+            for (const pkg of selectedPackages) {
+                if (supabase && navigator.onLine && !isUsingExcel) {
+                    const { error } = await supabase
+                        .from('packages')
+                        .update({ 
+                            container_id: containerNo,
+                            status: 'sevk-edildi'
+                        })
+                        .eq('id', pkg.id);
+                        
+                    if (error) throw error;
+                }
+                
+                // Update local data
+                const excelData = await ExcelJS.readFile();
+                const updatedData = excelData.map(item => 
+                    item.id === pkg.id ? { 
+                        ...item, 
+                        container_id: containerNo,
+                        status: 'sevk-edildi'
+                    } : item
+                );
+                await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedData));
+            }
+            
+            await populatePackagesTable();
+            UXEnhancements.hideLoading();
+            showAlert(`${selectedPackages.length} paket konteynere atandı`, 'success');
+            
+        } catch (error) {
+            UXEnhancements.hideLoading();
+            ErrorHandler.handle(error, 'Toplu konteyner atama');
+        }
+    }
+    
+    static async bulkExport() {
+        const selectedPackages = this.getSelectedPackages();
+        if (selectedPackages.length === 0) {
+            showAlert('Lütfen paket seçin', 'warning');
+            return;
+        }
+        
+        const csv = AdvancedSearch.convertToCSV(selectedPackages);
+        AdvancedSearch.downloadCSV(csv, `toplu-paketler-${new Date().toISOString().split('T')[0]}.csv`);
+        showAlert(`${selectedPackages.length} paket dışa aktarıldı`, 'success');
+    }
+    
+    static async bulkPrint() {
+        const selectedPackages = this.getSelectedPackages();
+        if (selectedPackages.length === 0) {
+            showAlert('Lütfen paket seçin', 'warning');
+            return;
+        }
+        
+        try {
+            UXEnhancements.showLoading('Etiketler yazdırılıyor...');
+            
+            for (const pkg of selectedPackages) {
+                await printPackageWithSettings(pkg);
+                // Small delay to prevent printer overload
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            UXEnhancements.hideLoading();
+            showAlert(`${selectedPackages.length} etiket yazdırma işlemi başlatıldı`, 'success');
+            
+        } catch (error) {
+            UXEnhancements.hideLoading();
+            ErrorHandler.handle(error, 'Toplu yazdırma');
+        }
+    }
+    
+    static getSelectedPackages() {
+        const selectedPackages = [];
+        document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked').forEach(checkbox => {
+            const packageDataStr = checkbox.getAttribute('data-package');
+            if (packageDataStr) {
+                selectedPackages.push(JSON.parse(packageDataStr.replace(/&quot;/g, '"')));
+            }
+        });
+        return selectedPackages;
+    }
+}
+
+
+
+
+
