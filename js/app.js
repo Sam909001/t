@@ -1,15 +1,16 @@
-// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
-document.addEventListener('DOMContentLoaded', () => {
-    const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
-        SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
-        console.log('API key loaded from localStorage');
-    }
-});
+// Global variable declarations
+let elements = {};
+let selectedCustomer = null;
+let currentContainer = null;
+let currentPackage = {};
+let currentUser = null;
+let supabase = null;
+let isUsingExcel = false;
+let excelPackages = [];
+let SUPABASE_ANON_KEY = '';
+let currentReportData = null;
 
-
-// Initialize elements object - ADD THIS FUNCTION
+// Initialize elements object
 function initializeElementsObject() {
     elements = {
         // Login elements
@@ -51,25 +52,13 @@ function initializeElementsObject() {
     console.log('Elements object initialized');
 }
 
-// Also add these missing global variable declarations at the top of your file (before any functions)
-let elements = {};
-let selectedCustomer = null;
-let currentContainer = null;
-let currentPackage = {};
-let currentUser = null;
-let supabase = null;
-let isUsingExcel = false;
-let excelPackages = [];
-let SUPABASE_ANON_KEY = '';
-let currentReportData = null;
-
-
 // State management functions
 function saveAppState() {
     const state = {
         selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
         selectedPersonnelId: elements.personnelSelect.value,
         currentContainer: currentContainer,
+        isUsingExcel: isUsingExcel
     };
     localStorage.setItem('procleanState', JSON.stringify(state));
 }
@@ -103,6 +92,12 @@ function loadAppState() {
             currentContainer = state.currentContainer;
             elements.containerNumber.textContent = currentContainer;
         }
+        
+        // Restore Excel mode
+        if (state.isUsingExcel !== undefined) {
+            isUsingExcel = state.isUsingExcel;
+            updateStorageIndicator();
+        }
     }
 }
 
@@ -126,7 +121,6 @@ function clearAppState() {
 }
 
 // Initialize application
-// REPLACE the existing initApp function with this:
 async function initApp() {
     // Initialize workspace system first
     await window.workspaceManager.initialize();
@@ -749,72 +743,6 @@ async function exportTodaysData() {
     }
 }
 
-// Main initialization
-document.addEventListener('DOMContentLoaded', async function() {
-    try {
-        console.log('Initializing ProClean application with daily file management...');
-        
-        // Initialize workspace system FIRST
-        window.workspaceManager = new WorkspaceManager();
-        await window.workspaceManager.initialize();
-        
-        console.log('Workspace initialized:', window.workspaceManager.currentWorkspace);
-        
-        // Initialize daily file manager SECOND
-        window.dailyFileManager = new DailyFileManager();
-        await window.dailyFileManager.initialize();
-        
-        console.log('Daily file manager initialized');
-        
-        // Then initialize elements
-        initializeElementsObject();
-        
-        // Setup basic event listeners
-        setupBasicEventListeners();
-        
-        // API key initialization
-        if (loadApiKey()) {
-            supabase = initializeSupabase();
-            if (supabase) {
-                setupAuthListener();
-                console.log('Supabase client initialized successfully');
-            } else {
-                console.warn('Failed to initialize Supabase client');
-            }
-        } else {
-            console.log('No saved API key found, showing API key modal');
-            showApiKeyModal();
-        }
-
-        // Initialize settings when app loads
-        initializeSettings();
-
-        // Set initial display states
-        if (elements.loginScreen) {
-            elements.loginScreen.style.display = 'flex';
-        }
-        if (elements.appContainer) {
-            elements.appContainer.style.display = 'none';
-        }
-        
-        // Initialize workspace-aware UI
-        initializeWorkspaceUI();
-        setupWorkspaceAwareUI();
-        
-        console.log('ProClean application initialized successfully for workspace:', window.workspaceManager.currentWorkspace.name);
-        
-    } catch (error) {
-        console.error('Critical error during DOMContentLoaded:', error);
-        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
-    }
-});
-
-// Global error handler
-window.addEventListener('error', function(e) {
-    console.error('Global error:', e.error);
-    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
-});
-
 // NEW: Basic event listeners setup function
 function setupBasicEventListeners() {
     // Settings button
@@ -935,55 +863,6 @@ function toggleDarkMode() {
     } else {
         localStorage.setItem('procleanTheme', 'light');
         showAlert('Açık tema etkinleştirildi.', 'info');
-    }
-}
-
-// State management functions with Excel mode
-function saveAppState() {
-    const state = {
-        selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
-        selectedPersonnelId: elements.personnelSelect.value,
-        currentContainer: currentContainer,
-        isUsingExcel: isUsingExcel
-    };
-    localStorage.setItem('procleanState', JSON.stringify(state));
-}
-
-function loadAppState() {
-    const savedState = localStorage.getItem('procleanState');
-    if (savedState) {
-        const state = JSON.parse(savedState);
-        
-        // Restore customer selection
-        if (state.selectedCustomerId) {
-            elements.customerSelect.value = state.selectedCustomerId;
-            // Find and set the selectedCustomer object
-            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
-            if (option) {
-                selectedCustomer = {
-                    id: state.selectedCustomerId,
-                    name: option.textContent.split(' (')[0],
-                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                };
-            }
-        }
-        
-        // Restore personnel selection
-        if (state.selectedPersonnelId) {
-            elements.personnelSelect.value = state.selectedPersonnelId;
-        }
-        
-        // Restore current container
-        if (state.currentContainer) {
-            currentContainer = state.currentContainer;
-            elements.containerNumber.textContent = currentContainer;
-        }
-        
-        // Restore Excel mode
-        if (state.isUsingExcel !== undefined) {
-            isUsingExcel = state.isUsingExcel;
-            updateStorageIndicator();
-        }
     }
 }
 
@@ -1338,3 +1217,76 @@ async function importExcelData(event) {
         showAlert('İçe aktarma hatası', 'error');
     }
 }
+
+// Main initialization
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        console.log('Initializing ProClean application with daily file management...');
+        
+        // First load API key if exists
+        const savedApiKey = localStorage.getItem('procleanApiKey');
+        if (savedApiKey) {
+            SUPABASE_ANON_KEY = savedApiKey;
+            console.log('API key loaded from localStorage');
+        }
+        
+        // Initialize workspace system FIRST
+        window.workspaceManager = new WorkspaceManager();
+        await window.workspaceManager.initialize();
+        
+        console.log('Workspace initialized:', window.workspaceManager.currentWorkspace);
+        
+        // Initialize daily file manager SECOND
+        window.dailyFileManager = new DailyFileManager();
+        await window.dailyFileManager.initialize();
+        
+        console.log('Daily file manager initialized');
+        
+        // Then initialize elements
+        initializeElementsObject();
+        
+        // Setup basic event listeners
+        setupBasicEventListeners();
+        
+        // API key initialization
+        if (loadApiKey()) {
+            supabase = initializeSupabase();
+            if (supabase) {
+                setupAuthListener();
+                console.log('Supabase client initialized successfully');
+            } else {
+                console.warn('Failed to initialize Supabase client');
+            }
+        } else {
+            console.log('No saved API key found, showing API key modal');
+            showApiKeyModal();
+        }
+
+        // Initialize settings when app loads
+        initializeSettings();
+
+        // Set initial display states
+        if (elements.loginScreen) {
+            elements.loginScreen.style.display = 'flex';
+        }
+        if (elements.appContainer) {
+            elements.appContainer.style.display = 'none';
+        }
+        
+        // Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+        
+        console.log('ProClean application initialized successfully for workspace:', window.workspaceManager.currentWorkspace.name);
+        
+    } catch (error) {
+        console.error('Critical error during DOMContentLoaded:', error);
+        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
+    }
+});
+
+// Global error handler
+window.addEventListener('error', function(e) {
+    console.error('Global error:', e.error);
+    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+});
