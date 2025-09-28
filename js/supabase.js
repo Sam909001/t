@@ -2324,3 +2324,4 @@ async function sendToRamp(containerNo = null) {
 
 
 
+window.workspaceManager = new WorkspaceManager();
