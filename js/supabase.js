@@ -123,15 +123,20 @@ class WorkspaceManager {
         }
     }
     
- updateWorkspaceUI() {
-    // Silently check for indicator - no warning if missing
-    const workspaceIndicator = document.getElementById('workspaceIndicator');
-    if (workspaceIndicator && this.currentWorkspace) {
-        workspaceIndicator.innerHTML = `
-            <i class="fas fa-desktop"></i> 
-            ${this.currentWorkspace.name}
-        `;
-    }
+    // Update UI to show current workspace
+    updateWorkspaceUI() {
+        const workspaceIndicator = document.getElementById('workspaceIndicator');
+        if (workspaceIndicator && this.currentWorkspace) {
+            workspaceIndicator.innerHTML = `
+                <i class="fas fa-desktop"></i> 
+                ${this.currentWorkspace.name}
+                <span class="workspace-type">${this.getWorkspaceTypeLabel()}</span>
+            `;
+            workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
+            console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
+        } else {
+            console.warn('⚠️ Workspace indicator element not found');
+        }
         
         // Update document title
         document.title = `ProClean - ${this.currentWorkspace.name}`;
@@ -323,6 +328,54 @@ function generateUUID() {
 // Elementleri bir defa tanımla
 const elements = {};
 
+// Excel.js library (simple implementation)
+const ExcelJS = {
+    readFile: async function() {
+        try {
+            const data = localStorage.getItem('excelPackages');
+            return data ? JSON.parse(data) : [];
+        } catch (error) {
+            console.error('Excel read error:', error);
+            return [];
+        }
+    },
+    
+    writeFile: async function(data) {
+        try {
+            localStorage.setItem('excelPackages', JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error('Excel write error:', error);
+            return false;
+        }
+    },
+    
+    // Simple XLSX format simulation
+    toExcelFormat: function(packages) {
+        return packages.map(pkg => ({
+            id: pkg.id || `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            package_no: pkg.package_no,
+            customer_id: pkg.customer_id,
+            customer_name: pkg.customer_name,
+            items: pkg.items,
+            total_quantity: pkg.total_quantity,
+            status: pkg.status,
+            packer: pkg.packer,
+            created_at: pkg.created_at,
+            updated_at: pkg.updated_at || new Date().toISOString(),
+            source: 'excel'
+        }));
+    },
+    
+    fromExcelFormat: function(excelData) {
+        return excelData.map(row => ({
+            ...row,
+            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items
+        }));
+    }
+};
+
+
 // Enhanced Excel Storage with Daily Files
 const ExcelStorage = {
     // Get today's date string for file naming
@@ -511,55 +564,11 @@ const ExcelStorage = {
     }
 };
 
-// Excel.js library (simple implementation) - Enhanced with ExcelStorage functionality
-const ExcelJS = {
-    readFile: async function() {
-        try {
-            const data = localStorage.getItem('excelPackages');
-            return data ? JSON.parse(data) : [];
-        } catch (error) {
-            console.error('Excel read error:', error);
-            return [];
-        }
-    },
-    
-    writeFile: async function(data) {
-        try {
-            localStorage.setItem('excelPackages', JSON.stringify(data));
-            return true;
-        } catch (error) {
-            console.error('Excel write error:', error);
-            return false;
-        }
-    },
-    
-    // Simple XLSX format simulation
-    toExcelFormat: function(packages) {
-        return packages.map(pkg => ({
-            id: pkg.id || `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            package_no: pkg.package_no,
-            customer_id: pkg.customer_id,
-            customer_name: pkg.customer_name,
-            items: pkg.items,
-            total_quantity: pkg.total_quantity,
-            status: pkg.status,
-            packer: pkg.packer,
-            created_at: pkg.created_at,
-            updated_at: pkg.updated_at || new Date().toISOString(),
-            source: 'excel'
-        }));
-    },
-    
-    fromExcelFormat: function(excelData) {
-        return excelData.map(row => ({
-            ...row,
-            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items
-        }));
-    }
-};
+// Replace the existing ExcelJS object with enhanced version
+const ExcelJS = ExcelStorage;
 
-// Merge ExcelStorage functionality into ExcelJS
-Object.assign(ExcelJS, ExcelStorage);
+
+
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
@@ -2268,7 +2277,7 @@ async function completePackage() {
 
         // Save to Excel with workspace isolation
         const excelSuccess = await saveToExcel(packageData);
-
+        
         if (excelSuccess) {
             showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager?.currentWorkspace?.name || 'Default'})`, 'success');
             
