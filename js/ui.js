@@ -433,41 +433,10 @@ function displayScannedBarcodes() {
 }
 
 function selectCustomerFromModal(customer) {
-    if (!customer || !customer.id) {
-        showAlert('Geçersiz müşteri seçimi', 'error');
-        return;
-    }
-    
     selectedCustomer = customer;
-    
-    // Update the customer select dropdown
-    const customerSelect = document.getElementById('customerSelect');
-    if (customerSelect) {
-        customerSelect.value = customer.id;
-    }
-    
+    elements.customerSelect.value = customer.id;
     closeModal();
     showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
-    
-    // Debug log
-    console.log('Customer selected:', customer);
-}
-
-// Add customer validation function
-function validateCustomerSelection() {
-    if (!selectedCustomer) {
-        showAlert('Önce müşteri seçin', 'error');
-        return false;
-    }
-    
-    // Double-check the select element value
-    const customerSelect = document.getElementById('customerSelect');
-    if (customerSelect && !customerSelect.value) {
-        showAlert('Müşteri seçimi doğrulanamadı. Lütfen tekrar seçin.', 'error');
-        return false;
-    }
-    
-    return true;
 }
         
 // Package operations
