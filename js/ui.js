@@ -1952,7 +1952,7 @@ function setupWorkspaceAwareUI() {
 function showDailyFilesModal() {
     const files = ExcelJS.getAllFiles();
     
-    const modal = document.createElement('div');
+  const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
@@ -1961,47 +1961,203 @@ function showDailyFilesModal() {
     `;
     
     modal.innerHTML = `
-        <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
-            <h2>Günlük Dosya Yönetimi</h2>
-            <p>Her gün için ayrı Excel dosyası oluşturulur ve Supabase'e yüklenir.</p>
-            
-            <div style="margin: 1rem 0;">
-                <strong>Bugünkü Dosya:</strong> ${ExcelJS.getCurrentFileName()}
+        <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 90%; max-height: 90vh; width: 1000px; overflow-y: auto;">
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">Gelişmiş Ayarlar</h2>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
             </div>
             
-            <h3>Geçmiş Dosyalar</h3>
-            <div id="dailyFilesList" style="margin: 1rem 0;">
-                ${files.length === 0 ? 
-                    '<p style="text-align:center; color:#666;">Henüz dosya yok</p>' : 
-                    files.map(file => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
-                            <div>
-                                <strong>${file.date}</strong>
-                                <small style="margin-left: 1rem;">${file.data.length} kayıt</small>
-                            </div>
-                            <div>
-                                <button onclick="ExcelJS.exportFile('${file.date}')" class="btn btn-sm btn-success">
-                                    <i class="fas fa-download"></i> İndir
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')
-                }
-            </div>
-            
-            <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                <button onclick="manualUploadToSupabase()" class="btn btn-primary">
-                    <i class="fas fa-cloud-upload-alt"></i> Supabase'e Yükle
-                </button>
-                <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="btn btn-secondary">
-                    Kapat
-                </button>
+            <div style="display: grid; grid-template-columns: 200px 1fr; gap: 2rem;">
+                <!-- Sidebar -->
+                <div style="border-right: 1px solid #eee; padding-right: 1rem;">
+                    <nav style="display: flex; flex-direction: column; gap: 5px;">
+                        <button onclick="SettingsNavigation.showSection('general')" class="settings-nav-btn active" data-section="general">
+                            <i class="fas fa-cog"></i> Genel
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('printer')" class="settings-nav-btn" data-section="printer">
+                            <i class="fas fa-print"></i> Yazıcı
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('backup')" class="settings-nav-btn" data-section="backup">
+                            <i class="fas fa-database"></i> Yedekleme
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('users')" class="settings-nav-btn" data-section="users">
+                            <i class="fas fa-users"></i> Kullanıcılar
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('audit')" class="settings-nav-btn" data-section="audit">
+                            <i class="fas fa-history"></i> Denetim
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('advanced')" class="settings-nav-btn" data-section="advanced">
+                            <i class="fas fa-tools"></i> Gelişmiş
+                        </button>
+                    </nav>
+                </div>
+                
+                <!-- Content -->
+                <div id="settingsContent">
+                    <!-- Content will be loaded by section -->
+                </div>
             </div>
         </div>
     `;
     
     document.body.appendChild(modal);
+    SettingsNavigation.showSection('general');
 }
+
+class SettingsNavigation {
+    static showSection(sectionName) {
+        // Update active nav button
+        document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+        
+        // Load section content
+        const contentEl = document.getElementById('settingsContent');
+        switch(sectionName) {
+            case 'general':
+                contentEl.innerHTML = this.getGeneralSettings();
+                break;
+            case 'printer':
+                contentEl.innerHTML = this.getPrinterSettings();
+                break;
+            case 'backup':
+                contentEl.innerHTML = this.getBackupSettings();
+                break;
+            case 'users':
+                contentEl.innerHTML = this.getUserSettings();
+                break;
+            case 'audit':
+                contentEl.innerHTML = this.getAuditSettings();
+                break;
+            case 'advanced':
+                contentEl.innerHTML = this.getAdvancedSettings();
+                break;
+        }
+    }
+    
+    static getGeneralSettings() {
+        return `
+            <h3>Genel Ayarlar</h3>
+            ${getGeneralSettingsHTML()}
+        `;
+    }
+    
+    static getPrinterSettings() {
+        return `
+            <h3>Yazıcı Ayarları</h3>
+            ${getPrinterSettingsHTML()}
+        `;
+    }
+    
+    static getBackupSettings() {
+        return `
+            <h3>Yedekleme ve Geri Yükleme</h3>
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <button onclick="BackupManager.downloadBackup()" class="btn btn-primary" style="width: 100%;">
+                        <i class="fas fa-download"></i> Tam Yedek İndir
+                    </button>
+                </div>
+                <div>
+                    <input type="file" id="restoreFileInput" accept=".json" style="width: 100%; margin-bottom: 10px; padding: 8px;">
+                    <button onclick="BackupManager.handleFileUpload()" class="btn btn-warning" style="width: 100%;">
+                        <i class="fas fa-upload"></i> Yedek Geri Yükle
+                    </button>
+                </div>
+                <div>
+                    <button onclick="BackupManager.showBackupManager()" class="btn btn-info" style="width: 100%;">
+                        <i class="fas fa-cog"></i> Yedekleme Yöneticisi
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    static getUserSettings() {
+        return `
+            <h3>Kullanıcı Yönetimi</h3>
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <button onclick="UserManager.showUserManagement()" class="btn btn-primary" style="width: 100%;">
+                        <i class="fas fa-users"></i> Kullanıcıları Yönet
+                    </button>
+                </div>
+                <div style="background: #f5f5f5; padding: 1rem; border-radius: 5px;">
+                    <h4>Mevcut Kullanıcı</h4>
+                    <p><strong>E-posta:</strong> ${currentUser?.email || 'N/A'}</p>
+                    <p><strong>Rol:</strong> ${UserManager.getRoleLabel(localStorage.getItem('proclean_user_role') || 'operator')}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    static getAuditSettings() {
+        return `
+            <h3>Denetim Kayıtları</h3>
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <button onclick="AuditLogger.showAuditLogs()" class="btn btn-primary" style="width: 100%;">
+                        <i class="fas fa-history"></i> Denetim Kayıtlarını Görüntüle
+                    </button>
+                </div>
+                <div>
+                    <button onclick="AuditLogger.exportAuditLogs()" class="btn btn-success" style="width: 100%;">
+                        <i class="fas fa-download"></i> Denetim Kayıtlarını İndir
+                    </button>
+                </div>
+                <div>
+                    <button onclick="AuditLogger.clearAuditLogs()" class="btn btn-danger" style="width: 100%;">
+                        <i class="fas fa-trash"></i> Denetim Kayıtlarını Temizle
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    static getAdvancedSettings() {
+        return `
+            <h3>Gelişmiş Ayarlar</h3>
+            <div style="display: grid; gap: 1rem;">
+                <div class="settings-option">
+                    <label for="debugModeToggle">Hata Ayıklama Modu</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="debugModeToggle" onchange="toggleDebugMode()">
+                        <label for="debugModeToggle" class="toggle-slider"></label>
+                    </div>
+                </div>
+                
+                <div class="settings-option">
+                    <label for="performanceModeToggle">Performans Modu</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="performanceModeToggle" onchange="togglePerformanceMode()">
+                        <label for="performanceModeToggle" class="toggle-slider"></label>
+                    </div>
+                </div>
+                
+                <div>
+                    <button onclick="runPerformanceTest()" class="btn btn-secondary" style="width: 100%;">
+                        <i class="fas fa-tachometer-alt"></i> Performans Testi Çalıştır
+                    </button>
+                </div>
+                
+                <div>
+                    <button onclick="showConsoleLogs()" class="btn btn-secondary" style="width: 100%;">
+                        <i class="fas fa-terminal"></i> Konsol Loglarını Görüntüle
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Replace the original showSettingsModal function
+function showSettingsModal() {
+    showEnhancedSettingsModal();
+}
+
+
+
 
 // Manual upload function
 async function manualUploadToSupabase() {
