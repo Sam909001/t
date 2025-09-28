@@ -70,10 +70,13 @@ function clearAppState() {
 }
 
 // Initialize application
-// REPLACE the existing initApp function with this:
 async function initApp() {
     // Initialize workspace system first
-    await window.workspaceManager.initialize();
+    if (!window.workspaceManager.initialized) {
+        await window.workspaceManager.initialize();
+        await window.workspaceManager.detectMonitorWorkspace(); // 👈 ADD THIS
+        window.workspaceManager.initialized = true;
+    }
     
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
@@ -85,7 +88,7 @@ async function initApp() {
     await populateCustomers();
     await populatePersonnel();
     
-    // Load saved state
+    // Load saved state (workspace-specific)
     loadAppState();
     
     // Load workspace-specific data
@@ -820,11 +823,6 @@ async function completePackage() {
         return;
     }
 
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
     // Check workspace permissions
     if (!window.workspaceManager.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
@@ -832,64 +830,30 @@ async function completePackage() {
     }
 
     try {
-        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect.value;
-
+        const workspace = window.workspaceManager.currentWorkspace;
+        const packageNo = `PKG-${workspace.id}-${Date.now()}`; // 👈 WORKSPACE PREFIX
+        
         const packageData = {
-            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: generateUUID(),
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
             items: currentPackage.items,
-            total_quantity: totalQuantity,
+            total_quantity: Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0),
             status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            packer: elements.personnelSelect.value || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
-            station_name: window.workspaceManager.currentWorkspace.name
+            workspace_id: workspace.id, // 👈 WORKSPACE ID
+            station_name: workspace.name // 👈 WORKSPACE NAME
         };
 
-        // Save based on connectivity and workspace settings
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
-
-                if (error) throw error;
-
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-                isUsingExcel = true;
-            }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-            isUsingExcel = true;
-        }
-
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
-
+        // ... rest of your save logic
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası', 'error');
     }
 }
-
 
 
 
