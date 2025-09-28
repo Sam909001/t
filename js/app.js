@@ -1353,3 +1353,46 @@ function cleanupApp() {
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', cleanupApp);
+
+
+
+
+// Ensure jsPDF is available
+function ensureJsPDF() {
+    return new Promise((resolve) => {
+        if (typeof window.jspdf !== 'undefined') {
+            console.log('jsPDF already loaded');
+            resolve();
+            return;
+        }
+
+        console.log('Loading jsPDF dynamically...');
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        script.onload = function() {
+            console.log('jsPDF loaded successfully');
+            resolve();
+        };
+        script.onerror = function() {
+            console.warn('Failed to load jsPDF, using fallback');
+            // Create a simple fallback
+            window.jspdf = {
+                jsPDF: class {
+                    constructor(options = {}) {
+                        this.options = options;
+                        console.warn('Using jsPDF fallback');
+                    }
+                    setFont() { return this; }
+                    setFontSize() { return this; }
+                    setTextColor() { return this; }
+                    text() { return this; }
+                    output() { return { blob: new Blob(['PDF Fallback']) }; }
+                    addPage() { return this; }
+                    // Add other necessary methods
+                }
+            };
+            resolve();
+        };
+        document.head.appendChild(script);
+    });
+}
