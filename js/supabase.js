@@ -1,27 +1,3 @@
-// Ensure workspaceManager exists
-if (!window.workspaceManager) {
-    window.workspaceManager = new WorkspaceManager();
-}
-
-// Make initializeSupabase available globally
-window.initializeSupabase = function() {
-    if (!SUPABASE_ANON_KEY) {
-        console.warn('Supabase API key not set');
-        return null;
-    }
-    
-    try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized successfully');
-        isUsingExcel = false;
-        return supabase;
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        isUsingExcel = true;
-        return null;
-    }
-};
-
 // Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
@@ -282,39 +258,6 @@ class WorkspaceManager {
     }
 }
 
-// Add this method to your WorkspaceManager class
-async detectMonitorWorkspace() {
-    // Method 1: URL parameter (for testing)
-    const urlParams = new URLSearchParams(window.location.search);
-    const workspaceId = urlParams.get('workspace');
-    
-    // Method 2: Monitor-specific localStorage
-    const monitorId = await this.getMonitorId();
-    const savedWorkspace = localStorage.getItem(`workspace_${monitorId}`);
-    
-    // Method 3: Default to first workspace
-    const finalWorkspaceId = workspaceId || savedWorkspace || this.availableWorkspaces[0]?.id;
-    
-    const workspace = this.availableWorkspaces.find(ws => ws.id === finalWorkspaceId);
-    if (workspace) {
-        this.setCurrentWorkspace(workspace);
-        // Save for this monitor
-        localStorage.setItem(`workspace_${monitorId}`, workspace.id);
-    } else {
-        await this.showWorkspaceSelection();
-    }
-}
-
-// Add monitor identification
-async getMonitorId() {
-    // Generate a unique ID for this monitor/browser instance
-    let monitorId = localStorage.getItem('monitor_id');
-    if (!monitorId) {
-        monitorId = 'monitor_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-        localStorage.setItem('monitor_id', monitorId);
-    }
-    return monitorId;
-}
 
 
 // Generate proper UUID v4 for Excel packages
@@ -341,8 +284,7 @@ const elements = {};
 const ExcelJS = {
     readFile: async function() {
         try {
-            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-            const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+            const data = localStorage.getItem('excelPackages');
             return data ? JSON.parse(data) : [];
         } catch (error) {
             console.error('Excel read error:', error);
@@ -352,8 +294,7 @@ const ExcelJS = {
     
     writeFile: async function(data) {
         try {
-            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-            localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
+            localStorage.setItem('excelPackages', JSON.stringify(data));
             return true;
         } catch (error) {
             console.error('Excel write error:', error);
@@ -799,48 +740,48 @@ async function populatePersonnel() {
 
 
 async function populatePackagesTable() {
-    if (packagesTableLoading) return;
+    if (packagesTableLoading) {
+        console.log('Package table already loading, skipping...');
+        return;
+    }
+    
     packagesTableLoading = true;
 
     try {
-        const tableBody = elements.packagesTableBody;
+        const tableBody = elements.packagesTableBody || document.getElementById('packagesTableBody');
+        const totalPackagesElement = elements.totalPackages || document.getElementById('totalPackages');
+
         if (!tableBody) throw new Error('Package table body not found');
 
         tableBody.innerHTML = '';
-        
-        let packages = [];
-        const currentWorkspaceId = window.workspaceManager?.currentWorkspace?.id;
+        if (totalPackagesElement) totalPackagesElement.textContent = '0';
 
+        let packages = [];
+
+        // Check if we should use Excel data
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use Excel data with workspace filtering
+            // Use Excel data
             packages = excelPackages.filter(pkg => 
-                pkg.status === 'beklemede' && 
-                (!pkg.container_id || pkg.container_id === null) &&
-                (!pkg.workspace_id || pkg.workspace_id === currentWorkspaceId) // 👈 WORKSPACE FILTER
+                pkg.status === 'beklemede' && (!pkg.container_id || pkg.container_id === null)
             );
+            console.log('Using Excel data:', packages.length, 'packages');
         } else {
-            // Use Supabase data with workspace filtering
+            // Try to use Supabase data
             try {
-                let query = supabase
+                const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
-                    .eq('status', 'beklemede');
-
-                // Add workspace filter if available
-                if (currentWorkspaceId) {
-                    query = query.eq('workspace_id', currentWorkspaceId);
-                }
-
-                const { data: supabasePackages, error } = await query.order('created_at', { ascending: false });
+                    .eq('status', 'beklemede')
+                    .order('created_at', { ascending: false });
 
                 if (error) throw error;
                 packages = supabasePackages || [];
+                console.log('Using Supabase data:', packages.length, 'packages');
             } catch (error) {
+                console.warn('Supabase fetch failed, using Excel data:', error);
                 packages = excelPackages.filter(pkg => 
-                    pkg.status === 'beklemede' && 
-                    (!pkg.container_id || pkg.container_id === null) &&
-                    (!pkg.workspace_id || pkg.workspace_id === currentWorkspaceId)
+                    pkg.status === 'beklemede' && (!pkg.container_id || pkg.container_id === null)
                 );
                 isUsingExcel = true;
             }
