@@ -472,7 +472,7 @@ async function deleteFromExcel(packageId) {
     }
 }
 
-// Sync functions
+// Enhanced sync with conflict resolution
 async function syncExcelWithSupabase() {
     if (!supabase || !navigator.onLine) {
         console.log('Cannot sync: No Supabase client or offline');
@@ -485,58 +485,109 @@ async function syncExcelWithSupabase() {
             console.log('No packages to sync');
             return true;
         }
-        
+
         showAlert(`${queue.length} paket senkronize ediliyor...`, 'info');
         
+        const results = {
+            success: 0,
+            failed: 0,
+            conflicts: 0
+        };
+
         for (const operation of queue) {
             try {
-                if (operation.type === 'add') {
-                    const { error } = await supabase
-                        .from('packages')
-                        .insert([operation.data]);
-                    
-                    if (error) throw error;
-                    
-                } else if (operation.type === 'update') {
-                    const { error } = await supabase
-                        .from('packages')
-                        .update(operation.data)
-                        .eq('id', operation.data.id);
-                    
-                    if (error) throw error;
-                    
-                } else if (operation.type === 'delete') {
-                    const { error } = await supabase
-                        .from('packages')
-                        .delete()
-                        .eq('id', operation.data.id);
-                    
-                    if (error) throw error;
-                }
+                let conflictResolved = false;
                 
-                // Başarılı olanı kuyruktan kaldır
+                // Conflict detection: Check if record exists and was modified
+                if (operation.type === 'update') {
+                    const { data: existing, error: fetchError } = await supabase
+                        .from('packages')
+                        .select('updated_at')
+                        .eq('id', operation.data.id)
+                        .single();
+                    
+                    if (!fetchError && existing) {
+                        const existingDate = new Date(existing.updated_at);
+                        const operationDate = new Date(operation.timestamp);
+                        
+                        // If Supabase has a newer version, keep it (conflict)
+                        if (existingDate > operationDate) {
+                            console.warn(`Conflict detected for package ${operation.data.id}, keeping Supabase version`);
+                            results.conflicts++;
+                            conflictResolved = true;
+                            
+                            // Remove from queue but don't apply
+                            excelSyncQueue = excelSyncQueue.filter(op => 
+                                !(op.type === operation.type && op.data.id === operation.data.id)
+                            );
+                            continue;
+                        }
+                    }
+                }
+
+                if (!conflictResolved) {
+                    let error;
+                    
+                    if (operation.type === 'add') {
+                        const { error: insertError } = await supabase
+                            .from('packages')
+                            .insert([operation.data]);
+                        error = insertError;
+                    } else if (operation.type === 'update') {
+                        const { error: updateError } = await supabase
+                            .from('packages')
+                            .update(operation.data)
+                            .eq('id', operation.data.id);
+                        error = updateError;
+                    } else if (operation.type === 'delete') {
+                        const { error: deleteError } = await supabase
+                            .from('packages')
+                            .delete()
+                            .eq('id', operation.data.id);
+                        error = deleteError;
+                    }
+
+                    if (error) throw error;
+                    
+                    results.success++;
+                }
+
+                // Remove successful operation from queue
                 excelSyncQueue = excelSyncQueue.filter(op => 
                     !(op.type === operation.type && op.data.id === operation.data.id)
                 );
-                
+
             } catch (opError) {
                 console.error('Sync operation failed:', opError);
-                // Bu operasyonu bir sonrakine bırak
+                results.failed++;
+                
+                // Don't remove failed operations from queue for now
+                // They'll be retried in the next sync
             }
         }
-        
-        // Kuyruğu kaydet
+
+        // Save updated queue
         localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
         
-        showAlert('Senkronizasyon tamamlandı', 'success');
-        return true;
+        // Show results
+        let resultMessage = `Senkronizasyon tamamlandı: ${results.success} başarılı`;
+        if (results.failed > 0) resultMessage += `, ${results.failed} başarısız`;
+        if (results.conflicts > 0) resultMessage += `, ${results.conflicts} çakışma`;
         
+        showAlert(resultMessage, results.failed === 0 ? 'success' : 'warning');
+        
+        return results.failed === 0;
+
     } catch (error) {
         console.error('Sync error:', error);
-        showAlert('Senkronizasyon hatası', 'error');
+        ErrorHandler.handle(error, 'Veri senkronizasyonu');
         return false;
     }
 }
+
+
+
+
 
 function addToSyncQueue(operationType, data) {
     excelSyncQueue.push({
