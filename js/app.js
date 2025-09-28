@@ -1262,3 +1262,18 @@ function updatePackageDisplay() {
     // ✅ Refresh the packages table
     populatePackagesTable();
 }
+
+
+
+function forceTableRefresh() {
+    // Clear the table body
+    const tableBody = document.getElementById('packagesTableBody');
+    if (tableBody) {
+        tableBody.innerHTML = '';
+    }
+    
+    // Force repopulation
+    setTimeout(() => {
+        populatePackagesTable();
+    }, 100);
+}
