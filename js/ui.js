@@ -1735,3 +1735,102 @@ function clearStockSearch() {
         row.style.display = '';
     });
 }
+
+
+
+// ==================== WORKSPACE UI FUNCTIONS ====================
+// Add this at the BOTTOM of ui.js (after all existing functions)
+
+function initializeWorkspaceUI() {
+    // Create workspace indicator if it doesn't exist
+    if (!document.getElementById('workspaceIndicator')) {
+        const header = document.querySelector('.app-header');
+        if (header) {
+            const indicator = document.createElement('div');
+            indicator.id = 'workspaceIndicator';
+            indicator.className = 'workspace-indicator';
+            indicator.style.cssText = `
+                padding: 0.5rem 1rem;
+                background: var(--primary);
+                color: white;
+                border-radius: 20px;
+                font-size: 0.9rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin-left: auto;
+                margin-right: 1rem;
+            `;
+            
+            // Insert before settings button if exists
+            const settingsBtn = document.getElementById('settingsBtn');
+            if (settingsBtn) {
+                header.insertBefore(indicator, settingsBtn);
+            } else {
+                header.appendChild(indicator);
+            }
+        }
+    }
+    
+    // Add workspace switching capability
+    addWorkspaceSwitchHandler();
+}
+
+function addWorkspaceSwitchHandler() {
+    const indicator = document.getElementById('workspaceIndicator');
+    if (indicator) {
+        indicator.style.cursor = 'pointer';
+        indicator.title = 'İstasyonu değiştirmek için tıklayın';
+        indicator.onclick = () => window.workspaceManager.showWorkspaceSelection();
+    }
+}
+
+// Modify existing UI functions to respect workspace permissions
+function setupWorkspaceAwareUI() {
+    // Hide/show UI elements based on workspace permissions
+    const updateUIVisibility = () => {
+        if (!window.workspaceManager?.currentWorkspace) return;
+        
+        const canCreatePackages = window.workspaceManager.canPerformAction('create_package');
+        const canShipPackages = window.workspaceManager.canPerformAction('ship_packages');
+        const canViewReports = window.workspaceManager.canPerformAction('view_reports');
+        
+        // Show/hide package creation UI
+        const packageCreationSection = document.querySelector('.package-creation-section, .package-controls');
+        if (packageCreationSection) {
+            packageCreationSection.style.display = canCreatePackages ? 'block' : 'none';
+        }
+        
+        // Show/hide complete package button
+        const completeBtn = document.querySelector('button[onclick*="completePackage"]');
+        if (completeBtn) {
+            completeBtn.style.display = canCreatePackages ? 'inline-block' : 'none';
+        }
+        
+        // Show/hide shipping buttons
+        const shippingButtons = document.querySelectorAll('.shipping-action, .ship-container-btn');
+        shippingButtons.forEach(btn => {
+            btn.style.display = canShipPackages ? 'inline-block' : 'none';
+        });
+        
+        // Show/hide reports tab
+        const reportsTab = document.querySelector('[data-tab="reports"]');
+        if (reportsTab) {
+            reportsTab.style.display = canViewReports ? 'flex' : 'none';
+        }
+        
+        console.log(`UI updated for ${window.workspaceManager.currentWorkspace.name}:`, {
+            canCreatePackages,
+            canShipPackages,
+            canViewReports
+        });
+    };
+    
+    // Update UI when workspace changes
+    if (window.workspaceManager) {
+        window.workspaceManager.onWorkspaceChange = updateUIVisibility;
+    }
+    
+    // Initial update
+    setTimeout(updateUIVisibility, 1000);
+}
