@@ -246,6 +246,284 @@ async function generateReportFromSupabase(startOfDay, endOfDay) {
     }
 }
 
+
+
+
+
+// Enhanced reporting system
+class AdvancedReports {
+    static async generateCustomReport() {
+        const reportType = document.getElementById('reportType').value;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
+        if (reportType === 'custom' && (!startDate || !endDate)) {
+            showAlert('Özel rapor için başlangıç ve bitiş tarihi seçin', 'error');
+            return;
+        }
+        
+        try {
+            UXEnhancements.showLoading('Rapor oluşturuluyor...');
+            
+            let reportData;
+            
+            if (isUsingExcel || !supabase || !navigator.onLine) {
+                reportData = await this.generateReportFromExcel(reportType, startDate, endDate);
+            } else {
+                reportData = await this.generateReportFromSupabase(reportType, startDate, endDate);
+            }
+            
+            currentReportData = reportData;
+            
+            // Show report in modal
+            this.showReportModal(reportData);
+            
+            UXEnhancements.hideLoading();
+            
+        } catch (error) {
+            UXEnhancements.hideLoading();
+            ErrorHandler.handle(error, 'Rapor oluşturma');
+        }
+    }
+    
+    static async generateReportFromExcel(reportType, startDate, endDate) {
+        const packages = await ExcelJS.readFile();
+        let filteredPackages = packages;
+        
+        if (reportType === 'custom' && startDate && endDate) {
+            filteredPackages = packages.filter(pkg => {
+                const packageDate = new Date(pkg.created_at);
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999); // End of day
+                return packageDate >= start && packageDate <= end;
+            });
+        } else if (reportType === 'daily') {
+            const today = new Date().toISOString().split('T')[0];
+            filteredPackages = packages.filter(pkg => pkg.created_at?.includes(today));
+        } else if (reportType === 'weekly') {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            filteredPackages = packages.filter(pkg => new Date(pkg.created_at) >= oneWeekAgo);
+        } else if (reportType === 'monthly') {
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+            filteredPackages = packages.filter(pkg => new Date(pkg.created_at) >= oneMonthAgo);
+        }
+        
+        return this.analyzePackages(filteredPackages);
+    }
+    
+    static async generateReportFromSupabase(reportType, startDate, endDate) {
+        let query = supabase.from('packages').select('*');
+        
+        if (reportType === 'custom' && startDate && endDate) {
+            query = query.gte('created_at', startDate).lte('created_at', endDate);
+        } else if (reportType === 'daily') {
+            const today = new Date().toISOString().split('T')[0];
+            query = query.gte('created_at', today).lt('created_at', new Date(new Date(today).getTime() + 24 * 60 * 60 * 1000).toISOString());
+        } else if (reportType === 'weekly') {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            query = query.gte('created_at', oneWeekAgo.toISOString());
+        } else if (reportType === 'monthly') {
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+            query = query.gte('created_at', oneMonthAgo.toISOString());
+        }
+        
+        const { data: packages, error } = await query;
+        if (error) throw error;
+        
+        return this.analyzePackages(packages || []);
+    }
+    
+    static analyzePackages(packages) {
+        const totalPackages = packages.length;
+        const totalQuantity = packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
+        
+        // Group by customer
+        const customers = {};
+        packages.forEach(pkg => {
+            const customerName = pkg.customer_name || 'Bilinmeyen';
+            if (!customers[customerName]) {
+                customers[customerName] = {
+                    count: 0,
+                    quantity: 0,
+                    packages: []
+                };
+            }
+            customers[customerName].count++;
+            customers[customerName].quantity += pkg.total_quantity || 0;
+            customers[customerName].packages.push(pkg);
+        });
+        
+        // Group by status
+        const statusCounts = {};
+        packages.forEach(pkg => {
+            const status = pkg.status || 'beklemede';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        
+        // Group by date
+        const dateCounts = {};
+        packages.forEach(pkg => {
+            const date = pkg.created_at ? pkg.created_at.split('T')[0] : 'Bilinmeyen';
+            dateCounts[date] = (dateCounts[date] || 0) + 1;
+        });
+        
+        return {
+            summary: {
+                totalPackages,
+                totalQuantity,
+                dateRange: {
+                    start: packages.length > 0 ? 
+                        new Date(Math.min(...packages.map(p => new Date(p.created_at).getTime()))).toISOString().split('T')[0] : 
+                        'N/A',
+                    end: packages.length > 0 ? 
+                        new Date(Math.max(...packages.map(p => new Date(p.created_at).getTime()))).toISOString().split('T')[0] : 
+                        'N/A'
+                }
+            },
+            customers,
+            statusCounts,
+            dateCounts,
+            packages: packages.slice(0, 1000) // Limit for performance
+        };
+    }
+    
+    static showReportModal(reportData) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+            align-items: center; z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 90%; max-height: 90vh; width: 800px; overflow-y: auto;">
+                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0;">Detaylı Rapor</h2>
+                    <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3>Özet</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px;">
+                            <strong>Toplam Paket:</strong> ${reportData.summary.totalPackages}
+                        </div>
+                        <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px;">
+                            <strong>Toplam Adet:</strong> ${reportData.summary.totalQuantity}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3>Müşteri Dağılımı</h3>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        ${Object.entries(reportData.customers).map(([customer, data]) => `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid #eee;">
+                                <span>${customer}</span>
+                                <span>${data.count} paket, ${data.quantity} adet</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button onclick="AdvancedReports.exportReportToPDF()" class="btn btn-primary">
+                        <i class="fas fa-file-pdf"></i> PDF İndir
+                    </button>
+                    <button onclick="AdvancedReports.exportReportToExcel()" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Excel İndir
+                    </button>
+                    <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">
+                        Kapat
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+    
+    static async exportReportToPDF() {
+        if (!currentReportData) {
+            showAlert('Önce rapor oluşturmalısınız', 'error');
+            return;
+        }
+        
+        try {
+            UXEnhancements.showLoading('PDF oluşturuluyor...');
+            await generatePDFReport(currentReportData);
+            UXEnhancements.hideLoading();
+        } catch (error) {
+            UXEnhancements.hideLoading();
+            ErrorHandler.handle(error, 'PDF dışa aktarma');
+        }
+    }
+    
+    static async exportReportToExcel() {
+        if (!currentReportData) {
+            showAlert('Önce rapor oluşturmalısınız', 'error');
+            return;
+        }
+        
+        try {
+            UXEnhancements.showLoading('Excel dosyası oluşturuluyor...');
+            
+            const wb = XLSX.utils.book_new();
+            
+            // Summary sheet
+            const summaryData = [
+                ['Rapor Özeti', ''],
+                ['Toplam Paket', currentReportData.summary.totalPackages],
+                ['Toplam Adet', currentReportData.summary.totalQuantity],
+                ['Başlangıç Tarihi', currentReportData.summary.dateRange.start],
+                ['Bitiş Tarihi', currentReportData.summary.dateRange.end]
+            ];
+            const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, wsSummary, 'Özet');
+            
+            // Customers sheet
+            const customerData = [['Müşteri', 'Paket Sayısı', 'Toplam Adet']];
+            Object.entries(currentReportData.customers).forEach(([customer, data]) => {
+                customerData.push([customer, data.count, data.quantity]);
+            });
+            const wsCustomers = XLSX.utils.aoa_to_sheet(customerData);
+            XLSX.utils.book_append_sheet(wb, wsCustomers, 'Müşteriler');
+            
+            // Packages sheet
+            const packageData = [['Paket No', 'Müşteri', 'Adet', 'Durum', 'Tarih']];
+            currentReportData.packages.forEach(pkg => {
+                packageData.push([
+                    pkg.package_no,
+                    pkg.customer_name,
+                    pkg.total_quantity,
+                    pkg.status,
+                    pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'
+                ]);
+            });
+            const wsPackages = XLSX.utils.aoa_to_sheet(packageData);
+            XLSX.utils.book_append_sheet(wb, wsPackages, 'Paketler');
+            
+            const fileName = `rapor-${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            UXEnhancements.hideLoading();
+            showAlert('Rapor Excel formatında dışa aktarıldı', 'success');
+            
+        } catch (error) {
+            UXEnhancements.hideLoading();
+            ErrorHandler.handle(error, 'Excel dışa aktarma');
+        }
+    }
+}
+
+
+
 // Enhanced Daily Report Generator (Works with both Supabase and Excel)
 async function generateDailyReport() {
     try {
