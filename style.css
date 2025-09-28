@@ -1540,23 +1540,12 @@ table {
 }
 
 
-/* ===== SCROLL FIX FOR RAPORLAR TAB ONLY ===== */
+/* Simple scroll fix for Raporlar tab */
 #reportsTab {
-    display: block !important;
-    height: auto !important;
-    max-height: calc(100vh - 200px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-}
-
-#reportsTab .reports-table-container {
-    overflow: visible !important;
+    overflow-y: scroll !important;
+    max-height: 500px !important;
 }
 
 #reportsTab table {
-    width: 100% !important;
-}
-
-#reportsTab tbody {
-    display: table-row-group !important;
+    min-width: 100% !important;
 }
