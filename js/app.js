@@ -158,14 +158,14 @@ async function initApp() {
     
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
+    // Setup tabs FIRST
+    setupTabs();
+    
     // Initialize workspace-aware UI
     setTimeout(() => {
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
-    }, 1000);
-    
-    // Setup tabs
-    setupTabs();
+    }, 500);
     
     // Setup keyboard shortcuts
     setupKeyboardShortcuts();
@@ -202,7 +202,6 @@ async function initApp() {
     
     console.log(`App initialized with daily Excel system for workspace: ${window.workspaceManager.currentWorkspace.name}`);
 }
-
 
 
 
@@ -377,14 +376,19 @@ function setupTabs() {
         });
     });
     
-    // Force initial tab to be active
-    setTimeout(() => {
-        if (!document.querySelector('.tab.active')) {
-            switchTab('packages');
-        }
-    }, 100);
+    // Ensure packaging tab is active by default
+    const defaultTab = document.querySelector('.tab[data-tab="packaging"]');
+    if (defaultTab && !defaultTab.classList.contains('active')) {
+        defaultTab.classList.add('active');
+    }
+    
+    // Ensure packaging tab content is visible
+    const defaultPane = document.getElementById('packagingTab');
+    if (defaultPane) {
+        defaultPane.classList.add('active');
+        defaultPane.style.display = 'block';
+    }
 }
-
 
 
 
@@ -1275,4 +1279,23 @@ function forceTableRefresh() {
     setTimeout(() => {
         populatePackagesTable();
     }, 100);
+}
+
+
+
+// Force immediate package table refresh
+async function refreshPackagesImmediately() {
+    try {
+        console.log('Refreshing packages table immediately...');
+        
+        const tableBody = document.getElementById('packagesTableBody');
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
+        }
+        
+        await populatePackagesTable();
+        console.log('Packages table refreshed immediately');
+    } catch (error) {
+        console.error('Immediate refresh error:', error);
+    }
 }
