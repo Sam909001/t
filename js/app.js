@@ -1,5 +1,5 @@
 // Global variable declarations
-let elements = {};
+// elements is already declared in ui.js, so we reference the existing global
 let selectedCustomer = null;
 let currentContainer = null;
 let currentPackage = {};
