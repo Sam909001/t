@@ -70,8 +70,16 @@ function clearAppState() {
 }
 
 // Initialize application
+// REPLACE the existing initApp function with this:
 async function initApp() {
+    // Initialize workspace system first
+    await window.workspaceManager.initialize();
+    
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    
+    // Initialize workspace-aware UI
+    initializeWorkspaceUI();
+    setupWorkspaceAwareUI();
     
     // Populate dropdowns
     await populateCustomers();
@@ -80,8 +88,8 @@ async function initApp() {
     // Load saved state
     loadAppState();
     
-    // Load data
-    await populatePackagesTable();
+    // Load workspace-specific data
+    await loadPackagesData();
     await populateStockTable();
     await populateShippingTable();
     
@@ -89,7 +97,7 @@ async function initApp() {
     await testConnection();
     
     // Set up auto-save
-    setInterval(saveAppState, 5000); // Save every 5 seconds
+    setInterval(saveAppState, 5000);
     
     // Set up offline support
     setupOfflineSupport();
@@ -99,7 +107,12 @@ async function initApp() {
     
     // Start daily auto-clear
     scheduleDailyClear();
+    
+    console.log(`App initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
 }
+
+
+
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
@@ -728,20 +741,30 @@ async function initApp() {
     scheduleDailyClear();
 }
 
-// Modified package data loading
+// REPLACE the existing loadPackagesData function with this:
 async function loadPackagesData() {
+    if (!window.workspaceManager?.currentWorkspace) {
+        showAlert('Çalışma istasyonu tanımlanmadı', 'error');
+        return;
+    }
+    
     try {
-        // Önce Excel'den yükle
+        // Load from workspace-specific Excel
         const excelData = await ExcelJS.readFile();
         const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
         
-        if (excelPackagesList.length > 0) {
-            console.log('Loaded from Excel:', excelPackagesList.length, 'packages');
-            window.packages = excelPackagesList;
+        // Filter by workspace if needed
+        const workspacePackages = excelPackagesList.filter(pkg => 
+            !pkg.workspace_id || pkg.workspace_id === window.workspaceManager.currentWorkspace.id
+        );
+        
+        if (workspacePackages.length > 0) {
+            console.log(`Loaded from ${window.workspaceManager.currentWorkspace.name} Excel:`, workspacePackages.length, 'packages');
+            window.packages = workspacePackages;
             await populatePackagesTable();
         }
         
-        // Eğer online ve Supabase bağlı ise, Supabase'den de yükle
+        // Load from Supabase with workspace filtering
         if (supabase && navigator.onLine) {
             try {
                 const { data: supabasePackages, error } = await supabase
@@ -749,16 +772,15 @@ async function loadPackagesData() {
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
+                    .eq('workspace_id', window.workspaceManager.currentWorkspace.id) // Workspace filter
                     .order('created_at', { ascending: false });
                 
                 if (!error && supabasePackages) {
-                    console.log('Loaded from Supabase:', supabasePackages.length, 'packages');
+                    console.log(`Loaded from ${window.workspaceManager.currentWorkspace.name} Supabase:`, supabasePackages.length, 'packages');
                     
-                    // Excel verileri ile birleştir (duplicate önle)
-                    const mergedPackages = mergePackages(excelPackagesList, supabasePackages);
+                    const mergedPackages = mergePackages(workspacePackages, supabasePackages);
                     window.packages = mergedPackages;
                     
-                    // Excel'i güncelle
                     const excelData = ExcelJS.toExcelFormat(mergedPackages);
                     await ExcelJS.writeFile(excelData);
                 }
@@ -775,6 +797,9 @@ async function loadPackagesData() {
     }
 }
 
+
+
+
 function mergePackages(excelPackages, supabasePackages) {
     const merged = [...excelPackages];
     const excelIds = new Set(excelPackages.map(p => p.id));
@@ -788,7 +813,7 @@ function mergePackages(excelPackages, supabasePackages) {
     return merged;
 }
 
-// Modified completePackage function
+// REPLACE the existing completePackage function with this:
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -800,8 +825,14 @@ async function completePackage() {
         return;
     }
 
+    // Check workspace permissions
+    if (!window.workspaceManager.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
     try {
-        const packageNo = `PKG-${Date.now()}`;
+        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
@@ -815,10 +846,12 @@ async function completePackage() {
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
+            station_name: window.workspaceManager.currentWorkspace.name
         };
 
-        // Online ise önce Supabase'e kaydet
+        // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -828,41 +861,26 @@ async function completePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (Online)`, 'success');
-                
-                // Sonra Excel'e de kaydet
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
                 await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                // Supabase başarısız olursa Excel'e kaydet
                 await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (Çevrimdışı)`, 'warning');
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            // Offline ise direkt Excel'e kaydet
             await saveToExcel(packageData);
             addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (Çevrimdışı)`, 'warning');
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
 
-        // Reset current package
+        // Reset and refresh
         currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-
-        // Mark scanned barcodes as processed
-        if (scannedBarcodes.length > 0 && navigator.onLine && supabase) {
-            const barcodeIds = scannedBarcodes.filter(b => b.id && !b.id.startsWith('offline-')).map(b => b.id);
-            if (barcodeIds.length > 0) {
-                await supabase.from('barcodes').update({ processed: true }).in('id', barcodeIds);
-            }
-            scannedBarcodes = [];
-            displayScannedBarcodes();
-        }
-
         await populatePackagesTable();
         updateStorageIndicator();
 
@@ -871,6 +889,9 @@ async function completePackage() {
         showAlert('Paket oluşturma hatası', 'error');
     }
 }
+
+
+
 
 // Modified deleteSelectedPackages function
 async function deleteSelectedPackages() {
