@@ -435,30 +435,41 @@ const ExcelStorage = {
     },
     
     // Convert data to CSV format
-    convertToCSV: function(data) {
-        if (!data || data.length === 0) {
-            return 'No data available';
+  // In supabase.js, update the convertToCSV function
+convertToCSV: function(data) {
+    if (!data || data.length === 0) {
+        return 'No data available';
+    }
+    
+    const headers = ['Package No', 'Customer', 'Items', 'Total Quantity', 'Status', 'Packer', 'Created At', 'Workspace'];
+    const csvRows = [headers.join(',')];
+    
+    data.forEach(item => {
+        // Properly format items for Excel
+        let itemsText = '';
+        if (item.items && Array.isArray(item.items)) {
+            itemsText = item.items.map(it => `${it.name}: ${it.qty}`).join('; ');
+        } else if (item.items && typeof item.items === 'object') {
+            itemsText = Object.entries(item.items).map(([name, qty]) => `${name}: ${qty}`).join('; ');
+        } else {
+            itemsText = item.product || '';
         }
         
-        const headers = ['Package No', 'Customer', 'Items', 'Total Quantity', 'Status', 'Packer', 'Created At', 'Workspace'];
-        const csvRows = [headers.join(',')];
-        
-        data.forEach(item => {
-            const row = [
-                `"${item.package_no || ''}"`,
-                `"${item.customer_name || ''}"`,
-                `"${this.formatItems(item.items)}"`,
-                item.total_quantity || 0,
-                `"${item.status || ''}"`,
-                `"${item.packer || ''}"`,
-                `"${item.created_at || ''}"`,
-                `"${item.workspace_id || ''}"`
-            ];
-            csvRows.push(row.join(','));
-        });
-        
-        return csvRows.join('\n');
-    },
+        const row = [
+            `"${item.package_no || ''}"`,
+            `"${item.customer_name || ''}"`,
+            `"${itemsText}"`,
+            item.total_quantity || 0,
+            `"${item.status || ''}"`,
+            `"${item.packer || ''}"`,
+            `"${item.created_at || ''}"`,
+            `"${item.workspace_id || ''}"`
+        ];
+        csvRows.push(row.join(','));
+    });
+    
+    return csvRows.join('\n');
+},
     
     // Format items for CSV
     formatItems: function(items) {
