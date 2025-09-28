@@ -1056,3 +1056,43 @@ async function importExcelData(event) {
         showAlert('İçe aktarma hatası', 'error');
     }
 }
+
+
+
+
+// Add this function to app.js if it doesn't exist
+async function addItemToPackage(productName, quantity = 1) {
+    try {
+        if (!currentPackage.items) {
+            currentPackage.items = {};
+        }
+        
+        // Add or update item quantity
+        if (currentPackage.items[productName]) {
+            currentPackage.items[productName] += quantity;
+        } else {
+            currentPackage.items[productName] = quantity;
+        }
+        
+        // Update the quantity badge if it exists
+        updateQuantityBadge(productName, currentPackage.items[productName]);
+        
+        showAlert(`${productName} pakete eklendi: ${quantity} adet`, 'success');
+        
+        // ✅ Refresh the packages table immediately
+        await populatePackagesTable();
+        
+    } catch (error) {
+        console.error('Error adding item to package:', error);
+        showAlert('Ürün pakete eklenirken hata oluştu', 'error');
+    }
+}
+
+// Also add this helper function if needed
+function updateQuantityBadge(productName, quantity) {
+    const badge = document.querySelector(`[data-product="${productName}"] .quantity-badge`);
+    if (badge) {
+        badge.textContent = quantity;
+        badge.style.display = quantity > 0 ? 'inline-block' : 'none';
+    }
+}
