@@ -332,7 +332,8 @@ const elements = {};
 const ExcelJS = {
     readFile: async function(tableName = 'packages') {
         try {
-            const data = localStorage.getItem(`excel_${tableName}_${getCurrentDateKey()}`);
+            const dateKey = getCurrentDateKey();
+            const data = localStorage.getItem(`excel_${tableName}_${dateKey}`);
             return data ? JSON.parse(data) : [];
         } catch (error) {
             console.error('Excel read error:', error);
@@ -342,7 +343,8 @@ const ExcelJS = {
     
     writeFile: async function(data, tableName = 'packages') {
         try {
-            localStorage.setItem(`excel_${tableName}_${getCurrentDateKey()}`, JSON.stringify(data));
+            const dateKey = getCurrentDateKey();
+            localStorage.setItem(`excel_${tableName}_${dateKey}`, JSON.stringify(data));
             return true;
         } catch (error) {
             console.error('Excel write error:', error);
@@ -393,7 +395,7 @@ const ExcelJS = {
         }));
     },
     
-    // NEW: Get all tables
+    // Get all tables
     getAllTables: async function() {
         const dateKey = getCurrentDateKey();
         const tables = ['packages', 'containers', 'customers', 'stock'];
@@ -407,7 +409,7 @@ const ExcelJS = {
         return result;
     },
     
-    // NEW: Clear daily data
+    // Clear daily data
     clearDailyData: function() {
         const dateKey = getCurrentDateKey();
         const tables = ['packages', 'containers'];
@@ -417,6 +419,10 @@ const ExcelJS = {
         });
     }
 };
+
+
+
+
 
 // NEW: Date-based storage key
 function getCurrentDateKey() {
