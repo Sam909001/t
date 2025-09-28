@@ -129,7 +129,43 @@ class WorkspaceManager {
         };
         return types[this.currentWorkspace.type] || this.currentWorkspace.type;
     }
+
+
+    // Add safety check method
+    ensureWorkspace() {
+        if (!this.currentWorkspace) {
+            // Try to get default workspace
+            const defaultWorkspace = this.availableWorkspaces[0];
+            if (defaultWorkspace) {
+                this.setCurrentWorkspace(defaultWorkspace);
+            } else {
+                throw new Error('No workspace available');
+            }
+        }
+        return this.currentWorkspace;
+    }
     
+    // Update canPerformAction with safety check
+    canPerformAction(action) {
+        // Safety check - if no workspace, allow basic actions
+        if (!this.currentWorkspace) {
+            console.warn('No workspace selected, allowing action by default');
+            return true;
+        }
+        
+        const permissions = {
+            'packaging': ['create_package', 'view_packages', 'edit_package'],
+            'shipping': ['view_packages', 'ship_packages', 'view_containers'],
+            'quality': ['view_packages', 'quality_check', 'view_reports'],
+            'admin': ['all']
+        };
+        
+        const workspacePermissions = permissions[this.currentWorkspace.type] || [];
+        return workspacePermissions.includes(action) || workspacePermissions.includes('all');
+    }
+}
+
+
     // Initialize workspace-specific Excel storage
     initializeWorkspaceStorage() {
         // Store original functions
