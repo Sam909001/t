@@ -69,8 +69,87 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
+
+
+
+// Add keyboard shortcuts
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // F1 - Paketle
+        if (e.key === 'F1') {
+            e.preventDefault();
+            console.log('F1 pressed - Completing package');
+            completePackage();
+        }
+        // F2 - Print
+        else if (e.key === 'F2') {
+            e.preventDefault();
+            console.log('F2 pressed - Printing');
+            const selectedPackage = getSelectedPackage();
+            if (selectedPackage) {
+                printPackage(selectedPackage);
+            } else {
+                showAlert('Yazdırmak için paket seçin', 'error');
+            }
+        }
+        // F3 - Konteynere Ekle
+        else if (e.key === 'F3') {
+            e.preventDefault();
+            console.log('F3 pressed - Adding to container');
+            sendToRamp();
+        }
+        // F7 - Sil
+        else if (e.key === 'F7') {
+            e.preventDefault();
+            console.log('F7 pressed - Deleting');
+            deleteSelectedPackages();
+        }
+    });
+}
+
+
+
+
+// Add this function to app.js
+function checkPrinterStatus() {
+    console.log('Checking printer status...');
+    
+    try {
+        // Check if printer is available
+        if (window.printerElectron) {
+            const printer = window.printerElectron;
+            if (printer.isConnected && typeof printer.isConnected === 'function') {
+                const isConnected = printer.isConnected();
+                showAlert(`Yazıcı durumu: ${isConnected ? 'Bağlı' : 'Bağlı Değil'}`, 
+                         isConnected ? 'success' : 'error');
+            } else {
+                showAlert('Yazıcı bağlantısı kontrol edilemiyor', 'warning');
+            }
+        } else {
+            // Simulate printer check for web version
+            showAlert('Web versiyonu - Yazıcı durumu simüle ediliyor', 'info');
+            
+            // Simulate different statuses
+            const statuses = ['Bağlı', 'Bağlı Değil', 'Kağıt Yok', 'Hata'];
+            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+            
+            setTimeout(() => {
+                showAlert(`Yazıcı durumu: ${randomStatus}`, 
+                         randomStatus === 'Bağlı' ? 'success' : 'error');
+            }, 1000);
+        }
+    } catch (error) {
+        console.error('Printer status check error:', error);
+        showAlert('Yazıcı durumu kontrol edilirken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+
+
+
+
+
 // Initialize application
-// REPLACE the existing initApp function with this:
 async function initApp() {
     console.log('Initializing enhanced daily Excel system...');
     
@@ -84,6 +163,12 @@ async function initApp() {
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
     }, 1000);
+    
+    // Setup tabs
+    setupTabs();
+    
+    // Setup keyboard shortcuts
+    setupKeyboardShortcuts();
     
     // Setup daily exports bucket
     await setupDailyExportsBucket();
@@ -117,6 +202,7 @@ async function initApp() {
     
     console.log(`App initialized with daily Excel system for workspace: ${window.workspaceManager.currentWorkspace.name}`);
 }
+
 
 
 
@@ -277,10 +363,45 @@ async function deleteContainer() {
     }
 }
 
+
+// Add this function to app.js
+function setupTabs() {
+    console.log('Setting up tabs...');
+    
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            console.log('Tab clicked:', tabName);
+            switchTab(tabName);
+        });
+    });
+    
+    // Also add click handlers for specific tab buttons if they exist
+    const tabButtons = [
+        { id: 'shippingTabBtn', tab: 'shipping' },
+        { id: 'stockTabBtn', tab: 'stock' },
+        { id: 'reportsTabBtn', tab: 'reports' }
+    ];
+    
+    tabButtons.forEach(button => {
+        const element = document.getElementById(button.id);
+        if (element) {
+            element.addEventListener('click', () => switchTab(button.tab));
+        }
+    });
+}
+
+
+
+// Enhanced switchTab function - replace existing one
 function switchTab(tabName) {
+    console.log('Switching to tab:', tabName);
+    
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.classList.remove('active');
+        pane.style.display = 'none';
     });
     
     // Deactivate all tabs
@@ -288,31 +409,46 @@ function switchTab(tabName) {
         tab.classList.remove('active');
     });
     
-    // Activate selected tab
+    // Activate selected tab and pane
     const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
     const selectedPane = document.getElementById(`${tabName}Tab`);
     
     if (selectedTab && selectedPane) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
+        selectedPane.style.display = 'block';
+        
+        console.log('Tab activated:', tabName);
         
         // Load data when tab is clicked
         setTimeout(() => {
             switch(tabName) {
                 case 'shipping':
+                    console.log('Loading shipping table...');
                     populateShippingTable();
                     break;
                 case 'stock':
+                    console.log('Loading stock table...');
                     populateStockTable();
                     break;
                 case 'reports':
+                    console.log('Loading reports table...');
                     populateReportsTable();
+                    break;
+                case 'packages':
+                    console.log('Loading packages table...');
+                    populatePackagesTable();
                     break;
             }
         }, 100);
+    } else {
+        console.error('Tab or pane not found:', {
+            tab: tabName,
+            tabElement: !!selectedTab,
+            paneElement: !!selectedPane
+        });
     }
 }
-
 
 
 
@@ -819,7 +955,7 @@ function mergePackages(excelPackages, supabasePackages) {
     return merged;
 }
 
-// REPLACE the existing completePackage function with this:
+// Replace the completePackage function in app.js
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -857,10 +993,7 @@ async function completePackage() {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             workspace_id: workspaceId,
-            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default',
-            // New fields for enhanced tracking
-            storage_type: 'excel_daily',
-            daily_file: ExcelJS.getCurrentFileName()
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
         };
 
         // Save to daily Excel file
@@ -869,37 +1002,37 @@ async function completePackage() {
         const excelSuccess = await ExcelJS.writeFile(currentData);
         
         if (excelSuccess) {
-            showAlert(`Paket oluşturuldu: ${packageNo} (Günlük Excel)`, 'success');
+            showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
             
-            // Try to sync with Supabase if online
-            if (supabase && navigator.onLine) {
-                try {
-                    const { data, error } = await supabase
-                        .from('packages')
-                        .insert([packageData])
-                        .select();
-
-                    if (!error) {
-                        console.log('Package also saved to Supabase');
-                    }
-                } catch (supabaseError) {
-                    console.warn('Supabase save failed:', supabaseError);
-                }
+            // IMMEDIATELY update the packages table
+            await populatePackagesTable();
+            
+            // Reset current package
+            currentPackage = {};
+            
+            // Reset quantity badges
+            document.querySelectorAll('.quantity-badge').forEach(badge => {
+                badge.textContent = '0';
+                badge.style.display = 'none';
+            });
+            
+            // Clear package items display
+            const packageItemsContainer = document.getElementById('packageItems');
+            if (packageItemsContainer) {
+                packageItemsContainer.innerHTML = '<p style="color:#666; text-align:center;">Henüz ürün eklenmedi</p>';
             }
-        }
+            
+            updateStorageIndicator();
 
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
+        } else {
+            throw new Error('Excel kaydetme başarısız');
+        }
 
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 
