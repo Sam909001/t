@@ -195,3 +195,303 @@ function validateForm(fields) {
 
     return valid;
 }
+
+
+
+
+// Enhanced user management system
+class UserManager {
+    static ROLES = {
+        ADMIN: 'admin',
+        MANAGER: 'manager',
+        OPERATOR: 'operator',
+        VIEWER: 'viewer'
+    };
+
+    static PERMISSIONS = {
+        [this.ROLES.ADMIN]: [
+            'create_package', 'view_packages', 'edit_package', 'delete_package',
+            'ship_packages', 'view_containers', 'manage_stock', 'view_reports',
+            'generate_reports', 'manage_users', 'system_settings'
+        ],
+        [this.ROLES.MANAGER]: [
+            'create_package', 'view_packages', 'edit_package', 'delete_package',
+            'ship_packages', 'view_containers', 'manage_stock', 'view_reports',
+            'generate_reports'
+        ],
+        [this.ROLES.OPERATOR]: [
+            'create_package', 'view_packages', 'edit_package', 'ship_packages',
+            'view_containers'
+        ],
+        [this.ROLES.VIEWER]: [
+            'view_packages', 'view_containers', 'view_reports'
+        ]
+    };
+
+    static async getCurrentUserRole() {
+        // In a real application, this would come from your backend
+        // For now, we'll use localStorage with a fallback
+        const savedRole = localStorage.getItem('proclean_user_role');
+        return savedRole || this.ROLES.OPERATOR;
+    }
+
+    static async setUserRole(email, role) {
+        if (!Object.values(this.ROLES).includes(role)) {
+            throw new Error('Geçersiz kullanıcı rolü');
+        }
+
+        // Store in localStorage (in real app, this would be in your database)
+        localStorage.setItem(`proclean_role_${email}`, role);
+        
+        // If it's the current user, update immediately
+        if (currentUser && currentUser.email === email) {
+            localStorage.setItem('proclean_user_role', role);
+            this.applyUserPermissions();
+        }
+
+        AuditLogger.log('user_role_changed', { email, role });
+    }
+
+    static async hasPermission(permission) {
+        const userRole = await this.getCurrentUserRole();
+        const permissions = this.PERMISSIONS[userRole] || [];
+        return permissions.includes(permission) || permissions.includes('all');
+    }
+
+    static applyUserPermissions() {
+        this.hideUnauthorizedElements();
+        this.disableUnauthorizedActions();
+        this.updateUIForRole();
+    }
+
+    static hideUnauthorizedElements() {
+        const elementsToHide = {
+            [this.ROLES.VIEWER]: [
+                '[onclick="completePackage()"]',
+                '[onclick="deleteSelectedPackages()"]',
+                '[onclick="showAllCustomers()"]',
+                '[onclick="createNewContainer()"]',
+                '.admin-only'
+            ],
+            [this.ROLES.OPERATOR]: [
+                '.admin-only'
+            ]
+        };
+
+        const currentRole = localStorage.getItem('proclean_user_role') || this.ROLES.OPERATOR;
+        const elements = elementsToHide[currentRole] || [];
+
+        elements.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                el.style.display = 'none';
+            });
+        });
+    }
+
+    static disableUnauthorizedActions() {
+        // This would disable buttons and inputs based on permissions
+    }
+
+    static updateUIForRole() {
+        const role = localStorage.getItem('proclean_user_role') || this.ROLES.OPERATOR;
+        const roleElement = document.getElementById('userRole');
+        if (roleElement) {
+            const roleLabels = {
+                [this.ROLES.ADMIN]: 'Yönetici',
+                [this.ROLES.MANAGER]: 'Müdür',
+                [this.ROLES.OPERATOR]: 'Operatör',
+                [this.ROLES.VIEWER]: 'Görüntüleyici'
+            };
+            roleElement.textContent = `${roleLabels[role]}: ${currentUser?.name || 'Kullanıcı'}`;
+        }
+    }
+
+    static showUserManagement() {
+        if (!this.hasPermission('manage_users')) {
+            showAlert('Kullanıcı yönetimi için yetkiniz bulunmuyor', 'error');
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+            align-items: center; z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                <h2 style="margin-top: 0;">Kullanıcı Yönetimi</h2>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3>Yeni Kullanıcı Ekle</h3>
+                    <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 1rem;">
+                        <input type="email" id="newUserEmail" placeholder="E-posta adresi" style="padding: 8px;">
+                        <select id="newUserRole" style="padding: 8px;">
+                            <option value="${this.ROLES.OPERATOR}">Operatör</option>
+                            <option value="${this.ROLES.MANAGER}">Müdür</option>
+                            <option value="${this.ROLES.ADMIN}">Yönetici</option>
+                            <option value="${this.ROLES.VIEWER}">Görüntüleyici</option>
+                        </select>
+                        <button onclick="UserManager.addUser()" class="btn btn-primary">Ekle</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3>Mevcut Kullanıcılar</h3>
+                    <div id="usersList" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Users will be populated here -->
+                    </div>
+                </div>
+                
+                <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+                    <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Kapat</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        this.populateUsersList();
+    }
+
+    static async populateUsersList() {
+        // In a real app, this would fetch from your backend
+        // For now, we'll show current user and any stored roles
+        const usersList = document.getElementById('usersList');
+        if (!usersList) return;
+
+        const users = [];
+        
+        // Add current user
+        if (currentUser) {
+            users.push({
+                email: currentUser.email,
+                role: await this.getCurrentUserRole()
+            });
+        }
+
+        // Add any other users from localStorage
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('proclean_role_')) {
+                const email = key.replace('proclean_role_', '');
+                const role = localStorage.getItem(key);
+                users.push({ email, role });
+            }
+        }
+
+        usersList.innerHTML = users.map(user => `
+            <div style="display: flex; justify-content: between; align-items: center; padding: 10px; border-bottom: 1px solid #eee;">
+                <div style="flex: 1;">
+                    <strong>${user.email}</strong>
+                    <br>
+                    <small style="color: #666;">${this.getRoleLabel(user.role)}</small>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select onchange="UserManager.updateUserRole('${user.email}', this.value)" 
+                            style="padding: 5px;" ${user.email === currentUser?.email ? 'disabled' : ''}>
+                        ${Object.values(this.ROLES).map(role => `
+                            <option value="${role}" ${role === user.role ? 'selected' : ''}>
+                                ${this.getRoleLabel(role)}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <button onclick="UserManager.removeUser('${user.email}')" 
+                            class="btn btn-danger btn-sm"
+                            ${user.email === currentUser?.email ? 'disabled' : ''}>
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('') || '<p style="text-align: center; color: #666;">Kullanıcı bulunamadı</p>';
+    }
+
+    static getRoleLabel(role) {
+        const labels = {
+            [this.ROLES.ADMIN]: 'Yönetici',
+            [this.ROLES.MANAGER]: 'Müdür',
+            [this.ROLES.OPERATOR]: 'Operatör',
+            [this.ROLES.VIEWER]: 'Görüntüleyici'
+        };
+        return labels[role] || role;
+    }
+
+    static async addUser() {
+        const emailInput = document.getElementById('newUserEmail');
+        const roleSelect = document.getElementById('newUserRole');
+        
+        const email = emailInput.value.trim();
+        const role = roleSelect.value;
+
+        if (!email) {
+            showAlert('Lütfen e-posta adresi girin', 'error');
+            return;
+        }
+
+        if (!this.validateEmail(email)) {
+            showAlert('Geçerli bir e-posta adresi girin', 'error');
+            return;
+        }
+
+        try {
+            await this.setUserRole(email, role);
+            emailInput.value = '';
+            this.populateUsersList();
+            showAlert('Kullanıcı eklendi', 'success');
+        } catch (error) {
+            ErrorHandler.handle(error, 'Kullanıcı ekleme');
+        }
+    }
+
+    static async updateUserRole(email, newRole) {
+        try {
+            await this.setUserRole(email, newRole);
+            showAlert('Kullanıcı rolü güncellendi', 'success');
+        } catch (error) {
+            ErrorHandler.handle(error, 'Kullanıcı rolü güncelleme');
+        }
+    }
+
+    static async removeUser(email) {
+        if (email === currentUser?.email) {
+            showAlert('Kendi kullanıcınızı silemezsiniz', 'error');
+            return;
+        }
+
+        const confirmed = await UXEnhancements.showConfirmation(
+            `${email} kullanıcısını silmek istediğinize emin misiniz?`
+        );
+
+        if (!confirmed) return;
+
+        localStorage.removeItem(`proclean_role_${email}`);
+        this.populateUsersList();
+        showAlert('Kullanıcı silindi', 'success');
+        
+        AuditLogger.log('user_removed', { email });
+    }
+
+    static validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+}
+
+// Update login function to apply user permissions
+const originalLogin = login;
+login = async function() {
+    await originalLogin();
+    UserManager.applyUserPermissions();
+};
+
+// Update workspace permissions to also check user permissions
+const originalCanPerformAction = WorkspaceManager.prototype.canPerformAction;
+WorkspaceManager.prototype.canPerformAction = async function(action) {
+    // Check workspace permissions first
+    const workspaceAllowed = originalCanPerformAction.call(this, action);
+    if (!workspaceAllowed) return false;
+
+    // Then check user permissions
+    return await UserManager.hasPermission(action);
+};
