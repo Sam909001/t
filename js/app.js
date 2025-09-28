@@ -467,7 +467,7 @@ function scheduleDailyClear() {
 }
 
 // Main initialization
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Settings button
     const settingsBtn = document.getElementById('settingsBtn');
     if (settingsBtn) {
@@ -489,7 +489,13 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         console.log('Initializing ProClean application...');
         
-        // Initialize elements first
+        // Initialize workspace system FIRST
+        window.workspaceManager = new WorkspaceManager();
+        await window.workspaceManager.initialize();
+        
+        console.log('Workspace initialized:', window.workspaceManager.currentWorkspace);
+        
+        // Then initialize elements
         initializeElementsObject();
         
         // Check critical elements exist before adding listeners
@@ -622,14 +628,17 @@ document.addEventListener('DOMContentLoaded', function() {
             elements.appContainer.style.display = 'none';
         }
         
-        console.log('ProClean application initialized successfully');
+        // Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+        
+        console.log('ProClean application initialized successfully for workspace:', window.workspaceManager.currentWorkspace.name);
         
     } catch (error) {
         console.error('Critical error during DOMContentLoaded:', error);
         showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
     }
 });
-
 // Global error handler
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
@@ -744,25 +753,23 @@ async function initApp() {
 // REPLACE the existing loadPackagesData function with this:
 async function loadPackagesData() {
     if (!window.workspaceManager?.currentWorkspace) {
-        showAlert('Çalışma istasyonu tanımlanmadı', 'error');
-        return;
+        console.warn('Workspace not initialized, using default');
     }
     
     try {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        
         // Load from workspace-specific Excel
         const excelData = await ExcelJS.readFile();
         const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
         
-        // Filter by workspace if needed
+        // Filter by workspace
         const workspacePackages = excelPackagesList.filter(pkg => 
-            !pkg.workspace_id || pkg.workspace_id === window.workspaceManager.currentWorkspace.id
+            pkg.workspace_id === workspaceId
         );
         
-        if (workspacePackages.length > 0) {
-            console.log(`Loaded from ${window.workspaceManager.currentWorkspace.name} Excel:`, workspacePackages.length, 'packages');
-            window.packages = workspacePackages;
-            await populatePackagesTable();
-        }
+        console.log(`Loaded from ${window.workspaceManager?.currentWorkspace?.name || 'Default'} Excel:`, workspacePackages.length, 'packages');
+        window.packages = workspacePackages;
         
         // Load from Supabase with workspace filtering
         if (supabase && navigator.onLine) {
@@ -772,15 +779,17 @@ async function loadPackagesData() {
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', window.workspaceManager.currentWorkspace.id) // Workspace filter
+                    .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
                 
-                if (!error && supabasePackages) {
-                    console.log(`Loaded from ${window.workspaceManager.currentWorkspace.name} Supabase:`, supabasePackages.length, 'packages');
+                if (!error && supabasePackages && supabasePackages.length > 0) {
+                    console.log(`Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
+                    // Merge with Excel data (Supabase takes priority)
                     const mergedPackages = mergePackages(workspacePackages, supabasePackages);
                     window.packages = mergedPackages;
                     
+                    // Update Excel storage with merged data
                     const excelData = ExcelJS.toExcelFormat(mergedPackages);
                     await ExcelJS.writeFile(excelData);
                 }
