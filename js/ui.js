@@ -1775,10 +1775,6 @@ function initializeWorkspaceUI() {
 
 
 
-    
-    // Add workspace switching capability
-    addWorkspaceSwitchHandler();
-}
 
 function addWorkspaceSwitchHandler() {
     const indicator = document.getElementById('workspaceIndicator');
