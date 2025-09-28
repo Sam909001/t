@@ -1,7 +1,6 @@
 // ==================== ENHANCED REPORTS SYSTEM ====================
 
-// Global variable to store current report data
-let currentReportData = null;
+// Remove the duplicate declaration - currentReportData is already declared in supabase.js
 
 // Fixed Storage Bucket Check Function
 async function checkStorageBucket() {
