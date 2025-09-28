@@ -468,48 +468,16 @@ function scheduleDailyClear() {
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Starting ProClean application initialization...');
-
-    try {
-        // Initialize workspace system FIRST
-        if (!window.workspaceManager) {
-            window.workspaceManager = new WorkspaceManager();
-        }
-        await window.workspaceManager.initialize();
-        
-        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-
-        // Then initialize elements
-        initializeElementsObject();
-        
-        // Initialize workspace-aware UI
-        initializeWorkspaceUI();
-        setupWorkspaceAwareUI();
-
-        // Now setup all other event listeners
-        setupEventListeners();
-        
-        // API key initialization
-        initializeApiAndAuth();
-
-        // Initialize settings
-        initializeSettings();
-
-        console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
-
-    } catch (error) {
-        console.error('❌ Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
-    }
-});
-
-// Separate function for event listeners
-function setupEventListeners() {
     // Settings button
     const settingsBtn = document.getElementById('settingsBtn');
     if (settingsBtn) {
-        settingsBtn.addEventListener('click', showSettingsModal);
-        console.log('✅ Settings button listener added');
+        settingsBtn.addEventListener('click', function() {
+            console.log('Settings button clicked');
+            showSettingsModal();
+        });
+        console.log('Settings button listener added successfully');
+    } else {
+        console.error('Settings button not found in DOM');
     }
 
     // Close settings modal
@@ -518,80 +486,164 @@ function setupEventListeners() {
         closeBtn.addEventListener('click', closeSettingsModal);
     }
 
-    // Login button
-    const loginBtn = elements.loginButton;
-    if (loginBtn) {
-        loginBtn.addEventListener('click', login);
-        console.log('✅ Login button listener added');
-    } else {
-        console.error('❌ Login button not found');
-    }
-
-    // Enter key listeners for login
-    if (elements.emailInput) {
-        elements.emailInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
+    try {
+        console.log('Initializing ProClean application...');
+        
+        // Initialize workspace system FIRST
+        window.workspaceManager = new WorkspaceManager();
+        await window.workspaceManager.initialize();
+        
+        console.log('Workspace initialized:', window.workspaceManager.currentWorkspace);
+        
+        // Then initialize elements
+        initializeElementsObject();
+        
+        // Check critical elements exist before adding listeners
+        const loginBtn = elements.loginButton;
+        const emailInput = elements.emailInput;
+        const passwordInput = elements.passwordInput;
+        
+        if (loginBtn) {
+            loginBtn.addEventListener('click', login);
+            console.log('Login button listener added');
+        } else {
+            console.error('Login button not found - check HTML structure');
+            showAlert('Giriş butonu bulunamadı', 'error');
+        }
+        
+        // Logout button
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
+        
+        // Enter key listeners
+        if (emailInput) {
+            emailInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    login();
+                }
+            });
+        }
+        
+        if (passwordInput) {
+            passwordInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    login();
+                }
+            });
+        }
+        
+        // Quantity modal enter key
+        if (elements.quantityInput) {
+            elements.quantityInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    confirmQuantity();
+                }
+            });
+        }
+        
+        // Customer select change listener
+        if (elements.customerSelect) {
+            elements.customerSelect.addEventListener('change', function() {
+                const customerId = this.value;
+                if (customerId) {
+                    const selectedOption = this.options[this.selectedIndex];
+                    selectedCustomer = {
+                        id: customerId,
+                        name: selectedOption.textContent.split(' (')[0],
+                        code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                    };
+                    showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+                } else {
+                    selectedCustomer = null;
+                }
+            });
+        }
+        
+        // Tab click events
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+                if (tabName) {
+                    switchTab(tabName);
+                }
+            });
         });
-    }
-    
-    if (elements.passwordInput) {
-        elements.passwordInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
-        });
-    }
 
-    // Quantity modal enter key
-    if (elements.quantityInput) {
-        elements.quantityInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') confirmQuantity();
-        });
-    }
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('procleanTheme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+        }
 
-    // Customer select
-    if (elements.customerSelect) {
-        elements.customerSelect.addEventListener('change', function() {
-            const customerId = this.value;
-            if (customerId) {
-                const selectedOption = this.options[this.selectedIndex];
-                selectedCustomer = {
-                    id: customerId,
-                    name: selectedOption.textContent.split(' (')[0],
-                    code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                };
-                showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            if (document.body.classList.contains('dark-mode')) {
+                localStorage.setItem('procleanTheme', 'dark');
+                showAlert('Koyu tema etkinleştirildi.', 'info');
             } else {
-                selectedCustomer = null;
+                localStorage.setItem('procleanTheme', 'light');
+                showAlert('Açık tema etkinleştirildi.', 'info');
+            }
+        }
+        
+        // API key initialization
+        if (loadApiKey()) {
+            supabase = initializeSupabase();
+            if (supabase) {
+                setupAuthListener();
+                console.log('Supabase client initialized successfully');
+            } else {
+                console.warn('Failed to initialize Supabase client');
+            }
+        } else {
+            console.log('No saved API key found, showing API key modal');
+            showApiKeyModal();
+        }
+
+        // Initialize settings when app loads
+        initializeSettings();
+
+        // Add settings button event listener
+        document.getElementById('settingsBtn').addEventListener('click', showSettingsModal);
+        document.getElementById('closeSettingsModalBtn').addEventListener('click', closeSettingsModal);
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target === document.getElementById('settingsModal')) {
+                closeSettingsModal();
             }
         });
-    }
-
-    // Tab click events
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            if (tabName) switchTab(tabName);
-        });
-    });
-
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
-        if (event.target === document.getElementById('settingsModal')) {
-            closeSettingsModal();
+        
+        // Set initial display states
+        if (elements.loginScreen) {
+            elements.loginScreen.style.display = 'flex';
         }
-    });
-}
-
-function initializeApiAndAuth() {
-    if (loadApiKey()) {
-        supabase = initializeSupabase();
-        if (supabase) {
-            setupAuthListener();
-            console.log('✅ Supabase client initialized');
+        if (elements.appContainer) {
+            elements.appContainer.style.display = 'none';
         }
-    } else {
-        showApiKeyModal();
+        
+        // Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+        
+        console.log('ProClean application initialized successfully for workspace:', window.workspaceManager.currentWorkspace.name);
+        
+    } catch (error) {
+        console.error('Critical error during DOMContentLoaded:', error);
+        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
     }
-}
+});
+// Global error handler
+window.addEventListener('error', function(e) {
+    console.error('Global error:', e.error);
+    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
+});
 
 
 
@@ -1001,32 +1053,3 @@ async function importExcelData(event) {
         showAlert('İçe aktarma hatası', 'error');
     }
 }
-
-
-
-
-
-
-
-
-// Temporary debug function - call this in console
-function debugWorkspace() {
-    console.log('=== WORKSPACE DEBUG INFO ===');
-    console.log('Current Workspace:', window.workspaceManager?.currentWorkspace);
-    console.log('Excel Packages:', excelPackages);
-    console.log('LocalStorage Keys:');
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key.includes('excelPackages') || key.includes('workspace')) {
-            console.log(`- ${key}:`, localStorage.getItem(key));
-        }
-    }
-    
-    // Test workspace storage
-    const workspaceId = window.workspaceManager?.currentWorkspace?.id;
-    const testData = localStorage.getItem(`excelPackages_${workspaceId}`);
-    console.log(`Workspace data for ${workspaceId}:`, testData ? JSON.parse(testData) : 'EMPTY');
-}
-
-// Call this after page loads
-setTimeout(debugWorkspace, 3000);
