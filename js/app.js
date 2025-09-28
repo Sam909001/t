@@ -466,27 +466,32 @@ function scheduleDailyClear() {
     }, msUntilMidnight);
 }
 
-// Main initialization
+// Main initialization - FIXED VERSION
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
 
     try {
+        // Wait a brief moment for DOM to be fully ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Initialize workspace system FIRST
         if (!window.workspaceManager) {
             window.workspaceManager = new WorkspaceManager();
         }
+        
+        // Initialize elements BEFORE workspace (they're needed for workspace UI)
+        initializeElementsObject();
+        
+        // Now initialize workspace
         await window.workspaceManager.initialize();
         
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
 
-        // Then initialize elements
-        initializeElementsObject();
-        
-        // Initialize workspace-aware UI
+        // Setup workspace-aware UI
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
 
-        // Now setup all other event listeners
+        // Setup all other event listeners
         setupEventListeners();
         
         // API key initialization
@@ -502,6 +507,77 @@ document.addEventListener('DOMContentLoaded', async function() {
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 });
+
+
+
+function initializeElementsObject() {
+    // Initialize all DOM elements
+    elements.loginButton = document.getElementById('loginButton');
+    elements.emailInput = document.getElementById('emailInput');
+    elements.passwordInput = document.getElementById('passwordInput');
+    elements.customerSelect = document.getElementById('customerSelect');
+    elements.personnelSelect = document.getElementById('personnelSelect');
+    elements.containerNumber = document.getElementById('containerNumber');
+    elements.currentDate = document.getElementById('currentDate');
+    elements.packagesTableBody = document.getElementById('packagesTableBody');
+    elements.totalPackages = document.getElementById('totalPackages');
+    elements.connectionStatus = document.getElementById('connectionStatus');
+    elements.barcodeInput = document.getElementById('barcodeInput');
+    
+    console.log('✅ Elements initialized');
+}
+
+function initializeWorkspaceUI() {
+    // Create workspace indicator if it doesn't exist
+    if (!document.getElementById('workspaceIndicator')) {
+        const header = document.querySelector('.app-header');
+        if (header) {
+            const workspaceIndicator = document.createElement('div');
+            workspaceIndicator.id = 'workspaceIndicator';
+            workspaceIndicator.className = 'workspace-indicator';
+            workspaceIndicator.style.cssText = `
+                background: var(--primary);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-size: 14px;
+                margin-left: auto;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            `;
+            header.appendChild(workspaceIndicator);
+        }
+    }
+}
+
+function setupWorkspaceAwareUI() {
+    // Update UI based on workspace type
+    if (window.workspaceManager?.currentWorkspace) {
+        const workspaceType = window.workspaceManager.currentWorkspace.type;
+        
+        // Hide/show elements based on workspace permissions
+        if (workspaceType === 'shipping') {
+            // Shipping station - focus on shipping features
+            document.querySelectorAll('.tab[data-tab="shipping"]').forEach(tab => {
+                tab.style.display = 'block';
+            });
+        } else if (workspaceType === 'quality') {
+            // Quality station - focus on reports
+            document.querySelectorAll('.tab[data-tab="reports"]').forEach(tab => {
+                tab.style.display = 'block';
+            });
+        }
+        // Packaging station shows all tabs by default
+    }
+}
+
+function initializeSettings() {
+    // Initialize any settings here
+    console.log('✅ Settings initialized');
+}
+
+
 
 // Separate function for event listeners
 function setupEventListeners() {
