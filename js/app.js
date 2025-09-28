@@ -1096,3 +1096,26 @@ function updateQuantityBadge(productName, quantity) {
         badge.style.display = quantity > 0 ? 'inline-block' : 'none';
     }
 }
+
+
+function updatePackageDisplay() {
+    const packageItemsContainer = document.getElementById('packageItems');
+    if (packageItemsContainer) {
+        packageItemsContainer.innerHTML = '';
+        
+        if (currentPackage.items && Object.keys(currentPackage.items).length > 0) {
+            Object.entries(currentPackage.items).forEach(([itemName, quantity]) => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'package-item';
+                itemElement.innerHTML = `
+                    <span>${itemName}</span>
+                    <span>${quantity} adet</span>
+                `;
+                packageItemsContainer.appendChild(itemElement);
+            });
+        }
+    }
+    
+    // ✅ Refresh the packages table
+    populatePackagesTable();
+}
