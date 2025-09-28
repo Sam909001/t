@@ -677,33 +677,100 @@ async function downloadReportPDF() {
     }
 }
 
-// Function to check if Supabase Storage bucket exists
-// ✅ Simple check if 'reports' bucket is accessible
+
+// Storage bucket kontrolü ve oluşturma fonksiyonu
 async function checkReportsBucket() {
     try {
-        // Try listing files to confirm bucket exists
-        const { data, error } = await supabase.storage.from('reports').list();
-
-        if (error) {
-            console.error('Reports bucket access error:', error.message);
+        // Check if supabase is properly initialized
+        if (!supabase) {
+            console.warn('Supabase client not initialized');
             return false;
         }
 
-        console.log(`Reports bucket ready. Found ${data.length} files.`);
+        // Check if storage is available
+        if (!supabase.storage) {
+            console.warn('Supabase storage not available');
+            return false;
+        }
+
+        // Storage bucket var mı kontrol et
+        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+        
+        if (bucketsError) {
+            console.warn('Bucket listeleme hatası:', bucketsError);
+            return false;
+        }
+        
+        const reportsBucketExists = buckets.some(bucket => bucket.name === 'reports');
+        
+        if (!reportsBucketExists) {
+            console.log('Reports bucket bulunamadı, oluşturuluyor...');
+            // Bucket oluşturmaya çalış (admin yetkisi gerektirir)
+            try {
+                const { data: newBucket, error: createError } = await supabase.storage.createBucket('reports', {
+                    public: true,
+                    fileSizeLimit: 5242880, // 5MB
+                    allowedMimeTypes: ['application/pdf']
+                });
+                
+                if (createError) {
+                    console.warn('Bucket oluşturulamadı:', createError);
+                    return false;
+                }
+                
+                console.log('Reports bucket oluşturuldu:', newBucket);
+                return true;
+            } catch (createError) {
+                console.warn('Bucket oluşturma hatası:', createError);
+                return false;
+            }
+        }
+        
+        console.log('Reports bucket mevcut');
         return true;
-    } catch (err) {
-        console.error('Reports bucket check failed:', err);
+    } catch (error) {
+        console.warn('Storage setup hatası:', error);
         return false;
     }
 }
 
-// ✅ Initialize storage at app start
+// Initialize storage with better error handling
 async function initializeStorage() {
-    const ok = await checkReportsBucket();
-    if (!ok) {
-        showAlert('Reports bucket erişilemedi. Lütfen Supabase dashboarddan kontrol edin.', 'error');
+    try {
+        // Wait for supabase to be initialized
+        if (!supabase) {
+            console.log('Waiting for Supabase initialization...');
+            // Try to initialize supabase if not already done
+            if (SUPABASE_ANON_KEY) {
+                supabase = initializeSupabase();
+            } else {
+                console.warn('No Supabase API key available');
+                return false;
+            }
+        }
+
+        // Check if we have a valid supabase client
+        if (!supabase) {
+            console.warn('Supabase client could not be initialized');
+            return false;
+        }
+
+        // Small delay to ensure supabase is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const bucketAvailable = await checkReportsBucket();
+        
+        if (!bucketAvailable) {
+            console.warn('Reports bucket not available, PDF reports will be saved locally only');
+            return false;
+        }
+        
+        console.log('Storage initialized successfully');
+        return true;
+    } catch (error) {
+        console.error('Storage initialization error:', error);
+        return false;
     }
-    return ok;
 }
 
 
@@ -888,7 +955,7 @@ async function generateSimplePDFReport(reportData) {
     });
 }
 
-// Preview function
+// Modified previewReport function with better error handling
 async function previewReport() {
     if (!currentReportData) {
         showAlert('Önce rapor oluşturmalısınız', 'error');
@@ -896,22 +963,46 @@ async function previewReport() {
     }
     
     try {
+        // Initialize storage first
+        await initializeStorage();
+        
+        // Generate PDF
         const pdfBlob = await generatePDFReport(currentReportData);
+        
+        // Create object URL for the PDF
         const pdfUrl = URL.createObjectURL(pdfBlob);
         
-        // Open in new window
-        window.open(pdfUrl, '_blank');
+        // Open PDF in a new window
+        const reportWindow = window.open(pdfUrl, '_blank');
         
-        // Clean up after some time
-        setTimeout(() => {
-            URL.revokeObjectURL(pdfUrl);
-        }, 10000);
-        
+        // Clean up the URL when window is closed
+        if (reportWindow) {
+            reportWindow.onbeforeunload = function() {
+                URL.revokeObjectURL(pdfUrl);
+            };
+        }
     } catch (error) {
         console.error('Rapor önizleme hatası:', error);
-        showAlert('Rapor önizlenemedi', 'error');
+        showAlert('Rapor önizlenemedi: ' + error.message, 'error');
     }
 }
+
+// Update your main initialization in reports.js to wait for supabase
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        console.log('Initializing reports system...');
+        
+        // Wait a bit for main app to initialize supabase
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Initialize storage
+        await initializeStorage();
+        
+        console.log('Reports system initialized');
+    } catch (error) {
+        console.error('Reports initialization error:', error);
+    }
+});
 
 function closeEmailModal() {
     const modal = document.getElementById('emailModal');
