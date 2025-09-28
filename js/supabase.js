@@ -2268,7 +2268,19 @@ async function completePackage() {
 
         // Save to Excel with workspace isolation
         const excelSuccess = await saveToExcel(packageData);
-        
+
+               // ✅ ADD THESE LINES: Reset and refresh
+            currentPackage = {};
+            document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+            await populatePackagesTable(); // Refresh the table
+            updateStorageIndicator();
+        }
+
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+    }
+}
         if (excelSuccess) {
             showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager?.currentWorkspace?.name || 'Default'})`, 'success');
             
