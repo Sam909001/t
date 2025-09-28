@@ -1143,150 +1143,104 @@ function loadAllSettings() {
 
 
 
-function showEnhancedSettingsModal() {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-        background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
-        align-items: center; z-index: 10000;
-    `;
-    
-    modal.innerHTML = `
-        <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 90%; max-height: 90vh; width: 1000px; overflow-y: auto;">
-            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 1rem;">
-                <h2 style="margin: 0;">Gelişmiş Ayarlar</h2>
-                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 200px 1fr; gap: 2rem;">
-                <!-- Sidebar -->
-                <div style="border-right: 1px solid #eee; padding-right: 1rem;">
-                    <nav style="display: flex; flex-direction: column; gap: 5px;">
-                        <button onclick="SettingsNavigation.showSection('general')" class="settings-nav-btn active" data-section="general">
-                            <i class="fas fa-cog"></i> Genel
-                        </button>
-                        <button onclick="SettingsNavigation.showSection('printer')" class="settings-nav-btn" data-section="printer">
-                            <i class="fas fa-print"></i> Yazıcı
-                        </button>
-                        <button onclick="SettingsNavigation.showSection('backup')" class="settings-nav-btn" data-section="backup">
-                            <i class="fas fa-database"></i> Yedekleme
-                        </button>
-                        <button onclick="SettingsNavigation.showSection('users')" class="settings-nav-btn" data-section="users">
-                            <i class="fas fa-users"></i> Kullanıcılar
-                        </button>
-                        <button onclick="SettingsNavigation.showSection('audit')" class="settings-nav-btn" data-section="audit">
-                            <i class="fas fa-history"></i> Denetim
-                        </button>
-                        <button onclick="SettingsNavigation.showSection('advanced')" class="settings-nav-btn" data-section="advanced">
-                            <i class="fas fa-tools"></i> Gelişmiş
-                        </button>
-                    </nav>
-                </div>
-                
-                <!-- Content -->
-                <div id="settingsContent">
-                    <!-- Content will be loaded by section -->
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    SettingsNavigation.showSection('general');
+// Settings functions
+function showSettingsModal() {
+    loadSettings(); // Load current settings
+    checkSystemStatus(); // Update status indicators
+    document.getElementById('settingsModal').style.display = 'flex';
 }
 
+function closeSettingsModal() {
+    document.getElementById('settingsModal').style.display = 'none';
+}
 
+function loadSettings() {
+    // Load saved settings from localStorage
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
-
-// Apply settings to the application - FIX #6: Fixed changeLanguage reference
-function applySettings(settings) {
-    // Apply theme
+    // Theme
     if (settings.theme === 'dark') {
+        document.getElementById('themeToggle').checked = true;
         document.body.classList.add('dark-mode');
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) themeToggle.checked = true;
-    } else {
-        document.body.classList.remove('dark-mode');
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) themeToggle.checked = false;
+    }
+
+    // Language
+    if (settings.language) {
+        document.getElementById('languageSelect').value = settings.language;
     }
     
-    // Apply language (safe simulation mode)
-    if (settings.language && typeof changeLanguage === 'function') {
-        changeLanguage(settings.language);
-    }
-    
-    // Apply font size
-    if (settings.fontSize) {
-        document.documentElement.style.setProperty('--base-font-size', settings.fontSize + 'px');
-        updateFontSize(settings.fontSize);
-    }
-    
-    // Apply sound settings
-    if (settings.soundEnabled !== undefined) {
-        window.soundEnabled = settings.soundEnabled;
-    }
-    
-    // Apply notification settings
-    if (settings.notificationsEnabled !== undefined) {
-        window.notificationsEnabled = settings.notificationsEnabled;
-    }
-    
-    // Apply UI scaling
-    if (settings.printerScaling) {
-        document.documentElement.style.setProperty('--ui-scale', (parseInt(settings.printerScaling) / 100));
-    }
-    
-    // Apply debug mode
-    if (settings.debugMode !== undefined) {
-        window.DEBUG_MODE = settings.debugMode;
-        if (settings.debugMode) {
-            document.body.classList.add('debug-mode');
-        } else {
-            document.body.classList.remove('debug-mode');
-        }
-    }
-    
-    console.log('Settings applied:', settings);
+    // Auto-save
+    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
 }
 
-function toggleTheme() {
-    const isDark = document.getElementById('themeToggle')?.checked;
-    document.body.classList.toggle('dark-mode', isDark);
-    const themeStatus = document.getElementById('themeStatus');
-    if (themeStatus) {
-        themeStatus.textContent = isDark ? 'Koyu' : 'Açık';
-    }
+// ---------------- LOAD SETTINGS ----------------
+function loadPrinterSettings(settings) {
+    document.getElementById('printerScaling').value = settings.printerScaling || '100%';
+    document.getElementById('copiesNumber').value = settings.copies || 1;
+    document.getElementById('fontName').value = settings.fontName || 'Arial';
+    document.getElementById('fontSize').value = settings.fontSize || 10;
+    document.getElementById('orientation').value = settings.orientation || 'portrait';
+    document.getElementById('marginTop').value = settings.marginTop ?? 5;
+    document.getElementById('marginBottom').value = settings.marginBottom ?? 5;
+    document.getElementById('labelHeader').value = settings.labelHeader || 'Yeditepe';
 }
 
-function checkSystemStatus() {
-    // --- Database connection ---
-    const dbStatus = document.getElementById('dbConnectionStatus');
-    if (dbStatus) {
-        if (window.supabase) {
-            dbStatus.textContent = 'Bağlı';
-            dbStatus.className = 'status-indicator connected';
-        } else {
-            dbStatus.textContent = 'Bağlantı Yok';
-            dbStatus.className = 'status-indicator disconnected';
-        }
-    }
+// ---------------- SAVE SETTINGS ----------------
+function savePrinterSettings() {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
-    // --- Printer connection ---
-    const printerStatus = document.getElementById('printerConnectionStatus');
-    if (printerStatus) {
-        const printerInstance = typeof getPrinterElectron === 'function' ? getPrinterElectron() : null;
+    settings.printerScaling = document.getElementById('printerScaling').value;
+    settings.copies = parseInt(document.getElementById('copiesNumber').value, 10);
+    settings.fontName = document.getElementById('fontName').value;
+    settings.fontSize = parseInt(document.getElementById('fontSize').value, 10);
+    settings.orientation = document.getElementById('orientation').value;
+    settings.marginTop = parseInt(document.getElementById('marginTop').value, 10);
+    settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
+    settings.labelHeader = document.getElementById('labelHeader').value || 'Yeditepe';
 
-        if (printerInstance && printerInstance.isConnected) {
-            printerStatus.textContent = 'Bağlı';
-            printerStatus.className = 'status-indicator connected';
-        } else {
-            printerStatus.textContent = 'Bağlantı Yok';
-            printerStatus.className = 'status-indicator disconnected';
-        }
-    }
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
+    console.log('Printer settings saved', settings);
 }
+
+// ---------------- INIT ----------------
+document.addEventListener('DOMContentLoaded', () => {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    loadPrinterSettings(settings);
+
+    const inputIds = [
+        'printerScaling', 'copiesNumber', 'fontName',
+        'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
+    ];
+
+    inputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', savePrinterSettings);
+    });
+
+    const testBtn = document.getElementById('test-printer-yazdir');
+    if (testBtn) {
+        testBtn.addEventListener('click', async () => {
+            savePrinterSettings();
+            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+            const printerInstance = getPrinter();
+
+            const originalText = testBtn.textContent;
+            testBtn.disabled = true;
+            testBtn.textContent = 'Test Ediliyor...';
+
+            try {
+                // Use labelHeader for test print
+                await printerInstance.testPrint(settings, settings.labelHeader);
+            } catch (error) {
+                console.error('Test print error:', error);
+                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = originalText;
+            }
+        });
+    }
+});
 
 async function exportData(format) {
     if (!format) {
