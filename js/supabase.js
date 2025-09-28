@@ -131,36 +131,36 @@ class WorkspaceManager {
     }
     
     // Initialize workspace-specific Excel storage
-    initializeWorkspaceStorage() {
-        // Store original functions
-        if (!this.originalExcelRead) {
-            this.originalExcelRead = ExcelJS.readFile;
-            this.originalExcelWrite = ExcelJS.writeFile;
-        }
-        
-        // Override with workspace-specific versions
-        ExcelJS.readFile = async function() {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-                return data ? JSON.parse(data) : [];
-            } catch (error) {
-                console.error('Workspace Excel read error:', error);
-                return [];
-            }
-        };
-        
-        ExcelJS.writeFile = async function(data) {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
-                return true;
-            } catch (error) {
-                console.error('Workspace Excel write error:', error);
-                return false;
-            }
-        };
+   initializeWorkspaceStorage() {
+    // Store original functions
+    if (!this.originalExcelRead) {
+        this.originalExcelRead = ExcelJS.readFile;
+        this.originalExcelWrite = ExcelJS.writeFile;
     }
+    
+    // Override with workspace-specific versions
+    ExcelJS.readFile = async function() {
+        try {
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+            return data ? JSON.parse(data) : [];
+        } catch (error) {
+            console.error('Workspace Excel read error:', error);
+            return [];
+        }
+    };
+    
+    ExcelJS.writeFile = async function(data) {
+        try {
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error('Workspace Excel write error:', error);
+            return false;
+        }
+    };
+}
     
     // Restore original Excel functions
     restoreOriginalExcelFunctions() {
@@ -756,40 +756,49 @@ async function populatePackagesTable() {
         tableBody.innerHTML = '';
         if (totalPackagesElement) totalPackagesElement.textContent = '0';
 
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
         let packages = [];
 
-        // Check if we should use Excel data
+        // Get workspace-specific packages
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use Excel data
+            // Use Excel data filtered by workspace
             packages = excelPackages.filter(pkg => 
-                pkg.status === 'beklemede' && (!pkg.container_id || pkg.container_id === null)
+                pkg.workspace_id === workspaceId &&
+                pkg.status === 'beklemede' && 
+                (!pkg.container_id || pkg.container_id === null)
             );
-            console.log('Using Excel data:', packages.length, 'packages');
+            console.log('Using Excel data for workspace:', workspaceId, packages.length, 'packages');
         } else {
-            // Try to use Supabase data
+            // Try to use Supabase data with workspace filter
             try {
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
+                    .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
                 packages = supabasePackages || [];
-                console.log('Using Supabase data:', packages.length, 'packages');
+                console.log('Using Supabase data for workspace:', workspaceId, packages.length, 'packages');
             } catch (error) {
                 console.warn('Supabase fetch failed, using Excel data:', error);
                 packages = excelPackages.filter(pkg => 
-                    pkg.status === 'beklemede' && (!pkg.container_id || pkg.container_id === null)
+                    pkg.workspace_id === workspaceId &&
+                    pkg.status === 'beklemede' && 
+                    (!pkg.container_id || pkg.container_id === null)
                 );
                 isUsingExcel = true;
             }
         }
 
+        // Rest of the function remains the same...
         if (!packages || packages.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Henüz paket yok</td>';
+            row.innerHTML = `<td colspan="8" style="text-align:center; color:#666;">
+                Henüz paket yok (${window.workspaceManager?.currentWorkspace?.name || 'Bu İstasyon'})
+            </td>`;
             tableBody.appendChild(row);
             if (totalPackagesElement) totalPackagesElement.textContent = '0';
             return;
@@ -2002,11 +2011,14 @@ async function completePackage() {
             qty: qty
         }));
 
-        // Generate proper ID for Supabase compatibility
-        const packageId = generateUUID(); // Use the UUID generator
+        // Generate proper ID
+        const packageId = generateUUID();
+
+        // Get current workspace
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
 
         const packageData = {
-            id: packageId, // Use proper UUID
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
@@ -2016,19 +2028,19 @@ async function completePackage() {
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            source: 'excel'
+            workspace_id: workspaceId, // Add workspace identifier
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
         };
 
-        // Save to Excel first
+        // Save to Excel with workspace isolation
         const excelSuccess = await saveToExcel(packageData);
         
         if (excelSuccess) {
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'success');
+            showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager?.currentWorkspace?.name || 'Default'})`, 'success');
             
-            // If online and Supabase available, try to sync with proper data
+            // If online and Supabase available, try to sync
             if (supabase && navigator.onLine) {
                 try {
-                    // Create Supabase-compatible data (without the source field)
                     const supabaseData = {
                         id: packageId,
                         package_no: packageNo,
@@ -2037,7 +2049,8 @@ async function completePackage() {
                         total_quantity: totalQuantity,
                         status: 'beklemede',
                         packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-                        created_at: new Date().toISOString()
+                        created_at: new Date().toISOString(),
+                        workspace_id: workspaceId
                     };
 
                     const { data, error } = await supabase
@@ -2047,10 +2060,9 @@ async function completePackage() {
 
                     if (error) {
                         console.warn('Supabase insert failed, queuing for sync:', error);
-                        addToSyncQueue('add', supabaseData); // Queue the Supabase-compatible version
+                        addToSyncQueue('add', supabaseData);
                     } else {
-                        showAlert(`Paket Supabase'e de kaydedildi: ${packageNo}`, 'success');
-                        isUsingExcel = false;
+                        showAlert(`Paket Supabase'e de kaydedildi`, 'success');
                     }
                 } catch (supabaseError) {
                     console.warn('Supabase error, queuing for sync:', supabaseError);
@@ -2069,10 +2081,9 @@ async function completePackage() {
 
     } catch (error) {
         console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası', 'error');
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 
