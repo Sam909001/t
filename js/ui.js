@@ -1141,13 +1141,6 @@ function loadAllSettings() {
     }
 }
 
-function showSettingsModal() {
-    loadAllSettings(); // Load current settings
-    checkSystemStatus(); // Update status indicators
-    document.getElementById('settingsModal').style.display = 'flex';
-}
-
-
 
 
 function showEnhancedSettingsModal() {
