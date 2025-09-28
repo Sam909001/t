@@ -1552,34 +1552,33 @@ table {
 
 
 
-
-/* Ensure table columns have proper widths */
+/* Table column width fixes */
 #packagesTable {
     table-layout: fixed;
     width: 100%;
 }
 
-#packagesTable th:nth-child(1) { width: 40px; } /* Checkbox */
-#packagesTable th:nth-child(2) { width: 120px; } /* Package No */
-#packagesTable th:nth-child(3) { width: 150px; } /* Customer */
-#packagesTable th:nth-child(4) { width: 200px; } /* Items */
-#packagesTable th:nth-child(5) { width: 80px; } /* Quantity */
-#packagesTable th:nth-child(6) { width: 100px; } /* Date */
-#packagesTable th:nth-child(7) { width: 100px; } /* Status */
-#packagesTable th:nth-child(8) { width: 60px; } /* Source */
+#packagesTable th:nth-child(1) { width: 5%; } /* Checkbox */
+#packagesTable th:nth-child(2) { width: 15%; } /* Package No */
+#packagesTable th:nth-child(3) { width: 20%; } /* Customer */
+#packagesTable th:nth-child(4) { width: 25%; } /* Items */
+#packagesTable th:nth-child(5) { width: 10%; } /* Quantity */
+#packagesTable th:nth-child(6) { width: 10%; } /* Date */
+#packagesTable th:nth-child(7) { width: 10%; } /* Status */
+#packagesTable th:nth-child(8) { width: 5%; } /* Source */
 
-/* Ensure text wrapping */
+/* Ensure text doesn't break layout */
 #packagesTable td {
     word-wrap: break-word;
-    white-space: normal;
-}
-
-/* Customer names and other long text */
-#packagesTable td:nth-child(3),
-#packagesTable td:nth-child(4) {
-    max-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 0;
 }
+
+#packagesTable td:hover {
+    white-space: normal;
+    overflow: visible;
+}
+
 
