@@ -364,10 +364,10 @@ async function deleteContainer() {
 }
 
 
-// Add this function to app.js
 function setupTabs() {
     console.log('Setting up tabs...');
     
+    // Add click listeners to all tab buttons
     const tabs = document.querySelectorAll('.tab');
     tabs.forEach(tab => {
         tab.addEventListener('click', function() {
@@ -377,24 +377,18 @@ function setupTabs() {
         });
     });
     
-    // Also add click handlers for specific tab buttons if they exist
-    const tabButtons = [
-        { id: 'shippingTabBtn', tab: 'shipping' },
-        { id: 'stockTabBtn', tab: 'stock' },
-        { id: 'reportsTabBtn', tab: 'reports' }
-    ];
-    
-    tabButtons.forEach(button => {
-        const element = document.getElementById(button.id);
-        if (element) {
-            element.addEventListener('click', () => switchTab(button.tab));
+    // Force initial tab to be active
+    setTimeout(() => {
+        if (!document.querySelector('.tab.active')) {
+            switchTab('packages');
         }
-    });
+    }, 100);
 }
 
 
 
-// Enhanced switchTab function - replace existing one
+
+
 function switchTab(tabName) {
     console.log('Switching to tab:', tabName);
     
@@ -439,6 +433,8 @@ function switchTab(tabName) {
                     console.log('Loading packages table...');
                     populatePackagesTable();
                     break;
+                default:
+                    console.log('Unknown tab:', tabName);
             }
         }, 100);
     } else {
@@ -447,8 +443,16 @@ function switchTab(tabName) {
             tabElement: !!selectedTab,
             paneElement: !!selectedPane
         });
+        
+        // Fallback: try to show packages tab
+        if (tabName !== 'packages') {
+            console.log('Falling back to packages tab');
+            switchTab('packages');
+        }
     }
 }
+
+
 
 
 
@@ -955,7 +959,11 @@ function mergePackages(excelPackages, supabasePackages) {
     return merged;
 }
 
-// Replace the completePackage function in app.js
+
+
+
+
+
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -1033,6 +1041,8 @@ async function completePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
+
+
 
 
 
