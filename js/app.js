@@ -1,4 +1,20 @@
-/// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+// Add these function declarations to fix ReferenceErrors
+function initializeSupabase() {
+    // This function is defined in supabase.js, but we need a placeholder
+    if (window.supabase && window.supabase.createClient) {
+        return window.supabaseManager.initializeSupabase();
+    }
+    return null;
+}
+
+function initializeElementsObject() {
+    // This will be properly defined when ui.js loads
+    if (window.elementsManager) {
+        return window.elementsManager.initializeElements();
+    }
+    return {};
+}
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
 document.addEventListener('DOMContentLoaded', () => {
     const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
