@@ -70,47 +70,133 @@ function clearAppState() {
 }
 
 // Initialize application
-// REPLACE the existing initApp function with this:
+// Enhanced application initialization
 async function initApp() {
-    // Initialize workspace system first
-    await window.workspaceManager.initialize();
-    
-    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-    
-    // Initialize workspace-aware UI
-    initializeWorkspaceUI();
-    setupWorkspaceAwareUI();
-    
-    // Populate dropdowns
-    await populateCustomers();
-    await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
-    
-    // Load workspace-specific data
-    await loadPackagesData();
-    await populateStockTable();
-    await populateShippingTable();
-    
-    // Test connection
-    await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000);
-    
-    // Set up offline support
-    setupOfflineSupport();
-    
-    // Set up barcode scanner listener
-    setupBarcodeScanner();
-    
-    // Start daily auto-clear
-    scheduleDailyClear();
-    
-    console.log(`App initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
+    try {
+        console.log('🚀 Initializing ProClean application...');
+        
+        // Initialize workspace system FIRST
+        await window.workspaceManager.initialize();
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
+        
+        // Initialize elements
+        initializeElementsObject();
+        
+        // Initialize performance optimizations
+        setupDebouncedSearch();
+        cleanupEventListeners();
+        
+        // Initialize UX enhancements
+        UXEnhancements.setupKeyboardNavigation();
+        
+        // Initialize advanced features
+        AdvancedSearch.init();
+        BulkOperations.init();
+        
+        // Set current date
+        elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        
+        // Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+        
+        // Update storage indicator
+        updateStorageIndicator();
+        
+        // Populate dropdowns
+        await populateCustomers();
+        await populatePersonnel();
+        
+        // Load saved state
+        loadAppState();
+        
+        // Load data
+        await loadPackagesData();
+        await populateStockTable();
+        await populateShippingTable();
+        
+        // Test connection
+        await testConnection();
+        
+        // Set up auto-save
+        setInterval(saveAppState, 5000);
+        
+        // Set up offline support
+        setupOfflineSupport();
+        
+        // Set up barcode scanner
+        setupBarcodeScanner();
+        
+        // Start daily auto-clear
+        scheduleDailyClear();
+        
+        // Load settings
+        loadAllSettings();
+        
+        console.log('🎉 ProClean application fully initialized');
+        showAlert('Uygulama başarıyla başlatıldı', 'success');
+        
+    } catch (error) {
+        console.error('❌ Application initialization failed:', error);
+        ErrorHandler.handle(error, 'Uygulama başlatma');
+        showAlert('Uygulama başlatılırken hata oluştu. Bazı özellikler çalışmayabilir.', 'error');
+    }
 }
 
+// Update DOMContentLoaded event listener
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        console.log('📄 DOM loaded, starting initialization...');
+        
+        // Initialize settings button
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', showSettingsModal);
+        }
+        
+        // Initialize close button
+        const closeBtn = document.getElementById('closeSettingsModalBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeSettingsModal);
+        }
+        
+        // Initialize login functionality
+        const loginBtn = elements.loginButton;
+        if (loginBtn) {
+            loginBtn.addEventListener('click', login);
+        }
+        
+        // Initialize logout button
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
+        
+        // Load API key and initialize Supabase
+        if (loadApiKey()) {
+            supabase = initializeSupabase();
+            if (supabase) {
+                setupAuthListener();
+            }
+        } else {
+            showApiKeyModal();
+        }
+        
+        // Set initial display states
+        if (elements.loginScreen) {
+            elements.loginScreen.style.display = 'flex';
+        }
+        if (elements.appContainer) {
+            elements.appContainer.style.display = 'none';
+        }
+        
+        console.log('✅ DOM initialization completed');
+        
+    } catch (error) {
+        console.error('❌ DOM initialization failed:', error);
+        ErrorHandler.handle(error, 'DOM yükleme');
+    }
+});
 
 
 
