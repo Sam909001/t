@@ -1,4 +1,4 @@
-/// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
+// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
     const elements = {};
