@@ -18,6 +18,7 @@ let selectedPackageForPrinting = null;
 let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
+let connectionAlertShown = false;
 
 // Excel local storage
 let excelPackages = [];
@@ -667,54 +668,67 @@ async function saveApiKey() {
     }
 }
 
+
+
+
+
 // Enhanced connection test with better recovery
 async function testConnection() {
     if (!supabase) {
-        console.warn('Supabase client not initialized for connection test');
-        if (!connectionAlertShown) {
-            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
-            connectionAlertShown = true;
-        }
+        console.warn('Supabase client not initialized');
         return false;
     }
-    
+
     try {
-        const { data, error } = await supabase.from('customers').select('*').limit(1).timeout(10000);
-        if (error) throw error;
-        
-        console.log('Supabase connection test successful:', data);
-        
-        if (!connectionAlertShown) {
-            showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
-            connectionAlertShown = true;
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Connection timeout')), 5000);
+        });
+
+        // Create the Supabase query promise
+        const queryPromise = supabase
+            .from('packages')
+            .select('*')
+            .limit(1);
+
+        // Race between the query and timeout
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+        if (error) {
+            throw error;
         }
 
-        // Switch back to Supabase mode if we were in Excel mode
-        if (isUsingExcel) {
-            isUsingExcel = false;
-            updateStorageIndicator();
-            showAlert('Çevrimiçi moda geçildi', 'success');
+        console.log('✅ Supabase connection successful');
+        
+        // Reset the alert flag on successful connection
+        connectionAlertShown = false;
+        
+        // Update connection status
+        if (elements.connectionStatus) {
+            elements.connectionStatus.textContent = 'Bağlı';
+            elements.connectionStatus.className = 'connection-status connected';
         }
-
+        
         return true;
-    } catch (e) {
-        console.error('Supabase connection test failed:', e.message);
         
-        // Switch to Excel mode
-        if (!isUsingExcel) {
-            isUsingExcel = true;
-            updateStorageIndicator();
-            showAlert('Veritabanına bağlanılamıyor. Excel moduna geçiliyor.', 'warning');
-        }
+    } catch (error) {
+        console.error('❌ Supabase connection test failed:', error);
         
+        // Only show alert once to avoid spam
         if (!connectionAlertShown) {
-            showAlert('Veritabanına bağlanılamıyor. Çevrimdışı modda çalışıyorsunuz.', 'error');
+            showAlert('Supabase bağlantı hatası: ' + error.message, 'error');
             connectionAlertShown = true;
         }
+        
+        // Update connection status
+        if (elements.connectionStatus) {
+            elements.connectionStatus.textContent = 'Bağlantı Yok';
+            elements.connectionStatus.className = 'connection-status disconnected';
+        }
+        
         return false;
     }
 }
-
 
 
 
