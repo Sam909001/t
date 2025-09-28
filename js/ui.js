@@ -526,12 +526,7 @@ function closeExtraModal() {
 }
 
 
-// Settings functions
-function showSettingsModal() {
-    loadSettings(); // Load current settings
-    checkSystemStatus(); // Update status indicators
-    document.getElementById('settingsModal').style.display = 'flex';
-}
+
 
 function closeSettingsModal() {
     document.getElementById('settingsModal').style.display = 'none';
@@ -1044,42 +1039,113 @@ function importSettings(event) {
     event.target.value = '';
 }
 
-// FIX #6: Save all settings with fixed changeLanguage reference
+// Enhanced settings management
 function saveAllSettings() {
-    const settings = {
-        theme: document.getElementById('themeToggle')?.checked ? 'dark' : 'light',
-        printerScaling: document.getElementById('printerScaling')?.value || '100',
-        copies: parseInt(document.getElementById('copiesNumber')?.value) || 1,
-        language: document.getElementById('languageSelect')?.value || 'tr',
-        autoSave: document.getElementById('autoSaveToggle')?.checked !== false,
-        fontSize: document.getElementById('fontSizeSelect')?.value || '14',
-        printQuality: document.getElementById('printQualitySelect')?.value || 'normal',
-        barcodeType: document.getElementById('barcodeTypeSelect')?.value || 'code128',
-        paperSize: document.getElementById('paperSizeSelect')?.value || '80x100',
-        soundEnabled: document.getElementById('soundToggle')?.checked !== false,
-        notificationsEnabled: document.getElementById('notificationsToggle')?.checked !== false,
-        backupEnabled: document.getElementById('backupToggle')?.checked !== false,
-        debugMode: document.getElementById('debugToggle')?.checked || false,
-        // FIX #7: Real printer settings (not fake)
-        printerFontSize: parseInt(document.getElementById('printerFontSize')?.value) || 12,
-        printerMargin: parseInt(document.getElementById('printerMargin')?.value) || 3,
-        barcodeHeight: parseInt(document.getElementById('barcodeHeight')?.value) || 25,
-        labelWidth: parseInt(document.getElementById('labelWidth')?.value) || 100,
-        labelHeight: parseInt(document.getElementById('labelHeight')?.value) || 80,
-        // Additional real printer settings
-        printDensity: document.getElementById('printDensity')?.value || 'medium',
-        printSpeed: document.getElementById('printSpeed')?.value || 'normal',
-        paperType: document.getElementById('paperType')?.value || 'thermal',
-        printerPort: document.getElementById('printerPort')?.value || 'USB001',
-        printerModel: document.getElementById('printerModel')?.value || 'Generic'
-    };
-    
-    localStorage.setItem('procleanSettings', JSON.stringify(settings));
-    applySettings(settings);
-    showAlert('Ayarlar kaydedildi', 'success');
-    
-    // Update printer settings in real-time
-    updatePrinterSettings(settings);
+    try {
+        const settings = {
+            // Theme settings
+            theme: document.getElementById('themeToggle')?.checked ? 'dark' : 'light',
+            
+            // Printer settings
+            printerScaling: document.getElementById('printerScaling')?.value || '100%',
+            copies: parseInt(document.getElementById('copiesNumber')?.value) || 1,
+            fontName: document.getElementById('fontName')?.value || 'Arial',
+            fontSize: parseInt(document.getElementById('fontSize')?.value) || 10,
+            orientation: document.getElementById('orientation')?.value || 'portrait',
+            marginTop: parseInt(document.getElementById('marginTop')?.value) || 5,
+            marginBottom: parseInt(document.getElementById('marginBottom')?.value) || 5,
+            labelHeader: document.getElementById('labelHeader')?.value || 'Yeditepe',
+            
+            // General settings
+            language: document.getElementById('languageSelect')?.value || 'tr',
+            autoSave: document.getElementById('autoSaveToggle')?.checked !== false,
+            
+            // Debug settings
+            debugMode: document.getElementById('debugModeToggle')?.checked || false
+        };
+
+        localStorage.setItem('procleanSettings', JSON.stringify(settings));
+        applySettings(settings);
+        
+        showAlert('Ayarlar başarıyla kaydedildi', 'success');
+        
+        // Update last saved date
+        document.getElementById('lastUpdateDate').textContent = new Date().toLocaleString('tr-TR');
+        
+        return true;
+        
+    } catch (error) {
+        ErrorHandler.handle(error, 'Ayarları kaydetme');
+        return false;
+    }
+}
+
+function loadAllSettings() {
+    try {
+        const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+        
+        // Theme
+        if (document.getElementById('themeToggle')) {
+            document.getElementById('themeToggle').checked = savedSettings.theme === 'dark';
+            toggleTheme(); // Apply the theme
+        }
+        
+        // Printer settings
+        if (savedSettings.printerScaling) {
+            document.getElementById('printerScaling').value = savedSettings.printerScaling;
+        }
+        if (savedSettings.copies) {
+            document.getElementById('copiesNumber').value = savedSettings.copies;
+        }
+        if (savedSettings.fontName) {
+            document.getElementById('fontName').value = savedSettings.fontName;
+        }
+        if (savedSettings.fontSize) {
+            document.getElementById('fontSize').value = savedSettings.fontSize;
+        }
+        if (savedSettings.orientation) {
+            document.getElementById('orientation').value = savedSettings.orientation;
+        }
+        if (savedSettings.marginTop) {
+            document.getElementById('marginTop').value = savedSettings.marginTop;
+        }
+        if (savedSettings.marginBottom) {
+            document.getElementById('marginBottom').value = savedSettings.marginBottom;
+        }
+        if (savedSettings.labelHeader) {
+            document.getElementById('labelHeader').value = savedSettings.labelHeader;
+        }
+        
+        // General settings
+        if (savedSettings.language) {
+            document.getElementById('languageSelect').value = savedSettings.language;
+        }
+        if (document.getElementById('autoSaveToggle')) {
+            document.getElementById('autoSaveToggle').checked = savedSettings.autoSave !== false;
+        }
+        
+        // Debug settings
+        if (document.getElementById('debugModeToggle')) {
+            document.getElementById('debugModeToggle').checked = savedSettings.debugMode || false;
+        }
+        
+        // Update last saved date display
+        document.getElementById('lastUpdateDate').textContent = new Date().toLocaleString('tr-TR');
+        
+        console.log('Settings loaded successfully');
+        return true;
+        
+    } catch (error) {
+        ErrorHandler.handle(error, 'Ayarları yükleme');
+        return false;
+    }
+}
+
+// Update the showSettingsModal function
+function showSettingsModal() {
+    loadAllSettings(); // Load current settings
+    checkSystemStatus(); // Update status indicators
+    document.getElementById('settingsModal').style.display = 'flex';
 }
 
 // Apply settings to the application - FIX #6: Fixed changeLanguage reference
@@ -1740,49 +1806,83 @@ function clearStockSearch() {
 
 // ==================== WORKSPACE UI FUNCTIONS ====================
 // Add this at the BOTTOM of ui.js (after all existing functions)
-
+// Enhanced workspace UI initialization
 function initializeWorkspaceUI() {
-    // Check if workspace indicator already exists
-    if (document.getElementById('workspaceIndicator')) {
-        return; // Already initialized
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY = 500;
+    let retries = 0;
+
+    function attemptInitialization() {
+        // Check if workspace indicator already exists
+        if (document.getElementById('workspaceIndicator')) {
+            console.log('Workspace UI already initialized');
+            return true;
+        }
+
+        const header = document.querySelector('.app-header');
+        if (!header) {
+            retries++;
+            if (retries < MAX_RETRIES) {
+                console.log(`Workspace UI: Header not found, retrying in ${RETRY_DELAY}ms (${retries}/${MAX_RETRIES})`);
+                setTimeout(attemptInitialization, RETRY_DELAY);
+                return false;
+            } else {
+                console.error('Workspace UI: Failed to find app header after maximum retries');
+                return false;
+            }
+        }
+
+        try {
+            const indicator = document.createElement('div');
+            indicator.id = 'workspaceIndicator';
+            indicator.className = 'workspace-indicator';
+            indicator.style.cssText = `
+                padding: 0.5rem 1rem;
+                background: var(--primary);
+                color: white;
+                border-radius: 20px;
+                font-size: 0.9rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin-left: auto;
+                margin-right: 1rem;
+                cursor: pointer;
+            `;
+            indicator.title = 'İstasyonu değiştirmek için tıklayın';
+            indicator.onclick = () => window.workspaceManager?.showWorkspaceSelection?.();
+
+            // Safe insertion
+            const settingsBtn = document.getElementById('settingsBtn');
+            if (settingsBtn && settingsBtn.parentNode === header) {
+                header.insertBefore(indicator, settingsBtn);
+            } else {
+                header.appendChild(indicator);
+            }
+
+            console.log('Workspace UI initialized successfully');
+            updateWorkspaceIndicator();
+            return true;
+        } catch (error) {
+            console.error('Workspace UI initialization error:', error);
+            return false;
+        }
     }
 
-    const header = document.querySelector('.app-header');
-    if (!header) {
-        console.warn('App header not found, delaying workspace UI initialization');
-        setTimeout(initializeWorkspaceUI, 1000);
-        return;
-    }
-
-    const indicator = document.createElement('div');
-    indicator.id = 'workspaceIndicator';
-    indicator.className = 'workspace-indicator';
-    indicator.style.cssText = `
-        padding: 0.5rem 1rem;
-        background: var(--primary);
-        color: white;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-left: auto;
-        margin-right: 1rem;
-    `;
-
-    // Safe insertion - find a reliable reference point
-    const settingsBtn = document.getElementById('settingsBtn');
-    if (settingsBtn && settingsBtn.parentNode === header) {
-        header.insertBefore(indicator, settingsBtn);
-    } else {
-        // Fallback: append to header
-        header.appendChild(indicator);
-    }
-    
-    // Add workspace switching capability
-    addWorkspaceSwitchHandler();
+    return attemptInitialization();
 }
 
+// Update workspace indicator with current workspace
+function updateWorkspaceIndicator() {
+    const indicator = document.getElementById('workspaceIndicator');
+    if (!indicator || !window.workspaceManager?.currentWorkspace) return;
+
+    indicator.innerHTML = `
+        <i class="fas fa-desktop"></i> 
+        ${window.workspaceManager.currentWorkspace.name}
+        <span class="workspace-type">${window.workspaceManager.getWorkspaceTypeLabel()}</span>
+    `;
+}
 
 
 
@@ -1922,4 +2022,171 @@ async function manualUploadToSupabase() {
         console.error('Manual upload error:', error);
         showAlert('Yükleme hatası: ' + error.message, 'error');
     }
+}
+
+
+
+
+
+// Complete stock editing implementation
+let currentEditingStockItem = null;
+
+function editStockItem(stockCode) {
+    // Prevent multiple edits
+    if (currentEditingStockItem && currentEditingStockItem !== stockCode) {
+        showAlert('Önce mevcut düzenlemeyi tamamlayın', 'warning');
+        return;
+    }
+
+    const row = document.querySelector(`tr:has(td:first-child:contains("${stockCode}"))`);
+    if (!row) {
+        showAlert('Stok öğesi bulunamadı', 'error');
+        return;
+    }
+
+    const quantityCell = row.cells[2]; // 3rd column for quantity
+    const actionsCell = row.cells[6]; // 7th column for actions
+    
+    const currentQuantity = parseInt(quantityCell.textContent) || 0;
+    
+    // Create edit interface
+    quantityCell.innerHTML = `
+        <input type="number" 
+               class="stock-edit-input" 
+               value="${currentQuantity}" 
+               min="0" 
+               style="width: 80px; padding: 4px;"
+               onkeypress="handleStockEditKeypress(event, '${stockCode}')">
+    `;
+    
+    actionsCell.innerHTML = `
+        <button onclick="saveStockItem('${stockCode}')" class="btn btn-success btn-sm">
+            <i class="fas fa-check"></i> Kaydet
+        </button>
+        <button onclick="cancelStockEdit('${stockCode}', ${currentQuantity})" class="btn btn-secondary btn-sm">
+            <i class="fas fa-times"></i> İptal
+        </button>
+    `;
+    
+    currentEditingStockItem = stockCode;
+    
+    // Focus the input
+    const input = quantityCell.querySelector('.stock-edit-input');
+    if (input) {
+        input.focus();
+        input.select();
+    }
+}
+
+function handleStockEditKeypress(event, stockCode) {
+    if (event.key === 'Enter') {
+        saveStockItem(stockCode);
+    } else if (event.key === 'Escape') {
+        const row = document.querySelector(`tr:has(td:first-child:contains("${stockCode}"))`);
+        const currentQuantity = parseInt(row.cells[2].textContent) || 0;
+        cancelStockEdit(stockCode, currentQuantity);
+    }
+}
+
+async function saveStockItem(stockCode) {
+    const row = document.querySelector(`tr:has(td:first-child:contains("${stockCode}"))`);
+    if (!row) {
+        showAlert('Stok öğesi bulunamadı', 'error');
+        return;
+    }
+
+    const input = row.querySelector('.stock-edit-input');
+    if (!input) {
+        showAlert('Düzenleme arayüzü bulunamadı', 'error');
+        return;
+    }
+
+    const newQuantity = parseInt(input.value);
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        showAlert('Geçerli bir miktar girin (0 veya üzeri)', 'error');
+        input.focus();
+        return;
+    }
+
+    try {
+        showAlert('Stok güncelleniyor...', 'info');
+        
+        // Update in Supabase if online
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            const { error } = await supabase
+                .from('stock_items')
+                .update({ 
+                    quantity: newQuantity,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('code', stockCode);
+
+            if (error) throw error;
+        } else {
+            // Save to offline queue
+            saveOfflineData('stockUpdates', {
+                code: stockCode,
+                quantity: newQuantity,
+                updated_at: new Date().toISOString()
+            });
+        }
+
+        // Update UI
+        const quantityCell = row.cells[2];
+        const statusCell = row.cells[4];
+        const lastUpdateCell = row.cells[5];
+        const actionsCell = row.cells[6];
+
+        quantityCell.textContent = newQuantity;
+        lastUpdateCell.textContent = new Date().toLocaleDateString('tr-TR');
+        
+        // Update status
+        let statusClass = 'status-stokta';
+        let statusText = 'Stokta';
+        
+        if (newQuantity <= 0) {
+            statusClass = 'status-kritik';
+            statusText = 'Tükendi';
+        } else if (newQuantity < 10) {
+            statusClass = 'status-az-stok';
+            statusText = 'Az Stok';
+        } else if (newQuantity < 50) {
+            statusClass = 'status-uyari';
+            statusText = 'Düşük';
+        }
+        
+        statusCell.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
+        
+        // Restore edit button
+        actionsCell.innerHTML = `
+            <button onclick="editStockItem('${stockCode}')" class="btn btn-primary btn-sm">
+                <i class="fas fa-edit"></i> Düzenle
+            </button>
+        `;
+
+        currentEditingStockItem = null;
+        showAlert(`Stok güncellendi: ${stockCode} - ${newQuantity} adet`, 'success');
+
+    } catch (error) {
+        console.error('Stock update error:', error);
+        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+function cancelStockEdit(stockCode, originalQuantity) {
+    const row = document.querySelector(`tr:has(td:first-child:contains("${stockCode}"))`);
+    if (!row) return;
+
+    const quantityCell = row.cells[2];
+    const actionsCell = row.cells[6];
+
+    quantityCell.textContent = originalQuantity;
+    
+    actionsCell.innerHTML = `
+        <button onclick="editStockItem('${stockCode}')" class="btn btn-primary btn-sm">
+            <i class="fas fa-edit"></i> Düzenle
+        </button>
+    `;
+
+    currentEditingStockItem = null;
 }
