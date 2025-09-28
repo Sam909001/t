@@ -1141,12 +1141,13 @@ function loadAllSettings() {
     }
 }
 
-// Update the showSettingsModal function
 function showSettingsModal() {
     loadAllSettings(); // Load current settings
     checkSystemStatus(); // Update status indicators
     document.getElementById('settingsModal').style.display = 'flex';
 }
+
+
 
 // Apply settings to the application - FIX #6: Fixed changeLanguage reference
 function applySettings(settings) {
