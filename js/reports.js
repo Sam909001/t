@@ -610,10 +610,20 @@ async function checkStorageBucket() {
 }
 
 // Initialize storage bucket on app start
+// Initialize storage bucket on app start
 async function initializeStorage() {
-    const bucketExists = await checkStorageBucket();
-    if (!bucketExists) {
-        console.warn('Storage bucket could not be initialized');
+    try {
+        // Wait a bit for Supabase to initialize
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const bucketExists = await checkStorageBucket();
+        if (!bucketExists) {
+            console.warn('Storage bucket could not be initialized - this is normal in Excel mode');
+        } else {
+            console.log('Storage bucket initialized successfully');
+        }
+    } catch (error) {
+        console.warn('Storage initialization warning:', error.message);
     }
 }
 
