@@ -258,6 +258,39 @@ class WorkspaceManager {
     }
 }
 
+// Add this method to your WorkspaceManager class
+async detectMonitorWorkspace() {
+    // Method 1: URL parameter (for testing)
+    const urlParams = new URLSearchParams(window.location.search);
+    const workspaceId = urlParams.get('workspace');
+    
+    // Method 2: Monitor-specific localStorage
+    const monitorId = await this.getMonitorId();
+    const savedWorkspace = localStorage.getItem(`workspace_${monitorId}`);
+    
+    // Method 3: Default to first workspace
+    const finalWorkspaceId = workspaceId || savedWorkspace || this.availableWorkspaces[0]?.id;
+    
+    const workspace = this.availableWorkspaces.find(ws => ws.id === finalWorkspaceId);
+    if (workspace) {
+        this.setCurrentWorkspace(workspace);
+        // Save for this monitor
+        localStorage.setItem(`workspace_${monitorId}`, workspace.id);
+    } else {
+        await this.showWorkspaceSelection();
+    }
+}
+
+// Add monitor identification
+async getMonitorId() {
+    // Generate a unique ID for this monitor/browser instance
+    let monitorId = localStorage.getItem('monitor_id');
+    if (!monitorId) {
+        monitorId = 'monitor_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        localStorage.setItem('monitor_id', monitorId);
+    }
+    return monitorId;
+}
 
 
 // Generate proper UUID v4 for Excel packages
@@ -284,7 +317,8 @@ const elements = {};
 const ExcelJS = {
     readFile: async function() {
         try {
-            const data = localStorage.getItem('excelPackages');
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            const data = localStorage.getItem(`excelPackages_${workspaceId}`);
             return data ? JSON.parse(data) : [];
         } catch (error) {
             console.error('Excel read error:', error);
@@ -294,7 +328,8 @@ const ExcelJS = {
     
     writeFile: async function(data) {
         try {
-            localStorage.setItem('excelPackages', JSON.stringify(data));
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
             return true;
         } catch (error) {
             console.error('Excel write error:', error);
