@@ -1149,6 +1149,63 @@ function showSettingsModal() {
 
 
 
+
+function showEnhancedSettingsModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+        align-items: center; z-index: 10000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 90%; max-height: 90vh; width: 1000px; overflow-y: auto;">
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">Gelişmiş Ayarlar</h2>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 200px 1fr; gap: 2rem;">
+                <!-- Sidebar -->
+                <div style="border-right: 1px solid #eee; padding-right: 1rem;">
+                    <nav style="display: flex; flex-direction: column; gap: 5px;">
+                        <button onclick="SettingsNavigation.showSection('general')" class="settings-nav-btn active" data-section="general">
+                            <i class="fas fa-cog"></i> Genel
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('printer')" class="settings-nav-btn" data-section="printer">
+                            <i class="fas fa-print"></i> Yazıcı
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('backup')" class="settings-nav-btn" data-section="backup">
+                            <i class="fas fa-database"></i> Yedekleme
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('users')" class="settings-nav-btn" data-section="users">
+                            <i class="fas fa-users"></i> Kullanıcılar
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('audit')" class="settings-nav-btn" data-section="audit">
+                            <i class="fas fa-history"></i> Denetim
+                        </button>
+                        <button onclick="SettingsNavigation.showSection('advanced')" class="settings-nav-btn" data-section="advanced">
+                            <i class="fas fa-tools"></i> Gelişmiş
+                        </button>
+                    </nav>
+                </div>
+                
+                <!-- Content -->
+                <div id="settingsContent">
+                    <!-- Content will be loaded by section -->
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    SettingsNavigation.showSection('general');
+}
+
+
+
+
 // Apply settings to the application - FIX #6: Fixed changeLanguage reference
 function applySettings(settings) {
     // Apply theme
