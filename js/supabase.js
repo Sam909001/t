@@ -280,21 +280,56 @@ function generateUUID() {
 // Elementleri bir defa tanımla
 const elements = {};
 
-// Excel.js library (simple implementation)
+// Enhanced Excel.js library with proper package and container storage
 const ExcelJS = {
+    // Read all data from localStorage
     readFile: async function() {
         try {
-            const data = localStorage.getItem('excelPackages');
-            return data ? JSON.parse(data) : [];
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            const data = localStorage.getItem(`excelData_${workspaceId}`);
+            
+            if (!data) {
+                // Initialize with default structure
+                const defaultData = {
+                    packages: [],
+                    containers: [],
+                    customers: [],
+                    personnel: [],
+                    stock: [],
+                    reports: [],
+                    settings: {},
+                    metadata: {
+                        created: new Date().toISOString(),
+                        lastSync: null,
+                        workspace: workspaceId
+                    }
+                };
+                await this.writeFile(defaultData);
+                return defaultData;
+            }
+            
+            const parsed = JSON.parse(data);
+            console.log(`📁 Loaded Excel data for workspace ${workspaceId}:`, {
+                packages: parsed.packages?.length || 0,
+                containers: parsed.containers?.length || 0,
+                customers: parsed.customers?.length || 0
+            });
+            return parsed;
         } catch (error) {
             console.error('Excel read error:', error);
-            return [];
+            return this.getDefaultStructure();
         }
     },
     
+    // Write all data to localStorage
     writeFile: async function(data) {
         try {
-            localStorage.setItem('excelPackages', JSON.stringify(data));
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            localStorage.setItem(`excelData_${workspaceId}`, JSON.stringify(data, null, 2));
+            console.log(`💾 Saved Excel data for workspace ${workspaceId}:`, {
+                packages: data.packages?.length || 0,
+                containers: data.containers?.length || 0
+            });
             return true;
         } catch (error) {
             console.error('Excel write error:', error);
@@ -302,127 +337,91 @@ const ExcelJS = {
         }
     },
     
-    // Simple XLSX format simulation
-    toExcelFormat: function(packages) {
-        return packages.map(pkg => ({
-            id: pkg.id || `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            package_no: pkg.package_no,
-            customer_id: pkg.customer_id,
-            customer_name: pkg.customer_name,
-            items: pkg.items,
-            total_quantity: pkg.total_quantity,
-            status: pkg.status,
-            packer: pkg.packer,
-            created_at: pkg.created_at,
-            updated_at: pkg.updated_at || new Date().toISOString(),
-            source: 'excel'
-        }));
+    // Get default data structure
+    getDefaultStructure: function() {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        return {
+            packages: [],
+            containers: [],
+            customers: [],
+            personnel: [],
+            stock: [],
+            reports: [],
+            settings: {},
+            metadata: {
+                created: new Date().toISOString(),
+                lastSync: null,
+                workspace: workspaceId
+            }
+        };
     },
     
-    fromExcelFormat: function(excelData) {
-        return excelData.map(row => ({
-            ...row,
-            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items
-        }));
+    // Package-specific operations
+    packages: {
+        async getAll() {
+            const data = await ExcelJS.readFile();
+            return data.packages || [];
+        },
+        
+        async save(packageData) {
+            const data = await ExcelJS.readFile();
+            if (!data.packages) data.packages = [];
+            
+            const existingIndex = data.packages.findIndex(p => p.id === packageData.id);
+            if (existingIndex >= 0) {
+                data.packages[existingIndex] = packageData;
+            } else {
+                data.packages.push(packageData);
+            }
+            
+            return await ExcelJS.writeFile(data);
+        },
+        
+        async delete(packageId) {
+            const data = await ExcelJS.readFile();
+            if (data.packages) {
+                data.packages = data.packages.filter(p => p.id !== packageId);
+                return await ExcelJS.writeFile(data);
+            }
+            return true;
+        }
+    },
+    
+    // Container-specific operations
+    containers: {
+        async getAll() {
+            const data = await ExcelJS.readFile();
+            return data.containers || [];
+        },
+        
+        async save(containerData) {
+            const data = await ExcelJS.readFile();
+            if (!data.containers) data.containers = [];
+            
+            const existingIndex = data.containers.findIndex(c => c.id === containerData.id);
+            if (existingIndex >= 0) {
+                data.containers[existingIndex] = containerData;
+            } else {
+                data.containers.push(containerData);
+            }
+            
+            return await ExcelJS.writeFile(data);
+        },
+        
+        async delete(containerId) {
+            const data = await ExcelJS.readFile();
+            if (data.containers) {
+                data.containers = data.containers.filter(c => c.id !== containerId);
+                return await ExcelJS.writeFile(data);
+            }
+            return true;
+        }
     }
 };
 
-// FIXED: Supabase istemcisini başlat - Singleton pattern ile
-function initializeSupabase() {
-    // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
-    if (supabase && SUPABASE_ANON_KEY) {
-        return supabase;
-    }
-    
-    if (!SUPABASE_ANON_KEY) {
-        console.warn('Supabase API key not set, showing modal');
-        showApiKeyModal();
-        isUsingExcel = true;
-        showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
-        return null;
-    }
-    
-    try {
-        // Global supabase değişkenine ata
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized successfully');
-        isUsingExcel = false;
-        return supabase;
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
-        isUsingExcel = true;
-        showApiKeyModal();
-        return null;
-    }
-}
 
-// Excel local storage functions
-async function initializeExcelStorage() {
-    try {
-        excelPackages = await ExcelJS.readFile();
-        console.log('Excel packages loaded:', excelPackages.length);
-        
-        // Sync queue'yu yükle
-        const savedQueue = localStorage.getItem('excelSyncQueue');
-        excelSyncQueue = savedQueue ? JSON.parse(savedQueue) : [];
-        
-        return excelPackages;
-    } catch (error) {
-        console.error('Excel storage init error:', error);
-        excelPackages = [];
-        return [];
-    }
-}
 
-async function saveToExcel(packageData) {
-    try {
-        // Mevcut paketleri oku
-        const currentPackages = await ExcelJS.readFile();
-        
-        // Yeni paketi ekle veya güncelle
-        const existingIndex = currentPackages.findIndex(p => p.id === packageData.id);
-        if (existingIndex >= 0) {
-            currentPackages[existingIndex] = packageData;
-        } else {
-            currentPackages.push(packageData);
-        }
-        
-        // Excel formatına çevir ve kaydet
-        const excelData = ExcelJS.toExcelFormat(currentPackages);
-        const success = await ExcelJS.writeFile(excelData);
-        
-        if (success) {
-            excelPackages = currentPackages;
-            console.log('Package saved to Excel');
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error('Save to Excel error:', error);
-        return false;
-    }
-}
 
-async function deleteFromExcel(packageId) {
-    try {
-        const currentPackages = await ExcelJS.readFile();
-        const filteredPackages = currentPackages.filter(p => p.id !== packageId);
-        
-        const excelData = ExcelJS.toExcelFormat(filteredPackages);
-        const success = await ExcelJS.writeFile(excelData);
-        
-        if (success) {
-            excelPackages = filteredPackages;
-            console.log('Package deleted from Excel');
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error('Delete from Excel error:', error);
-        return false;
-    }
-}
 
 // Sync functions
 async function syncExcelWithSupabase() {
@@ -1989,6 +1988,7 @@ function debouncedPopulateStockTable() {
 
 
 
+// Enhanced package completion with proper Excel storage
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -2001,72 +2001,51 @@ async function completePackage() {
     }
 
     try {
-        const packageNo = `PKG-${Date.now()}`;
+        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
-        // Convert items object to array for better handling
-        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
-            name: name,
-            qty: qty
-        }));
-
-        // Generate proper ID
-        const packageId = generateUUID();
-
-        // Get current workspace
-        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-
         const packageData = {
-            id: packageId,
+            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
-            items: itemsArray,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: workspaceId, // Add workspace identifier
-            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
+            workspace_id: window.workspaceManager.currentWorkspace.id,
+            station_name: window.workspaceManager.currentWorkspace.name,
+            source: 'excel'
         };
 
-        // Save to Excel with workspace isolation
-        const excelSuccess = await saveToExcel(packageData);
+        // Save to enhanced Excel storage
+        const success = await ExcelJS.packages.save(packageData);
         
-        if (excelSuccess) {
-            showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager?.currentWorkspace?.name || 'Default'})`, 'success');
+        if (success) {
+            showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
             
-            // If online and Supabase available, try to sync
-            if (supabase && navigator.onLine) {
+            // Try to sync with Supabase if online
+            if (supabase && navigator.onLine && !isUsingExcel) {
                 try {
-                    const supabaseData = {
-                        id: packageId,
-                        package_no: packageNo,
-                        customer_id: selectedCustomer.id,
-                        items: itemsArray,
-                        total_quantity: totalQuantity,
-                        status: 'beklemede',
-                        packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-                        created_at: new Date().toISOString(),
-                        workspace_id: workspaceId
-                    };
-
                     const { data, error } = await supabase
                         .from('packages')
-                        .insert([supabaseData])
+                        .insert([{
+                            ...packageData,
+                            source: 'supabase'
+                        }])
                         .select();
 
-                    if (error) {
-                        console.warn('Supabase insert failed, queuing for sync:', error);
-                        addToSyncQueue('add', supabaseData);
-                    } else {
-                        showAlert(`Paket Supabase'e de kaydedildi`, 'success');
-                    }
+                    if (error) throw error;
+                    
+                    showAlert(`Paket Supabase'e senkronize edildi`, 'success');
                 } catch (supabaseError) {
-                    console.warn('Supabase error, queuing for sync:', supabaseError);
+                    console.warn('Supabase sync failed:', supabaseError);
                     addToSyncQueue('add', packageData);
+                    isUsingExcel = true;
                 }
             } else {
                 addToSyncQueue('add', packageData);
@@ -2082,6 +2061,64 @@ async function completePackage() {
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+    }
+}
+
+// Enhanced container creation
+async function createNewContainer() {
+    try {
+        const timestamp = new Date().getTime();
+        const containerNo = `CONT-${window.workspaceManager.currentWorkspace.id}-${timestamp.toString().slice(-6)}`;
+
+        const containerData = {
+            id: `cont-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+            container_no: containerNo,
+            customer: selectedCustomer ? selectedCustomer.name : null,
+            customer_id: selectedCustomer ? selectedCustomer.id : null,
+            package_count: 0,
+            total_quantity: 0,
+            status: 'beklemede',
+            created_at: new Date().toISOString(),
+            workspace_id: window.workspaceManager.currentWorkspace.id,
+            station_name: window.workspaceManager.currentWorkspace.name,
+            source: 'excel'
+        };
+
+        // Save to Excel
+        await ExcelJS.containers.save(containerData);
+
+        elements.containerNumber.textContent = containerNo;
+        currentContainer = containerNo;
+        saveAppState();
+
+        showAlert(`Yeni konteyner oluşturuldu: ${containerNo}`, 'success');
+        
+        // Try Supabase sync
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('containers')
+                    .insert([{
+                        ...containerData,
+                        source: 'supabase'
+                    }])
+                    .select();
+
+                if (error) throw error;
+            } catch (supabaseError) {
+                console.warn('Supabase container sync failed:', supabaseError);
+                addToSyncQueue('add_container', containerData);
+                isUsingExcel = true;
+            }
+        } else {
+            addToSyncQueue('add_container', containerData);
+        }
+
+        await populateShippingTable();
+
+    } catch (error) {
+        console.error('Error creating container:', error);
+        showAlert('Konteyner oluşturulurken hata oluştu', 'error');
     }
 }
 
