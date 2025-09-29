@@ -270,7 +270,7 @@ function setupBarcodeScanner() {
 // Stok düzenleme fonksiyonları
 let currentEditingRow = null;
 
-function editStockItem(button, code) {
+function editStockItem(code) {
     // Prevent multiple edits
     if (currentEditingRow && currentEditingRow !== code) {
         showAlert('Önce mevcut düzenlemeyi tamamlayın', 'warning');
@@ -279,17 +279,27 @@ function editStockItem(button, code) {
     
     currentEditingRow = code;
     
-    const row = button.closest('tr');
+    const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+    if (!row) {
+        console.error('Stock row not found for code:', code);
+        return;
+    }
+    
     const quantitySpan = row.querySelector('.stock-quantity');
     const quantityInput = row.querySelector('.stock-quantity-input');
     const editButton = row.querySelector('button');
     const editButtons = row.querySelector('.edit-buttons');
     
+    if (!quantitySpan || !quantityInput) {
+        console.error('Stock edit elements not found');
+        return;
+    }
+    
     // Switch to edit mode
     quantitySpan.style.display = 'none';
     quantityInput.style.display = 'block';
-    editButton.style.display = 'none';
-    editButtons.style.display = 'flex';
+    if (editButton) editButton.style.display = 'none';
+    if (editButtons) editButtons.style.display = 'flex';
     
     editingStockItem = code;
 }
