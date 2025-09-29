@@ -3596,4 +3596,204 @@ class BackupManager {
 
 
 
+// Enhanced reports tab with daily file management - ADD THESE FUNCTIONS
+function setupDailyReports() {
+    const reportsTab = document.getElementById('reportsTab');
+    if (!reportsTab) return;
 
+    reportsTab.innerHTML = `
+        <div class="reports-container">
+            <h3>📊 Günlük Raporlar ve Excel Dosyaları</h3>
+            
+            <div class="reports-controls" style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                <h4>Günlük İşlemler</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <button onclick="exportTodaysReport()" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Bugünün Raporunu İndir
+                    </button>
+                    <button onclick="showDailyFilesManager()" class="btn btn-primary">
+                        <i class="fas fa-history"></i> Geçmiş Dosyaları Yönet
+                    </button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button onclick="startNewDayManually()" class="btn btn-warning">
+                        <i class="fas fa-calendar-day"></i> Yeni Gün Başlat
+                    </button>
+                    <button onclick="cleanupOldFiles()" class="btn btn-info">
+                        <i class="fas fa-broom"></i> Eski Dosyaları Temizle
+                    </button>
+                </div>
+            </div>
+
+            <div id="dailyFilesList" style="margin-top: 20px;">
+                <!-- Daily files will be listed here -->
+            </div>
+        </div>
+    `;
+
+    loadDailyFilesList();
+}
+
+// Load and display daily files
+function loadDailyFilesList() {
+    const filesList = document.getElementById('dailyFilesList');
+    if (!filesList) return;
+
+    // Safe check for ExcelJS
+    if (typeof ExcelJS === 'undefined' || !ExcelJS.getAllDailyFiles) {
+        filesList.innerHTML = '<p>ExcelJS not available</p>';
+        return;
+    }
+
+    const files = ExcelJS.getAllDailyFiles();
+    
+    if (files.length === 0) {
+        filesList.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-file-excel" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
+                <h4>Henüz kayıtlı günlük dosya bulunmuyor</h4>
+                <p>Günlük raporlar otomatik olarak oluşturulacaktır.</p>
+            </div>
+        `;
+        return;
+    }
+
+    let filesHTML = `
+        <h4>📁 Kayıtlı Günlük Dosyalar (Son ${files.length} gün)</h4>
+        <div class="files-grid" style="display: grid; gap: 10px; margin-top: 15px;">
+    `;
+
+    files.forEach(file => {
+        const isToday = file.date === ExcelJS.getTodayDateString();
+        
+        filesHTML += `
+            <div class="file-item" style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: ${isToday ? '#e8f5e8' : 'white'};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h5 style="margin: 0; color: ${isToday ? '#2e7d32' : '#333'};">
+                            ${isToday ? '🎯 ' : ''}${file.date}
+                            ${isToday ? '<small>(Bugün)</small>' : ''}
+                        </h5>
+                        <p style="margin: 5px 0; color: #666;">
+                            <strong>${file.packageCount}</strong> paket, 
+                            <strong>${file.totalQuantity}</strong> toplam adet
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="exportDailyFile('${file.date}')" 
+                                class="btn btn-success btn-sm" title="Excel İndir">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button onclick="viewDailyFile('${file.date}')" 
+                                class="btn btn-primary btn-sm" title="Detayları Gör">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${!isToday ? `
+                        <button onclick="deleteDailyFile('${file.date}')" 
+                                class="btn btn-danger btn-sm" title="Dosyayı Sil">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    filesHTML += '</div>';
+    filesList.innerHTML = filesHTML;
+}
+
+// Export today's report
+function exportTodaysReport() {
+    if (typeof ExcelJS !== 'undefined' && ExcelJS.exportDailyFile) {
+        ExcelJS.exportDailyFile(ExcelJS.getTodayDateString());
+    } else {
+        showAlert('Excel özellikleri yüklenmedi', 'error');
+    }
+}
+
+// Start new day manually
+function startNewDayManually() {
+    if (confirm('Yeni gün başlatmak istediğinize emin misiniz? Bugünkü veriler kaydedilecek ve yeni bir günlük dosya oluşturulacak.')) {
+        if (typeof ExcelJS !== 'undefined' && ExcelJS.startNewDay) {
+            ExcelJS.startNewDay();
+            showAlert('Yeni gün başlatıldı. Bugünkü veriler kaydedildi.', 'success');
+            loadDailyFilesList();
+        } else {
+            showAlert('Excel özellikleri yüklenmedi', 'error');
+        }
+    }
+}
+
+// Cleanup old files
+function cleanupOldFiles() {
+    if (confirm('7 günden eski dosyalar silinecek. Devam etmek istiyor musunuz?')) {
+        if (typeof ExcelJS !== 'undefined' && ExcelJS.cleanupOldFiles) {
+            ExcelJS.cleanupOldFiles();
+            showAlert('Eski dosyalar temizlendi. Son 7 günün dosyaları korundu.', 'success');
+            loadDailyFilesList();
+        } else {
+            showAlert('Excel özellikleri yüklenmedi', 'error');
+        }
+    }
+}
+
+// View daily file details
+function viewDailyFile(dateString) {
+    if (typeof ExcelJS === 'undefined' || !ExcelJS.getAllDailyFiles) {
+        showAlert('Excel özellikleri yüklenmedi', 'error');
+        return;
+    }
+
+    const files = ExcelJS.getAllDailyFiles();
+    const file = files.find(f => f.date === dateString);
+    
+    if (!file) {
+        showAlert('Dosya bulunamadı', 'error');
+        return;
+    }
+
+    const packageList = file.data.map(pkg => 
+        `• ${pkg.package_no}: ${pkg.customer_name || 'Müşteri Yok'} - ${getProductType(pkg)} (${pkg.total_quantity} adet)`
+    ).join('\n');
+
+    alert(`📅 ${dateString} Tarihli Rapor\n\n` +
+          `Toplam Paket: ${file.packageCount}\n` +
+          `Toplam Adet: ${file.totalQuantity}\n\n` +
+          `Paketler:\n${packageList || 'Paket bulunamadı'}`);
+}
+
+// Delete daily file
+function deleteDailyFile(dateString) {
+    if (confirm(`${dateString} tarihli dosyayı silmek istediğinize emin misiniz?`)) {
+        localStorage.removeItem(`packages_${dateString}.json`);
+        showAlert('Dosya silindi', 'success');
+        loadDailyFilesList();
+    }
+}
+
+// Helper function to get product type
+function getProductType(packageData) {
+    if (packageData.items && Array.isArray(packageData.items) && packageData.items.length > 0) {
+        return packageData.items.map(it => it.name).join(', ');
+    } else if (packageData.items && typeof packageData.items === 'object') {
+        return Object.keys(packageData.items).join(', ');
+    } else if (packageData.product) {
+        return packageData.product;
+    }
+    return 'Ürün Yok';
+}
+
+// Export individual daily file
+function exportDailyFile(dateString) {
+    if (typeof ExcelJS !== 'undefined' && ExcelJS.exportDailyFile) {
+        ExcelJS.exportDailyFile(dateString);
+    } else {
+        showAlert('Excel özellikleri yüklenmedi', 'error');
+    }
+}
+
+function showDailyFilesManager() {
+    loadDailyFilesList();
+}
