@@ -36,7 +36,6 @@ function loadAppState() {
         // Restore customer selection
         if (state.selectedCustomerId) {
             elements.customerSelect.value = state.selectedCustomerId;
-            // Find and set the selectedCustomer object
             const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
             if (option) {
                 selectedCustomer = {
@@ -57,8 +56,64 @@ function loadAppState() {
             currentContainer = state.currentContainer;
             elements.containerNumber.textContent = currentContainer;
         }
+        
+        // Restore Excel mode
+        if (state.isUsingExcel !== undefined) {
+            isUsingExcel = state.isUsingExcel;
+            updateStorageIndicator();
+        }
+        
+        // RESTORE CURRENT PACKAGE - ADD THIS SECTION
+        if (state.currentPackage) {
+            currentPackage = state.currentPackage;
+            console.log('Restored current package:', currentPackage);
+            updateQuantityBadges(); // Update UI to show restored quantities
+        }
+        
+        // Also try to load from separate package storage for redundancy
+        try {
+            const savedPackage = localStorage.getItem('procleanCurrentPackage');
+            if (savedPackage) {
+                const packageData = JSON.parse(savedPackage);
+                // Only restore if we don't have currentPackage or this is newer
+                if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+                    currentPackage.items = packageData.items || {};
+                    console.log('Restored current package from backup storage');
+                    updateQuantityBadges();
+                }
+            }
+        } catch (e) {
+            console.warn('Could not restore package from backup storage:', e);
+        }
     }
 }
+
+
+
+// Update quantity badges based on currentPackage
+function updateQuantityBadges() {
+    if (!currentPackage.items) return;
+    
+    Object.entries(currentPackage.items).forEach(([productName, quantity]) => {
+        const badge = document.getElementById(`${productName}-quantity`);
+        if (badge) {
+            badge.textContent = quantity;
+        }
+    });
+    
+    // Also update any manual product badges
+    const manualBadges = document.querySelectorAll('[id$="-quantity"]');
+    manualBadges.forEach(badge => {
+        const productName = badge.id.replace('-quantity', '');
+        if (currentPackage.items && currentPackage.items[productName]) {
+            badge.textContent = currentPackage.items[productName];
+        }
+    });
+}
+
+
+
+
 
 function clearAppState() {
     localStorage.removeItem('procleanState');
@@ -919,84 +974,6 @@ function mergePackages(excelPackages, supabasePackages) {
     
     return merged;
 }
-
-// REPLACE the existing completePackage function with this:
-async function completePackage() {
-    if (!selectedCustomer) {
-        showAlert('Önce müşteri seçin', 'error');
-        return;
-    }
-
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
-    // Check workspace permissions
-    if (!window.workspaceManager.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
-    try {
-        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect.value;
-
-        const packageData = {
-            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            package_no: packageNo,
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name,
-            items: currentPackage.items,
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
-            station_name: window.workspaceManager.currentWorkspace.name
-        };
-
-        // Save based on connectivity and workspace settings
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
-
-                if (error) throw error;
-
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-                isUsingExcel = true;
-            }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-            isUsingExcel = true;
-        }
-
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
-
-    } catch (error) {
-        console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası', 'error');
-    }
-}
-
 
 
 
