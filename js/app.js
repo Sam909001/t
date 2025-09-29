@@ -74,6 +74,10 @@ function clearAppState() {
 async function initApp() {
     // Initialize workspace system first
     await window.workspaceManager.initialize();
+
+     // Initialize daily Excel file system
+    await ExcelStorage.cleanupOldFiles(); // Clean up old files
+    await ExcelStorage.readFile(); // Ensure today's file exists
     
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
@@ -793,20 +797,32 @@ async function completePackage() {
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
-        const packageData = {
-            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            package_no: packageNo,
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name,
-            items: currentPackage.items,
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
-            station_name: window.workspaceManager.currentWorkspace.name
-        };
+       // In the completePackage function, ENHANCE the packageData object:
+const packageData = {
+    id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    package_no: packageNo,
+    customer_id: selectedCustomer.id,
+    customer_name: selectedCustomer.name,
+    customer_code: selectedCustomer.code, // ADD THIS LINE
+    items: currentPackage.items,
+    // Add formatted items for display
+    items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+        name: name,
+        qty: qty
+    })),
+    items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+        `${name}: ${qty} adet`
+    ).join(', '),
+    total_quantity: totalQuantity,
+    status: 'beklemede',
+    packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    workspace_id: window.workspaceManager.currentWorkspace.id,
+    station_name: window.workspaceManager.currentWorkspace.name,
+    // Add daily file tracking
+    daily_file: ExcelStorage.getTodayDateString() // ADD THIS LINE
+};
 
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
