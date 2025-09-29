@@ -1,7 +1,9 @@
-// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
+// Global elements object - ADD THIS AT THE VERY TOP
+const elements = {};
+
+// Then your existing initialization functions...
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
-    const elements = {};
     
     elementIds.forEach(id => {
         elements[id] = document.getElementById(id);
@@ -12,7 +14,6 @@ function initializeElements() {
     
     return elements;
 }
-
 function initializeElementsObject() {
     const elementMap = {
         loginScreen: 'loginScreen',
