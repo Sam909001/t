@@ -1,4 +1,4 @@
-// Supabase initialization - Varsayılan değerler
+/// Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
