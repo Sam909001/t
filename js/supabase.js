@@ -24,7 +24,7 @@ let connectionAlertShown = false;
 let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
-
+let currentPackage = JSON.parse(localStorage.getItem('procleanCurrentPackage') || '{}');
 
 // Add this RIGHT AFTER the existing global variables (around line 25)
 // ==================== WORKSPACE MANAGEMENT ====================
@@ -2155,7 +2155,6 @@ function debouncedPopulateStockTable() {
 
 
 
-// REPLACE the existing completePackage function with this:
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -2189,9 +2188,11 @@ async function completePackage() {
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
+            workspace_id: window.workspaceManager.currentWorkspace.id,
             station_name: window.workspaceManager.currentWorkspace.name
         };
+
+        let saveSuccess = false;
 
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
@@ -2202,48 +2203,48 @@ async function completePackage() {
                     .select();
 
                 if (error) throw error;
-
+                
+                saveSuccess = true;
                 showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                
+                // Also save to Excel as backup
                 await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
+                saveSuccess = await saveToExcel(packageData);
+                if (saveSuccess) {
+                    addToSyncQueue('add', packageData);
+                    showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                    isUsingExcel = true;
+                }
+            }
+        } else {
+            saveSuccess = await saveToExcel(packageData);
+            if (saveSuccess) {
                 addToSyncQueue('add', packageData);
                 showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-            isUsingExcel = true;
         }
 
-        // Reset and refresh
-   currentPackage = {};
-        
-        // CLEAR FROM LOCALSTORAGE TOO
-        const savedState = localStorage.getItem('procleanState');
-        if (savedState) {
-            const state = JSON.parse(savedState);
-            state.currentPackage = {};
-            localStorage.setItem('procleanState', JSON.stringify(state));
+        if (saveSuccess) {
+            // ONLY clear after successful save
+            clearPackageState();
+            
+            // Reset UI
+            document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+            
+            await populatePackagesTable();
+        } else {
+            showAlert('Paket kaydedilemedi. Lütfen tekrar deneyin.', 'error');
         }
-        localStorage.removeItem('procleanCurrentPackage');
-        
-        // Reset UI
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        
-        showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-        await populatePackagesTable();
 
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 
@@ -2803,3 +2804,76 @@ saveStockItem = wrapWithAuditLogging(originalSaveStockItem, 'stock_update');
 
 const originalSaveApiKey = saveApiKey;
 saveApiKey = wrapWithAuditLogging(originalSaveApiKey, 'api_key_change');
+
+
+
+
+
+
+// Enhanced package state management
+function savePackageState() {
+    try {
+        const packageState = {
+            items: currentPackage.items || {},
+            customer: selectedCustomer,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('procleanCurrentPackage', JSON.stringify(packageState));
+        console.log('Package state saved:', packageState);
+    } catch (error) {
+        console.error('Error saving package state:', error);
+    }
+}
+
+function loadPackageState() {
+    try {
+        const saved = localStorage.getItem('procleanCurrentPackage');
+        if (saved) {
+            const packageState = JSON.parse(saved);
+            
+            // Check if package is recent (within last 4 hours)
+            const savedTime = new Date(packageState.timestamp);
+            const currentTime = new Date();
+            const hoursDiff = (currentTime - savedTime) / (1000 * 60 * 60);
+            
+            if (hoursDiff < 4) { // Increased to 4 hours
+                currentPackage.items = packageState.items || {};
+                
+                // Restore customer if available
+                if (packageState.customer && elements.customerSelect) {
+                    elements.customerSelect.value = packageState.customer.id;
+                    selectedCustomer = packageState.customer;
+                }
+                
+                updateQuantityBadges();
+                console.log('Package state loaded:', currentPackage);
+                return true;
+            } else {
+                // Clear old package data
+                clearPackageState();
+                console.log('Cleared old package data (older than 4 hours)');
+            }
+        }
+        return false;
+    } catch (error) {
+        console.error('Error loading package state:', error);
+        return false;
+    }
+}
+
+function clearPackageState() {
+    currentPackage = {};
+    localStorage.removeItem('procleanCurrentPackage');
+    console.log('Package state cleared');
+}
+
+function updateQuantityBadges() {
+    if (!currentPackage.items) return;
+    
+    Object.entries(currentPackage.items).forEach(([product, quantity]) => {
+        const badge = document.getElementById(`${product}-quantity`);
+        if (badge) {
+            badge.textContent = quantity;
+        }
+    });
+}
