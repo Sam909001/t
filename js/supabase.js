@@ -337,11 +337,12 @@ function generateUUID() {
 // Elementleri bir defa tanımla
 const elements = {};
 
-// Enhanced Excel Storage with Daily Files
+// Enhanced Excel Storage with Daily Files and Reports Archive
 const ExcelStorage = {
     // Get today's date string for file naming
     getTodayDateString: function() {
-        return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const now = new Date();
+        return now.toISOString().split('T')[0]; // YYYY-MM-DD
     },
     
     // Get current file name
@@ -349,20 +350,35 @@ const ExcelStorage = {
         return `packages_${this.getTodayDateString()}.json`;
     },
     
-    // Read from today's file
+    // Get display date for Turkish format
+    getDisplayDate: function(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('tr-TR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    },
+    
+    // Read from today's file ONLY
     readFile: async function() {
         try {
             const fileName = this.getCurrentFileName();
             const data = localStorage.getItem(fileName);
             
             if (data) {
-                console.log(`📁 Loaded data from ${fileName}`);
-                return JSON.parse(data);
+                console.log(`📁 Loaded TODAY'S data from ${fileName}`);
+                const packages = JSON.parse(data);
+                return packages.filter(pkg => {
+                    // Only include packages from today
+                    const pkgDate = pkg.created_at ? pkg.created_at.split('T')[0] : '';
+                    return pkgDate === this.getTodayDateString();
+                });
             } else {
-                // Check for previous day's data to migrate
-                await this.migratePreviousData();
-                const newData = localStorage.getItem(fileName);
-                return newData ? JSON.parse(newData) : [];
+                // Create empty file for today
+                console.log(`📁 Creating new daily file: ${fileName}`);
+                localStorage.setItem(fileName, JSON.stringify([]));
+                return [];
             }
         } catch (error) {
             console.error('Excel read error:', error);
@@ -370,16 +386,24 @@ const ExcelStorage = {
         }
     },
     
-    // Write to today's file
+    // Write to today's file ONLY
     writeFile: async function(data) {
         try {
             const fileName = this.getCurrentFileName();
-            localStorage.setItem(fileName, JSON.stringify(data));
+            const today = this.getTodayDateString();
             
-            // Also update the current active file reference
+            // Filter data to only include today's packages
+            const todaysData = data.filter(pkg => {
+                const pkgDate = pkg.created_at ? pkg.created_at.split('T')[0] : '';
+                return pkgDate === today;
+            });
+            
+            localStorage.setItem(fileName, JSON.stringify(todaysData));
+            
+            // Update the current active file reference
             localStorage.setItem('excelPackages_current', fileName);
             
-            console.log(`💾 Saved data to ${fileName} (${data.length} records)`);
+            console.log(`💾 Saved TODAY'S data to ${fileName} (${todaysData.length} records)`);
             return true;
         } catch (error) {
             console.error('Excel write error:', error);
@@ -387,8 +411,8 @@ const ExcelStorage = {
         }
     },
     
-    // Migrate data from previous day
-    migratePreviousData: async function() {
+    // Archive yesterday's data to reports
+    archiveYesterdayData: async function() {
         try {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
@@ -397,29 +421,108 @@ const ExcelStorage = {
             
             const oldData = localStorage.getItem(yesterdayFile);
             if (oldData) {
-                console.log(`🔄 Migrating data from ${yesterdayFile}`);
+                console.log(`📦 Archiving yesterday's data: ${yesterdayStr}`);
                 
-                // Upload yesterday's data to Supabase
-                await this.uploadToSupabase(JSON.parse(oldData), yesterdayStr);
-                
-                // Archive the file
-                localStorage.setItem(`archive_${yesterdayFile}`, oldData);
-                localStorage.removeItem(yesterdayFile);
-                
-                console.log(`✅ Data migrated and archived for ${yesterdayStr}`);
+                const packages = JSON.parse(oldData);
+                if (packages.length > 0) {
+                    // Add to reports archive
+                    await this.addToReportsArchive(yesterdayStr, packages);
+                    
+                    // Archive the file
+                    localStorage.setItem(`archive_${yesterdayFile}`, oldData);
+                    localStorage.removeItem(yesterdayFile);
+                    
+                    console.log(`✅ Yesterday's data archived: ${packages.length} packages`);
+                }
             }
             
-            // Create empty file for today
-            localStorage.setItem(this.getCurrentFileName(), JSON.stringify([]));
-            
         } catch (error) {
-            console.error('Migration error:', error);
+            console.error('Archive error:', error);
         }
     },
     
+    // Add daily data to reports archive (last 7 days)
+    addToReportsArchive: async function(dateString, data) {
+        try {
+            const archiveKey = 'proclean_reports_archive';
+            let archive = JSON.parse(localStorage.getItem(archiveKey) || '{}');
+            
+            // Keep only last 7 days
+            const dates = Object.keys(archive).sort();
+            while (dates.length >= 7) {
+                delete archive[dates[0]];
+                dates.shift();
+            }
+            
+            // Add new day's data
+            archive[dateString] = {
+                date: dateString,
+                display_date: this.getDisplayDate(dateString),
+                package_count: data.length,
+                total_quantity: data.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0),
+                data: data
+            };
+            
+            localStorage.setItem(archiveKey, JSON.stringify(archive));
+            console.log(`📊 Added ${dateString} to reports archive: ${data.length} packages`);
+            
+        } catch (error) {
+            console.error('Reports archive error:', error);
+        }
+    },
+    
+    // Get reports archive (last 7 days)
+    getReportsArchive: function() {
+        try {
+            const archiveKey = 'proclean_reports_archive';
+            const archive = JSON.parse(localStorage.getItem(archiveKey) || '{}');
+            return archive;
+        } catch (error) {
+            console.error('Get reports archive error:', error);
+            return {};
+        }
+    },
+    
+    // Export specific day's data to Excel format
+    exportDayToExcel: function(dateString) {
+        try {
+            const archive = this.getReportsArchive();
+            const dayData = archive[dateString];
+            
+            if (!dayData || !dayData.data) {
+                showAlert('Bu tarihe ait veri bulunamadı', 'error');
+                return false;
+            }
+            
+            // Convert to CSV
+            const csvData = this.convertToCSV(dayData.data);
+            const displayDate = dayData.display_date || dateString;
+            const fileName = `ProClean_Rapor_${displayDate.replace(/\./g, '-')}.csv`;
+            
+            // Create and download file
+            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showAlert(`${displayDate} tarihli rapor Excel olarak indirildi`, 'success');
+            return true;
+            
+        } catch (error) {
+            console.error('Export day to Excel error:', error);
+            showAlert('Rapor indirme hatası', 'error');
+            return false;
+        }
+    },
+
     // Upload data to Supabase storage
     uploadToSupabase: async function(data, dateString) {
-        if (!supabase || !navigator.onLine) {
+        if (!window.supabase || !navigator.onLine) {
             console.log('Skipping Supabase upload - offline or no client');
             return false;
         }
@@ -430,7 +533,7 @@ const ExcelStorage = {
             const fileName = `daily_export_${dateString}.csv`;
             
             // Upload to Supabase Storage
-            const { data: uploadData, error } = await supabase.storage
+            const { data: uploadData, error } = await window.supabase.storage
                 .from('daily-exports')
                 .upload(fileName, new Blob([csvData], { type: 'text/csv' }));
             
@@ -448,43 +551,63 @@ const ExcelStorage = {
         }
     },
     
-    // Convert data to CSV format
+    // Convert data to CSV format with proper columns and Turkish headers
     convertToCSV: function(data) {
         if (!data || data.length === 0) {
             return 'No data available';
         }
         
-        const headers = ['Package No', 'Customer', 'Items', 'Total Quantity', 'Status', 'Packer', 'Created At', 'Workspace'];
+        // Turkish headers with proper column order
+        const headers = ['Paket No', 'Müşteri Adı', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Oluşturulma Tarihi', 'İstasyon'];
         const csvRows = [headers.join(',')];
         
         data.forEach(item => {
             const row = [
                 `"${item.package_no || ''}"`,
-                `"${item.customer_name || ''}"`,
-                `"${this.formatItems(item.items)}"`,
+                `"${item.customer_name || item.customers?.name || 'Müşteri Yok'}"`,
+                `"${this.formatItemsForExcel(item.items)}"`,
                 item.total_quantity || 0,
-                `"${item.status || ''}"`,
+                `"${this.getStatusText(item.status)}"`,
                 `"${item.packer || ''}"`,
-                `"${item.created_at || ''}"`,
-                `"${item.workspace_id || ''}"`
+                `"${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}"`,
+                `"${item.workspace_id || item.station_name || ''}"`
             ];
             csvRows.push(row.join(','));
         });
         
         return csvRows.join('\n');
     },
-    
-    // Format items for CSV
-    formatItems: function(items) {
-        if (!items) return '';
+
+    // Enhanced items formatting for Excel
+    formatItemsForExcel: function(items) {
+        if (!items) return 'Ürün Yok';
         
-        if (Array.isArray(items)) {
-            return items.map(item => `${item.name}:${item.qty}`).join('; ');
-        } else if (typeof items === 'object') {
-            return Object.entries(items).map(([name, qty]) => `${name}:${qty}`).join('; ');
+        try {
+            if (Array.isArray(items)) {
+                return items.map(item => 
+                    `${item.name || 'Ürün'}: ${item.qty || 0} adet`
+                ).join('; ');
+            } else if (typeof items === 'object') {
+                return Object.entries(items).map(([name, qty]) => 
+                    `${name}: ${qty} adet`
+                ).join('; ');
+            }
+            return String(items);
+        } catch (error) {
+            console.error('Error formatting items for Excel:', error);
+            return 'Ürün format hatası';
         }
-        
-        return String(items);
+    },
+
+    // Get Turkish status text
+    getStatusText: function(status) {
+        const statusMap = {
+            'beklemede': 'Beklemede',
+            'sevk-edildi': 'Sevk Edildi',
+            'shipped': 'Sevk Edildi',
+            'waiting': 'Beklemede'
+        };
+        return statusMap[status] || status || 'Beklemede';
     },
     
     // Get all daily files
@@ -577,29 +700,32 @@ Object.assign(ExcelJS, ExcelStorage);
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
-    // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
-    if (supabase && SUPABASE_ANON_KEY) {
-        return supabase;
-    }
-    
-    if (!SUPABASE_ANON_KEY) {
+    // Global değişkenleri kontrol et
+    if (typeof SUPABASE_ANON_KEY === 'undefined' || !SUPABASE_ANON_KEY) {
         console.warn('Supabase API key not set, showing modal');
         showApiKeyModal();
-        isUsingExcel = true;
+        window.isUsingExcel = true;
         showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
         return null;
     }
     
+    // Eğer client zaten oluşturulmuşsa, mevcut olanı döndür
+    if (window.supabase && window.SUPABASE_ANON_KEY) {
+        console.log('Using existing Supabase client');
+        window.isUsingExcel = false;
+        return window.supabase;
+    }
+    
     try {
         // Global supabase değişkenine ata
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized successfully');
-        isUsingExcel = false;
-        return supabase;
+        window.isUsingExcel = false;
+        return window.supabase;
     } catch (error) {
         console.error('Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
-        isUsingExcel = true;
+        window.isUsingExcel = true;
         showApiKeyModal();
         return null;
     }
