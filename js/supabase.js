@@ -18,7 +18,6 @@ let selectedPackageForPrinting = null;
 let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
-let connectionAlertShown = false;
 
 // Excel local storage
 let excelPackages = [];
@@ -473,7 +472,7 @@ async function deleteFromExcel(packageId) {
     }
 }
 
-// Enhanced sync with conflict resolution
+// Sync functions
 async function syncExcelWithSupabase() {
     if (!supabase || !navigator.onLine) {
         console.log('Cannot sync: No Supabase client or offline');
@@ -486,109 +485,58 @@ async function syncExcelWithSupabase() {
             console.log('No packages to sync');
             return true;
         }
-
+        
         showAlert(`${queue.length} paket senkronize ediliyor...`, 'info');
         
-        const results = {
-            success: 0,
-            failed: 0,
-            conflicts: 0
-        };
-
         for (const operation of queue) {
             try {
-                let conflictResolved = false;
-                
-                // Conflict detection: Check if record exists and was modified
-                if (operation.type === 'update') {
-                    const { data: existing, error: fetchError } = await supabase
+                if (operation.type === 'add') {
+                    const { error } = await supabase
                         .from('packages')
-                        .select('updated_at')
-                        .eq('id', operation.data.id)
-                        .single();
+                        .insert([operation.data]);
                     
-                    if (!fetchError && existing) {
-                        const existingDate = new Date(existing.updated_at);
-                        const operationDate = new Date(operation.timestamp);
-                        
-                        // If Supabase has a newer version, keep it (conflict)
-                        if (existingDate > operationDate) {
-                            console.warn(`Conflict detected for package ${operation.data.id}, keeping Supabase version`);
-                            results.conflicts++;
-                            conflictResolved = true;
-                            
-                            // Remove from queue but don't apply
-                            excelSyncQueue = excelSyncQueue.filter(op => 
-                                !(op.type === operation.type && op.data.id === operation.data.id)
-                            );
-                            continue;
-                        }
-                    }
-                }
-
-                if (!conflictResolved) {
-                    let error;
-                    
-                    if (operation.type === 'add') {
-                        const { error: insertError } = await supabase
-                            .from('packages')
-                            .insert([operation.data]);
-                        error = insertError;
-                    } else if (operation.type === 'update') {
-                        const { error: updateError } = await supabase
-                            .from('packages')
-                            .update(operation.data)
-                            .eq('id', operation.data.id);
-                        error = updateError;
-                    } else if (operation.type === 'delete') {
-                        const { error: deleteError } = await supabase
-                            .from('packages')
-                            .delete()
-                            .eq('id', operation.data.id);
-                        error = deleteError;
-                    }
-
                     if (error) throw error;
                     
-                    results.success++;
+                } else if (operation.type === 'update') {
+                    const { error } = await supabase
+                        .from('packages')
+                        .update(operation.data)
+                        .eq('id', operation.data.id);
+                    
+                    if (error) throw error;
+                    
+                } else if (operation.type === 'delete') {
+                    const { error } = await supabase
+                        .from('packages')
+                        .delete()
+                        .eq('id', operation.data.id);
+                    
+                    if (error) throw error;
                 }
-
-                // Remove successful operation from queue
+                
+                // Başarılı olanı kuyruktan kaldır
                 excelSyncQueue = excelSyncQueue.filter(op => 
                     !(op.type === operation.type && op.data.id === operation.data.id)
                 );
-
+                
             } catch (opError) {
                 console.error('Sync operation failed:', opError);
-                results.failed++;
-                
-                // Don't remove failed operations from queue for now
-                // They'll be retried in the next sync
+                // Bu operasyonu bir sonrakine bırak
             }
         }
-
-        // Save updated queue
+        
+        // Kuyruğu kaydet
         localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
         
-        // Show results
-        let resultMessage = `Senkronizasyon tamamlandı: ${results.success} başarılı`;
-        if (results.failed > 0) resultMessage += `, ${results.failed} başarısız`;
-        if (results.conflicts > 0) resultMessage += `, ${results.conflicts} çakışma`;
+        showAlert('Senkronizasyon tamamlandı', 'success');
+        return true;
         
-        showAlert(resultMessage, results.failed === 0 ? 'success' : 'warning');
-        
-        return results.failed === 0;
-
     } catch (error) {
         console.error('Sync error:', error);
-        ErrorHandler.handle(error, 'Veri senkronizasyonu');
+        showAlert('Senkronizasyon hatası', 'error');
         return false;
     }
 }
-
-
-
-
 
 function addToSyncQueue(operationType, data) {
     excelSyncQueue.push({
@@ -600,132 +548,66 @@ function addToSyncQueue(operationType, data) {
     localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
 }
 
-
-
-
-
-// Enhanced API key saving with better error handling
-async function saveApiKey() {
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    if (!apiKeyInput) {
-        showAlert('API anahtarı girişi bulunamadı', 'error');
-        return;
-    }
-
-    const apiKey = apiKeyInput.value.trim();
+// FIXED: API anahtarını kaydet ve istemciyi başlat
+function saveApiKey() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
     if (!apiKey) {
         showAlert('Lütfen bir API anahtarı girin', 'error');
         return;
     }
-
-    try {
-        // Test the API key before saving
-        showAlert('API anahtarı test ediliyor...', 'info');
+    
+    // Eski client'ı temizle
+    supabase = null;
+    
+    // Yeni API key'i ayarla
+    SUPABASE_ANON_KEY = apiKey;
+    localStorage.setItem('procleanApiKey', apiKey);
+    
+    // Yeni client oluştur
+    const newClient = initializeSupabase();
+    
+    if (newClient) {
+        document.getElementById('apiKeyModal').style.display = 'none';
+        showAlert('API anahtarı kaydedildi', 'success');
+        testConnection();
         
-        // Create a temporary client to test the key
-        const tempClient = window.supabase.createClient(SUPABASE_URL, apiKey);
-        const { data, error } = await tempClient.from('customers').select('*').limit(1);
-        
-        if (error) {
-            throw new Error(`API anahtarı geçersiz: ${error.message}`);
-        }
-
-        // Save the valid key
-        SUPABASE_ANON_KEY = apiKey;
-        localStorage.setItem('procleanApiKey', apiKey);
-        
-        // Reinitialize Supabase client
-        supabase = initializeSupabase();
-        
-        if (supabase) {
-            document.getElementById('apiKeyModal').style.display = 'none';
-            showAlert('API anahtarı başarıyla kaydedildi ve doğrulandı!', 'success');
-            
-            // Reset connection alert flag to allow new success message
-            connectionAlertShown = false;
-            
-            // Test connection
-            await testConnection();
-            
-            // Sync data if online
-            if (navigator.onLine) {
-                setTimeout(async () => {
-                    await syncExcelWithSupabase();
-                    await loadPackagesData();
-                }, 2000);
-            }
-        } else {
-            throw new Error('Supabase istemcisi başlatılamadı');
-        }
-        
-    } catch (error) {
-        console.error('API key save error:', error);
-        showAlert(`API anahtarı kaydedilemedi: ${error.message}`, 'error');
-        
-        // Fall back to Excel mode
-        isUsingExcel = true;
-        updateStorageIndicator();
+        // Çevrimiçi olunca senkronize et
+        setTimeout(syncExcelWithSupabase, 2000);
     }
 }
 
+        
+let connectionAlertShown = false; // Prevent duplicate success alert
 
-
-
-
-// Enhanced connection test with better recovery
+// FIXED: Supabase bağlantısını test et
 async function testConnection() {
     if (!supabase) {
-        console.warn('Supabase client not initialized');
+        console.warn('Supabase client not initialized for connection test');
+        if (!connectionAlertShown) {
+            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+            connectionAlertShown = true; // mark as shown to avoid repeating
+        }
         return false;
     }
-
+    
     try {
-        // Create a timeout promise
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Connection timeout')), 5000);
-        });
-
-        // Create the Supabase query promise
-        const queryPromise = supabase
-            .from('packages')
-            .select('*')
-            .limit(1);
-
-        // Race between the query and timeout
-        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
-
-        if (error) {
-            throw error;
-        }
-
-        console.log('✅ Supabase connection successful');
+        const { data, error } = await supabase.from('customers').select('*').limit(1);
+        if (error) throw error;
         
-        // Reset the alert flag on successful connection
-        connectionAlertShown = false;
+        console.log('Supabase connection test successful:', data);
         
-        // Update connection status
-        if (elements.connectionStatus) {
-            elements.connectionStatus.textContent = 'Bağlı';
-            elements.connectionStatus.className = 'connection-status connected';
-        }
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ Supabase connection test failed:', error);
-        
-        // Only show alert once to avoid spam
         if (!connectionAlertShown) {
-            showAlert('Supabase bağlantı hatası: ' + error.message, 'error');
+            showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
+            connectionAlertShown = true; // ensure alert shows only once
+        }
+
+        return true;
+    } catch (e) {
+        console.error('Supabase connection test failed:', e.message);
+        if (!connectionAlertShown) {
+            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
             connectionAlertShown = true;
         }
-        
-        // Update connection status
-        if (elements.connectionStatus) {
-            elements.connectionStatus.textContent = 'Bağlantı Yok';
-            elements.connectionStatus.className = 'connection-status disconnected';
-        }
-        
         return false;
     }
 }
@@ -2155,7 +2037,6 @@ function debouncedPopulateStockTable() {
 
 
 
-// REPLACE the existing completePackage function with this:
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -2167,83 +2048,90 @@ async function completePackage() {
         return;
     }
 
-    // Check workspace permissions
-    if (!window.workspaceManager.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
     try {
-        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
+        const packageNo = `PKG-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
+        // Convert items object to array for better handling
+        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
+            name: name,
+            qty: qty
+        }));
+
+        // Generate proper ID
+        const packageId = generateUUID();
+
+        // Get current workspace
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+
         const packageData = {
-            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
-            items: currentPackage.items,
+            items: itemsArray,
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
-            station_name: window.workspaceManager.currentWorkspace.name
+            workspace_id: workspaceId, // Add workspace identifier
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
         };
 
-        // Save based on connectivity and workspace settings
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
+        // Save to Excel with workspace isolation
+        const excelSuccess = await saveToExcel(packageData);
+        
+        if (excelSuccess) {
+            showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager?.currentWorkspace?.name || 'Default'})`, 'success');
+            
+            // If online and Supabase available, try to sync
+            if (supabase && navigator.onLine) {
+                try {
+                    const supabaseData = {
+                        id: packageId,
+                        package_no: packageNo,
+                        customer_id: selectedCustomer.id,
+                        items: itemsArray,
+                        total_quantity: totalQuantity,
+                        status: 'beklemede',
+                        packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+                        created_at: new Date().toISOString(),
+                        workspace_id: workspaceId
+                    };
 
-                if (error) throw error;
+                    const { data, error } = await supabase
+                        .from('packages')
+                        .insert([supabaseData])
+                        .select();
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
+                    if (error) {
+                        console.warn('Supabase insert failed, queuing for sync:', error);
+                        addToSyncQueue('add', supabaseData);
+                    } else {
+                        showAlert(`Paket Supabase'e de kaydedildi`, 'success');
+                    }
+                } catch (supabaseError) {
+                    console.warn('Supabase error, queuing for sync:', supabaseError);
+                    addToSyncQueue('add', packageData);
+                }
+            } else {
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-                isUsingExcel = true;
             }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-            isUsingExcel = true;
         }
 
         // Reset and refresh
-   currentPackage = {};
-        
-        // CLEAR FROM LOCALSTORAGE TOO
-        const savedState = localStorage.getItem('procleanState');
-        if (savedState) {
-            const state = JSON.parse(savedState);
-            state.currentPackage = {};
-            localStorage.setItem('procleanState', JSON.stringify(state));
-        }
-        localStorage.removeItem('procleanCurrentPackage');
-        
-        // Reset UI
+        currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        
-        showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
         await populatePackagesTable();
+        updateStorageIndicator();
 
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 
@@ -2510,296 +2398,3 @@ async function sendToRamp(containerNo = null) {
 
 
 window.workspaceManager = new WorkspaceManager();
-
-
-
-
-
-// Audit logging system
-class AuditLogger {
-    static async log(action, details, userId = null, userEmail = null) {
-        try {
-            const logEntry = {
-                action,
-                details: typeof details === 'string' ? details : JSON.stringify(details),
-                user_id: userId || currentUser?.uid || 'unknown',
-                user_email: userEmail || currentUser?.email || 'unknown',
-                ip_address: await this.getClientIP(),
-                user_agent: navigator.userAgent,
-                timestamp: new Date().toISOString(),
-                workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default'
-            };
-
-            // Store locally first
-            this.storeLocal(logEntry);
-
-            // Try to sync with Supabase if available
-            if (supabase && navigator.onLine && !isUsingExcel) {
-                await this.syncToSupabase(logEntry);
-            }
-
-        } catch (error) {
-            console.warn('Audit log error:', error);
-            // Don't show error to user for logging failures
-        }
-    }
-
-    static async getClientIP() {
-        try {
-            // Try to get IP from external service
-            const response = await fetch('https://api.ipify.org?format=json');
-            const data = await response.json();
-            return data.ip;
-        } catch {
-            return 'unknown';
-        }
-    }
-
-    static storeLocal(logEntry) {
-        try {
-            const logs = JSON.parse(localStorage.getItem('proclean_audit_logs') || '[]');
-            logs.push(logEntry);
-            
-            // Keep only last 1000 logs to prevent storage overflow
-            if (logs.length > 1000) {
-                logs.splice(0, logs.length - 1000);
-            }
-            
-            localStorage.setItem('proclean_audit_logs', JSON.stringify(logs));
-        } catch (error) {
-            console.warn('Local audit log storage failed:', error);
-        }
-    }
-
-    static async syncToSupabase(logEntry) {
-        try {
-            const { error } = await supabase
-                .from('audit_logs')
-                .insert([logEntry]);
-
-            if (error) {
-                throw error;
-            }
-        } catch (error) {
-            console.warn('Supabase audit log sync failed:', error);
-            // Queue for later sync
-            this.queueForSync(logEntry);
-        }
-    }
-
-    static queueForSync(logEntry) {
-        const queue = JSON.parse(localStorage.getItem('audit_log_sync_queue') || '[]');
-        queue.push(logEntry);
-        localStorage.setItem('audit_log_sync_queue', JSON.stringify(queue));
-    }
-
-    static async syncQueuedLogs() {
-        if (!supabase || !navigator.onLine) return;
-
-        const queue = JSON.parse(localStorage.getItem('audit_log_sync_queue') || '[]');
-        if (queue.length === 0) return;
-
-        try {
-            for (const logEntry of queue) {
-                const { error } = await supabase
-                    .from('audit_logs')
-                    .insert([logEntry]);
-
-                if (!error) {
-                    // Remove successful entry from queue
-                    const updatedQueue = queue.filter(entry => 
-                        entry.timestamp !== logEntry.timestamp
-                    );
-                    localStorage.setItem('audit_log_sync_queue', JSON.stringify(updatedQueue));
-                }
-            }
-        } catch (error) {
-            console.warn('Audit log queue sync failed:', error);
-        }
-    }
-
-    static showAuditLogs() {
-        const logs = JSON.parse(localStorage.getItem('proclean_audit_logs') || '[]');
-        
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
-            align-items: center; z-index: 10000;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 90%; max-height: 90vh; width: 1000px; overflow-y: auto;">
-                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 1rem;">
-                    <h2 style="margin: 0;">Denetim Kayıtları</h2>
-                    <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
-                </div>
-                
-                <div style="margin-bottom: 1rem; display: flex; gap: 10px;">
-                    <input type="text" id="auditLogSearch" placeholder="Ara..." style="flex: 1; padding: 8px;">
-                    <select id="auditLogFilter" style="padding: 8px;">
-                        <option value="">Tüm Eylemler</option>
-                        <option value="login">Giriş</option>
-                        <option value="package_create">Paket Oluşturma</option>
-                        <option value="package_update">Paket Güncelleme</option>
-                        <option value="package_delete">Paket Silme</option>
-                        <option value="stock_update">Stok Güncelleme</option>
-                        <option value="settings_change">Ayarlar Değişikliği</option>
-                    </select>
-                    <button onclick="AuditLogger.filterLogs()" class="btn btn-primary">Filtrele</button>
-                    <button onclick="AuditLogger.exportAuditLogs()" class="btn btn-success">Dışa Aktar</button>
-                    <button onclick="AuditLogger.clearAuditLogs()" class="btn btn-danger">Temizle</button>
-                </div>
-                
-                <div style="max-height: 500px; overflow-y: auto;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f5f5f5;">
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Zaman</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Kullanıcı</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Eylem</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Detaylar</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">İstasyon</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${logs.reverse().map(log => `
-                                <tr>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${new Date(log.timestamp).toLocaleString('tr-TR')}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${log.user_email}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">
-                                        <span class="audit-action ${log.action}">${this.getActionLabel(log.action)}</span>
-                                    </td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; max-width: 300px; word-break: break-all;">
-                                        ${this.formatDetails(log.details)}
-                                    </td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${log.workspace_id}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div style="margin-top: 1rem; text-align: center; color: #666;">
-                    Toplam ${logs.length} kayıt
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-    }
-
-    static getActionLabel(action) {
-        const labels = {
-            'login': 'Giriş',
-            'logout': 'Çıkış',
-            'package_create': 'Paket Oluşturma',
-            'package_update': 'Paket Güncelleme',
-            'package_delete': 'Paket Silme',
-            'stock_update': 'Stok Güncelleme',
-            'settings_change': 'Ayarlar Değişikliği',
-            'api_key_change': 'API Anahtarı Değişikliği',
-            'data_export': 'Veri Dışa Aktarma',
-            'data_import': 'Veri İçe Aktarma'
-        };
-        return labels[action] || action;
-    }
-
-    static formatDetails(details) {
-        try {
-            if (typeof details === 'string') {
-                const parsed = JSON.parse(details);
-                return Object.entries(parsed).map(([key, value]) => 
-                    `<strong>${key}:</strong> ${value}`
-                ).join('<br>');
-            }
-            return details;
-        } catch {
-            return details;
-        }
-    }
-
-    static filterLogs() {
-        const searchTerm = document.getElementById('auditLogSearch').value.toLowerCase();
-        const filterValue = document.getElementById('auditLogFilter').value;
-        
-        const rows = document.querySelectorAll('#auditLogModal tbody tr');
-        rows.forEach(row => {
-            const action = row.cells[2].textContent;
-            const details = row.cells[3].textContent.toLowerCase();
-            const user = row.cells[1].textContent.toLowerCase();
-            
-            const searchMatch = !searchTerm || 
-                details.includes(searchTerm) || 
-                user.includes(searchTerm) ||
-                action.includes(searchTerm);
-                
-            const filterMatch = !filterValue || action.includes(filterValue);
-            
-            row.style.display = searchMatch && filterMatch ? '' : 'none';
-        });
-    }
-
-    static exportAuditLogs() {
-        const logs = JSON.parse(localStorage.getItem('proclean_audit_logs') || '[]');
-        if (logs.length === 0) {
-            showAlert('Dışa aktarılacak denetim kaydı yok', 'warning');
-            return;
-        }
-
-        const csv = AdvancedSearch.convertToCSV(logs);
-        AdvancedSearch.downloadCSV(csv, `denetim-kayitlari-${new Date().toISOString().split('T')[0]}.csv`);
-        showAlert(`${logs.length} denetim kaydı dışa aktarıldı`, 'success');
-    }
-
-    static clearAuditLogs() {
-        if (confirm('Tüm denetim kayıtları silinecek. Emin misiniz?')) {
-            localStorage.removeItem('proclean_audit_logs');
-            localStorage.removeItem('audit_log_sync_queue');
-            showAlert('Denetim kayıtları temizlendi', 'success');
-            document.querySelector('.modal')?.remove();
-        }
-    }
-}
-
-// Add audit logging to critical functions
-function wrapWithAuditLogging(func, actionName) {
-    return async function(...args) {
-        try {
-            const result = await func.apply(this, args);
-            
-            // Log successful operation
-            await AuditLogger.log(actionName, {
-                arguments: args,
-                result: 'success',
-                workspace: window.workspaceManager?.currentWorkspace?.name
-            });
-            
-            return result;
-        } catch (error) {
-            // Log failed operation
-            await AuditLogger.log(actionName, {
-                arguments: args,
-                error: error.message,
-                result: 'failed',
-                workspace: window.workspaceManager?.currentWorkspace?.name
-            });
-            
-            throw error;
-        }
-    };
-}
-
-// Wrap existing functions with audit logging
-const originalCompletePackage = completePackage;
-completePackage = wrapWithAuditLogging(originalCompletePackage, 'package_create');
-
-const originalDeleteSelectedPackages = deleteSelectedPackages;
-deleteSelectedPackages = wrapWithAuditLogging(originalDeleteSelectedPackages, 'package_delete');
-
-const originalSaveStockItem = saveStockItem;
-saveStockItem = wrapWithAuditLogging(originalSaveStockItem, 'stock_update');
-
-const originalSaveApiKey = saveApiKey;
-saveApiKey = wrapWithAuditLogging(originalSaveApiKey, 'api_key_change');
