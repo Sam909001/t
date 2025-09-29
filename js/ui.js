@@ -1762,19 +1762,16 @@ function initializeWorkspaceUI() {
                 margin-right: 1rem;
             `;
             
-            // Insert before settings button if exists
-            const settingsBtn = document.getElementById('settingsBtn');
-            if (settingsBtn) {
-                header.insertBefore(indicator, settingsBtn);
-            } else {
-                header.appendChild(indicator);
-            }
+            // Simply append to header - safer approach
+            header.appendChild(indicator);
         }
     }
     
     // Add workspace switching capability
     addWorkspaceSwitchHandler();
 }
+
+
 
 function addWorkspaceSwitchHandler() {
     const indicator = document.getElementById('workspaceIndicator');
