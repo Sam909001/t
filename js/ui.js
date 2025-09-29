@@ -1,8 +1,9 @@
+const elements = {};
+
 // 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
-    const elements = {};
-    
+ 
     elementIds.forEach(id => {
         elements[id] = document.getElementById(id);
         if (!elements[id]) {
