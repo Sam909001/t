@@ -1,4 +1,3 @@
-
 // Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
@@ -23,160 +22,10 @@ let packagesTableLoading = false;
 // Excel local storage
 let excelPackages = [];
 let excelSyncQueue = [];
-let isUsingExcel = true; // Default to Excel mode for safety
+let isUsingExcel = false;
 
-// ==================== SIMPLE SUPABASE CLIENT ====================
-// Minimal Supabase client implementation to avoid dependency issues
-class SimpleSupabaseClient {
-    constructor(supabaseUrl, supabaseKey) {
-        this.supabaseUrl = supabaseUrl;
-        this.supabaseKey = supabaseKey;
-        this.headers = {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-        };
-    }
 
-    async request(endpoint, options = {}) {
-        try {
-            const url = `${this.supabaseUrl}/rest/v1/${endpoint}`;
-            const response = await fetch(url, {
-                headers: this.headers,
-                ...options
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Supabase request error:', error);
-            throw error;
-        }
-    }
-
-    from(table) {
-        return {
-            select: (columns = '*') => ({
-                where: (column, operator, value) => this._buildQuery(table, 'select', columns, { column, operator, value }),
-                eq: (column, value) => this._buildQuery(table, 'select', columns, { column, operator: 'eq', value }),
-                in: (column, values) => this._buildQuery(table, 'select', columns, { column, operator: 'in', value: values }),
-                order: (column, options = { ascending: true }) => this._buildQuery(table, 'select', columns, null, { order: { column, options } }),
-                limit: (count) => this._buildQuery(table, 'select', columns, null, { limit: count }),
-                single: () => this._buildQuery(table, 'select', columns, null, { single: true })
-            }),
-
-            insert: (data) => ({
-                select: (columns = '*') => this._buildQuery(table, 'insert', columns, null, { data })
-            }),
-
-            update: (data) => ({
-                eq: (column, value) => this._buildQuery(table, 'update', '*', { column, operator: 'eq', value }, { data })
-            }),
-
-            delete: () => ({
-                eq: (column, value) => this._buildQuery(table, 'delete', '*', { column, operator: 'eq', value })
-            })
-        };
-    }
-
-    async _buildQuery(table, method, columns = '*', condition = null, options = {}) {
-        try {
-            let endpoint = table;
-            const queryParams = [];
-
-            // Add select columns
-            if (columns !== '*') {
-                queryParams.push(`select=${columns}`);
-            }
-
-            // Add where condition
-            if (condition) {
-                const { column, operator, value } = condition;
-                if (operator === 'eq') {
-                    queryParams.push(`${column}=eq.${encodeURIComponent(value)}`);
-                } else if (operator === 'in') {
-                    const values = Array.isArray(value) ? value : [value];
-                    queryParams.push(`${column}=in.(${values.map(v => encodeURIComponent(v)).join(',')})`);
-                }
-            }
-
-            // Add order
-            if (options.order) {
-                const order = options.order.options.ascending ? 'asc' : 'desc';
-                queryParams.push(`order=${options.order.column}.${order}`);
-            }
-
-            // Add limit
-            if (options.limit) {
-                queryParams.push(`limit=${options.limit}`);
-            }
-
-            // Build final URL
-            if (queryParams.length > 0) {
-                endpoint += `?${queryParams.join('&')}`;
-            }
-
-            let requestOptions = {
-                method: method.toUpperCase()
-            };
-
-            // Add data for insert/update
-            if (method === 'insert' || method === 'update') {
-                requestOptions.body = JSON.stringify(options.data);
-            }
-
-            const result = await this.request(endpoint, requestOptions);
-
-            // Handle single result
-            if (options.single && Array.isArray(result)) {
-                return result[0] || null;
-            }
-
-            return result;
-
-        } catch (error) {
-            console.error('Query error:', error);
-            throw error;
-        }
-    }
-
-    storage = {
-        from: (bucket) => ({
-            upload: (path, file) => this._storageUpload(bucket, path, file)
-        })
-    };
-
-    async _storageUpload(bucket, path, file) {
-        try {
-            const url = `${this.supabaseUrl}/storage/v1/object/${bucket}/${path}`;
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.supabaseKey}`,
-                    'apikey': this.supabaseKey
-                },
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error(`Storage upload failed: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Storage upload error:', error);
-            throw error;
-        }
-    }
-}
-
+// Add this RIGHT AFTER the existing global variables (around line 25)
 // ==================== WORKSPACE MANAGEMENT ====================
 class WorkspaceManager {
     constructor() {
@@ -350,23 +199,24 @@ class WorkspaceManager {
     }
     
     // Load workspace-specific data
-    async loadWorkspaceData() {
-        try {
-            const workspaceId = this.currentWorkspace?.id || 'default';
-            const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-            const packages = data ? JSON.parse(data) : [];
-            
-            // Make sure excelPackages global variable is updated
-            excelPackages = packages;
-            
-            console.log(`📦 Workspace data loaded: ${excelPackages.length} packages for workspace: ${workspaceId}`);
-            return packages;
-        } catch (error) {
-            console.error('❌ Error loading workspace data:', error);
-            excelPackages = [];
-            return [];
-        }
+  // Load workspace-specific data
+async loadWorkspaceData() {
+    try {
+        const workspaceId = this.currentWorkspace?.id || 'default';
+        const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+        const packages = data ? JSON.parse(data) : [];
+        
+        // Make sure excelPackages global variable is updated
+        excelPackages = packages;
+        
+        console.log(`📦 Workspace data loaded: ${excelPackages.length} packages for workspace: ${workspaceId}`);
+        return packages;
+    } catch (error) {
+        console.error('❌ Error loading workspace data:', error);
+        excelPackages = [];
+        return [];
     }
+}
   
     
     // Restore original Excel functions
@@ -465,6 +315,8 @@ class WorkspaceManager {
     }
 }
 
+
+
 // Generate proper UUID v4 for Excel packages
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -473,6 +325,8 @@ function generateUUID() {
         return v.toString(16);
     });
 }
+
+
 
 // EmailJS initialization
 (function() {
@@ -483,12 +337,11 @@ function generateUUID() {
 // Elementleri bir defa tanımla
 const elements = {};
 
-// Enhanced Excel Storage with Daily Files and Reports Archive
+// Enhanced Excel Storage with Daily Files
 const ExcelStorage = {
     // Get today's date string for file naming
     getTodayDateString: function() {
-        const now = new Date();
-        return now.toISOString().split('T')[0]; // YYYY-MM-DD
+        return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     },
     
     // Get current file name
@@ -496,35 +349,20 @@ const ExcelStorage = {
         return `packages_${this.getTodayDateString()}.json`;
     },
     
-    // Get display date for Turkish format
-    getDisplayDate: function(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('tr-TR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-    },
-    
-    // Read from today's file ONLY
+    // Read from today's file
     readFile: async function() {
         try {
             const fileName = this.getCurrentFileName();
             const data = localStorage.getItem(fileName);
             
             if (data) {
-                console.log(`📁 Loaded TODAY'S data from ${fileName}`);
-                const packages = JSON.parse(data);
-                return packages.filter(pkg => {
-                    // Only include packages from today
-                    const pkgDate = pkg.created_at ? pkg.created_at.split('T')[0] : '';
-                    return pkgDate === this.getTodayDateString();
-                });
+                console.log(`📁 Loaded data from ${fileName}`);
+                return JSON.parse(data);
             } else {
-                // Create empty file for today
-                console.log(`📁 Creating new daily file: ${fileName}`);
-                localStorage.setItem(fileName, JSON.stringify([]));
-                return [];
+                // Check for previous day's data to migrate
+                await this.migratePreviousData();
+                const newData = localStorage.getItem(fileName);
+                return newData ? JSON.parse(newData) : [];
             }
         } catch (error) {
             console.error('Excel read error:', error);
@@ -532,24 +370,16 @@ const ExcelStorage = {
         }
     },
     
-    // Write to today's file ONLY
+    // Write to today's file
     writeFile: async function(data) {
         try {
             const fileName = this.getCurrentFileName();
-            const today = this.getTodayDateString();
+            localStorage.setItem(fileName, JSON.stringify(data));
             
-            // Filter data to only include today's packages
-            const todaysData = data.filter(pkg => {
-                const pkgDate = pkg.created_at ? pkg.created_at.split('T')[0] : '';
-                return pkgDate === today;
-            });
-            
-            localStorage.setItem(fileName, JSON.stringify(todaysData));
-            
-            // Update the current active file reference
+            // Also update the current active file reference
             localStorage.setItem('excelPackages_current', fileName);
             
-            console.log(`💾 Saved TODAY'S data to ${fileName} (${todaysData.length} records)`);
+            console.log(`💾 Saved data to ${fileName} (${data.length} records)`);
             return true;
         } catch (error) {
             console.error('Excel write error:', error);
@@ -557,8 +387,8 @@ const ExcelStorage = {
         }
     },
     
-    // Archive yesterday's data to reports
-    archiveYesterdayData: async function() {
+    // Migrate data from previous day
+    migratePreviousData: async function() {
         try {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
@@ -567,108 +397,29 @@ const ExcelStorage = {
             
             const oldData = localStorage.getItem(yesterdayFile);
             if (oldData) {
-                console.log(`📦 Archiving yesterday's data: ${yesterdayStr}`);
+                console.log(`🔄 Migrating data from ${yesterdayFile}`);
                 
-                const packages = JSON.parse(oldData);
-                if (packages.length > 0) {
-                    // Add to reports archive
-                    await this.addToReportsArchive(yesterdayStr, packages);
-                    
-                    // Archive the file
-                    localStorage.setItem(`archive_${yesterdayFile}`, oldData);
-                    localStorage.removeItem(yesterdayFile);
-                    
-                    console.log(`✅ Yesterday's data archived: ${packages.length} packages`);
-                }
+                // Upload yesterday's data to Supabase
+                await this.uploadToSupabase(JSON.parse(oldData), yesterdayStr);
+                
+                // Archive the file
+                localStorage.setItem(`archive_${yesterdayFile}`, oldData);
+                localStorage.removeItem(yesterdayFile);
+                
+                console.log(`✅ Data migrated and archived for ${yesterdayStr}`);
             }
             
+            // Create empty file for today
+            localStorage.setItem(this.getCurrentFileName(), JSON.stringify([]));
+            
         } catch (error) {
-            console.error('Archive error:', error);
+            console.error('Migration error:', error);
         }
     },
     
-    // Add daily data to reports archive (last 7 days)
-    addToReportsArchive: async function(dateString, data) {
-        try {
-            const archiveKey = 'proclean_reports_archive';
-            let archive = JSON.parse(localStorage.getItem(archiveKey) || '{}');
-            
-            // Keep only last 7 days
-            const dates = Object.keys(archive).sort();
-            while (dates.length >= 7) {
-                delete archive[dates[0]];
-                dates.shift();
-            }
-            
-            // Add new day's data
-            archive[dateString] = {
-                date: dateString,
-                display_date: this.getDisplayDate(dateString),
-                package_count: data.length,
-                total_quantity: data.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0),
-                data: data
-            };
-            
-            localStorage.setItem(archiveKey, JSON.stringify(archive));
-            console.log(`📊 Added ${dateString} to reports archive: ${data.length} packages`);
-            
-        } catch (error) {
-            console.error('Reports archive error:', error);
-        }
-    },
-    
-    // Get reports archive (last 7 days)
-    getReportsArchive: function() {
-        try {
-            const archiveKey = 'proclean_reports_archive';
-            const archive = JSON.parse(localStorage.getItem(archiveKey) || '{}');
-            return archive;
-        } catch (error) {
-            console.error('Get reports archive error:', error);
-            return {};
-        }
-    },
-    
-    // Export specific day's data to Excel format
-    exportDayToExcel: function(dateString) {
-        try {
-            const archive = this.getReportsArchive();
-            const dayData = archive[dateString];
-            
-            if (!dayData || !dayData.data) {
-                showAlert('Bu tarihe ait veri bulunamadı', 'error');
-                return false;
-            }
-            
-            // Convert to CSV
-            const csvData = this.convertToCSV(dayData.data);
-            const displayDate = dayData.display_date || dateString;
-            const fileName = `ProClean_Rapor_${displayDate.replace(/\./g, '-')}.csv`;
-            
-            // Create and download file
-            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', fileName);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            showAlert(`${displayDate} tarihli rapor Excel olarak indirildi`, 'success');
-            return true;
-            
-        } catch (error) {
-            console.error('Export day to Excel error:', error);
-            showAlert('Rapor indirme hatası', 'error');
-            return false;
-        }
-    },
-
     // Upload data to Supabase storage
     uploadToSupabase: async function(data, dateString) {
-        if (!window.supabase || !navigator.onLine) {
+        if (!supabase || !navigator.onLine) {
             console.log('Skipping Supabase upload - offline or no client');
             return false;
         }
@@ -679,7 +430,7 @@ const ExcelStorage = {
             const fileName = `daily_export_${dateString}.csv`;
             
             // Upload to Supabase Storage
-            const { data: uploadData, error } = await window.supabase.storage
+            const { data: uploadData, error } = await supabase.storage
                 .from('daily-exports')
                 .upload(fileName, new Blob([csvData], { type: 'text/csv' }));
             
@@ -697,63 +448,43 @@ const ExcelStorage = {
         }
     },
     
-    // Convert data to CSV format with proper columns and Turkish headers
+    // Convert data to CSV format
     convertToCSV: function(data) {
         if (!data || data.length === 0) {
             return 'No data available';
         }
         
-        // Turkish headers with proper column order
-        const headers = ['Paket No', 'Müşteri Adı', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Oluşturulma Tarihi', 'İstasyon'];
+        const headers = ['Package No', 'Customer', 'Items', 'Total Quantity', 'Status', 'Packer', 'Created At', 'Workspace'];
         const csvRows = [headers.join(',')];
         
         data.forEach(item => {
             const row = [
                 `"${item.package_no || ''}"`,
-                `"${item.customer_name || item.customers?.name || 'Müşteri Yok'}"`,
-                `"${this.formatItemsForExcel(item.items)}"`,
+                `"${item.customer_name || ''}"`,
+                `"${this.formatItems(item.items)}"`,
                 item.total_quantity || 0,
-                `"${this.getStatusText(item.status)}"`,
+                `"${item.status || ''}"`,
                 `"${item.packer || ''}"`,
-                `"${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}"`,
-                `"${item.workspace_id || item.station_name || ''}"`
+                `"${item.created_at || ''}"`,
+                `"${item.workspace_id || ''}"`
             ];
             csvRows.push(row.join(','));
         });
         
         return csvRows.join('\n');
     },
-
-    // Enhanced items formatting for Excel
-    formatItemsForExcel: function(items) {
-        if (!items) return 'Ürün Yok';
+    
+    // Format items for CSV
+    formatItems: function(items) {
+        if (!items) return '';
         
-        try {
-            if (Array.isArray(items)) {
-                return items.map(item => 
-                    `${item.name || 'Ürün'}: ${item.qty || 0} adet`
-                ).join('; ');
-            } else if (typeof items === 'object') {
-                return Object.entries(items).map(([name, qty]) => 
-                    `${name}: ${qty} adet`
-                ).join('; ');
-            }
-            return String(items);
-        } catch (error) {
-            console.error('Error formatting items for Excel:', error);
-            return 'Ürün format hatası';
+        if (Array.isArray(items)) {
+            return items.map(item => `${item.name}:${item.qty}`).join('; ');
+        } else if (typeof items === 'object') {
+            return Object.entries(items).map(([name, qty]) => `${name}:${qty}`).join('; ');
         }
-    },
-
-    // Get Turkish status text
-    getStatusText: function(status) {
-        const statusMap = {
-            'beklemede': 'Beklemede',
-            'sevk-edildi': 'Sevk Edildi',
-            'shipped': 'Sevk Edildi',
-            'waiting': 'Beklemede'
-        };
-        return statusMap[status] || status || 'Beklemede';
+        
+        return String(items);
     },
     
     // Get all daily files
@@ -844,109 +575,35 @@ const ExcelJS = {
 // Merge ExcelStorage functionality into ExcelJS
 Object.assign(ExcelJS, ExcelStorage);
 
-// FIXED: Supabase istemcisini başlat - Using our simple client
+// FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
-    console.log('🔄 Starting Supabase initialization...');
+    // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
+    if (supabase && SUPABASE_ANON_KEY) {
+        return supabase;
+    }
     
-    // Global değişkenleri kontrol et
-    if (typeof SUPABASE_ANON_KEY === 'undefined' || !SUPABASE_ANON_KEY) {
-        console.warn('❌ Supabase API key not set');
-        window.isUsingExcel = true;
-        showAlert('Excel modu aktif: API anahtarı bulunamadı', 'warning');
+    if (!SUPABASE_ANON_KEY) {
+        console.warn('Supabase API key not set, showing modal');
+        showApiKeyModal();
+        isUsingExcel = true;
+        showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
         return null;
     }
     
-    // Eğer client zaten oluşturulmuşsa, mevcut olanı döndür
-    if (window.supabase && window.SUPABASE_ANON_KEY === SUPABASE_ANON_KEY) {
-        console.log('✅ Using existing Supabase client');
-        window.isUsingExcel = false;
-        return window.supabase;
-    }
-    
     try {
-        console.log('🔧 Creating Simple Supabase client...');
-        
-        // Use our simple Supabase client
-        window.supabase = new SimpleSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        console.log('✅ Simple Supabase client initialized successfully');
-        window.isUsingExcel = false;
-        
-        // Test the connection
-        testConnection();
-        
-        return window.supabase;
-        
+        // Global supabase değişkenine ata
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase client initialized successfully');
+        isUsingExcel = false;
+        return supabase;
     } catch (error) {
-        console.error('❌ Supabase initialization error:', error);
+        console.error('Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
-        window.isUsingExcel = true;
-        
-        // Show API key modal if we have a key but initialization failed
-        if (SUPABASE_ANON_KEY) {
-            showApiKeyModal();
-        }
-        
+        isUsingExcel = true;
+        showApiKeyModal();
         return null;
     }
 }
-
-// FIXED: Initialize Supabase on page load with better error handling
-async function initializeApp() {
-    console.log('🚀 Starting application initialization...');
-    
-    try {
-        // First try to load saved API key
-        const savedApiKey = localStorage.getItem('procleanApiKey');
-        if (savedApiKey) {
-            SUPABASE_ANON_KEY = savedApiKey;
-            console.log('🔑 Loaded API key from localStorage');
-        }
-        
-        // Initialize workspace manager first (this works offline)
-        console.log('🏢 Initializing workspace manager...');
-        await window.workspaceManager.initialize();
-        
-        // Initialize Excel storage (this works offline)
-        console.log('📊 Initializing Excel storage...');
-        await initializeExcelStorage();
-        
-        // Then try to initialize Supabase if we have an API key
-        if (SUPABASE_ANON_KEY) {
-            console.log('🔗 Attempting Supabase connection...');
-            const client = initializeSupabase();
-            
-            if (client) {
-                console.log('✅ Supabase mode activated');
-            } else {
-                console.log('📁 Excel mode activated (Supabase failed)');
-            }
-        } else {
-            // No API key, use Excel mode
-            console.log('📁 Excel mode activated (no API key)');
-            window.isUsingExcel = true;
-            showApiKeyModal();
-        }
-        
-        console.log('🎉 Application initialized successfully');
-        
-        // Update UI to reflect current mode
-        updateStorageIndicator();
-        
-    } catch (error) {
-        console.error('💥 App initialization error:', error);
-        showAlert('Uygulama başlatılırken hata oluştu. Excel modunda çalışıyorsunuz.', 'error');
-        // Fallback to Excel mode
-        window.isUsingExcel = true;
-        await initializeExcelStorage();
-    }
-}
-
-// Call this when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOM loaded, initializing app...');
-    initializeApp();
-});
 
 async function initializeExcelStorage() {
     try {
@@ -956,7 +613,7 @@ async function initializeExcelStorage() {
         const data = localStorage.getItem(storageKey);
         excelPackages = data ? JSON.parse(data) : [];
         
-        console.log(`📁 Excel packages loaded for workspace ${workspaceId}:`, excelPackages.length);
+        console.log(`Excel packages loaded for workspace ${workspaceId}:`, excelPackages.length);
         
         // Sync queue'yu yükle
         const savedQueue = localStorage.getItem('excelSyncQueue');
@@ -969,90 +626,200 @@ async function initializeExcelStorage() {
         return [];
     }
 }
+async function saveToExcel(packageData) {
+    try {
+        // Get current workspace
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        
+        // Mevcut paketleri workspace-specific storage'dan oku
+        const storageKey = `excelPackages_${workspaceId}`;
+        const currentData = localStorage.getItem(storageKey);
+        const currentPackages = currentData ? JSON.parse(currentData) : [];
+        
+        // Yeni paketi ekle veya güncelle
+        const existingIndex = currentPackages.findIndex(p => p.id === packageData.id);
+        if (existingIndex >= 0) {
+            currentPackages[existingIndex] = packageData;
+        } else {
+            currentPackages.push(packageData);
+        }
+        
+        // Workspace-specific storage'a kaydet
+        localStorage.setItem(storageKey, JSON.stringify(currentPackages));
+        
+        // Global excelPackages değişkenini güncelle
+        excelPackages = currentPackages;
+        
+        console.log(`Package saved to workspace ${workspaceId}:`, packageData.package_no);
+        return true;
+        
+    } catch (error) {
+        console.error('Save to Excel error:', error);
+        return false;
+    }
+}
+
+async function deleteFromExcel(packageId) {
+    try {
+        const currentPackages = await ExcelJS.readFile();
+        const filteredPackages = currentPackages.filter(p => p.id !== packageId);
+        
+        const excelData = ExcelJS.toExcelFormat(filteredPackages);
+        const success = await ExcelJS.writeFile(excelData);
+        
+        if (success) {
+            excelPackages = filteredPackages;
+            console.log('Package deleted from Excel');
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Delete from Excel error:', error);
+        return false;
+    }
+}
+
+// Sync functions
+async function syncExcelWithSupabase() {
+    if (!supabase || !navigator.onLine) {
+        console.log('Cannot sync: No Supabase client or offline');
+        return false;
+    }
+    
+    try {
+        const queue = [...excelSyncQueue];
+        if (queue.length === 0) {
+            console.log('No packages to sync');
+            return true;
+        }
+        
+        showAlert(`${queue.length} paket senkronize ediliyor...`, 'info');
+        
+        for (const operation of queue) {
+            try {
+                if (operation.type === 'add') {
+                    const { error } = await supabase
+                        .from('packages')
+                        .insert([operation.data]);
+                    
+                    if (error) throw error;
+                    
+                } else if (operation.type === 'update') {
+                    const { error } = await supabase
+                        .from('packages')
+                        .update(operation.data)
+                        .eq('id', operation.data.id);
+                    
+                    if (error) throw error;
+                    
+                } else if (operation.type === 'delete') {
+                    const { error } = await supabase
+                        .from('packages')
+                        .delete()
+                        .eq('id', operation.data.id);
+                    
+                    if (error) throw error;
+                }
+                
+                // Başarılı olanı kuyruktan kaldır
+                excelSyncQueue = excelSyncQueue.filter(op => 
+                    !(op.type === operation.type && op.data.id === operation.data.id)
+                );
+                
+            } catch (opError) {
+                console.error('Sync operation failed:', opError);
+                // Bu operasyonu bir sonrakine bırak
+            }
+        }
+        
+        // Kuyruğu kaydet
+        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+        
+        showAlert('Senkronizasyon tamamlandı', 'success');
+        return true;
+        
+    } catch (error) {
+        console.error('Sync error:', error);
+        showAlert('Senkronizasyon hatası', 'error');
+        return false;
+    }
+}
+
+function addToSyncQueue(operationType, data) {
+    excelSyncQueue.push({
+        type: operationType,
+        data: data,
+        timestamp: new Date().toISOString()
+    });
+    
+    localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+}
 
 // FIXED: API anahtarını kaydet ve istemciyi başlat
 function saveApiKey() {
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    if (!apiKeyInput) {
-        showAlert('API anahtarı girişi bulunamadı', 'error');
-        return;
-    }
-    
-    const apiKey = apiKeyInput.value.trim();
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
     if (!apiKey) {
         showAlert('Lütfen bir API anahtarı girin', 'error');
         return;
     }
     
-    try {
-        showAlert('API anahtarı kaydediliyor...', 'info');
+    // Eski client'ı temizle
+    supabase = null;
+    
+    // Yeni API key'i ayarla
+    SUPABASE_ANON_KEY = apiKey;
+    localStorage.setItem('procleanApiKey', apiKey);
+    
+    // Yeni client oluştur
+    const newClient = initializeSupabase();
+    
+    if (newClient) {
+        document.getElementById('apiKeyModal').style.display = 'none';
+        showAlert('API anahtarı kaydedildi', 'success');
+        testConnection();
         
-        // Eski client'ı temizle
-        supabase = null;
-        window.supabase = null;
-        
-        // Yeni API key'i ayarla
-        SUPABASE_ANON_KEY = apiKey;
-        localStorage.setItem('procleanApiKey', apiKey);
-        
-        console.log('🔑 API key saved, initializing Supabase...');
-        
-        // Yeni client oluştur
-        const newClient = initializeSupabase();
-        
-        if (newClient) {
-            document.getElementById('apiKeyModal').style.display = 'none';
-            showAlert('API anahtarı kaydedildi ve bağlantı kuruldu!', 'success');
-            
-            // Çevrimiçi olunca senkronize et
-            setTimeout(syncExcelWithSupabase, 2000);
-        } else {
-            showAlert('API anahtarı kaydedildi ancak bağlantı kurulamadı. Excel modunda çalışıyorsunuz.', 'warning');
-        }
-        
-    } catch (error) {
-        console.error('Error saving API key:', error);
-        showAlert('API anahtarı kaydedilirken hata oluştu', 'error');
+        // Çevrimiçi olunca senkronize et
+        setTimeout(syncExcelWithSupabase, 2000);
     }
 }
 
-let connectionAlertShown = false;
+        
+let connectionAlertShown = false; // Prevent duplicate success alert
 
 // FIXED: Supabase bağlantısını test et
 async function testConnection() {
-    if (!window.supabase) {
+    if (!supabase) {
         console.warn('Supabase client not initialized for connection test');
         if (!connectionAlertShown) {
-            showAlert('Supabase istemcisi başlatılmadı', 'error');
-            connectionAlertShown = true;
+            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+            connectionAlertShown = true; // mark as shown to avoid repeating
         }
         return false;
     }
     
     try {
-        console.log('🔍 Testing Supabase connection...');
-        const data = await window.supabase.from('customers').select('*').limit(1);
+        const { data, error } = await supabase.from('customers').select('*').limit(1);
+        if (error) throw error;
         
-        console.log('✅ Supabase connection test successful');
+        console.log('Supabase connection test successful:', data);
         
         if (!connectionAlertShown) {
             showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
-            connectionAlertShown = true;
+            connectionAlertShown = true; // ensure alert shows only once
         }
 
         return true;
-    } catch (error) {
-        console.error('❌ Supabase connection test failed:', error);
+    } catch (e) {
+        console.error('Supabase connection test failed:', e.message);
         if (!connectionAlertShown) {
-            showAlert('Veritabanına bağlanılamıyor. Excel modunda çalışıyorsunuz.', 'warning');
+            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
             connectionAlertShown = true;
         }
         return false;
     }
 }
 
-// Create global instances
-window.workspaceManager = new WorkspaceManager();
+
 
 
  // Çevrimdışı destek
@@ -2834,3 +2601,7 @@ async function sendToRamp(containerNo = null) {
         function filterShipping() {
             populateShippingTable();
         }
+
+
+
+window.workspaceManager = new WorkspaceManager();
