@@ -1,10 +1,19 @@
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+document.addEventListener('DOMContentLoaded', () => {
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        initializeSupabase();
+        console.log('API key loaded from localStorage');
+    }
+});
+
 // State management functions
 function saveAppState() {
     const state = {
         selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
         selectedPersonnelId: elements.personnelSelect.value,
         currentContainer: currentContainer,
-        isUsingExcel: isUsingExcel,
     };
     localStorage.setItem('procleanState', JSON.stringify(state));
 }
@@ -17,13 +26,14 @@ function loadAppState() {
         // Restore customer selection
         if (state.selectedCustomerId) {
             elements.customerSelect.value = state.selectedCustomerId;
-            
-            // *** CRITICAL FIX: Find the customer object safely using the global 'customers' array. ***
-            // DELETED FRAGILE CODE (parsing option text)
-            selectedCustomer = customers.find(c => c.id === state.selectedCustomerId) || null; 
-
-            if (!selectedCustomer) {
-                console.warn('Yüklenen müşteri ID bulunamadı:', state.selectedCustomerId);
+            // Find and set the selectedCustomer object
+            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+            if (option) {
+                selectedCustomer = {
+                    id: state.selectedCustomerId,
+                    name: option.textContent.split(' (')[0],
+                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
             }
         }
         
@@ -289,13 +299,7 @@ function switchTab(tabName) {
                     populateStockTable();
                     break;
                 case 'reports':
-                    // Use the new daily reports system
-                    if (typeof setupDailyReports === 'function') {
-                        setupDailyReports();
-                    } else {
-                        // Fallback to old system
-                        populateReportsTable();
-                    }
+                    populateReportsTable();
                     break;
             }
         }, 100);
@@ -462,60 +466,42 @@ function scheduleDailyClear() {
     }, msUntilMidnight);
 }
 
-// Main initialization - SAFE VERSION
+// Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
 
     try {
-        // 1. First initialize elements
-        if (typeof initializeElementsObject === 'function') {
-            initializeElementsObject();
-            console.log('✅ Elements initialized');
+        // Initialize workspace system FIRST
+        if (!window.workspaceManager) {
+            window.workspaceManager = new WorkspaceManager();
         }
+        await window.workspaceManager.initialize();
         
-        // 2. Initialize workspace system
-        if (typeof window.workspaceManager !== 'undefined') {
-            await window.workspaceManager.initialize();
-            console.log('✅ Workspace initialized');
-        }
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
+
+        // Then initialize elements
+        initializeElementsObject();
         
-        // 3. Setup event listeners
-        if (typeof setupEventListeners === 'function') {
-            setupEventListeners();
-            console.log('✅ Event listeners setup');
-        }
+        // Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+
+        // Now setup all other event listeners
+        setupEventListeners();
         
-        // 4. API key initialization
-        if (typeof initializeApiAndAuth === 'function') {
-            initializeApiAndAuth();
-            console.log('✅ API and auth initialized');
-        }
+        // API key initialization
+        initializeApiAndAuth();
 
-        // 5. Initialize settings
-        if (typeof initializeSettings === 'function') {
-            initializeSettings();
-            console.log('✅ Settings initialized');
-        }
+        // Initialize settings
+        initializeSettings();
 
-        // 6. Initialize daily file system (safe check)
-        if (typeof ExcelJS !== 'undefined' && typeof ExcelJS.cleanupOldFiles === 'function') {
-            ExcelJS.cleanupOldFiles();
-            console.log('✅ Daily file system initialized');
-        }
-
-        console.log('✅ ProClean fully initialized');
+        console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
 
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
-        // Safe alert
-        if (typeof showAlert === 'function') {
-            showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
-        } else {
-            alert('Uygulama başlatılırken hata oluştu: ' + error.message);
-        }
+        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 });
-
 
 // Separate function for event listeners
 function setupEventListeners() {
@@ -1032,7 +1018,7 @@ function debugWorkspace() {
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key.includes('excelPackages') || key.includes('workspace')) {
-            console.log('Excel Packages:', packagesToLog);
+            console.log(`- ${key}:`, localStorage.getItem(key));
         }
     }
     
