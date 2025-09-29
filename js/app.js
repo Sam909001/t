@@ -1,10 +1,18 @@
 // Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Load API Key
     const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
         SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
-        console.log('API key loaded from localStorage');
+        initializeSupabase(); // This sets the global 'supabase' client
+        console.log('API key loaded and client initialized.');
+    } else {
+        // Handle case where key is missing (e.g., show config modal)
+    }
+    
+    // 2. Start the main application only AFTER the client is ready
+    if (supabase) {
+        await initApp(); // Assuming initApp() contains all fetching logic
     }
 });
 
@@ -15,12 +23,13 @@ function saveAppState() {
         selectedPersonnelId: elements.personnelSelect.value,
         currentContainer: currentContainer,
         isUsingExcel: isUsingExcel,
-        currentPackage: currentPackage, // ADD THIS LINE - Save current package
-        currentPackageTimestamp: new Date().toISOString() // ADD THIS LINE - Track when saved
+        // REMOVE THESE TWO LINES to eliminate duplication:
+        // currentPackage: currentPackage, 
+        // currentPackageTimestamp: new Date().toISOString() 
     };
     localStorage.setItem('procleanState', JSON.stringify(state));
     
-    // Also save current package separately for reliability
+    // Keep this dedicated package save for recovery:
     localStorage.setItem('procleanCurrentPackage', JSON.stringify({
         items: currentPackage.items || {},
         customer: selectedCustomer,
