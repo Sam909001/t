@@ -67,15 +67,20 @@ function initializeElementsObject() {
     return elements;
 }
 
-// Profesyonel alert sistemi
-// 1. Prevent duplicate alerts with debouncing
-let alertQueue = new Set(); // Track active alerts
 
+
+// Profesyonel alert sistemi - WITH SAFE FALLBACK
 function showAlert(message, type = 'info', duration = 5000) {
-    // Prevent duplicate alerts
-    const alertKey = `${message}-${type}`;
-    if (alertQueue.has(alertKey)) {
-        return; // Already showing this alert
+    // Safe fallback if elements not initialized yet
+    if (!elements.alertContainer) {
+        console.log(`ALERT [${type}]: ${message}`);
+        // Try to find alert container dynamically
+        elements.alertContainer = document.getElementById('alertContainer');
+        if (!elements.alertContainer) {
+            // Last resort fallback
+            alert(`${type.toUpperCase()}: ${message}`);
+            return;
+        }
     }
     
     alertQueue.add(alertKey);
