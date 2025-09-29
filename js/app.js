@@ -358,19 +358,31 @@ function setupAuthListener() {
                 name: session.user.email.split('@')[0]
             };
             
-            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
-            document.getElementById('loginScreen').style.display = "none";
-            document.getElementById('appContainer').style.display = "flex";
+            // Safe element access
+            const userRoleElement = document.getElementById('userRole');
+            const loginScreen = document.getElementById('loginScreen');
+            const appContainer = document.getElementById('appContainer');
+            
+            if (userRoleElement) userRoleElement.textContent = `Operatör: ${currentUser.name}`;
+            if (loginScreen) loginScreen.style.display = "none";
+            if (appContainer) appContainer.style.display = "flex";
             
             initApp();
         } else {
-            document.getElementById('loginScreen').style.display = "flex";
-            document.getElementById('appContainer').style.display = "none";
+            const loginScreen = document.getElementById('loginScreen');
+            const appContainer = document.getElementById('appContainer');
+            
+            if (loginScreen) loginScreen.style.display = "flex";
+            if (appContainer) appContainer.style.display = "none";
         }
     });
 }
 
-// Load API key from localStorage
+
+
+
+
+// Add these function declarations if missing
 function loadApiKey() {
     const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
@@ -379,6 +391,8 @@ function loadApiKey() {
     }
     return false;
 }
+
+
 
 // API hata yönetimi
 function handleSupabaseError(error, context) {
@@ -629,16 +643,21 @@ function setupEventListeners() {
 
 function initializeApiAndAuth() {
     if (loadApiKey()) {
-        supabase = initializeSupabase();
-        if (supabase) {
-            setupAuthListener();
-            console.log('✅ Supabase client initialized');
+        // Make sure initializeSupabase is available
+        if (typeof initializeSupabase === 'function') {
+            supabase = initializeSupabase();
+            if (supabase) {
+                setupAuthListener();
+                console.log('✅ Supabase client initialized');
+            }
+        } else {
+            console.error('❌ initializeSupabase function not found');
+            showApiKeyModal();
         }
     } else {
         showApiKeyModal();
     }
 }
-
 
 
 
@@ -1059,10 +1078,11 @@ async function importExcelData(event) {
 
 
 // Temporary debug function - call this in console
+// Temporary debug function - call this in console
 function debugWorkspace() {
     console.log('=== WORKSPACE DEBUG INFO ===');
     console.log('Current Workspace:', window.workspaceManager?.currentWorkspace);
-    console.log('Excel Packages:', excelPackages);
+    console.log('Excel Packages:', window.excelPackages || excelPackages || 'Not defined');
     console.log('LocalStorage Keys:');
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -1073,13 +1093,10 @@ function debugWorkspace() {
     
     // Test workspace storage
     const workspaceId = window.workspaceManager?.currentWorkspace?.id;
-    const testData = localStorage.getItem(`excelPackages_${workspaceId}`);
-    console.log(`Workspace data for ${workspaceId}:`, testData ? JSON.parse(testData) : 'EMPTY');
+    if (workspaceId) {
+        const testData = localStorage.getItem(`excelPackages_${workspaceId}`);
+        console.log(`Workspace data for ${workspaceId}:`, testData ? JSON.parse(testData) : 'EMPTY');
+    }
 }
-
-// Call this after page loads
-setTimeout(debugWorkspace, 3000);
-
-
 
 
