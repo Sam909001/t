@@ -1663,7 +1663,6 @@ function initializeSettings() {
 
 
 
-// REPLACE the existing completePackage function with this:
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -1675,76 +1674,84 @@ async function completePackage() {
         return;
     }
 
-    // Check workspace permissions
-    if (!window.workspaceManager.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
     try {
-        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
+        const packageNo = `PKG-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
+        // Convert items object to array for better handling
+        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
+            name: name,
+            qty: qty
+        }));
+
+        // Generate proper ID
+        const packageId = generateUUID();
+
+        // Get current workspace
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+
         const packageData = {
-            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
-            items: currentPackage.items,
+            items: itemsArray,
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
-            station_name: window.workspaceManager.currentWorkspace.name
+            workspace_id: workspaceId, // Add workspace identifier
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
         };
 
-        // Save based on connectivity and workspace settings
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
+        // Save to Excel with workspace isolation
+        const excelSuccess = await saveToExcel(packageData);
+        
+        if (excelSuccess) {
+            showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager?.currentWorkspace?.name || 'Default'})`, 'success');
+            
+            // If online and Supabase available, try to sync
+            if (supabase && navigator.onLine) {
+                try {
+                    const supabaseData = {
+                        id: packageId,
+                        package_no: packageNo,
+                        customer_id: selectedCustomer.id,
+                        items: itemsArray,
+                        total_quantity: totalQuantity,
+                        status: 'beklemede',
+                        packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+                        created_at: new Date().toISOString(),
+                        workspace_id: workspaceId
+                    };
 
-                if (error) throw error;
+                    const { data, error } = await supabase
+                        .from('packages')
+                        .insert([supabaseData])
+                        .select();
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
+                    if (error) {
+                        console.warn('Supabase insert failed, queuing for sync:', error);
+                        addToSyncQueue('add', supabaseData);
+                    } else {
+                        showAlert(`Paket Supabase'e de kaydedildi`, 'success');
+                    }
+                } catch (supabaseError) {
+                    console.warn('Supabase error, queuing for sync:', supabaseError);
+                    addToSyncQueue('add', packageData);
+                }
+            } else {
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-                isUsingExcel = true;
             }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-            isUsingExcel = true;
         }
 
         // Reset and refresh
-   currentPackage = {};
-        
-        // CLEAR FROM LOCALSTORAGE TOO
-        const savedState = localStorage.getItem('procleanState');
-        if (savedState) {
-            const state = JSON.parse(savedState);
-            state.currentPackage = {};
-            localStorage.setItem('procleanState', JSON.stringify(state));
-        }
-        localStorage.removeItem('procleanCurrentPackage');
-        
-        // Reset UI
+        currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        
-        showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
         await populatePackagesTable();
+        updateStorageIndicator();
 
     } catch (error) {
         console.error('Error in completePackage:', error);
