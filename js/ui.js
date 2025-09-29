@@ -1742,39 +1742,50 @@ function clearStockSearch() {
 // Add this at the BOTTOM of ui.js (after all existing functions)
 
 function initializeWorkspaceUI() {
-    // Create workspace indicator if it doesn't exist
-    if (!document.getElementById('workspaceIndicator')) {
-        const header = document.querySelector('.app-header');
-        if (header) {
-            const indicator = document.createElement('div');
-            indicator.id = 'workspaceIndicator';
-            indicator.className = 'workspace-indicator';
-            indicator.style.cssText = `
-                padding: 0.5rem 1rem;
-                background: var(--primary);
-                color: white;
-                border-radius: 20px;
-                font-size: 0.9rem;
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                margin-left: auto;
-                margin-right: 1rem;
-            `;
-            
-            // Insert before settings button if exists
-            const settingsBtn = document.getElementById('settingsBtn');
-            if (settingsBtn) {
-                header.insertBefore(indicator, settingsBtn);
-            } else {
-                header.appendChild(indicator);
-            }
-        }
+    // Check if workspace indicator already exists
+    if (document.getElementById('workspaceIndicator')) {
+        return; // Already initialized
+    }
+
+    const header = document.querySelector('.app-header');
+    if (!header) {
+        console.warn('App header not found, delaying workspace UI initialization');
+        setTimeout(initializeWorkspaceUI, 1000);
+        return;
+    }
+
+    const indicator = document.createElement('div');
+    indicator.id = 'workspaceIndicator';
+    indicator.className = 'workspace-indicator';
+    indicator.style.cssText = `
+        padding: 0.5rem 1rem;
+        background: var(--primary);
+        color: white;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: auto;
+        margin-right: 1rem;
+    `;
+
+    // Safe insertion - find a reliable reference point
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn && settingsBtn.parentNode === header) {
+        header.insertBefore(indicator, settingsBtn);
+    } else {
+        // Fallback: append to header
+        header.appendChild(indicator);
     }
     
     // Add workspace switching capability
     addWorkspaceSwitchHandler();
 }
+
+
+
+
 
 function addWorkspaceSwitchHandler() {
     const indicator = document.getElementById('workspaceIndicator');
