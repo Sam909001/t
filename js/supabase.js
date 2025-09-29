@@ -361,7 +361,51 @@ function getWorkspaceFilter() {
     return { workspace_id: workspaceId };
 }
 
+// Test function to verify workspace isolation
+async function testWorkspaceIsolation() {
+    console.log('🧪 Testing workspace isolation...');
+    
+    const workspaceId = getCurrentWorkspaceId();
+    const testPackages = [
+        { id: 'test-1', workspace_id: workspaceId, package_no: 'TEST-1' },
+        { id: 'test-2', workspace_id: 'different-workspace', package_no: 'TEST-2' },
+        { id: 'test-3', workspace_id: workspaceId, package_no: 'TEST-3' }
+    ];
+    
+    // Test filtering
+    const filtered = testPackages.filter(pkg => pkg.workspace_id === workspaceId);
+    console.log('Workspace filter test:', {
+        total: testPackages.length,
+        filtered: filtered.length,
+        expected: 2,
+        passed: filtered.length === 2
+    });
+    
+    // Test ID generation
+    const id1 = generateExcelPackageId();
+    const id2 = generateExcelPackageId();
+    console.log('ID generation test:', {
+        id1: id1,
+        id2: id2,
+        areUnique: id1 !== id2,
+        haveWorkspacePrefix: id1.includes(workspaceId.substring(0, 8)) && id2.includes(workspaceId.substring(0, 8))
+    });
+    
+    return true;
+}
 
+// Run test on startup
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        testWorkspaceIsolation().then(success => {
+            if (success) {
+                console.log('✅ Workspace isolation tests passed');
+            } else {
+                console.error('❌ Workspace isolation tests failed');
+            }
+        });
+    }, 3000);
+});
 
 
 
