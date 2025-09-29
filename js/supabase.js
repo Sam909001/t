@@ -816,15 +816,150 @@ async function syncExcelWithSupabase() {
     }
 }
 
+// Enhanced sync queue with deduplication
 function addToSyncQueue(operationType, data) {
+    // Create operation fingerprint for deduplication
+    const operationFingerprint = `${operationType}-${data.id}`;
+    
+    // Check for duplicates
+    const isDuplicate = excelSyncQueue.some(op => 
+        `${op.type}-${op.data.id}` === operationFingerprint
+    );
+    
+    if (isDuplicate) {
+        console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
+        return;
+    }
+    
+    // Remove any older operations for the same data ID
+    excelSyncQueue = excelSyncQueue.filter(op => 
+        !(op.data.id === data.id && op.type !== operationType)
+    );
+    
+    // Add new operation
     excelSyncQueue.push({
         type: operationType,
         data: data,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        fingerprint: operationFingerprint,
+        workspace_id: getCurrentWorkspaceId() // Track workspace for safety
     });
     
+    // Limit queue size to prevent memory issues
+    if (excelSyncQueue.length > 1000) {
+        console.warn('Sync queue too large, removing oldest operations');
+        excelSyncQueue = excelSyncQueue.slice(-500); // Keep last 500 operations
+    }
+    
     localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+    console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
 }
+
+// Enhanced sync function with better error handling
+async function syncExcelWithSupabase() {
+    if (!supabase || !navigator.onLine) {
+        console.log('Cannot sync: No Supabase client or offline');
+        return false;
+    }
+    
+    if (excelSyncQueue.length === 0) {
+        console.log('No packages to sync');
+        return true;
+    }
+    
+    const currentWorkspaceId = getCurrentWorkspaceId();
+    
+    try {
+        // Filter operations for current workspace only
+        const workspaceOperations = excelSyncQueue.filter(op => 
+            op.workspace_id === currentWorkspaceId
+        );
+        
+        if (workspaceOperations.length === 0) {
+            console.log('No sync operations for current workspace');
+            return true;
+        }
+        
+        showAlert(`${workspaceOperations.length} paket senkronize ediliyor...`, 'info');
+        
+        const successfulOperations = [];
+        const failedOperations = [];
+        
+        for (const operation of workspaceOperations) {
+            try {
+                console.log(`🔄 Syncing ${operation.type} for ${operation.data.id}`);
+                
+                let result;
+                
+                switch (operation.type) {
+                    case 'add':
+                        result = await supabase
+                            .from('packages')
+                            .insert([operation.data]);
+                        break;
+                        
+                    case 'update':
+                        result = await supabase
+                            .from('packages')
+                            .update(operation.data)
+                            .eq('id', operation.data.id);
+                        break;
+                        
+                    case 'delete':
+                        result = await supabase
+                            .from('packages')
+                            .delete()
+                            .eq('id', operation.data.id);
+                        break;
+                        
+                    default:
+                        console.warn('Unknown operation type:', operation.type);
+                        continue;
+                }
+                
+                if (result.error) {
+                    throw result.error;
+                }
+                
+                successfulOperations.push(operation.fingerprint);
+                console.log(`✅ Sync successful: ${operation.type} for ${operation.data.id}`);
+                
+            } catch (opError) {
+                console.error(`❌ Sync failed for ${operation.type} ${operation.data.id}:`, opError);
+                failedOperations.push(operation);
+                
+                // If it's a connection error, stop trying and wait for next sync
+                if (opError.message?.includes('network') || opError.message?.includes('fetch')) {
+                    console.log('Network error detected, stopping sync');
+                    break;
+                }
+            }
+        }
+        
+        // Remove successful operations from queue
+        excelSyncQueue = excelSyncQueue.filter(op => 
+            !successfulOperations.includes(op.fingerprint)
+        );
+        
+        // Update localStorage
+        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+        
+        if (failedOperations.length > 0) {
+            console.warn(`${failedOperations.length} operations failed and will be retried`);
+            showAlert(`${successfulOperations.length} işlem başarılı, ${failedOperations.length} işlem başarısız`, 'warning');
+        } else {
+            showAlert(`Tüm senkronizasyon işlemleri tamamlandı (${successfulOperations.length} işlem)`, 'success');
+        }
+        
+        return failedOperations.length === 0;
+        
+    } catch (error) {
+        console.error('❌ Sync process error:', error);
+        showAlert('Senkronizasyon sürecinde hata oluştu', 'error');
+        return false;
+    }
+}
+
 
 
 // FIXED: API anahtarını kaydet ve istemciyi başlat
@@ -2586,77 +2721,70 @@ async function completePackage() {
         return;
     }
 
+    // Check workspace permissions
+    if (!window.workspaceManager.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
     try {
-        const packageNo = `PKG-${Date.now()}`;
+        const workspaceId = getCurrentWorkspaceId();
+        const workspaceName = getCurrentWorkspaceName();
+        
+        const packageNo = `PKG-${workspaceId}-${Date.now()}`; // Include workspace in ID
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
-        // Convert items object to array for better handling
-        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
-            name: name,
-            qty: qty
-        }));
-
-        // Generate proper ID
-        const packageId = generateUUID();
-
-        // Get current workspace
-        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-
+        // Enhanced package data with workspace info
         const packageData = {
-            id: packageId,
+            id: `pkg-${workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Workspace-prefixed ID
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
-            items: itemsArray,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name}: ${qty} adet`
+            ).join(', '),
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: workspaceId, // Add workspace identifier
-            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
+            workspace_id: workspaceId, // STRICT workspace assignment
+            station_name: workspaceName,
+            daily_file: ExcelStorage.getTodayDateString()
         };
 
-        // Save to Excel with workspace isolation
-        const excelSuccess = await saveToExcel(packageData);
-        
-        if (excelSuccess) {
-            showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager?.currentWorkspace?.name || 'Default'})`, 'success');
-            
-            // If online and Supabase available, try to sync
-            if (supabase && navigator.onLine) {
-                try {
-                    const supabaseData = {
-                        id: packageId,
-                        package_no: packageNo,
-                        customer_id: selectedCustomer.id,
-                        items: itemsArray,
-                        total_quantity: totalQuantity,
-                        status: 'beklemede',
-                        packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-                        created_at: new Date().toISOString(),
-                        workspace_id: workspaceId
-                    };
+        // Save based on connectivity and workspace settings
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
 
-                    const { data, error } = await supabase
-                        .from('packages')
-                        .insert([supabaseData])
-                        .select();
+                if (error) throw error;
 
-                    if (error) {
-                        console.warn('Supabase insert failed, queuing for sync:', error);
-                        addToSyncQueue('add', supabaseData);
-                    } else {
-                        showAlert(`Paket Supabase'e de kaydedildi`, 'success');
-                    }
-                } catch (supabaseError) {
-                    console.warn('Supabase error, queuing for sync:', supabaseError);
-                    addToSyncQueue('add', packageData);
-                }
-            } else {
+                showAlert(`Paket oluşturuldu: ${packageNo} (${workspaceName})`, 'success');
+                await saveToExcel(packageData);
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${workspaceName})`, 'warning');
+                isUsingExcel = true;
             }
+        } else {
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${workspaceName})`, 'warning');
+            isUsingExcel = true;
         }
 
         // Reset and refresh
@@ -2667,10 +2795,9 @@ async function completePackage() {
 
     } catch (error) {
         console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+        showAlert('Paket oluşturma hatası', 'error');
     }
 }
-
 
 
 
