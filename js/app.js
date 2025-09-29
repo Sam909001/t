@@ -299,7 +299,13 @@ function switchTab(tabName) {
                     populateStockTable();
                     break;
                 case 'reports':
-                    populateReportsTable();
+                    // Use the new daily reports system
+                    if (typeof setupDailyReports === 'function') {
+                        setupDailyReports();
+                    } else {
+                        // Fallback to old system
+                        populateReportsTable();
+                    }
                     break;
             }
         }, 100);
@@ -466,42 +472,60 @@ function scheduleDailyClear() {
     }, msUntilMidnight);
 }
 
-// Main initialization
+// Main initialization - SAFE VERSION
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
 
     try {
-        // Initialize workspace system FIRST
-        if (!window.workspaceManager) {
-            window.workspaceManager = new WorkspaceManager();
+        // 1. First initialize elements
+        if (typeof initializeElementsObject === 'function') {
+            initializeElementsObject();
+            console.log('✅ Elements initialized');
         }
-        await window.workspaceManager.initialize();
         
-        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-
-        // Then initialize elements
-        initializeElementsObject();
+        // 2. Initialize workspace system
+        if (typeof window.workspaceManager !== 'undefined') {
+            await window.workspaceManager.initialize();
+            console.log('✅ Workspace initialized');
+        }
         
-        // Initialize workspace-aware UI
-        initializeWorkspaceUI();
-        setupWorkspaceAwareUI();
-
-        // Now setup all other event listeners
-        setupEventListeners();
+        // 3. Setup event listeners
+        if (typeof setupEventListeners === 'function') {
+            setupEventListeners();
+            console.log('✅ Event listeners setup');
+        }
         
-        // API key initialization
-        initializeApiAndAuth();
+        // 4. API key initialization
+        if (typeof initializeApiAndAuth === 'function') {
+            initializeApiAndAuth();
+            console.log('✅ API and auth initialized');
+        }
 
-        // Initialize settings
-        initializeSettings();
+        // 5. Initialize settings
+        if (typeof initializeSettings === 'function') {
+            initializeSettings();
+            console.log('✅ Settings initialized');
+        }
 
-        console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
+        // 6. Initialize daily file system (safe check)
+        if (typeof ExcelJS !== 'undefined' && typeof ExcelJS.cleanupOldFiles === 'function') {
+            ExcelJS.cleanupOldFiles();
+            console.log('✅ Daily file system initialized');
+        }
+
+        console.log('✅ ProClean fully initialized');
 
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        // Safe alert
+        if (typeof showAlert === 'function') {
+            showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        } else {
+            alert('Uygulama başlatılırken hata oluştu: ' + error.message);
+        }
     }
 });
+
 
 // Separate function for event listeners
 function setupEventListeners() {
