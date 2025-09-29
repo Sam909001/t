@@ -328,54 +328,6 @@ function generateUUID() {
 // Elementleri bir defa tanımla
 const elements = {};
 
-// Excel.js library (simple implementation)
-const ExcelJS = {
-    readFile: async function() {
-        try {
-            const data = localStorage.getItem('excelPackages');
-            return data ? JSON.parse(data) : [];
-        } catch (error) {
-            console.error('Excel read error:', error);
-            return [];
-        }
-    },
-    
-    writeFile: async function(data) {
-        try {
-            localStorage.setItem('excelPackages', JSON.stringify(data));
-            return true;
-        } catch (error) {
-            console.error('Excel write error:', error);
-            return false;
-        }
-    },
-    
-    // Simple XLSX format simulation
-    toExcelFormat: function(packages) {
-        return packages.map(pkg => ({
-            id: pkg.id || `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            package_no: pkg.package_no,
-            customer_id: pkg.customer_id,
-            customer_name: pkg.customer_name,
-            items: pkg.items,
-            total_quantity: pkg.total_quantity,
-            status: pkg.status,
-            packer: pkg.packer,
-            created_at: pkg.created_at,
-            updated_at: pkg.updated_at || new Date().toISOString(),
-            source: 'excel'
-        }));
-    },
-    
-    fromExcelFormat: function(excelData) {
-        return excelData.map(row => ({
-            ...row,
-            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items
-        }));
-    }
-};
-
-
 // Enhanced Excel Storage with Daily Files
 const ExcelStorage = {
     // Get today's date string for file naming
@@ -563,6 +515,56 @@ const ExcelStorage = {
         showAlert(`${dateString} tarihli veriler dışa aktarıldı`, 'success');
     }
 };
+
+// Excel.js library (simple implementation) - Enhanced with ExcelStorage functionality
+const ExcelJS = {
+    readFile: async function() {
+        try {
+            const data = localStorage.getItem('excelPackages');
+            return data ? JSON.parse(data) : [];
+        } catch (error) {
+            console.error('Excel read error:', error);
+            return [];
+        }
+    },
+    
+    writeFile: async function(data) {
+        try {
+            localStorage.setItem('excelPackages', JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error('Excel write error:', error);
+            return false;
+        }
+    },
+    
+    // Simple XLSX format simulation
+    toExcelFormat: function(packages) {
+        return packages.map(pkg => ({
+            id: pkg.id || `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            package_no: pkg.package_no,
+            customer_id: pkg.customer_id,
+            customer_name: pkg.customer_name,
+            items: pkg.items,
+            total_quantity: pkg.total_quantity,
+            status: pkg.status,
+            packer: pkg.packer,
+            created_at: pkg.created_at,
+            updated_at: pkg.updated_at || new Date().toISOString(),
+            source: 'excel'
+        }));
+    },
+    
+    fromExcelFormat: function(excelData) {
+        return excelData.map(row => ({
+            ...row,
+            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items
+        }));
+    }
+};
+
+// Merge ExcelStorage functionality into ExcelJS
+Object.assign(ExcelJS, ExcelStorage);
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
