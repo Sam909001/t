@@ -8,12 +8,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+// DELETED: Old document.addEventListener('DOMContentLoaded') block
+// This is now handled by initializeAppCore
+
 // State management functions
 function saveAppState() {
     const state = {
         selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
         selectedPersonnelId: elements.personnelSelect.value,
         currentContainer: currentContainer,
+        isUsingExcel: isUsingExcel,
     };
     localStorage.setItem('procleanState', JSON.stringify(state));
 }
@@ -26,14 +31,13 @@ function loadAppState() {
         // Restore customer selection
         if (state.selectedCustomerId) {
             elements.customerSelect.value = state.selectedCustomerId;
-            // Find and set the selectedCustomer object
-            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
-            if (option) {
-                selectedCustomer = {
-                    id: state.selectedCustomerId,
-                    name: option.textContent.split(' (')[0],
-                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                };
+            
+            // *** CRITICAL FIX: Find the customer object safely using the global 'customers' array. ***
+            // DELETED FRAGILE CODE (parsing option text)
+            selectedCustomer = customers.find(c => c.id === state.selectedCustomerId) || null; 
+
+            if (!selectedCustomer) {
+                console.warn('Yüklenen müşteri ID bulunamadı:', state.selectedCustomerId);
             }
         }
         
