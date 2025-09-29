@@ -299,7 +299,7 @@ function switchTab(tabName) {
                     populateStockTable();
                     break;
                 case 'reports':
-                    populateReportsTable();
+                    setupDailyReports(); // Changed from populateReportsTable
                     break;
             }
         }, 100);
@@ -452,19 +452,44 @@ async function loadTodaysData() {
     }
 }
 
-// Schedule daily clear at next midnight
+// Enhanced daily clear with file management
 function scheduleDailyClear() {
     const now = new Date();
-    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5); // 5 sec buffer
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
     const msUntilMidnight = nextMidnight - now;
 
     console.log(`[Daily Clear] Next clear in ${Math.round(msUntilMidnight / 1000)} seconds`);
 
     setTimeout(() => {
+        // Save today's data before clearing
+        saveTodaysData();
+        // Clean up old files (keep only 7 days)
+        ExcelJS.cleanupOldFiles();
+        // Clear frontend state
         clearDailyAppState();
-        scheduleDailyClear();  // reschedule for next day
+        // Schedule next clear
+        scheduleDailyClear();
     }, msUntilMidnight);
 }
+
+// Save today's data before clearing
+function saveTodaysData() {
+    try {
+        const todayFile = ExcelJS.getCurrentFileName();
+        const currentData = ExcelJS.getTodaysFile();
+        
+        if (currentData.length > 0) {
+            console.log(`[Daily Clear] Saving ${currentData.length} packages from today`);
+            // Data is already saved in the daily file, just ensure cleanup
+            ExcelJS.cleanupOldFiles();
+        }
+    } catch (error) {
+        console.error('Error saving today\'s data:', error);
+    }
+}
+
+
+
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
@@ -666,6 +691,9 @@ function loadAppState() {
 // Initialize application
 async function initApp() {
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+
+     // Initialize daily file system
+    ExcelJS.cleanupOldFiles(); // Clean up old files on app start
     
     // Storage indicator'ı güncelle
     updateStorageIndicator();
@@ -1030,3 +1058,7 @@ function debugWorkspace() {
 
 // Call this after page loads
 setTimeout(debugWorkspace, 3000);
+
+
+
+
