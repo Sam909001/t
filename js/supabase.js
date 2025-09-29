@@ -317,6 +317,55 @@ async loadWorkspaceData() {
 
 
 
+// ==================== WORKSPACE UTILITIES ====================
+// Safe workspace ID getter
+function getCurrentWorkspaceId() {
+    try {
+        return window.workspaceManager?.currentWorkspace?.id || 'default';
+    } catch (error) {
+        console.error('Error getting workspace ID:', error);
+        return 'default';
+    }
+}
+
+// Safe workspace name getter
+function getCurrentWorkspaceName() {
+    try {
+        return window.workspaceManager?.currentWorkspace?.name || 'Default';
+    } catch (error) {
+        console.error('Error getting workspace name:', error);
+        return 'Default';
+    }
+}
+
+// Workspace validation for data operations
+function validateWorkspaceAccess(packageData) {
+    const currentWorkspaceId = getCurrentWorkspaceId();
+    
+    // If package has a workspace_id, ensure it matches current workspace
+    if (packageData.workspace_id && packageData.workspace_id !== currentWorkspaceId) {
+        console.warn('Workspace access violation:', {
+            packageWorkspace: packageData.workspace_id,
+            currentWorkspace: currentWorkspaceId,
+            packageId: packageData.id
+        });
+        return false;
+    }
+    
+    return true;
+}
+
+// Workspace filter for Supabase queries
+function getWorkspaceFilter() {
+    const workspaceId = getCurrentWorkspaceId();
+    return { workspace_id: workspaceId };
+}
+
+
+
+
+
+
 // Generate proper UUID v4 for Excel packages
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -1034,34 +1083,54 @@ async function populatePackagesTable() {
         tableBody.innerHTML = '';
         if (totalPackagesElement) totalPackagesElement.textContent = '0';
 
-        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const workspaceId = getCurrentWorkspaceId();
         let packages = [];
 
-        // Get workspace-specific packages
+        console.log(`📦 Loading packages for workspace: ${workspaceId}`);
+
+        // Get data based on current mode
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use Excel data filtered by workspace
-            packages = excelPackages.filter(pkg => 
-                pkg.workspace_id === workspaceId &&
-                pkg.status === 'beklemede' && 
-                (!pkg.container_id || pkg.container_id === null)
-            );
-            console.log('Using Excel data for workspace:', workspaceId, packages.length, 'packages');
+            // Use Excel data filtered by workspace with additional safety
+            packages = excelPackages.filter(pkg => {
+                const isValidWorkspace = pkg.workspace_id === workspaceId;
+                const isWaiting = pkg.status === 'beklemede';
+                const hasNoContainer = !pkg.container_id || pkg.container_id === null;
+                
+                if (!isValidWorkspace) {
+                    console.warn('Filtered out package from different workspace:', {
+                        packageId: pkg.id,
+                        packageWorkspace: pkg.workspace_id,
+                        currentWorkspace: workspaceId
+                    });
+                }
+                
+                return isValidWorkspace && isWaiting && hasNoContainer;
+            });
+            console.log(`✅ Using Excel data: ${packages.length} packages for workspace: ${workspaceId}`);
         } else {
             // Try to use Supabase data with workspace filter
             try {
+                const workspaceFilter = getWorkspaceFilter();
+                
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', workspaceId)
+                    .eq('workspace_id', workspaceId) // STRICT WORKSPACE FILTER
                     .order('created_at', { ascending: false });
 
-                if (error) throw error;
+                if (error) {
+                    console.error('Supabase workspace query error:', error);
+                    throw error;
+                }
+                
                 packages = supabasePackages || [];
-                console.log('Using Supabase data for workspace:', workspaceId, packages.length, 'packages');
+                console.log(`✅ Using Supabase data: ${packages.length} packages for workspace: ${workspaceId}`);
+                
             } catch (error) {
                 console.warn('Supabase fetch failed, using Excel data:', error);
+                // Fallback to Excel with workspace filtering
                 packages = excelPackages.filter(pkg => 
                     pkg.workspace_id === workspaceId &&
                     pkg.status === 'beklemede' && 
@@ -1071,19 +1140,25 @@ async function populatePackagesTable() {
             }
         }
 
-        // Rest of the function remains the same...
+        // Rest of the function remains the same but with additional safety...
         if (!packages || packages.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = `<td colspan="8" style="text-align:center; color:#666;">
-                Henüz paket yok (${window.workspaceManager?.currentWorkspace?.name || 'Bu İstasyon'})
+                Henüz paket yok (${getCurrentWorkspaceName()})
             </td>`;
             tableBody.appendChild(row);
             if (totalPackagesElement) totalPackagesElement.textContent = '0';
             return;
         }
 
-        // Render table rows
+        // Render table rows with workspace validation
         packages.forEach(pkg => {
+            // Validate workspace access for each package
+            if (!validateWorkspaceAccess(pkg)) {
+                console.warn('Skipping package from different workspace:', pkg.id);
+                return; // Skip this package
+            }
+            
             const row = document.createElement('tr');
             
             // Determine storage source
@@ -1137,19 +1212,18 @@ async function populatePackagesTable() {
         });
 
         if (totalPackagesElement) totalPackagesElement.textContent = packages.length.toString();
-        console.log(`✅ Package table populated with ${packages.length} packages`);
+        console.log(`✅ Package table populated with ${packages.length} packages for workspace: ${workspaceId}`);
 
         // Update storage indicator
         updateStorageIndicator();
 
     } catch (error) {
-        console.error('Error in populatePackagesTable:', error);
+        console.error('❌ Error in populatePackagesTable:', error);
         showAlert('Paket tablosu yükleme hatası: ' + error.message, 'error');
     } finally {
         packagesTableLoading = false;
     }
 }
-
 
 
 
