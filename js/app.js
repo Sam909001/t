@@ -1,4 +1,4 @@
-// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+/// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
 document.addEventListener('DOMContentLoaded', () => {
     const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
