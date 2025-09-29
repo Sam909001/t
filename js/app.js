@@ -823,7 +823,6 @@ const packageData = {
     // Add daily file tracking
     daily_file: ExcelStorage.getTodayDateString() // ADD THIS LINE
 };
-
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
