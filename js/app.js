@@ -713,21 +713,25 @@ async function loadPackagesData() {
     }
     
     try {
-        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const workspaceId = getCurrentWorkspaceId();
         
         // Load from workspace-specific Excel
         const excelData = await ExcelJS.readFile();
         const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
         
-        // Filter by workspace
-        const workspacePackages = excelPackagesList.filter(pkg => 
-            pkg.workspace_id === workspaceId
-        );
+        // STRICT workspace filtering
+        const workspacePackages = excelPackagesList.filter(pkg => {
+            const isValid = pkg.workspace_id === workspaceId;
+            if (!isValid) {
+                console.warn('Filtered package from different workspace during load:', pkg.id);
+            }
+            return isValid;
+        });
         
-        console.log(`Loaded from ${window.workspaceManager?.currentWorkspace?.name || 'Default'} Excel:`, workspacePackages.length, 'packages');
+        console.log(`Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
         window.packages = workspacePackages;
         
-        // Load from Supabase with workspace filtering
+        // Load from Supabase with STRICT workspace filtering
         if (supabase && navigator.onLine) {
             try {
                 const { data: supabasePackages, error } = await supabase
@@ -735,7 +739,7 @@ async function loadPackagesData() {
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', workspaceId)
+                    .eq('workspace_id', workspaceId) // STRICT FILTER
                     .order('created_at', { ascending: false });
                 
                 if (!error && supabasePackages && supabasePackages.length > 0) {
@@ -761,6 +765,7 @@ async function loadPackagesData() {
         showAlert('Paket verileri yüklenirken hata oluştu', 'error');
     }
 }
+
 
 
 
