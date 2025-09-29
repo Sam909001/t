@@ -1171,6 +1171,7 @@ function checkSystemStatus() {
     }
 }
 
+// Main export function
 async function exportData(format) {
     if (!format) {
         showAlert('⚠️ Format belirtilmedi!', 'error');
@@ -1205,6 +1206,63 @@ async function exportData(format) {
         console.error('Export error:', error);
         showAlert(`❌ Dışa aktarma hatası: ${error.message}`, 'error');
     }
+}
+
+// ---------------- JSON Export ----------------
+async function exportToJSON(data, filename) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showAlert(`✅ JSON dosyası indirildi: ${filename}.json`, 'success');
+}
+
+// ---------------- Excel Export (enhanced) ----------------
+async function exportToExcel(data, filename) {
+    const workbook = XLSX.utils.book_new();
+
+    // Add Customers sheet
+    if (data.customers && data.customers.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(data.customers);
+        XLSX.utils.book_append_sheet(workbook, ws, "Customers");
+    }
+
+    // Add Packages sheet
+    if (data.packages && data.packages.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(data.packages);
+        XLSX.utils.book_append_sheet(workbook, ws, "Packages");
+    }
+
+    // Add Statuses sheet
+    if (data.status && data.status.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(data.status);
+        XLSX.utils.book_append_sheet(workbook, ws, "Status");
+    }
+
+    // Add visible table snapshot (optional)
+    const table = document.getElementById("customersTable");
+    if (table) {
+        const rows = [];
+        table.querySelectorAll("tr").forEach(tr => {
+            const row = [];
+            tr.querySelectorAll("th, td").forEach(td => row.push(td.innerText.trim()));
+            rows.push(row);
+        });
+        if (rows.length > 0) {
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(workbook, ws, "VisibleTable");
+        }
+    }
+
+    // Save the file
+    XLSX.writeFile(workbook, `${filename}.xlsx`);
+    showAlert(`✅ Excel dosyası indirildi: ${filename}.xlsx`, 'success');
 }
 
 // Collect all data from the application
