@@ -14,8 +14,18 @@ function saveAppState() {
         selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
         selectedPersonnelId: elements.personnelSelect.value,
         currentContainer: currentContainer,
+        isUsingExcel: isUsingExcel,
+        currentPackage: currentPackage, // ADD THIS LINE - Save current package
+        currentPackageTimestamp: new Date().toISOString() // ADD THIS LINE - Track when saved
     };
     localStorage.setItem('procleanState', JSON.stringify(state));
+    
+    // Also save current package separately for reliability
+    localStorage.setItem('procleanCurrentPackage', JSON.stringify({
+        items: currentPackage.items || {},
+        customer: selectedCustomer,
+        timestamp: new Date().toISOString()
+    }));
 }
 
 function loadAppState() {
