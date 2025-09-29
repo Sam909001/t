@@ -794,7 +794,6 @@ function mergePackages(excelPackages, supabasePackages) {
     return merged;
 }
 
-// REPLACE the existing completePackage function with this:
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -813,36 +812,37 @@ async function completePackage() {
     }
 
     try {
+        // GENERATE THE ID ONCE HERE
+        const packageId = `pkg-${window.workspaceManager.currentWorkspace.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
-       // In the completePackage function, ENHANCE the packageData object:
-const packageData = {
-    id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    package_no: packageNo,
-    customer_id: selectedCustomer.id,
-    customer_name: selectedCustomer.name,
-    customer_code: selectedCustomer.code, // ADD THIS LINE
-    items: currentPackage.items,
-    // Add formatted items for display
-    items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
-        name: name,
-        qty: qty
-    })),
-    items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-        `${name}: ${qty} adet`
-    ).join(', '),
-    total_quantity: totalQuantity,
-    status: 'beklemede',
-    packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    workspace_id: window.workspaceManager.currentWorkspace.id,
-    station_name: window.workspaceManager.currentWorkspace.name,
-    // Add daily file tracking
-    daily_file: ExcelStorage.getTodayDateString() // ADD THIS LINE
-};
+        // Enhanced package data with workspace info - USE THE SAME ID
+        const packageData = {
+            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name}: ${qty} adet`
+            ).join(', '),
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            workspace_id: window.workspaceManager.currentWorkspace.id,
+            station_name: window.workspaceManager.currentWorkspace.name,
+            daily_file: ExcelStorage.getTodayDateString()
+        };
+
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
@@ -854,19 +854,19 @@ const packageData = {
                 if (error) throw error;
 
                 showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData);
+                await saveToExcel(packageData); // SAME packageData with SAME ID
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
+                await saveToExcel(packageData); // SAME packageData with SAME ID
+                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
                 showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            await saveToExcel(packageData); // SAME packageData with SAME ID
+            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+            showAlert(`Paket Excel'e kaydedildi: ${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
 
