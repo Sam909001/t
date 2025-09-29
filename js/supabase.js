@@ -199,15 +199,24 @@ class WorkspaceManager {
     }
     
     // Load workspace-specific data
-    async loadWorkspaceData() {
-        try {
-            excelPackages = await ExcelJS.readFile();
-            console.log(`📦 Workspace data loaded: ${excelPackages.length} packages`);
-        } catch (error) {
-            console.error('❌ Error loading workspace data:', error);
-            excelPackages = [];
-        }
+  // Load workspace-specific data
+async loadWorkspaceData() {
+    try {
+        const workspaceId = this.currentWorkspace?.id || 'default';
+        const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+        const packages = data ? JSON.parse(data) : [];
+        
+        // Make sure excelPackages global variable is updated
+        excelPackages = packages;
+        
+        console.log(`📦 Workspace data loaded: ${excelPackages.length} packages for workspace: ${workspaceId}`);
+        return packages;
+    } catch (error) {
+        console.error('❌ Error loading workspace data:', error);
+        excelPackages = [];
+        return [];
     }
+}
   
     
     // Restore original Excel functions
@@ -596,11 +605,15 @@ function initializeSupabase() {
     }
 }
 
-// Excel local storage functions
 async function initializeExcelStorage() {
     try {
-        excelPackages = await ExcelJS.readFile();
-        console.log('Excel packages loaded:', excelPackages.length);
+        // Load from current workspace
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const storageKey = `excelPackages_${workspaceId}`;
+        const data = localStorage.getItem(storageKey);
+        excelPackages = data ? JSON.parse(data) : [];
+        
+        console.log(`Excel packages loaded for workspace ${workspaceId}:`, excelPackages.length);
         
         // Sync queue'yu yükle
         const savedQueue = localStorage.getItem('excelSyncQueue');
@@ -613,11 +626,15 @@ async function initializeExcelStorage() {
         return [];
     }
 }
-
 async function saveToExcel(packageData) {
     try {
-        // Mevcut paketleri oku
-        const currentPackages = await ExcelJS.readFile();
+        // Get current workspace
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        
+        // Mevcut paketleri workspace-specific storage'dan oku
+        const storageKey = `excelPackages_${workspaceId}`;
+        const currentData = localStorage.getItem(storageKey);
+        const currentPackages = currentData ? JSON.parse(currentData) : [];
         
         // Yeni paketi ekle veya güncelle
         const existingIndex = currentPackages.findIndex(p => p.id === packageData.id);
@@ -627,16 +644,15 @@ async function saveToExcel(packageData) {
             currentPackages.push(packageData);
         }
         
-        // Excel formatına çevir ve kaydet
-        const excelData = ExcelJS.toExcelFormat(currentPackages);
-        const success = await ExcelJS.writeFile(excelData);
+        // Workspace-specific storage'a kaydet
+        localStorage.setItem(storageKey, JSON.stringify(currentPackages));
         
-        if (success) {
-            excelPackages = currentPackages;
-            console.log('Package saved to Excel');
-            return true;
-        }
-        return false;
+        // Global excelPackages değişkenini güncelle
+        excelPackages = currentPackages;
+        
+        console.log(`Package saved to workspace ${workspaceId}:`, packageData.package_no);
+        return true;
+        
     } catch (error) {
         console.error('Save to Excel error:', error);
         return false;
