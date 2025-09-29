@@ -1475,40 +1475,42 @@ async function exportToJSON(data, filename) {
     }
 }
 
-// Export to Excel function
-async function exportToExcel(data, filename) {
-    if (typeof XLSX === 'undefined') {
-        throw new Error('XLSX kütüphanesi bulunamadı! Lütfen SheetJS kütüphanesini yükleyin.');
+function exportToExcel(allData, filename) {
+    const wb = XLSX.utils.book_new();
+
+    // --- Packages Sheet ---
+    if (allData.packages && allData.packages.length > 0) {
+        const packageSheetData = allData.packages.map(pkg => ({
+            "Paket No": pkg.package_no,
+            "Müşteri": pkg.customer_name,
+            "Ürün Adı": pkg.product || '',      // 👈 FIXED here
+            "Miktar": pkg.total_quantity,
+            "Durum": pkg.status,
+            "Konteyner ID": pkg.container_id,
+            "Oluşturulma": pkg.created_at,
+            "Paketleyen": pkg.packer,
+            "Barkod": pkg.barcode
+        }));
+        const wsPackages = XLSX.utils.json_to_sheet(packageSheetData);
+        XLSX.utils.book_append_sheet(wb, wsPackages, "Packages");
     }
 
-    try {
-        const wb = XLSX.utils.book_new();
-        
-        // Create worksheets for each data type
-        const sheets = [
-            { name: 'Paketler', data: data.packages },
-            { name: 'Konteynerler', data: data.containers },
-            { name: 'Stok', data: data.stock },
-            { name: 'Müşteriler', data: data.customers },
-            { name: 'Personel', data: data.personnel },
-            { name: 'Raporlar', data: data.reports },
-            { name: 'Kullanıcılar', data: data.users },
-            { name: 'Ayarlar', data: [data.settings] },
-            { name: 'Oturum', data: [data.currentSession] },
-            { name: 'UI_Durum', data: [data.uiState] },
-            { name: 'Metadata', data: [data.metadata] }
-        ];
+    // --- Stock Sheet ---
+    if (allData.stock && allData.stock.length > 0) {
+        const stockSheetData = allData.stock.map(item => ({
+            "Kod": item.code,
+            "Ürün Adı": item.name || '',        // 👈 Stock uses .name
+            "Miktar": item.quantity,
+            "Birim": item.unit,
+            "Kategori": item.category,
+            "Kritik Seviye": item.critical_level
+        }));
+        const wsStock = XLSX.utils.json_to_sheet(stockSheetData);
+        XLSX.utils.book_append_sheet(wb, wsStock, "Stock");
+    }
 
-        // Add each sheet to workbook
-        sheets.forEach(sheet => {
-            if (sheet.data && sheet.data.length > 0) {
-                const ws = XLSX.utils.json_to_sheet(sheet.data);
-                XLSX.utils.book_append_sheet(wb, ws, sheet.name);
-            }
-        });
-
-        // Export to Excel file
-        XLSX.writeFile(wb, `${filename}.xlsx`);
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+}
         
         showAlert(`✅ Tüm veriler Excel formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt, ${sheets.filter(s => s.data.length > 0).length} sayfa)`, 'success');
 
