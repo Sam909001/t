@@ -518,12 +518,11 @@ const ExcelStorage = {
             showAlert('Rapor indirme hatası', 'error');
             return false;
         }
-    }
-};
-    
+    },
+
     // Upload data to Supabase storage
     uploadToSupabase: async function(data, dateString) {
-        if (!supabase || !navigator.onLine) {
+        if (!window.supabase || !navigator.onLine) {
             console.log('Skipping Supabase upload - offline or no client');
             return false;
         }
@@ -534,7 +533,7 @@ const ExcelStorage = {
             const fileName = `daily_export_${dateString}.csv`;
             
             // Upload to Supabase Storage
-            const { data: uploadData, error } = await supabase.storage
+            const { data: uploadData, error } = await window.supabase.storage
                 .from('daily-exports')
                 .upload(fileName, new Blob([csvData], { type: 'text/csv' }));
             
@@ -552,64 +551,64 @@ const ExcelStorage = {
         }
     },
     
-  // Convert data to CSV format with proper columns and Turkish headers
-convertToCSV: function(data) {
-    if (!data || data.length === 0) {
-        return 'No data available';
-    }
-    
-    // Turkish headers with proper column order
-    const headers = ['Paket No', 'Müşteri Adı', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Oluşturulma Tarihi', 'İstasyon'];
-    const csvRows = [headers.join(',')];
-    
-    data.forEach(item => {
-        const row = [
-            `"${item.package_no || ''}"`,
-            `"${item.customer_name || item.customers?.name || 'Müşteri Yok'}"`,
-            `"${this.formatItemsForExcel(item.items)}"`,
-            item.total_quantity || 0,
-            `"${this.getStatusText(item.status)}"`,
-            `"${item.packer || ''}"`,
-            `"${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}"`,
-            `"${item.workspace_id || item.station_name || ''}"`
-        ];
-        csvRows.push(row.join(','));
-    });
-    
-    return csvRows.join('\n');
-},
-
-// Enhanced items formatting for Excel
-formatItemsForExcel: function(items) {
-    if (!items) return 'Ürün Yok';
-    
-    try {
-        if (Array.isArray(items)) {
-            return items.map(item => 
-                `${item.name || 'Ürün'}: ${item.qty || 0} adet`
-            ).join('; ');
-        } else if (typeof items === 'object') {
-            return Object.entries(items).map(([name, qty]) => 
-                `${name}: ${qty} adet`
-            ).join('; ');
+    // Convert data to CSV format with proper columns and Turkish headers
+    convertToCSV: function(data) {
+        if (!data || data.length === 0) {
+            return 'No data available';
         }
-        return String(items);
-    } catch (error) {
-        console.error('Error formatting items for Excel:', error);
-        return 'Ürün format hatası';
-    }
-},
+        
+        // Turkish headers with proper column order
+        const headers = ['Paket No', 'Müşteri Adı', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Oluşturulma Tarihi', 'İstasyon'];
+        const csvRows = [headers.join(',')];
+        
+        data.forEach(item => {
+            const row = [
+                `"${item.package_no || ''}"`,
+                `"${item.customer_name || item.customers?.name || 'Müşteri Yok'}"`,
+                `"${this.formatItemsForExcel(item.items)}"`,
+                item.total_quantity || 0,
+                `"${this.getStatusText(item.status)}"`,
+                `"${item.packer || ''}"`,
+                `"${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}"`,
+                `"${item.workspace_id || item.station_name || ''}"`
+            ];
+            csvRows.push(row.join(','));
+        });
+        
+        return csvRows.join('\n');
+    },
 
-// Get Turkish status text
-getStatusText: function(status) {
-    const statusMap = {
-        'beklemede': 'Beklemede',
-        'sevk-edildi': 'Sevk Edildi',
-        'shipped': 'Sevk Edildi',
-        'waiting': 'Beklemede'
-    };
-    return statusMap[status] || status || 'Beklemede';
-},
+    // Enhanced items formatting for Excel
+    formatItemsForExcel: function(items) {
+        if (!items) return 'Ürün Yok';
+        
+        try {
+            if (Array.isArray(items)) {
+                return items.map(item => 
+                    `${item.name || 'Ürün'}: ${item.qty || 0} adet`
+                ).join('; ');
+            } else if (typeof items === 'object') {
+                return Object.entries(items).map(([name, qty]) => 
+                    `${name}: ${qty} adet`
+                ).join('; ');
+            }
+            return String(items);
+        } catch (error) {
+            console.error('Error formatting items for Excel:', error);
+            return 'Ürün format hatası';
+        }
+    },
+
+    // Get Turkish status text
+    getStatusText: function(status) {
+        const statusMap = {
+            'beklemede': 'Beklemede',
+            'sevk-edildi': 'Sevk Edildi',
+            'shipped': 'Sevk Edildi',
+            'waiting': 'Beklemede'
+        };
+        return statusMap[status] || status || 'Beklemede';
+    },
     
     // Get all daily files
     getAllFiles: function() {
@@ -701,29 +700,32 @@ Object.assign(ExcelJS, ExcelStorage);
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
-    // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
-    if (supabase && SUPABASE_ANON_KEY) {
-        return supabase;
-    }
-    
-    if (!SUPABASE_ANON_KEY) {
+    // Global değişkenleri kontrol et
+    if (typeof SUPABASE_ANON_KEY === 'undefined' || !SUPABASE_ANON_KEY) {
         console.warn('Supabase API key not set, showing modal');
         showApiKeyModal();
-        isUsingExcel = true;
+        window.isUsingExcel = true;
         showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
         return null;
     }
     
+    // Eğer client zaten oluşturulmuşsa, mevcut olanı döndür
+    if (window.supabase && window.SUPABASE_ANON_KEY) {
+        console.log('Using existing Supabase client');
+        window.isUsingExcel = false;
+        return window.supabase;
+    }
+    
     try {
         // Global supabase değişkenine ata
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized successfully');
-        isUsingExcel = false;
-        return supabase;
+        window.isUsingExcel = false;
+        return window.supabase;
     } catch (error) {
         console.error('Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
-        isUsingExcel = true;
+        window.isUsingExcel = true;
         showApiKeyModal();
         return null;
     }
