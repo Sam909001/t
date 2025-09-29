@@ -698,35 +698,42 @@ const ExcelJS = {
 // Merge ExcelStorage functionality into ExcelJS
 Object.assign(ExcelJS, ExcelStorage);
 
-// FIXED: Supabase istemcisini başlat - Singleton pattern ile
+// FIXED: Supabase initialization
 function initializeSupabase() {
-    // Global değişkenleri kontrol et
-    if (typeof SUPABASE_ANON_KEY === 'undefined' || !SUPABASE_ANON_KEY) {
-        console.warn('Supabase API key not set, showing modal');
-        showApiKeyModal();
+    // Check if Supabase library is loaded
+    if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
+        console.error('Supabase library not loaded! Make sure you include the Supabase CDN script in your HTML.');
+        showAlert('Supabase kütüphanesi yüklenmedi. Excel modu aktif.', 'warning');
         window.isUsingExcel = true;
-        showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
         return null;
     }
     
-    // Eğer client zaten oluşturulmuşsa, mevcut olanı döndür
-    if (window.supabase && window.SUPABASE_ANON_KEY) {
+    // Check API key
+    if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.length < 20) {
+        console.warn('Supabase API key not set');
+        showApiKeyModal();
+        window.isUsingExcel = true;
+        return null;
+    }
+    
+    // If client already exists, return it
+    if (supabase) {
         console.log('Using existing Supabase client');
         window.isUsingExcel = false;
-        return window.supabase;
+        return supabase;
     }
     
     try {
-        // Global supabase değişkenine ata
-        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized successfully');
+        // Create new client
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabase = supabase; // Make it globally available
+        console.log('✅ Supabase client initialized');
         window.isUsingExcel = false;
-        return window.supabase;
+        return supabase;
     } catch (error) {
         console.error('Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
         window.isUsingExcel = true;
-        showApiKeyModal();
         return null;
     }
 }
