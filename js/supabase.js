@@ -24,7 +24,7 @@ let connectionAlertShown = false;
 let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
-let currentPackage = JSON.parse(localStorage.getItem('procleanCurrentPackage') || '{}');
+
 
 // Add this RIGHT AFTER the existing global variables (around line 25)
 // ==================== WORKSPACE MANAGEMENT ====================
@@ -2155,6 +2155,7 @@ function debouncedPopulateStockTable() {
 
 
 
+// REPLACE the existing completePackage function with this:
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -2188,11 +2189,9 @@ async function completePackage() {
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id,
+            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
             station_name: window.workspaceManager.currentWorkspace.name
         };
-
-        let saveSuccess = false;
 
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
@@ -2203,48 +2202,48 @@ async function completePackage() {
                     .select();
 
                 if (error) throw error;
-                
-                saveSuccess = true;
+
                 showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                
-                // Also save to Excel as backup
                 await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                saveSuccess = await saveToExcel(packageData);
-                if (saveSuccess) {
-                    addToSyncQueue('add', packageData);
-                    showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-                    isUsingExcel = true;
-                }
-            }
-        } else {
-            saveSuccess = await saveToExcel(packageData);
-            if (saveSuccess) {
+                await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
                 showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
+        } else {
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            isUsingExcel = true;
         }
 
-        if (saveSuccess) {
-            // ONLY clear after successful save
-            clearPackageState();
-            
-            // Reset UI
-            document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-            
-            await populatePackagesTable();
-        } else {
-            showAlert('Paket kaydedilemedi. Lütfen tekrar deneyin.', 'error');
+        // Reset and refresh
+   currentPackage = {};
+        
+        // CLEAR FROM LOCALSTORAGE TOO
+        const savedState = localStorage.getItem('procleanState');
+        if (savedState) {
+            const state = JSON.parse(savedState);
+            state.currentPackage = {};
+            localStorage.setItem('procleanState', JSON.stringify(state));
         }
+        localStorage.removeItem('procleanCurrentPackage');
+        
+        // Reset UI
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        
+        showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+        await populatePackagesTable();
 
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
+
 
 
 
@@ -2804,4 +2803,3 @@ saveStockItem = wrapWithAuditLogging(originalSaveStockItem, 'stock_update');
 
 const originalSaveApiKey = saveApiKey;
 saveApiKey = wrapWithAuditLogging(originalSaveApiKey, 'api_key_change');
-
