@@ -70,7 +70,6 @@ function clearAppState() {
 }
 
 // Initialize application
-// REPLACE the existing initApp function with this:
 async function initApp() {
     // Initialize workspace system first
     await window.workspaceManager.initialize();
@@ -109,6 +108,18 @@ async function initApp() {
     
     // Set up offline support
     setupOfflineSupport();
+
+
+    // Initialize enhanced sync system
+    enhanceSyncQueue();
+    setupEnhancedSyncTriggers();
+    
+    // Auto-sync on startup if online
+    if (navigator.onLine && supabase) {
+        setTimeout(async () => {
+            await syncExcelWithSupabase();
+        }, 5000); // Wait 5 seconds for app to fully load
+    }
     
     // Set up barcode scanner listener
     setupBarcodeScanner();
