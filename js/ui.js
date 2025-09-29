@@ -526,71 +526,6 @@ function closeExtraModal() {
 }
 
 
-
-
-function loadAllSettings() {
-    try {
-        const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        
-        // Theme
-        if (document.getElementById('themeToggle')) {
-            document.getElementById('themeToggle').checked = savedSettings.theme === 'dark';
-            toggleTheme(); // Apply the theme
-        }
-        
-        // Printer settings
-        if (savedSettings.printerScaling) {
-            document.getElementById('printerScaling').value = savedSettings.printerScaling;
-        }
-        if (savedSettings.copies) {
-            document.getElementById('copiesNumber').value = savedSettings.copies;
-        }
-        if (savedSettings.fontName) {
-            document.getElementById('fontName').value = savedSettings.fontName;
-        }
-        if (savedSettings.fontSize) {
-            document.getElementById('fontSize').value = savedSettings.fontSize;
-        }
-        if (savedSettings.orientation) {
-            document.getElementById('orientation').value = savedSettings.orientation;
-        }
-        if (savedSettings.marginTop) {
-            document.getElementById('marginTop').value = savedSettings.marginTop;
-        }
-        if (savedSettings.marginBottom) {
-            document.getElementById('marginBottom').value = savedSettings.marginBottom;
-        }
-        if (savedSettings.labelHeader) {
-            document.getElementById('labelHeader').value = savedSettings.labelHeader;
-        }
-        
-        // General settings
-        if (savedSettings.language) {
-            document.getElementById('languageSelect').value = savedSettings.language;
-        }
-        if (document.getElementById('autoSaveToggle')) {
-            document.getElementById('autoSaveToggle').checked = savedSettings.autoSave !== false;
-        }
-        
-        // Debug settings
-        if (document.getElementById('debugModeToggle')) {
-            document.getElementById('debugModeToggle').checked = savedSettings.debugMode || false;
-        }
-        
-        // Update last saved date display
-        document.getElementById('lastUpdateDate').textContent = new Date().toLocaleString('tr-TR');
-        
-        console.log('Settings loaded successfully');
-        return true;
-        
-    } catch (error) {
-        ErrorHandler.handle(error, 'Ayarları yükleme');
-        return false;
-    }
-}
-
-
-
 // Settings functions
 function showSettingsModal() {
     loadSettings(); // Load current settings
@@ -1659,110 +1594,6 @@ function initializeSettings() {
     }
 }
 
-
-
-
-
-async function completePackage() {
-    if (!selectedCustomer) {
-        showAlert('Önce müşteri seçin', 'error');
-        return;
-    }
-
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
-    try {
-        const packageNo = `PKG-${Date.now()}`;
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect.value;
-
-        // Convert items object to array for better handling
-        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
-            name: name,
-            qty: qty
-        }));
-
-        // Generate proper ID
-        const packageId = generateUUID();
-
-        // Get current workspace
-        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-
-        const packageData = {
-            id: packageId,
-            package_no: packageNo,
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name,
-            items: itemsArray,
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            workspace_id: workspaceId, // Add workspace identifier
-            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
-        };
-
-        // Save to Excel with workspace isolation
-        const excelSuccess = await saveToExcel(packageData);
-        
-        if (excelSuccess) {
-            showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager?.currentWorkspace?.name || 'Default'})`, 'success');
-            
-            // If online and Supabase available, try to sync
-            if (supabase && navigator.onLine) {
-                try {
-                    const supabaseData = {
-                        id: packageId,
-                        package_no: packageNo,
-                        customer_id: selectedCustomer.id,
-                        items: itemsArray,
-                        total_quantity: totalQuantity,
-                        status: 'beklemede',
-                        packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-                        created_at: new Date().toISOString(),
-                        workspace_id: workspaceId
-                    };
-
-                    const { data, error } = await supabase
-                        .from('packages')
-                        .insert([supabaseData])
-                        .select();
-
-                    if (error) {
-                        console.warn('Supabase insert failed, queuing for sync:', error);
-                        addToSyncQueue('add', supabaseData);
-                    } else {
-                        showAlert(`Paket Supabase'e de kaydedildi`, 'success');
-                    }
-                } catch (supabaseError) {
-                    console.warn('Supabase error, queuing for sync:', supabaseError);
-                    addToSyncQueue('add', packageData);
-                }
-            } else {
-                addToSyncQueue('add', packageData);
-            }
-        }
-
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
-
-    } catch (error) {
-        console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
-    }
-}
-
-
-
-
-
 function selectPackage(pkg) {
     try {
         // Validate input
@@ -1909,33 +1740,12 @@ function clearStockSearch() {
 
 // ==================== WORKSPACE UI FUNCTIONS ====================
 // Add this at the BOTTOM of ui.js (after all existing functions)
-// Enhanced workspace UI initialization
+
 function initializeWorkspaceUI() {
-    const MAX_RETRIES = 5;
-    const RETRY_DELAY = 500;
-    let retries = 0;
-
-    function attemptInitialization() {
-        // Check if workspace indicator already exists
-        if (document.getElementById('workspaceIndicator')) {
-            console.log('Workspace UI already initialized');
-            return true;
-        }
-
+    // Create workspace indicator if it doesn't exist
+    if (!document.getElementById('workspaceIndicator')) {
         const header = document.querySelector('.app-header');
-        if (!header) {
-            retries++;
-            if (retries < MAX_RETRIES) {
-                console.log(`Workspace UI: Header not found, retrying in ${RETRY_DELAY}ms (${retries}/${MAX_RETRIES})`);
-                setTimeout(attemptInitialization, RETRY_DELAY);
-                return false;
-            } else {
-                console.error('Workspace UI: Failed to find app header after maximum retries');
-                return false;
-            }
-        }
-
-        try {
+        if (header) {
             const indicator = document.createElement('div');
             indicator.id = 'workspaceIndicator';
             indicator.className = 'workspace-indicator';
@@ -1950,44 +1760,21 @@ function initializeWorkspaceUI() {
                 gap: 0.5rem;
                 margin-left: auto;
                 margin-right: 1rem;
-                cursor: pointer;
             `;
-            indicator.title = 'İstasyonu değiştirmek için tıklayın';
-            indicator.onclick = () => window.workspaceManager?.showWorkspaceSelection?.();
-
-            // Safe insertion
+            
+            // Insert before settings button if exists
             const settingsBtn = document.getElementById('settingsBtn');
-            if (settingsBtn && settingsBtn.parentNode === header) {
+            if (settingsBtn) {
                 header.insertBefore(indicator, settingsBtn);
             } else {
                 header.appendChild(indicator);
             }
-
-            console.log('Workspace UI initialized successfully');
-            updateWorkspaceIndicator();
-            return true;
-        } catch (error) {
-            console.error('Workspace UI initialization error:', error);
-            return false;
         }
     }
-
-    return attemptInitialization();
+    
+    // Add workspace switching capability
+    addWorkspaceSwitchHandler();
 }
-
-// Update workspace indicator with current workspace
-function updateWorkspaceIndicator() {
-    const indicator = document.getElementById('workspaceIndicator');
-    if (!indicator || !window.workspaceManager?.currentWorkspace) return;
-
-    indicator.innerHTML = `
-        <i class="fas fa-desktop"></i> 
-        ${window.workspaceManager.currentWorkspace.name}
-        <span class="workspace-type">${window.workspaceManager.getWorkspaceTypeLabel()}</span>
-    `;
-}
-
-
 
 function addWorkspaceSwitchHandler() {
     const indicator = document.getElementById('workspaceIndicator');
