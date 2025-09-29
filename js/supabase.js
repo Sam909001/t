@@ -449,30 +449,55 @@ const ExcelStorage = {
     },
     
     // Convert data to CSV format
-    convertToCSV: function(data) {
-        if (!data || data.length === 0) {
-            return 'No data available';
+  // Enhanced CSV conversion with proper columns and widths
+convertToCSV: function(data) {
+    if (!data || data.length === 0) {
+        return 'No data available';
+    }
+    
+    // Define proper headers with Turkish names
+    const headers = [
+        'Paket No',
+        'Müşteri Adı', 
+        'Ürün Türü',
+        'Toplam Adet',
+        'Durum',
+        'Paketleyen',
+        'Oluşturulma Tarihi',
+        'İstasyon'
+    ];
+    
+    const csvRows = [headers.join(',')];
+    
+    data.forEach(item) => {
+        // Extract customer name safely
+        const customerName = item.customer_name || item.customers?.name || 'Müşteri Yok';
+        
+        // Extract product type from items
+        let productType = 'Ürün Yok';
+        if (item.items && Array.isArray(item.items) && item.items.length > 0) {
+            productType = item.items.map(it => it.name).join('; ');
+        } else if (item.items && typeof item.items === 'object') {
+            productType = Object.keys(item.items).join('; ');
+        } else if (item.product) {
+            productType = item.product;
         }
         
-        const headers = ['Package No', 'Customer', 'Items', 'Total Quantity', 'Status', 'Packer', 'Created At', 'Workspace'];
-        const csvRows = [headers.join(',')];
-        
-        data.forEach(item => {
-            const row = [
-                `"${item.package_no || ''}"`,
-                `"${item.customer_name || ''}"`,
-                `"${this.formatItems(item.items)}"`,
-                item.total_quantity || 0,
-                `"${item.status || ''}"`,
-                `"${item.packer || ''}"`,
-                `"${item.created_at || ''}"`,
-                `"${item.workspace_id || ''}"`
-            ];
-            csvRows.push(row.join(','));
-        });
-        
-        return csvRows.join('\n');
-    },
+        const row = [
+            `"${item.package_no || ''}"`,
+            `"${customerName}"`,
+            `"${productType}"`,
+            item.total_quantity || 0,
+            `"${item.status || 'beklemede'}"`,
+            `"${item.packer || ''}"`,
+            `"${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}"`,
+            `"${item.station_name || item.workspace_id || ''}"`
+        ];
+        csvRows.push(row.join(','));
+    });
+    
+    return csvRows.join('\n');
+},
     
     // Format items for CSV
     formatItems: function(items) {
