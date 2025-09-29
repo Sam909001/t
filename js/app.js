@@ -299,7 +299,7 @@ function switchTab(tabName) {
                     populateStockTable();
                     break;
                 case 'reports':
-                    setupDailyReports(); // Changed from populateReportsTable
+                    populateReportsTable();
                     break;
             }
         }, 100);
@@ -358,31 +358,19 @@ function setupAuthListener() {
                 name: session.user.email.split('@')[0]
             };
             
-            // Safe element access
-            const userRoleElement = document.getElementById('userRole');
-            const loginScreen = document.getElementById('loginScreen');
-            const appContainer = document.getElementById('appContainer');
-            
-            if (userRoleElement) userRoleElement.textContent = `Operatör: ${currentUser.name}`;
-            if (loginScreen) loginScreen.style.display = "none";
-            if (appContainer) appContainer.style.display = "flex";
+            document.getElementById('userRole').textContent = `Operatör: ${currentUser.name}`;
+            document.getElementById('loginScreen').style.display = "none";
+            document.getElementById('appContainer').style.display = "flex";
             
             initApp();
         } else {
-            const loginScreen = document.getElementById('loginScreen');
-            const appContainer = document.getElementById('appContainer');
-            
-            if (loginScreen) loginScreen.style.display = "flex";
-            if (appContainer) appContainer.style.display = "none";
+            document.getElementById('loginScreen').style.display = "flex";
+            document.getElementById('appContainer').style.display = "none";
         }
     });
 }
 
-
-
-
-
-// Add these function declarations if missing
+// Load API key from localStorage
 function loadApiKey() {
     const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
@@ -391,8 +379,6 @@ function loadApiKey() {
     }
     return false;
 }
-
-
 
 // API hata yönetimi
 function handleSupabaseError(error, context) {
@@ -466,102 +452,56 @@ async function loadTodaysData() {
     }
 }
 
-// Enhanced daily clear with file management
+// Schedule daily clear at next midnight
 function scheduleDailyClear() {
     const now = new Date();
-    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5); // 5 sec buffer
     const msUntilMidnight = nextMidnight - now;
 
     console.log(`[Daily Clear] Next clear in ${Math.round(msUntilMidnight / 1000)} seconds`);
 
     setTimeout(() => {
-        // Save today's data before clearing
-        saveTodaysData();
-        // Clean up old files (keep only 7 days)
-        ExcelJS.cleanupOldFiles();
-        // Clear frontend state
         clearDailyAppState();
-        // Schedule next clear
-        scheduleDailyClear();
+        scheduleDailyClear();  // reschedule for next day
     }, msUntilMidnight);
 }
 
-// Save today's data before clearing
-function saveTodaysData() {
-    try {
-        const todayFile = ExcelJS.getCurrentFileName();
-        const currentData = ExcelJS.getTodaysFile();
-        
-        if (currentData.length > 0) {
-            console.log(`[Daily Clear] Saving ${currentData.length} packages from today`);
-            // Data is already saved in the daily file, just ensure cleanup
-            ExcelJS.cleanupOldFiles();
-        }
-    } catch (error) {
-        console.error('Error saving today\'s data:', error);
-    }
-}
-
-
-
-
-
-// Main initialization - FIXED VERSION
+// Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
 
     try {
-        // 1. First initialize elements
-        initializeElementsObject();
-        console.log('✅ Elements initialized');
-        
-        // 2. Check if workspaceManager exists, if not create it
+        // Initialize workspace system FIRST
         if (!window.workspaceManager) {
-            console.log('🔄 Creating WorkspaceManager...');
             window.workspaceManager = new WorkspaceManager();
         }
-        
-        // 3. Initialize workspace system
         await window.workspaceManager.initialize();
+        
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
 
-        // 4. Initialize workspace-aware UI
+        // Then initialize elements
+        initializeElementsObject();
+        
+        // Initialize workspace-aware UI
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
-        console.log('✅ Workspace UI initialized');
 
-        // 5. Now setup all other event listeners
+        // Now setup all other event listeners
         setupEventListeners();
-        console.log('✅ Event listeners setup');
         
-        // 6. API key initialization
+        // API key initialization
         initializeApiAndAuth();
-        console.log('✅ API and auth initialized');
 
-        // 7. Initialize settings
+        // Initialize settings
         initializeSettings();
-        console.log('✅ Settings initialized');
-
-        // 8. Initialize daily file system
-        if (typeof ExcelJS !== 'undefined' && ExcelJS.cleanupOldFiles) {
-            ExcelJS.cleanupOldFiles();
-            console.log('✅ Daily file system initialized');
-        }
 
         console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
 
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
-        // Use safe alert method
-        if (typeof showAlert === 'function') {
-            showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
-        } else {
-            alert('Uygulama başlatılırken hata oluştu: ' + error.message);
-        }
+        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 });
-
-
 
 // Separate function for event listeners
 function setupEventListeners() {
@@ -643,21 +583,16 @@ function setupEventListeners() {
 
 function initializeApiAndAuth() {
     if (loadApiKey()) {
-        // Make sure initializeSupabase is available
-        if (typeof initializeSupabase === 'function') {
-            supabase = initializeSupabase();
-            if (supabase) {
-                setupAuthListener();
-                console.log('✅ Supabase client initialized');
-            }
-        } else {
-            console.error('❌ initializeSupabase function not found');
-            showApiKeyModal();
+        supabase = initializeSupabase();
+        if (supabase) {
+            setupAuthListener();
+            console.log('✅ Supabase client initialized');
         }
     } else {
         showApiKeyModal();
     }
 }
+
 
 
 
@@ -731,9 +666,6 @@ function loadAppState() {
 // Initialize application
 async function initApp() {
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-
-     // Initialize daily file system
-    ExcelJS.cleanupOldFiles(); // Clean up old files on app start
     
     // Storage indicator'ı güncelle
     updateStorageIndicator();
@@ -1078,11 +1010,10 @@ async function importExcelData(event) {
 
 
 // Temporary debug function - call this in console
-// Temporary debug function - call this in console
 function debugWorkspace() {
     console.log('=== WORKSPACE DEBUG INFO ===');
     console.log('Current Workspace:', window.workspaceManager?.currentWorkspace);
-    console.log('Excel Packages:', window.excelPackages || excelPackages || 'Not defined');
+    console.log('Excel Packages:', excelPackages);
     console.log('LocalStorage Keys:');
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -1093,10 +1024,9 @@ function debugWorkspace() {
     
     // Test workspace storage
     const workspaceId = window.workspaceManager?.currentWorkspace?.id;
-    if (workspaceId) {
-        const testData = localStorage.getItem(`excelPackages_${workspaceId}`);
-        console.log(`Workspace data for ${workspaceId}:`, testData ? JSON.parse(testData) : 'EMPTY');
-    }
+    const testData = localStorage.getItem(`excelPackages_${workspaceId}`);
+    console.log(`Workspace data for ${workspaceId}:`, testData ? JSON.parse(testData) : 'EMPTY');
 }
 
-
+// Call this after page loads
+setTimeout(debugWorkspace, 3000);
