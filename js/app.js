@@ -163,13 +163,12 @@ async function initApp() {
         setupWorkspaceAwareUI();
         updateStorageIndicator();
         
-        // Load data
+     // Load data
         await populateCustomers();
         await populatePersonnel();
         loadAppState();
+        recoverIncompletePackage(); // 👈 ADD THIS LINE TO RESTORE PACKAGE
         await loadPackagesData();
-        await populateStockTable();
-        await populateShippingTable();
         
         // Initialize connections
         await testConnection();
