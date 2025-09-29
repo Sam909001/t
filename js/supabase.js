@@ -1,3 +1,4 @@
+
 // Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
@@ -24,90 +25,157 @@ let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = true; // Default to Excel mode for safety
 
-// ==================== SUPABASE CLIENT LOADER ====================
-class SupabaseLoader {
-    constructor() {
-        this.loaded = false;
-        this.loading = false;
-        this.retryCount = 0;
-        this.maxRetries = 3;
+// ==================== SIMPLE SUPABASE CLIENT ====================
+// Minimal Supabase client implementation to avoid dependency issues
+class SimpleSupabaseClient {
+    constructor(supabaseUrl, supabaseKey) {
+        this.supabaseUrl = supabaseUrl;
+        this.supabaseKey = supabaseKey;
+        this.headers = {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        };
     }
 
-    async load() {
-        if (this.loaded) return true;
-        if (this.loading) {
-            // Wait for existing load to complete
-            return new Promise(resolve => {
-                const checkInterval = setInterval(() => {
-                    if (this.loaded) {
-                        clearInterval(checkInterval);
-                        resolve(true);
-                    }
-                    if (!this.loading) {
-                        clearInterval(checkInterval);
-                        resolve(false);
-                    }
-                }, 100);
-            });
-        }
-
-        this.loading = true;
-        
+    async request(endpoint, options = {}) {
         try {
-            // Check if Supabase is already available
-            if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-                console.log('✅ Supabase already loaded');
-                this.loaded = true;
-                this.loading = false;
-                return true;
+            const url = `${this.supabaseUrl}/rest/v1/${endpoint}`;
+            const response = await fetch(url, {
+                headers: this.headers,
+                ...options
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            // Load Supabase client library
-            await this.loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/dist/umd/supabase.min.js');
-            
-            // Verify it loaded correctly
-            if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-                throw new Error('Supabase library failed to load properly');
+            return await response.json();
+        } catch (error) {
+            console.error('Supabase request error:', error);
+            throw error;
+        }
+    }
+
+    from(table) {
+        return {
+            select: (columns = '*') => ({
+                where: (column, operator, value) => this._buildQuery(table, 'select', columns, { column, operator, value }),
+                eq: (column, value) => this._buildQuery(table, 'select', columns, { column, operator: 'eq', value }),
+                in: (column, values) => this._buildQuery(table, 'select', columns, { column, operator: 'in', value: values }),
+                order: (column, options = { ascending: true }) => this._buildQuery(table, 'select', columns, null, { order: { column, options } }),
+                limit: (count) => this._buildQuery(table, 'select', columns, null, { limit: count }),
+                single: () => this._buildQuery(table, 'select', columns, null, { single: true })
+            }),
+
+            insert: (data) => ({
+                select: (columns = '*') => this._buildQuery(table, 'insert', columns, null, { data })
+            }),
+
+            update: (data) => ({
+                eq: (column, value) => this._buildQuery(table, 'update', '*', { column, operator: 'eq', value }, { data })
+            }),
+
+            delete: () => ({
+                eq: (column, value) => this._buildQuery(table, 'delete', '*', { column, operator: 'eq', value })
+            })
+        };
+    }
+
+    async _buildQuery(table, method, columns = '*', condition = null, options = {}) {
+        try {
+            let endpoint = table;
+            const queryParams = [];
+
+            // Add select columns
+            if (columns !== '*') {
+                queryParams.push(`select=${columns}`);
             }
 
-            console.log('✅ Supabase client library loaded successfully');
-            this.loaded = true;
-            return true;
+            // Add where condition
+            if (condition) {
+                const { column, operator, value } = condition;
+                if (operator === 'eq') {
+                    queryParams.push(`${column}=eq.${encodeURIComponent(value)}`);
+                } else if (operator === 'in') {
+                    const values = Array.isArray(value) ? value : [value];
+                    queryParams.push(`${column}=in.(${values.map(v => encodeURIComponent(v)).join(',')})`);
+                }
+            }
+
+            // Add order
+            if (options.order) {
+                const order = options.order.options.ascending ? 'asc' : 'desc';
+                queryParams.push(`order=${options.order.column}.${order}`);
+            }
+
+            // Add limit
+            if (options.limit) {
+                queryParams.push(`limit=${options.limit}`);
+            }
+
+            // Build final URL
+            if (queryParams.length > 0) {
+                endpoint += `?${queryParams.join('&')}`;
+            }
+
+            let requestOptions = {
+                method: method.toUpperCase()
+            };
+
+            // Add data for insert/update
+            if (method === 'insert' || method === 'update') {
+                requestOptions.body = JSON.stringify(options.data);
+            }
+
+            const result = await this.request(endpoint, requestOptions);
+
+            // Handle single result
+            if (options.single && Array.isArray(result)) {
+                return result[0] || null;
+            }
+
+            return result;
 
         } catch (error) {
-            console.error('❌ Failed to load Supabase:', error);
-            this.loading = false;
-            
-            if (this.retryCount < this.maxRetries) {
-                this.retryCount++;
-                console.log(`🔄 Retrying Supabase load (${this.retryCount}/${this.maxRetries})...`);
-                await new Promise(resolve => setTimeout(resolve, 1000 * this.retryCount));
-                return this.load();
-            }
-            
-            return false;
+            console.error('Query error:', error);
+            throw error;
         }
     }
 
-    loadScript(src) {
-        return new Promise((resolve, reject) => {
-            // Check if script already exists
-            if (document.querySelector(`script[src="${src}"]`)) {
-                resolve();
-                return;
+    storage = {
+        from: (bucket) => ({
+            upload: (path, file) => this._storageUpload(bucket, path, file)
+        })
+    };
+
+    async _storageUpload(bucket, path, file) {
+        try {
+            const url = `${this.supabaseUrl}/storage/v1/object/${bucket}/${path}`;
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.supabaseKey}`,
+                    'apikey': this.supabaseKey
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Storage upload failed: ${response.status}`);
             }
 
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-            document.head.appendChild(script);
-        });
+            return await response.json();
+        } catch (error) {
+            console.error('Storage upload error:', error);
+            throw error;
+        }
     }
 }
-
-// Create global loader instance
-const supabaseLoader = new SupabaseLoader();
 
 // ==================== WORKSPACE MANAGEMENT ====================
 class WorkspaceManager {
@@ -776,8 +844,8 @@ const ExcelJS = {
 // Merge ExcelStorage functionality into ExcelJS
 Object.assign(ExcelJS, ExcelStorage);
 
-// FIXED: Supabase istemcisini başlat - Completely rewritten
-async function initializeSupabase() {
+// FIXED: Supabase istemcisini başlat - Using our simple client
+function initializeSupabase() {
     console.log('🔄 Starting Supabase initialization...');
     
     // Global değişkenleri kontrol et
@@ -796,34 +864,16 @@ async function initializeSupabase() {
     }
     
     try {
-        // First, ensure Supabase library is loaded
-        console.log('📦 Loading Supabase client library...');
-        const libraryLoaded = await supabaseLoader.load();
+        console.log('🔧 Creating Simple Supabase client...');
         
-        if (!libraryLoaded) {
-            throw new Error('Supabase client library could not be loaded');
-        }
+        // Use our simple Supabase client
+        window.supabase = new SimpleSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // Check if createClient function is available
-        if (typeof window.supabase?.createClient !== 'function') {
-            throw new Error('Supabase.createClient is not a function');
-        }
-        
-        console.log('🔧 Creating Supabase client...');
-        
-        // Global supabase değişkenine ata
-        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                persistSession: true,
-                autoRefreshToken: true
-            }
-        });
-        
-        console.log('✅ Supabase client initialized successfully');
+        console.log('✅ Simple Supabase client initialized successfully');
         window.isUsingExcel = false;
         
         // Test the connection
-        await testConnection();
+        testConnection();
         
         return window.supabase;
         
@@ -864,7 +914,7 @@ async function initializeApp() {
         // Then try to initialize Supabase if we have an API key
         if (SUPABASE_ANON_KEY) {
             console.log('🔗 Attempting Supabase connection...');
-            const client = await initializeSupabase();
+            const client = initializeSupabase();
             
             if (client) {
                 console.log('✅ Supabase mode activated');
@@ -921,7 +971,7 @@ async function initializeExcelStorage() {
 }
 
 // FIXED: API anahtarını kaydet ve istemciyi başlat
-async function saveApiKey() {
+function saveApiKey() {
     const apiKeyInput = document.getElementById('apiKeyInput');
     if (!apiKeyInput) {
         showAlert('API anahtarı girişi bulunamadı', 'error');
@@ -948,7 +998,7 @@ async function saveApiKey() {
         console.log('🔑 API key saved, initializing Supabase...');
         
         // Yeni client oluştur
-        const newClient = await initializeSupabase();
+        const newClient = initializeSupabase();
         
         if (newClient) {
             document.getElementById('apiKeyModal').style.display = 'none';
@@ -966,8 +1016,6 @@ async function saveApiKey() {
     }
 }
 
-// ... rest of your existing functions (saveToExcel, deleteFromExcel, syncExcelWithSupabase, etc.) remain the same ...
-
 let connectionAlertShown = false;
 
 // FIXED: Supabase bağlantısını test et
@@ -983,12 +1031,7 @@ async function testConnection() {
     
     try {
         console.log('🔍 Testing Supabase connection...');
-        const { data, error } = await window.supabase.from('customers').select('*').limit(1);
-        
-        if (error) {
-            console.error('Supabase connection test failed:', error);
-            throw error;
-        }
+        const data = await window.supabase.from('customers').select('*').limit(1);
         
         console.log('✅ Supabase connection test successful');
         
