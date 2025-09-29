@@ -760,61 +760,57 @@ async function completePackage() {
         return;
     }
 
+    // Check workspace permissions
+    if (!window.workspaceManager.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
     try {
-        const packageNo = `PKG-${Date.now()}`;
+        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect.value;
 
-        // Convert items object to array for better handling
-        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
-            name: name,
-            qty: qty
-        }));
-
-        const packageId = generateUUID();
-        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-
         const packageData = {
-            id: packageId,
+            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
-            items: itemsArray,
+            items: currentPackage.items,
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: workspaceId,
-            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default',
-            // New fields for enhanced tracking
-            storage_type: 'excel_daily',
-            daily_file: ExcelJS.getCurrentFileName()
+            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
+            station_name: window.workspaceManager.currentWorkspace.name
         };
 
-        // Save to daily Excel file
-        const currentData = await ExcelJS.readFile();
-        currentData.push(packageData);
-        const excelSuccess = await ExcelJS.writeFile(currentData);
-        
-        if (excelSuccess) {
-            showAlert(`Paket oluşturuldu: ${packageNo} (Günlük Excel)`, 'success');
-            
-            // Try to sync with Supabase if online
-            if (supabase && navigator.onLine) {
-                try {
-                    const { data, error } = await supabase
-                        .from('packages')
-                        .insert([packageData])
-                        .select();
+        // Save based on connectivity and workspace settings
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
 
-                    if (!error) {
-                        console.log('Package also saved to Supabase');
-                    }
-                } catch (supabaseError) {
-                    console.warn('Supabase save failed:', supabaseError);
-                }
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                await saveToExcel(packageData);
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                isUsingExcel = true;
             }
+        } else {
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            isUsingExcel = true;
         }
 
         // Reset and refresh
@@ -825,9 +821,10 @@ async function completePackage() {
 
     } catch (error) {
         console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+        showAlert('Paket oluşturma hatası', 'error');
     }
 }
+
 
 
 
