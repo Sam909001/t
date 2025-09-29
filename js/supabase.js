@@ -1600,6 +1600,7 @@ async function viewContainerDetails(containerId) {
 let lastStockFetchTime = 0;
 
 // REPLACE the populateReportsTable function with this:
+// REPLACE the populateReportsTable function with this:
 async function populateReportsTable() {
     try {
         console.log('Populating reports table with daily Excel files...');
@@ -1711,6 +1712,103 @@ async function populateReportsTable() {
         }
     }
 }
+
+// ADD this new function to view daily file details
+async function viewDailyFile(dateString) {
+    try {
+        const fileName = `packages_${dateString}.json`;
+        const fileData = localStorage.getItem(fileName);
+        
+        if (!fileData) {
+            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
+            return;
+        }
+        
+        const packages = JSON.parse(fileData);
+        
+        // Create a modal to show file details
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
+            align-items: center; z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 24px; border-radius: 8px; max-width: 90%; max-height: 90%; width: 800px; overflow: auto;">
+                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0;">
+                        <i class="fas fa-file-excel"></i> ${dateString} - Paket Detayları
+                    </h3>
+                    <button onclick="this.closest('.modal').remove()" 
+                            style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">
+                        ×
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
+                    <strong>Toplam:</strong> ${packages.length} paket, 
+                    ${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet
+                </div>
+                
+                <div style="max-height: 400px; overflow: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                        <thead style="background: #f0f0f0; position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Paket No</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Müşteri</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Ürünler</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Adet</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${packages.map(pkg => `
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.package_no || 'N/A'}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; word-wrap: break-word;">
+                                        ${pkg.items_display || 'N/A'}
+                                    </td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pkg.total_quantity || 0}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <span class="status-${pkg.status || 'beklemede'}">
+                                            ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 16px; text-align: center;">
+                    <button onclick="ExcelStorage.exportDailyFile('${dateString}')" class="btn btn-success">
+                        <i class="fas fa-download"></i> CSV Olarak İndir
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        modal.classList.add('modal');
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error viewing daily file:', error);
+        showAlert('Dosya görüntülenirken hata oluştu', 'error');
+    }
+}
+
+
+
+
 
 // ADD this new function to view daily file details
 async function viewDailyFile(dateString) {
