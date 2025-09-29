@@ -626,6 +626,11 @@ async function initializeExcelStorage() {
         return [];
     }
 }
+
+
+
+
+// REPLACE the existing saveToExcel function with this:
 async function saveToExcel(packageData) {
     try {
         // Get current workspace
@@ -636,12 +641,29 @@ async function saveToExcel(packageData) {
         const currentData = localStorage.getItem(storageKey);
         const currentPackages = currentData ? JSON.parse(currentData) : [];
         
+        // Enhanced package data with customer and product info
+        const enhancedPackageData = {
+            ...packageData,
+            // Ensure customer info is included
+            customer_name: packageData.customer_name || selectedCustomer?.name || 'Bilinmeyen Müşteri',
+            customer_code: selectedCustomer?.code || '',
+            // Ensure product/items info is properly formatted
+            items: packageData.items || currentPackage.items || {},
+            // Add date info for daily file management
+            excel_export_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            // Convert items to readable string for Excel
+            items_display: packageData.items ? 
+                Object.entries(packageData.items).map(([product, quantity]) => 
+                    `${product}: ${quantity} adet`
+                ).join(', ') : 'Ürün bilgisi yok'
+        };
+        
         // Yeni paketi ekle veya güncelle
-        const existingIndex = currentPackages.findIndex(p => p.id === packageData.id);
+        const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
         if (existingIndex >= 0) {
-            currentPackages[existingIndex] = packageData;
+            currentPackages[existingIndex] = enhancedPackageData;
         } else {
-            currentPackages.push(packageData);
+            currentPackages.push(enhancedPackageData);
         }
         
         // Workspace-specific storage'a kaydet
@@ -650,7 +672,7 @@ async function saveToExcel(packageData) {
         // Global excelPackages değişkenini güncelle
         excelPackages = currentPackages;
         
-        console.log(`Package saved to workspace ${workspaceId}:`, packageData.package_no);
+        console.log(`Package saved to workspace ${workspaceId}:`, enhancedPackageData.package_no);
         return true;
         
     } catch (error) {
@@ -658,6 +680,8 @@ async function saveToExcel(packageData) {
         return false;
     }
 }
+
+
 
 async function deleteFromExcel(packageId) {
     try {
