@@ -70,22 +70,16 @@ function clearAppState() {
 }
 
 // Initialize application
+// REPLACE the existing initApp function with this:
 async function initApp() {
-    console.log('Initializing enhanced daily Excel system...');
-    
     // Initialize workspace system first
     await window.workspaceManager.initialize();
     
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
     // Initialize workspace-aware UI
-    setTimeout(() => {
-        initializeWorkspaceUI();
-        setupWorkspaceAwareUI();
-    }, 1000);
-    
-    // Setup daily exports bucket
-    await setupDailyExportsBucket();
+    initializeWorkspaceUI();
+    setupWorkspaceAwareUI();
     
     // Populate dropdowns
     await populateCustomers();
@@ -94,7 +88,7 @@ async function initApp() {
     // Load saved state
     loadAppState();
     
-    // Load daily Excel data
+    // Load workspace-specific data
     await loadPackagesData();
     await populateStockTable();
     await populateShippingTable();
@@ -111,11 +105,12 @@ async function initApp() {
     // Set up barcode scanner listener
     setupBarcodeScanner();
     
-    // Start daily auto-clear and file management
+    // Start daily auto-clear
     scheduleDailyClear();
     
-    console.log(`App initialized with daily Excel system for workspace: ${window.workspaceManager.currentWorkspace.name}`);
+    console.log(`App initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
 }
+
 
 
 
@@ -471,105 +466,132 @@ function scheduleDailyClear() {
     }, msUntilMidnight);
 }
 
-// Main initialization - UPDATED VERSION
+// Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('DOM Content Loaded - Starting initialization...');
+    console.log('🚀 Starting ProClean application initialization...');
 
     try {
-        // 1. Initialize elements first
-        console.log('Step 1: Initializing elements...');
-        initializeElementsObject();
-        
-        // 2. Check for critical elements
-        const loginBtn = elements.loginButton;
-        const emailInput = elements.emailInput;
-        const passwordInput = elements.passwordInput;
-        
-        if (!loginBtn || !emailInput || !passwordInput) {
-            console.error('Critical elements missing:', {
-                loginBtn: !!loginBtn,
-                emailInput: !!emailInput,
-                passwordInput: !!passwordInput
-            });
-            throw new Error('Critical UI elements not found');
+        // Initialize workspace system FIRST
+        if (!window.workspaceManager) {
+            window.workspaceManager = new WorkspaceManager();
         }
-
-        // 3. Add basic event listeners first
-        console.log('Step 2: Setting up basic event listeners...');
-        loginBtn.addEventListener('click', login);
-        
-        emailInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
-        });
-        
-        passwordInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
-        });
-
-        // 4. Initialize workspace system
-        console.log('Step 3: Initializing workspace system...');
-        window.workspaceManager = new WorkspaceManager();
         await window.workspaceManager.initialize();
         
-        // 5. Initialize workspace UI (with delay to ensure DOM is ready)
-        setTimeout(() => {
-            initializeWorkspaceUI();
-            setupWorkspaceAwareUI();
-        }, 500);
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
 
-        // 6. Continue with other initializations...
-        console.log('Step 4: Continuing with app initialization...');
+        // Then initialize elements
+        initializeElementsObject();
         
-        // Settings button
-        const settingsBtn = document.getElementById('settingsBtn');
-        if (settingsBtn) {
-            settingsBtn.addEventListener('click', showSettingsModal);
-            console.log('Settings button listener added');
-        }
+        // Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
 
-        // Close settings modal
-        const closeBtn = document.getElementById('closeSettingsModalBtn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', closeSettingsModal);
-        }
-
+        // Now setup all other event listeners
+        setupEventListeners();
+        
         // API key initialization
-        if (loadApiKey()) {
-            supabase = initializeSupabase();
-            if (supabase) {
-                setupAuthListener();
-                console.log('Supabase client initialized successfully');
-            }
-        } else {
-            console.log('No saved API key found');
-            showApiKeyModal();
-        }
+        initializeApiAndAuth();
 
-        // Set initial display states
-        if (elements.loginScreen) {
-            elements.loginScreen.style.display = 'flex';
-        }
-        if (elements.appContainer) {
-            elements.appContainer.style.display = 'none';
-        }
-        
-        console.log('App initialization completed successfully');
+        // Initialize settings
+        initializeSettings();
+
+        console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
 
     } catch (error) {
-        console.error('Critical error during initialization:', error);
+        console.error('❌ Critical error during initialization:', error);
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
-        
-        // Fallback: Try to show API key modal
-        setTimeout(showApiKeyModal, 1000);
     }
 });
 
+// Separate function for event listeners
+function setupEventListeners() {
+    // Settings button
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', showSettingsModal);
+        console.log('✅ Settings button listener added');
+    }
 
-// Global error handler
-window.addEventListener('error', function(e) {
-    console.error('Global error:', e.error);
-    showAlert('Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.', 'error');
-});
+    // Close settings modal
+    const closeBtn = document.getElementById('closeSettingsModalBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeSettingsModal);
+    }
+
+    // Login button
+    const loginBtn = elements.loginButton;
+    if (loginBtn) {
+        loginBtn.addEventListener('click', login);
+        console.log('✅ Login button listener added');
+    } else {
+        console.error('❌ Login button not found');
+    }
+
+    // Enter key listeners for login
+    if (elements.emailInput) {
+        elements.emailInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+    }
+    
+    if (elements.passwordInput) {
+        elements.passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+    }
+
+    // Quantity modal enter key
+    if (elements.quantityInput) {
+        elements.quantityInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') confirmQuantity();
+        });
+    }
+
+    // Customer select
+    if (elements.customerSelect) {
+        elements.customerSelect.addEventListener('change', function() {
+            const customerId = this.value;
+            if (customerId) {
+                const selectedOption = this.options[this.selectedIndex];
+                selectedCustomer = {
+                    id: customerId,
+                    name: selectedOption.textContent.split(' (')[0],
+                    code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
+                showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+            } else {
+                selectedCustomer = null;
+            }
+        });
+    }
+
+    // Tab click events
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            if (tabName) switchTab(tabName);
+        });
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target === document.getElementById('settingsModal')) {
+            closeSettingsModal();
+        }
+    });
+}
+
+function initializeApiAndAuth() {
+    if (loadApiKey()) {
+        supabase = initializeSupabase();
+        if (supabase) {
+            setupAuthListener();
+            console.log('✅ Supabase client initialized');
+        }
+    } else {
+        showApiKeyModal();
+    }
+}
 
 
 
@@ -828,8 +850,6 @@ async function completePackage() {
 
 
 
-
-
 // Modified deleteSelectedPackages function
 async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
@@ -984,68 +1004,29 @@ async function importExcelData(event) {
 
 
 
-// Setup daily exports bucket
-async function setupDailyExportsBucket() {
-    if (!supabase) return false;
+
+
+
+
+
+// Temporary debug function - call this in console
+function debugWorkspace() {
+    console.log('=== WORKSPACE DEBUG INFO ===');
+    console.log('Current Workspace:', window.workspaceManager?.currentWorkspace);
+    console.log('Excel Packages:', excelPackages);
+    console.log('LocalStorage Keys:');
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.includes('excelPackages') || key.includes('workspace')) {
+            console.log(`- ${key}:`, localStorage.getItem(key));
+        }
+    }
     
-    try {
-        // Check if bucket exists
-        const { data: buckets, error } = await supabase.storage.listBuckets();
-        
-        if (error) {
-            console.warn('Bucket list error:', error);
-            return false;
-        }
-        
-        const exportsBucketExists = buckets.some(bucket => bucket.name === 'daily-exports');
-        
-        if (!exportsBucketExists) {
-            console.log('Creating daily-exports bucket...');
-            // Note: Bucket creation might require admin privileges
-            showAlert('Günlük export bucketı oluşturuluyor...', 'info');
-        }
-        
-        return true;
-    } catch (error) {
-        console.warn('Bucket setup error:', error);
-        return false;
-    }
+    // Test workspace storage
+    const workspaceId = window.workspaceManager?.currentWorkspace?.id;
+    const testData = localStorage.getItem(`excelPackages_${workspaceId}`);
+    console.log(`Workspace data for ${workspaceId}:`, testData ? JSON.parse(testData) : 'EMPTY');
 }
 
-
-// Add this function to app.js if it doesn't exist
-async function addItemToPackage(productName, quantity = 1) {
-    try {
-        if (!currentPackage.items) {
-            currentPackage.items = {};
-        }
-        
-        // Add or update item quantity
-        if (currentPackage.items[productName]) {
-            currentPackage.items[productName] += quantity;
-        } else {
-            currentPackage.items[productName] = quantity;
-        }
-        
-        // Update the quantity badge if it exists
-        updateQuantityBadge(productName, currentPackage.items[productName]);
-        
-        showAlert(`${productName} pakete eklendi: ${quantity} adet`, 'success');
-        
-        // ✅ Refresh the packages table immediately
-        await populatePackagesTable();
-        
-    } catch (error) {
-        console.error('Error adding item to package:', error);
-        showAlert('Ürün pakete eklenirken hata oluştu', 'error');
-    }
-}
-
-// Also add this helper function if needed
-function updateQuantityBadge(productName, quantity) {
-    const badge = document.querySelector(`[data-product="${productName}"] .quantity-badge`);
-    if (badge) {
-        badge.textContent = quantity;
-        badge.style.display = quantity > 0 ? 'inline-block' : 'none';
-    }
-}
+// Call this after page loads
+setTimeout(debugWorkspace, 3000);
