@@ -18,9 +18,8 @@ let selectedPackageForPrinting = null;
 let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
-let customers = []; // 👈 ADDED
 
-/ Excel local storage 
+// Excel local storage
 let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
@@ -450,55 +449,30 @@ const ExcelStorage = {
     },
     
     // Convert data to CSV format
-  // Enhanced CSV conversion with proper columns and widths
-convertToCSV: function(data) {
-    if (!data || data.length === 0) {
-        return 'No data available';
-    }
-    
-    // Define proper headers with Turkish names
-    const headers = [
-        'Paket No',
-        'Müşteri Adı', 
-        'Ürün Türü',
-        'Toplam Adet',
-        'Durum',
-        'Paketleyen',
-        'Oluşturulma Tarihi',
-        'İstasyon'
-    ];
-    
-    const csvRows = [headers.join(',')];
-    
-    data.forEach(item) => {
-        // Extract customer name safely
-        const customerName = item.customer_name || item.customers?.name || 'Müşteri Yok';
-        
-        // Extract product type from items
-        let productType = 'Ürün Yok';
-        if (item.items && Array.isArray(item.items) && item.items.length > 0) {
-            productType = item.items.map(it => it.name).join('; ');
-        } else if (item.items && typeof item.items === 'object') {
-            productType = Object.keys(item.items).join('; ');
-        } else if (item.product) {
-            productType = item.product;
+    convertToCSV: function(data) {
+        if (!data || data.length === 0) {
+            return 'No data available';
         }
         
-        const row = [
-            `"${item.package_no || ''}"`,
-            `"${customerName}"`,
-            `"${productType}"`,
-            item.total_quantity || 0,
-            `"${item.status || 'beklemede'}"`,
-            `"${item.packer || ''}"`,
-            `"${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}"`,
-            `"${item.station_name || item.workspace_id || ''}"`
-        ];
-        csvRows.push(row.join(','));
-    });
-    
-    return csvRows.join('\n');
-},
+        const headers = ['Package No', 'Customer', 'Items', 'Total Quantity', 'Status', 'Packer', 'Created At', 'Workspace'];
+        const csvRows = [headers.join(',')];
+        
+        data.forEach(item => {
+            const row = [
+                `"${item.package_no || ''}"`,
+                `"${item.customer_name || ''}"`,
+                `"${this.formatItems(item.items)}"`,
+                item.total_quantity || 0,
+                `"${item.status || ''}"`,
+                `"${item.packer || ''}"`,
+                `"${item.created_at || ''}"`,
+                `"${item.workspace_id || ''}"`
+            ];
+            csvRows.push(row.join(','));
+        });
+        
+        return csvRows.join('\n');
+    },
     
     // Format items for CSV
     formatItems: function(items) {
@@ -845,85 +819,7 @@ async function testConnection() {
     }
 }
 
-// Enhanced daily file management - ADD THESE FUNCTIONS
-getAllDailyFiles: function() {
-    const files = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key.startsWith('packages_') && key.endsWith('.json')) {
-            try {
-                const fileData = JSON.parse(localStorage.getItem(key));
-                files.push({
-                    name: key,
-                    date: key.replace('packages_', '').replace('.json', ''),
-                    data: fileData,
-                    packageCount: fileData.length,
-                    totalQuantity: fileData.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
-                });
-            } catch (e) {
-                console.error('Error parsing file:', key, e);
-            }
-        }
-    }
-    return files.sort((a, b) => b.date.localeCompare(a.date));
-},
 
-// Keep only last 7 days of files
-cleanupOldFiles: function() {
-    const files = this.getAllDailyFiles();
-    if (files.length > 7) {
-        // Keep only the 7 most recent files
-        const filesToDelete = files.slice(7);
-        filesToDelete.forEach(file => {
-            localStorage.removeItem(file.name);
-            console.log('Removed old file:', file.name);
-        });
-    }
-},
-
-// Enhanced file export with better formatting
-exportDailyFile: function(dateString) {
-    const fileName = `packages_${dateString}.json`;
-    const data = localStorage.getItem(fileName);
-    
-    if (!data) {
-        showAlert(`${dateString} tarihli veri bulunamadı`, 'error');
-        return;
-    }
-
-    try {
-        const packages = JSON.parse(data);
-        const csvData = this.convertToCSV(packages);
-        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `proclean_${dateString}_rapor.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        showAlert(`${dateString} tarihli rapor dışa aktarıldı (${packages.length} paket)`, 'success');
-        
-    } catch (error) {
-        console.error('Export error:', error);
-        showAlert('Rapor dışa aktarılırken hata oluştu', 'error');
-    }
-},
-
-// Get today's file (ensures fresh data)
-getTodaysFile: function() {
-    const todayFile = this.getCurrentFileName();
-    const data = localStorage.getItem(todayFile);
-    return data ? JSON.parse(data) : [];
-},
-
-// Clear today's file and start fresh
-startNewDay: function() {
-    const todayFile = this.getCurrentFileName();
-    localStorage.setItem(todayFile, JSON.stringify([]));
-    console.log('Started new day file:', todayFile);
-    return [];
-}
 
 
  // Çevrimdışı destek
