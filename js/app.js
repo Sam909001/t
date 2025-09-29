@@ -78,6 +78,10 @@ async function initApp() {
      // Initialize daily Excel file system
     await ExcelStorage.cleanupOldFiles(); // Clean up old files
     await ExcelStorage.readFile(); // Ensure today's file exists
+
+     // Initialize daily Excel file system
+    await ExcelStorage.cleanupOldFiles(); // Clean up old files
+    await ExcelStorage.readFile(); // Ensure today's file exists
     
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
