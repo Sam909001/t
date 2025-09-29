@@ -1,9 +1,10 @@
+// Global elements object - ADD THIS AT THE VERY TOP
 const elements = {};
 
-// 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
+// Then your existing initialization functions...
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
- 
+    
     elementIds.forEach(id => {
         elements[id] = document.getElementById(id);
         if (!elements[id]) {
@@ -71,65 +72,31 @@ function initializeElementsObject() {
 // 1. Prevent duplicate alerts with debouncing
 let alertQueue = new Set(); // Track active alerts
 
-function showAlert(message, type = 'info', duration = 5000) {
-    // Prevent duplicate alerts
-    const alertKey = `${message}-${type}`;
-    if (alertQueue.has(alertKey)) {
-        return; // Already showing this alert
-    }
-    
-    alertQueue.add(alertKey);
-    
-    if (!elements.alertContainer) {
-        console.error('Alert container not found, using console instead');
-        console.log(`${type.toUpperCase()}: ${message}`);
-        alertQueue.delete(alertKey);
+// FIX: Safe showAlert function to prevent XSS
+function showAlert(message, type = 'success') {
+    if (!elements.toast) {
+        console.error('Toast element not found.');
         return;
     }
     
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type}`;
+    // 1. Create the alert structure
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
     
-    const span = document.createElement('span');
-    span.textContent = message;
+    // 2. Use textContent for safety (XSS FIX)
+    alertDiv.textContent = message; // 👈 CRITICAL FIX
     
-    const button = document.createElement('button');
-    button.className = 'alert-close';
-    button.textContent = '×';
+    // 3. Clear existing content and append the new alert
+    elements.toast.innerHTML = '';
+    elements.toast.appendChild(alertDiv);
     
-    alert.appendChild(span);
-    alert.appendChild(button);
-    
-    elements.alertContainer.appendChild(alert);
-    
-    // Close button event
-    button.addEventListener('click', () => {
-        alert.classList.add('hide');
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.remove();
-                alertQueue.delete(alertKey);
-            }
-        }, 300);
-    });
-    
-    // Auto close
-    if (duration > 0) {
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.classList.add('hide');
-                setTimeout(() => {
-                    if (alert.parentNode) {
-                        alert.remove();
-                        alertQueue.delete(alertKey);
-                    }
-                }, 300);
-            }
-        }, duration);
-    }
-    
-    return alert;
+    // 4. Automatically dismiss
+    clearTimeout(window.toastTimeout);
+    window.toastTimeout = setTimeout(() => {
+        elements.toast.innerHTML = '';
+    }, 4000);
 }
+
 
 // Yardımcı fonksiyonlar
 function showToast(message, type = 'info') {
