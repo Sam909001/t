@@ -1,18 +1,10 @@
 // Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Load API Key
+document.addEventListener('DOMContentLoaded', () => {
     const savedApiKey = localStorage.getItem('procleanApiKey');
     if (savedApiKey) {
         SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase(); // This sets the global 'supabase' client
-        console.log('API key loaded and client initialized.');
-    } else {
-        // Handle case where key is missing (e.g., show config modal)
-    }
-    
-    // 2. Start the main application only AFTER the client is ready
-    if (supabase) {
-        await initApp(); // Assuming initApp() contains all fetching logic
+        initializeSupabase();
+        console.log('API key loaded from localStorage');
     }
 });
 
@@ -22,19 +14,8 @@ function saveAppState() {
         selectedCustomerId: selectedCustomer ? selectedCustomer.id : null,
         selectedPersonnelId: elements.personnelSelect.value,
         currentContainer: currentContainer,
-        isUsingExcel: isUsingExcel,
-        // REMOVE THESE TWO LINES to eliminate duplication:
-        // currentPackage: currentPackage, 
-        // currentPackageTimestamp: new Date().toISOString() 
     };
     localStorage.setItem('procleanState', JSON.stringify(state));
-    
-    // Keep this dedicated package save for recovery:
-    localStorage.setItem('procleanCurrentPackage', JSON.stringify({
-        items: currentPackage.items || {},
-        customer: selectedCustomer,
-        timestamp: new Date().toISOString()
-    }));
 }
 
 function loadAppState() {
@@ -45,6 +26,7 @@ function loadAppState() {
         // Restore customer selection
         if (state.selectedCustomerId) {
             elements.customerSelect.value = state.selectedCustomerId;
+            // Find and set the selectedCustomer object
             const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
             if (option) {
                 selectedCustomer = {
@@ -65,64 +47,8 @@ function loadAppState() {
             currentContainer = state.currentContainer;
             elements.containerNumber.textContent = currentContainer;
         }
-        
-        // Restore Excel mode
-        if (state.isUsingExcel !== undefined) {
-            isUsingExcel = state.isUsingExcel;
-            updateStorageIndicator();
-        }
-        
-        // RESTORE CURRENT PACKAGE - ADD THIS SECTION
-        if (state.currentPackage) {
-            currentPackage = state.currentPackage;
-            console.log('Restored current package:', currentPackage);
-            updateQuantityBadges(); // Update UI to show restored quantities
-        }
-        
-        // Also try to load from separate package storage for redundancy
-        try {
-            const savedPackage = localStorage.getItem('procleanCurrentPackage');
-            if (savedPackage) {
-                const packageData = JSON.parse(savedPackage);
-                // Only restore if we don't have currentPackage or this is newer
-                if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-                    currentPackage.items = packageData.items || {};
-                    console.log('Restored current package from backup storage');
-                    updateQuantityBadges();
-                }
-            }
-        } catch (e) {
-            console.warn('Could not restore package from backup storage:', e);
-        }
     }
 }
-
-
-
-// Update quantity badges based on currentPackage
-function updateQuantityBadges() {
-    if (!currentPackage.items) return;
-    
-    Object.entries(currentPackage.items).forEach(([productName, quantity]) => {
-        const badge = document.getElementById(`${productName}-quantity`);
-        if (badge) {
-            badge.textContent = quantity;
-        }
-    });
-    
-    // Also update any manual product badges
-    const manualBadges = document.querySelectorAll('[id$="-quantity"]');
-    manualBadges.forEach(badge => {
-        const productName = badge.id.replace('-quantity', '');
-        if (currentPackage.items && currentPackage.items[productName]) {
-            badge.textContent = currentPackage.items[productName];
-        }
-    });
-}
-
-
-
-
 
 function clearAppState() {
     localStorage.removeItem('procleanState');
@@ -143,147 +69,48 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
-
-
-
-
-// Final enhanced application initialization
+// Initialize application
+// REPLACE the existing initApp function with this:
 async function initApp() {
-    try {
-        console.log('🚀 Initializing ProClean application...');
-        
-        // Initialize workspace system
-        await window.workspaceManager.initialize();
-        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-        
-        // Initialize all systems
-        initializeElementsObject();
-        setupDebouncedSearch();
-        cleanupEventListeners();
-        UXEnhancements.setupKeyboardNavigation();
-        AdvancedSearch.init();
-        BulkOperations.init();
-        
-        // Set current date
-        elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-        
-        // Initialize UI
-        initializeWorkspaceUI();
-        setupWorkspaceAwareUI();
-        updateStorageIndicator();
-        
-     // Load data
-        await populateCustomers();
-        await populatePersonnel();
-        loadAppState();
-        recoverIncompletePackage(); // 👈 ADD THIS LINE TO RESTORE PACKAGE
-        await loadPackagesData();
-        
-        // Initialize connections
-        await testConnection();
-        setupOfflineSupport();
-        setupBarcodeScanner();
-        
-        // Start background services
-        setInterval(saveAppState, 5000);
-        setInterval(() => AuditLogger.syncQueuedLogs(), 30000); // Sync audit logs every 30 seconds
-        scheduleDailyClear();
-        
-        // Load settings and permissions
-        loadAllSettings();
-        UserManager.applyUserPermissions();
-        
-        console.log('🎉 ProClean application fully initialized with all enhancements');
-        showAlert('Uygulama başarıyla başlatıldı', 'success');
-        
-        // Log successful initialization
-        AuditLogger.log('app_initialized', {
-            workspace: window.workspaceManager.currentWorkspace.name,
-            user: currentUser?.email,
-            version: '2.0.0'
-        });
-        
-    } catch (error) {
-        console.error('❌ Application initialization failed:', error);
-        ErrorHandler.handle(error, 'Uygulama başlatma');
-        
-        // Log initialization failure
-        AuditLogger.log('app_initialization_failed', {
-            error: error.message,
-            workspace: window.workspaceManager?.currentWorkspace?.name
-        });
-    }
+    // Initialize workspace system first
+    await window.workspaceManager.initialize();
+    
+    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+    
+    // Initialize workspace-aware UI
+    initializeWorkspaceUI();
+    setupWorkspaceAwareUI();
+    
+    // Populate dropdowns
+    await populateCustomers();
+    await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
+    
+    // Load workspace-specific data
+    await loadPackagesData();
+    await populateStockTable();
+    await populateShippingTable();
+    
+    // Test connection
+    await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000);
+    
+    // Set up offline support
+    setupOfflineSupport();
+    
+    // Set up barcode scanner listener
+    setupBarcodeScanner();
+    
+    // Start daily auto-clear
+    scheduleDailyClear();
+    
+    console.log(`App initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
 }
 
-
-
-
-// Update DOMContentLoaded event listener
-document.addEventListener('DOMContentLoaded', async function() {
-   try {
-        console.log('📄 DOM loaded, starting initialization...');
-        
-        // INITIALIZE ELEMENTS FIRST
-        initializeElementsObject();
-        
-        // THEN INITIALIZE WORKSPACE
-        window.workspaceManager = new WorkspaceManager();
-        await window.workspaceManager.initialize();
-        
-        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-        
-        // NOW LOAD APP STATE (including current package)
-        loadAppState();
-        
-        // Initialize settings button
-        const settingsBtn = document.getElementById('settingsBtn');
-        if (settingsBtn) {
-            settingsBtn.addEventListener('click', showSettingsModal);
-        }
-        
-        // Initialize close button
-        const closeBtn = document.getElementById('closeSettingsModalBtn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', closeSettingsModal);
-        }
-        
-        // Initialize login functionality
-        const loginBtn = elements.loginButton;
-        if (loginBtn) {
-            loginBtn.addEventListener('click', login);
-        }
-        
-        // Initialize logout button
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', logout);
-        }
-        
-        // Load API key and initialize Supabase
-        if (loadApiKey()) {
-            supabase = initializeSupabase();
-            if (supabase) {
-                setupAuthListener();
-            }
-        } else {
-            showApiKeyModal();
-        }
-        
-        // Set initial display states
-        if (elements.loginScreen) {
-            elements.loginScreen.style.display = 'flex';
-        }
-        if (elements.appContainer) {
-            elements.appContainer.style.display = 'none';
-        }
-        
-        console.log('✅ DOM initialization completed');
-        
-    } catch (error) {
-        console.error('❌ DOM initialization failed:', error);
-        ErrorHandler.handle(error, 'DOM yükleme');
-    }
-});
 
 
 
@@ -910,21 +737,8 @@ async function initApp() {
     // Test connection
     await testConnection();
     
-  // Set up auto-save - more frequent for package data
-setInterval(() => {
-    saveAppState();
-    
-    // Extra save for current package if it has items
-    if (currentPackage.items && Object.keys(currentPackage.items).length > 0) {
-        const packageState = {
-            items: currentPackage.items,
-            customer: selectedCustomer,
-            timestamp: new Date().toISOString()
-        };
-        localStorage.setItem('procleanCurrentPackage', JSON.stringify(packageState));
-    }
-}, 2000); // Save every 2 seconds instead of 5
-    
+    // Set up auto-save
+    setInterval(saveAppState, 5000); // Save every 5 seconds
     
     // Set up offline support
     setupOfflineSupport();
@@ -1007,6 +821,84 @@ function mergePackages(excelPackages, supabasePackages) {
     
     return merged;
 }
+
+// REPLACE the existing completePackage function with this:
+async function completePackage() {
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    // Check workspace permissions
+    if (!window.workspaceManager.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
+    try {
+        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect.value;
+
+        const packageData = {
+            id: `pkg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            items: currentPackage.items,
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            workspace_id: window.workspaceManager.currentWorkspace.id, // Workspace identifier
+            station_name: window.workspaceManager.currentWorkspace.name
+        };
+
+        // Save based on connectivity and workspace settings
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                await saveToExcel(packageData);
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                isUsingExcel = true;
+            }
+        } else {
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            isUsingExcel = true;
+        }
+
+        // Reset and refresh
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        await populatePackagesTable();
+        updateStorageIndicator();
+
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası', 'error');
+    }
+}
+
 
 
 
