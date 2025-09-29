@@ -491,42 +491,63 @@ function saveTodaysData() {
 
 
 
-// Main initialization
+
+// Main initialization - FIXED VERSION
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
 
     try {
-        // Initialize workspace system FIRST
+        // 1. First initialize elements
+        initializeElementsObject();
+        console.log('✅ Elements initialized');
+        
+        // 2. Check if workspaceManager exists, if not create it
         if (!window.workspaceManager) {
+            console.log('🔄 Creating WorkspaceManager...');
             window.workspaceManager = new WorkspaceManager();
         }
-        await window.workspaceManager.initialize();
         
+        // 3. Initialize workspace system
+        await window.workspaceManager.initialize();
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
 
-        // Then initialize elements
-        initializeElementsObject();
-        
-        // Initialize workspace-aware UI
+        // 4. Initialize workspace-aware UI
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
+        console.log('✅ Workspace UI initialized');
 
-        // Now setup all other event listeners
+        // 5. Now setup all other event listeners
         setupEventListeners();
+        console.log('✅ Event listeners setup');
         
-        // API key initialization
+        // 6. API key initialization
         initializeApiAndAuth();
+        console.log('✅ API and auth initialized');
 
-        // Initialize settings
+        // 7. Initialize settings
         initializeSettings();
+        console.log('✅ Settings initialized');
+
+        // 8. Initialize daily file system
+        if (typeof ExcelJS !== 'undefined' && ExcelJS.cleanupOldFiles) {
+            ExcelJS.cleanupOldFiles();
+            console.log('✅ Daily file system initialized');
+        }
 
         console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
 
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        // Use safe alert method
+        if (typeof showAlert === 'function') {
+            showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        } else {
+            alert('Uygulama başlatılırken hata oluştu: ' + error.message);
+        }
     }
 });
+
+
 
 // Separate function for event listeners
 function setupEventListeners() {
