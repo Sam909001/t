@@ -1032,7 +1032,7 @@ function debugWorkspace() {
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key.includes('excelPackages') || key.includes('workspace')) {
-            console.log(`- ${key}:`, localStorage.getItem(key));
+            console.log('Excel Packages:', packagesToLog);
         }
     }
     
