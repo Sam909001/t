@@ -1600,78 +1600,214 @@ async function viewContainerDetails(containerId) {
   let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
+// REPLACE the populateReportsTable function with this:
 async function populateReportsTable() {
     try {
+        console.log('Populating reports table with daily Excel files...');
+        
         const reportsContainer = document.getElementById('reportsTab');
         if (!reportsContainer) {
             console.error('Reports container not found');
             return;
         }
-
-        let reportsData = [];
-
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Generate reports from Excel data
-            const today = new Date().toISOString().split('T')[0];
-            
-            const dailyPackages = excelPackages.filter(pkg => 
-                pkg.created_at && pkg.created_at.includes(today)
-            );
-            
-            const totalPackages = excelPackages.length;
-            const shippedPackages = excelPackages.filter(pkg => pkg.status === 'sevk-edildi').length;
-            const waitingPackages = excelPackages.filter(pkg => pkg.status === 'beklemede').length;
-
-            reportsData = [
-                {
-                    title: 'Günlük Paket Raporu',
-                    data: `Bugün oluşturulan paketler: ${dailyPackages.length}`,
-                    date: new Date().toLocaleDateString('tr-TR')
-                },
-                {
-                    title: 'Genel Paket Durumu',
-                    data: `Toplam: ${totalPackages}, Sevk Edilen: ${shippedPackages}, Bekleyen: ${waitingPackages}`,
-                    date: new Date().toLocaleDateString('tr-TR')
-                }
-            ];
-        } else {
-            // Use Supabase reports
-            const { data: supabaseReports, error } = await supabase
-                .from('reports')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(10);
-
-            if (error) throw error;
-            reportsData = supabaseReports || [];
-        }
-
-        let reportsHTML = '<h3>Raporlar</h3>';
         
-        if (reportsData.length === 0) {
-            reportsHTML += '<p style="text-align:center; color:#666; padding:20px;">Henüz rapor yok</p>';
+        // Get daily Excel files
+        const dailyFiles = ExcelStorage.getAvailableDailyFiles();
+        
+        let reportsHTML = `
+            <div style="margin-bottom: 20px;">
+                <h3><i class="fas fa-file-excel"></i> Günlük Excel Dosyaları</h3>
+                <p style="color: #666; font-size: 0.9rem;">Son 7 güne ait paket kayıtları</p>
+            </div>
+        `;
+        
+        if (dailyFiles.length === 0) {
+            reportsHTML += `
+                <div style="text-align: center; padding: 40px; color: #666; border: 2px dashed #ddd; border-radius: 8px;">
+                    <i class="fas fa-file-excel" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <h4>Henüz Excel dosyası bulunmamaktadır</h4>
+                    <p>Paket oluşturduğunuzda günlük Excel dosyaları burada görünecektir.</p>
+                </div>
+            `;
         } else {
-            reportsData.forEach(report => {
+            dailyFiles.forEach(file => {
+                const isToday = file.date === ExcelStorage.getTodayDateString();
+                
                 reportsHTML += `
-                    <div class="report-item" style="border:1px solid #ddd; padding:15px; margin:10px 0; border-radius:5px;">
-                        <h4>${report.title}</h4>
-                        <p>${report.data}</p>
-                        <small>Tarih: ${report.date}</small>
+                    <div class="daily-file-item" style="
+                        border: 1px solid ${isToday ? '#4CAF50' : '#ddd'};
+                        border-left: 4px solid ${isToday ? '#4CAF50' : '#2196F3'};
+                        padding: 16px;
+                        margin: 12px 0;
+                        border-radius: 6px;
+                        background: ${isToday ? '#f8fff8' : '#f9f9f9'};
+                    ">
+                        <div style="display: flex; justify-content: between; align-items: center;">
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 8px 0; color: #333;">
+                                    <i class="fas fa-calendar-day"></i> ${file.displayDate}
+                                    ${isToday ? '<span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px;">Bugün</span>' : ''}
+                                </h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 0.9em;">
+                                    <div>
+                                        <strong>Paket Sayısı:</strong><br>
+                                        <span style="color: #2196F3; font-weight: bold;">${file.packageCount}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Toplam Adet:</strong><br>
+                                        <span style="color: #4CAF50; font-weight: bold;">${file.totalQuantity}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Dosya:</strong><br>
+                                        <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">${file.fileName}</code>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <button onclick="ExcelStorage.exportDailyFile('${file.date}')" 
+                                        class="btn btn-success btn-sm" 
+                                        style="white-space: nowrap;">
+                                    <i class="fas fa-download"></i> CSV İndir
+                                </button>
+                                <button onclick="viewDailyFile('${file.date}')" 
+                                        class="btn btn-primary btn-sm"
+                                        style="white-space: nowrap;">
+                                    <i class="fas fa-eye"></i> Görüntüle
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
             });
+            
+            // Add cleanup button
+            reportsHTML += `
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
+                    <button onclick="ExcelStorage.cleanupOldFiles(); populateReportsTable();" 
+                            class="btn btn-warning btn-sm">
+                        <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
+                    </button>
+                    <small style="color: #666; margin-left: 12px;">Sadece son 7 günün dosyaları saklanır</small>
+                </div>
+            `;
         }
-
+        
         reportsContainer.innerHTML = reportsHTML;
-
+        console.log(`✅ Reports table populated with ${dailyFiles.length} daily files`);
+        
     } catch (error) {
-        console.error('Error loading reports:', error);
+        console.error('Error in populateReportsTable:', error);
         const reportsContainer = document.getElementById('reportsTab');
         if (reportsContainer) {
-            reportsContainer.innerHTML = '<p style="text-align:center; color:red;">Raporlar yüklenirken hata oluştu</p>';
+            reportsContainer.innerHTML = `
+                <div style="text-align: center; color: #d32f2f; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                    <h4>Raporlar yüklenirken hata oluştu</h4>
+                    <p>${error.message}</p>
+                    <button onclick="populateReportsTable()" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Tekrar Dene
+                    </button>
+                </div>
+            `;
         }
     }
 }
+
+// ADD this new function to view daily file details
+async function viewDailyFile(dateString) {
+    try {
+        const fileName = `packages_${dateString}.json`;
+        const fileData = localStorage.getItem(fileName);
+        
+        if (!fileData) {
+            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
+            return;
+        }
+        
+        const packages = JSON.parse(fileData);
+        
+        // Create a modal to show file details
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
+            align-items: center; z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 24px; border-radius: 8px; max-width: 90%; max-height: 90%; width: 800px; overflow: auto;">
+                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0;">
+                        <i class="fas fa-file-excel"></i> ${dateString} - Paket Detayları
+                    </h3>
+                    <button onclick="this.closest('.modal').remove()" 
+                            style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">
+                        ×
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
+                    <strong>Toplam:</strong> ${packages.length} paket, 
+                    ${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet
+                </div>
+                
+                <div style="max-height: 400px; overflow: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                        <thead style="background: #f0f0f0; position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Paket No</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Müşteri</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Ürünler</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Adet</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${packages.map(pkg => `
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.package_no || 'N/A'}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; word-wrap: break-word;">
+                                        ${pkg.items_display || 'N/A'}
+                                    </td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pkg.total_quantity || 0}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <span class="status-${pkg.status || 'beklemede'}">
+                                            ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 16px; text-align: center;">
+                    <button onclick="ExcelStorage.exportDailyFile('${dateString}')" class="btn btn-success">
+                        <i class="fas fa-download"></i> CSV Olarak İndir
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        modal.classList.add('modal');
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error viewing daily file:', error);
+        showAlert('Dosya görüntülenirken hata oluştu', 'error');
+    }
+}
+
+
+
 
 
 
