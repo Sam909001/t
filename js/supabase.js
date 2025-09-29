@@ -19,7 +19,7 @@ let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
 
-// Excel local storage
+/ Excel local storage 
 let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
