@@ -212,8 +212,20 @@ async function initApp() {
 
 // Update DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', async function() {
-    try {
+   try {
         console.log('📄 DOM loaded, starting initialization...');
+        
+        // INITIALIZE ELEMENTS FIRST
+        initializeElementsObject();
+        
+        // THEN INITIALIZE WORKSPACE
+        window.workspaceManager = new WorkspaceManager();
+        await window.workspaceManager.initialize();
+        
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
+        
+        // NOW LOAD APP STATE (including current package)
+        loadAppState();
         
         // Initialize settings button
         const settingsBtn = document.getElementById('settingsBtn');
@@ -890,8 +902,21 @@ async function initApp() {
     // Test connection
     await testConnection();
     
-    // Set up auto-save
-    setInterval(saveAppState, 5000); // Save every 5 seconds
+  // Set up auto-save - more frequent for package data
+setInterval(() => {
+    saveAppState();
+    
+    // Extra save for current package if it has items
+    if (currentPackage.items && Object.keys(currentPackage.items).length > 0) {
+        const packageState = {
+            items: currentPackage.items,
+            customer: selectedCustomer,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('procleanCurrentPackage', JSON.stringify(packageState));
+    }
+}, 2000); // Save every 2 seconds instead of 5
+    
     
     // Set up offline support
     setupOfflineSupport();
