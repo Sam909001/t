@@ -526,6 +526,170 @@ function closeExtraModal() {
 }
 
 
+
+
+function loadAllSettings() {
+    try {
+        const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+        
+        // Theme
+        if (document.getElementById('themeToggle')) {
+            document.getElementById('themeToggle').checked = savedSettings.theme === 'dark';
+            toggleTheme(); // Apply the theme
+        }
+        
+        // Printer settings
+        if (savedSettings.printerScaling) {
+            document.getElementById('printerScaling').value = savedSettings.printerScaling;
+        }
+        if (savedSettings.copies) {
+            document.getElementById('copiesNumber').value = savedSettings.copies;
+        }
+        if (savedSettings.fontName) {
+            document.getElementById('fontName').value = savedSettings.fontName;
+        }
+        if (savedSettings.fontSize) {
+            document.getElementById('fontSize').value = savedSettings.fontSize;
+        }
+        if (savedSettings.orientation) {
+            document.getElementById('orientation').value = savedSettings.orientation;
+        }
+        if (savedSettings.marginTop) {
+            document.getElementById('marginTop').value = savedSettings.marginTop;
+        }
+        if (savedSettings.marginBottom) {
+            document.getElementById('marginBottom').value = savedSettings.marginBottom;
+        }
+        if (savedSettings.labelHeader) {
+            document.getElementById('labelHeader').value = savedSettings.labelHeader;
+        }
+        
+        // General settings
+        if (savedSettings.language) {
+            document.getElementById('languageSelect').value = savedSettings.language;
+        }
+        if (document.getElementById('autoSaveToggle')) {
+            document.getElementById('autoSaveToggle').checked = savedSettings.autoSave !== false;
+        }
+        
+        // Debug settings
+        if (document.getElementById('debugModeToggle')) {
+            document.getElementById('debugModeToggle').checked = savedSettings.debugMode || false;
+        }
+        
+        // Update last saved date display
+        document.getElementById('lastUpdateDate').textContent = new Date().toLocaleString('tr-TR');
+        
+        console.log('Settings loaded successfully');
+        return true;
+        
+    } catch (error) {
+        ErrorHandler.handle(error, 'Ayarları yükleme');
+        return false;
+    }
+}
+
+
+
+// Settings functions
+function showSettingsModal() {
+    loadSettings(); // Load current settings
+    checkSystemStatus(); // Update status indicators
+    document.getElementById('settingsModal').style.display = 'flex';
+}
+
+function closeSettingsModal() {
+    document.getElementById('settingsModal').style.display = 'none';
+}
+
+function loadSettings() {
+    // Load saved settings from localStorage
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+
+    // Theme
+    if (settings.theme === 'dark') {
+        document.getElementById('themeToggle').checked = true;
+        document.body.classList.add('dark-mode');
+    }
+
+    // Language
+    if (settings.language) {
+        document.getElementById('languageSelect').value = settings.language;
+    }
+    
+    // Auto-save
+    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+}
+
+// ---------------- LOAD SETTINGS ----------------
+function loadPrinterSettings(settings) {
+    document.getElementById('printerScaling').value = settings.printerScaling || '100%';
+    document.getElementById('copiesNumber').value = settings.copies || 1;
+    document.getElementById('fontName').value = settings.fontName || 'Arial';
+    document.getElementById('fontSize').value = settings.fontSize || 10;
+    document.getElementById('orientation').value = settings.orientation || 'portrait';
+    document.getElementById('marginTop').value = settings.marginTop ?? 5;
+    document.getElementById('marginBottom').value = settings.marginBottom ?? 5;
+    document.getElementById('labelHeader').value = settings.labelHeader || 'Yeditepe';
+}
+
+// ---------------- SAVE SETTINGS ----------------
+function savePrinterSettings() {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+
+    settings.printerScaling = document.getElementById('printerScaling').value;
+    settings.copies = parseInt(document.getElementById('copiesNumber').value, 10);
+    settings.fontName = document.getElementById('fontName').value;
+    settings.fontSize = parseInt(document.getElementById('fontSize').value, 10);
+    settings.orientation = document.getElementById('orientation').value;
+    settings.marginTop = parseInt(document.getElementById('marginTop').value, 10);
+    settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
+    settings.labelHeader = document.getElementById('labelHeader').value || 'Yeditepe';
+
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
+    console.log('Printer settings saved', settings);
+}
+
+// ---------------- INIT ----------------
+document.addEventListener('DOMContentLoaded', () => {
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    loadPrinterSettings(settings);
+
+    const inputIds = [
+        'printerScaling', 'copiesNumber', 'fontName',
+        'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
+    ];
+
+    inputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', savePrinterSettings);
+    });
+
+    const testBtn = document.getElementById('test-printer-yazdir');
+    if (testBtn) {
+        testBtn.addEventListener('click', async () => {
+            savePrinterSettings();
+            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+            const printerInstance = getPrinter();
+
+            const originalText = testBtn.textContent;
+            testBtn.disabled = true;
+            testBtn.textContent = 'Test Ediliyor...';
+
+            try {
+                // Use labelHeader for test print
+                await printerInstance.testPrint(settings, settings.labelHeader);
+            } catch (error) {
+                console.error('Test print error:', error);
+                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = originalText;
+            }
+        });
+    }
+});
+
 // ---------------- PRINT PACKAGE WITH SETTINGS ----------------
 async function printPackageWithSettings(packageData) {
     try {
@@ -945,208 +1109,132 @@ function importSettings(event) {
     event.target.value = '';
 }
 
-// Enhanced settings management
+// FIX #6: Save all settings with fixed changeLanguage reference
 function saveAllSettings() {
-    try {
-        const settings = {
-            // Theme settings
-            theme: document.getElementById('themeToggle')?.checked ? 'dark' : 'light',
-            
-            // Printer settings
-            printerScaling: document.getElementById('printerScaling')?.value || '100%',
-            copies: parseInt(document.getElementById('copiesNumber')?.value) || 1,
-            fontName: document.getElementById('fontName')?.value || 'Arial',
-            fontSize: parseInt(document.getElementById('fontSize')?.value) || 10,
-            orientation: document.getElementById('orientation')?.value || 'portrait',
-            marginTop: parseInt(document.getElementById('marginTop')?.value) || 5,
-            marginBottom: parseInt(document.getElementById('marginBottom')?.value) || 5,
-            labelHeader: document.getElementById('labelHeader')?.value || 'Yeditepe',
-            
-            // General settings
-            language: document.getElementById('languageSelect')?.value || 'tr',
-            autoSave: document.getElementById('autoSaveToggle')?.checked !== false,
-            
-            // Debug settings
-            debugMode: document.getElementById('debugModeToggle')?.checked || false
-        };
-
-        localStorage.setItem('procleanSettings', JSON.stringify(settings));
-        applySettings(settings);
-        
-        showAlert('Ayarlar başarıyla kaydedildi', 'success');
-        
-        // Update last saved date
-        document.getElementById('lastUpdateDate').textContent = new Date().toLocaleString('tr-TR');
-        
-        return true;
-        
-    } catch (error) {
-        ErrorHandler.handle(error, 'Ayarları kaydetme');
-        return false;
-    }
+    const settings = {
+        theme: document.getElementById('themeToggle')?.checked ? 'dark' : 'light',
+        printerScaling: document.getElementById('printerScaling')?.value || '100',
+        copies: parseInt(document.getElementById('copiesNumber')?.value) || 1,
+        language: document.getElementById('languageSelect')?.value || 'tr',
+        autoSave: document.getElementById('autoSaveToggle')?.checked !== false,
+        fontSize: document.getElementById('fontSizeSelect')?.value || '14',
+        printQuality: document.getElementById('printQualitySelect')?.value || 'normal',
+        barcodeType: document.getElementById('barcodeTypeSelect')?.value || 'code128',
+        paperSize: document.getElementById('paperSizeSelect')?.value || '80x100',
+        soundEnabled: document.getElementById('soundToggle')?.checked !== false,
+        notificationsEnabled: document.getElementById('notificationsToggle')?.checked !== false,
+        backupEnabled: document.getElementById('backupToggle')?.checked !== false,
+        debugMode: document.getElementById('debugToggle')?.checked || false,
+        // FIX #7: Real printer settings (not fake)
+        printerFontSize: parseInt(document.getElementById('printerFontSize')?.value) || 12,
+        printerMargin: parseInt(document.getElementById('printerMargin')?.value) || 3,
+        barcodeHeight: parseInt(document.getElementById('barcodeHeight')?.value) || 25,
+        labelWidth: parseInt(document.getElementById('labelWidth')?.value) || 100,
+        labelHeight: parseInt(document.getElementById('labelHeight')?.value) || 80,
+        // Additional real printer settings
+        printDensity: document.getElementById('printDensity')?.value || 'medium',
+        printSpeed: document.getElementById('printSpeed')?.value || 'normal',
+        paperType: document.getElementById('paperType')?.value || 'thermal',
+        printerPort: document.getElementById('printerPort')?.value || 'USB001',
+        printerModel: document.getElementById('printerModel')?.value || 'Generic'
+    };
+    
+    localStorage.setItem('procleanSettings', JSON.stringify(settings));
+    applySettings(settings);
+    showAlert('Ayarlar kaydedildi', 'success');
+    
+    // Update printer settings in real-time
+    updatePrinterSettings(settings);
 }
 
-function loadAllSettings() {
-    try {
-        const savedSettings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        
-        // Theme
-        if (document.getElementById('themeToggle')) {
-            document.getElementById('themeToggle').checked = savedSettings.theme === 'dark';
-            toggleTheme(); // Apply the theme
-        }
-        
-        // Printer settings
-        if (savedSettings.printerScaling) {
-            document.getElementById('printerScaling').value = savedSettings.printerScaling;
-        }
-        if (savedSettings.copies) {
-            document.getElementById('copiesNumber').value = savedSettings.copies;
-        }
-        if (savedSettings.fontName) {
-            document.getElementById('fontName').value = savedSettings.fontName;
-        }
-        if (savedSettings.fontSize) {
-            document.getElementById('fontSize').value = savedSettings.fontSize;
-        }
-        if (savedSettings.orientation) {
-            document.getElementById('orientation').value = savedSettings.orientation;
-        }
-        if (savedSettings.marginTop) {
-            document.getElementById('marginTop').value = savedSettings.marginTop;
-        }
-        if (savedSettings.marginBottom) {
-            document.getElementById('marginBottom').value = savedSettings.marginBottom;
-        }
-        if (savedSettings.labelHeader) {
-            document.getElementById('labelHeader').value = savedSettings.labelHeader;
-        }
-        
-        // General settings
-        if (savedSettings.language) {
-            document.getElementById('languageSelect').value = savedSettings.language;
-        }
-        if (document.getElementById('autoSaveToggle')) {
-            document.getElementById('autoSaveToggle').checked = savedSettings.autoSave !== false;
-        }
-        
-        // Debug settings
-        if (document.getElementById('debugModeToggle')) {
-            document.getElementById('debugModeToggle').checked = savedSettings.debugMode || false;
-        }
-        
-        // Update last saved date display
-        document.getElementById('lastUpdateDate').textContent = new Date().toLocaleString('tr-TR');
-        
-        console.log('Settings loaded successfully');
-        return true;
-        
-    } catch (error) {
-        ErrorHandler.handle(error, 'Ayarları yükleme');
-        return false;
-    }
-}
-
-
-
-// Settings functions
-function showSettingsModal() {
-    loadSettings(); // Load current settings
-    checkSystemStatus(); // Update status indicators
-    document.getElementById('settingsModal').style.display = 'flex';
-}
-
-function closeSettingsModal() {
-    document.getElementById('settingsModal').style.display = 'none';
-}
-
-function loadSettings() {
-    // Load saved settings from localStorage
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-
-    // Theme
+// Apply settings to the application - FIX #6: Fixed changeLanguage reference
+function applySettings(settings) {
+    // Apply theme
     if (settings.theme === 'dark') {
-        document.getElementById('themeToggle').checked = true;
         document.body.classList.add('dark-mode');
-    }
-
-    // Language
-    if (settings.language) {
-        document.getElementById('languageSelect').value = settings.language;
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.checked = true;
+    } else {
+        document.body.classList.remove('dark-mode');
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.checked = false;
     }
     
-    // Auto-save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
-}
-
-// ---------------- LOAD SETTINGS ----------------
-function loadPrinterSettings(settings) {
-    document.getElementById('printerScaling').value = settings.printerScaling || '100%';
-    document.getElementById('copiesNumber').value = settings.copies || 1;
-    document.getElementById('fontName').value = settings.fontName || 'Arial';
-    document.getElementById('fontSize').value = settings.fontSize || 10;
-    document.getElementById('orientation').value = settings.orientation || 'portrait';
-    document.getElementById('marginTop').value = settings.marginTop ?? 5;
-    document.getElementById('marginBottom').value = settings.marginBottom ?? 5;
-    document.getElementById('labelHeader').value = settings.labelHeader || 'Yeditepe';
-}
-
-// ---------------- SAVE SETTINGS ----------------
-function savePrinterSettings() {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-
-    settings.printerScaling = document.getElementById('printerScaling').value;
-    settings.copies = parseInt(document.getElementById('copiesNumber').value, 10);
-    settings.fontName = document.getElementById('fontName').value;
-    settings.fontSize = parseInt(document.getElementById('fontSize').value, 10);
-    settings.orientation = document.getElementById('orientation').value;
-    settings.marginTop = parseInt(document.getElementById('marginTop').value, 10);
-    settings.marginBottom = parseInt(document.getElementById('marginBottom').value, 10);
-    settings.labelHeader = document.getElementById('labelHeader').value || 'Yeditepe';
-
-    localStorage.setItem('procleanSettings', JSON.stringify(settings));
-    console.log('Printer settings saved', settings);
-}
-
-// ---------------- INIT ----------------
-document.addEventListener('DOMContentLoaded', () => {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    loadPrinterSettings(settings);
-
-    const inputIds = [
-        'printerScaling', 'copiesNumber', 'fontName',
-        'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
-    ];
-
-    inputIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', savePrinterSettings);
-    });
-
-    const testBtn = document.getElementById('test-printer-yazdir');
-    if (testBtn) {
-        testBtn.addEventListener('click', async () => {
-            savePrinterSettings();
-            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-            const printerInstance = getPrinter();
-
-            const originalText = testBtn.textContent;
-            testBtn.disabled = true;
-            testBtn.textContent = 'Test Ediliyor...';
-
-            try {
-                // Use labelHeader for test print
-                await printerInstance.testPrint(settings, settings.labelHeader);
-            } catch (error) {
-                console.error('Test print error:', error);
-                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
-            } finally {
-                testBtn.disabled = false;
-                testBtn.textContent = originalText;
-            }
-        });
+    // Apply language (safe simulation mode)
+    if (settings.language && typeof changeLanguage === 'function') {
+        changeLanguage(settings.language);
     }
-});
+    
+    // Apply font size
+    if (settings.fontSize) {
+        document.documentElement.style.setProperty('--base-font-size', settings.fontSize + 'px');
+        updateFontSize(settings.fontSize);
+    }
+    
+    // Apply sound settings
+    if (settings.soundEnabled !== undefined) {
+        window.soundEnabled = settings.soundEnabled;
+    }
+    
+    // Apply notification settings
+    if (settings.notificationsEnabled !== undefined) {
+        window.notificationsEnabled = settings.notificationsEnabled;
+    }
+    
+    // Apply UI scaling
+    if (settings.printerScaling) {
+        document.documentElement.style.setProperty('--ui-scale', (parseInt(settings.printerScaling) / 100));
+    }
+    
+    // Apply debug mode
+    if (settings.debugMode !== undefined) {
+        window.DEBUG_MODE = settings.debugMode;
+        if (settings.debugMode) {
+            document.body.classList.add('debug-mode');
+        } else {
+            document.body.classList.remove('debug-mode');
+        }
+    }
+    
+    console.log('Settings applied:', settings);
+}
+
+function toggleTheme() {
+    const isDark = document.getElementById('themeToggle')?.checked;
+    document.body.classList.toggle('dark-mode', isDark);
+    const themeStatus = document.getElementById('themeStatus');
+    if (themeStatus) {
+        themeStatus.textContent = isDark ? 'Koyu' : 'Açık';
+    }
+}
+
+function checkSystemStatus() {
+    // --- Database connection ---
+    const dbStatus = document.getElementById('dbConnectionStatus');
+    if (dbStatus) {
+        if (window.supabase) {
+            dbStatus.textContent = 'Bağlı';
+            dbStatus.className = 'status-indicator connected';
+        } else {
+            dbStatus.textContent = 'Bağlantı Yok';
+            dbStatus.className = 'status-indicator disconnected';
+        }
+    }
+
+    // --- Printer connection ---
+    const printerStatus = document.getElementById('printerConnectionStatus');
+    if (printerStatus) {
+        const printerInstance = typeof getPrinterElectron === 'function' ? getPrinterElectron() : null;
+
+        if (printerInstance && printerInstance.isConnected) {
+            printerStatus.textContent = 'Bağlı';
+            printerStatus.className = 'status-indicator connected';
+        } else {
+            printerStatus.textContent = 'Bağlantı Yok';
+            printerStatus.className = 'status-indicator disconnected';
+        }
+    }
+}
 
 async function exportData(format) {
     if (!format) {
@@ -1570,6 +1658,7 @@ function initializeSettings() {
         console.error('⚠️ Error loading settings:', error);
     }
 }
+
 
 function selectPackage(pkg) {
     try {
