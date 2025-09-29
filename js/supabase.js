@@ -448,44 +448,64 @@ const ExcelStorage = {
         }
     },
     
-    // Convert data to CSV format
-    convertToCSV: function(data) {
-        if (!data || data.length === 0) {
-            return 'No data available';
-        }
-        
-        const headers = ['Package No', 'Customer', 'Items', 'Total Quantity', 'Status', 'Packer', 'Created At', 'Workspace'];
-        const csvRows = [headers.join(',')];
-        
-        data.forEach(item => {
-            const row = [
-                `"${item.package_no || ''}"`,
-                `"${item.customer_name || ''}"`,
-                `"${this.formatItems(item.items)}"`,
-                item.total_quantity || 0,
-                `"${item.status || ''}"`,
-                `"${item.packer || ''}"`,
-                `"${item.created_at || ''}"`,
-                `"${item.workspace_id || ''}"`
-            ];
-            csvRows.push(row.join(','));
-        });
-        
-        return csvRows.join('\n');
-    },
+  // Convert data to CSV format with proper columns and Turkish headers
+convertToCSV: function(data) {
+    if (!data || data.length === 0) {
+        return 'No data available';
+    }
     
-    // Format items for CSV
-    formatItems: function(items) {
-        if (!items) return '';
-        
+    // Turkish headers with proper column order
+    const headers = ['Paket No', 'Müşteri Adı', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Oluşturulma Tarihi', 'İstasyon'];
+    const csvRows = [headers.join(',')];
+    
+    data.forEach(item => {
+        const row = [
+            `"${item.package_no || ''}"`,
+            `"${item.customer_name || item.customers?.name || 'Müşteri Yok'}"`,
+            `"${this.formatItemsForExcel(item.items)}"`,
+            item.total_quantity || 0,
+            `"${this.getStatusText(item.status)}"`,
+            `"${item.packer || ''}"`,
+            `"${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}"`,
+            `"${item.workspace_id || item.station_name || ''}"`
+        ];
+        csvRows.push(row.join(','));
+    });
+    
+    return csvRows.join('\n');
+},
+
+// Enhanced items formatting for Excel
+formatItemsForExcel: function(items) {
+    if (!items) return 'Ürün Yok';
+    
+    try {
         if (Array.isArray(items)) {
-            return items.map(item => `${item.name}:${item.qty}`).join('; ');
+            return items.map(item => 
+                `${item.name || 'Ürün'}: ${item.qty || 0} adet`
+            ).join('; ');
         } else if (typeof items === 'object') {
-            return Object.entries(items).map(([name, qty]) => `${name}:${qty}`).join('; ');
+            return Object.entries(items).map(([name, qty]) => 
+                `${name}: ${qty} adet`
+            ).join('; ');
         }
-        
         return String(items);
-    },
+    } catch (error) {
+        console.error('Error formatting items for Excel:', error);
+        return 'Ürün format hatası';
+    }
+},
+
+// Get Turkish status text
+getStatusText: function(status) {
+    const statusMap = {
+        'beklemede': 'Beklemede',
+        'sevk-edildi': 'Sevk Edildi',
+        'shipped': 'Sevk Edildi',
+        'waiting': 'Beklemede'
+    };
+    return statusMap[status] || status || 'Beklemede';
+},
     
     // Get all daily files
     getAllFiles: function() {
