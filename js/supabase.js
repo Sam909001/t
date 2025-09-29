@@ -18,6 +18,7 @@ let selectedPackageForPrinting = null;
 let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
+let customers = []; // 👈 ADDED
 
 / Excel local storage 
 let excelPackages = [];
