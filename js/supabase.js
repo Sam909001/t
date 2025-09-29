@@ -633,31 +633,31 @@ const ExcelJS = {
         }
     },
     
-    // Simple XLSX format simulation
-    toExcelFormat: function(packages) {
-        return packages.map(pkg => ({
-            id: pkg.id || `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            package_no: pkg.package_no,
-            customer_id: pkg.customer_id,
-            customer_name: pkg.customer_name,
-            customer_code: pkg.customer_code,
-            items: pkg.items,
-            items_display: pkg.items_display,
-            total_quantity: pkg.total_quantity,
-            status: pkg.status,
-            packer: pkg.packer,
-            created_at: pkg.created_at,
-            updated_at: pkg.updated_at || new Date().toISOString(),
-            workspace_id: pkg.workspace_id,
-            station_name: pkg.station_name,
-            source: 'excel'
-        }));
-    },
+   // Simple XLSX format simulation
+toExcelFormat: function(packages) {
+    return packages.map(pkg => ({
+        id: pkg.id, // Always use the existing ID, never generate new ones
+        package_no: pkg.package_no,
+        customer_id: pkg.customer_id,
+        customer_name: pkg.customer_name,
+        customer_code: pkg.customer_code,
+        items: pkg.items,
+        items_display: pkg.items_display,
+        total_quantity: pkg.total_quantity,
+        status: pkg.status,
+        packer: pkg.packer,
+        created_at: pkg.created_at,
+        updated_at: pkg.updated_at || new Date().toISOString(),
+        workspace_id: pkg.workspace_id,
+        station_name: pkg.station_name,
+        source: pkg.source || 'excel' // Preserve existing source
+    }));
+},
     
     fromExcelFormat: function(excelData) {
         return excelData.map(row => ({
             ...row,
-            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items
+            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items,
         }));
     },
     
@@ -1296,6 +1296,7 @@ async function populatePackagesTable() {
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
+                    .eq('workspace_id', getCurrentWorkspaceId()) // ADD THIS LINE
                     .eq('workspace_id', workspaceId) // STRICT WORKSPACE FILTER
                     .order('created_at', { ascending: false });
 
@@ -2781,7 +2782,7 @@ async function completePackage() {
 
         // Enhanced package data with workspace info
         const packageData = {
-            id: `pkg-${workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Workspace-prefixed ID
+            id: packageId, // SAME ID FOR SUPABASE AND EXCEL
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
