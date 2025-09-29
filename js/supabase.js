@@ -24,7 +24,6 @@ let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
 
-
 // Add this RIGHT AFTER the existing global variables (around line 25)
 // ==================== WORKSPACE MANAGEMENT ====================
 class WorkspaceManager {
@@ -199,24 +198,23 @@ class WorkspaceManager {
     }
     
     // Load workspace-specific data
-  // Load workspace-specific data
-async loadWorkspaceData() {
-    try {
-        const workspaceId = this.currentWorkspace?.id || 'default';
-        const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-        const packages = data ? JSON.parse(data) : [];
-        
-        // Make sure excelPackages global variable is updated
-        excelPackages = packages;
-        
-        console.log(`📦 Workspace data loaded: ${excelPackages.length} packages for workspace: ${workspaceId}`);
-        return packages;
-    } catch (error) {
-        console.error('❌ Error loading workspace data:', error);
-        excelPackages = [];
-        return [];
+    async loadWorkspaceData() {
+        try {
+            const workspaceId = this.currentWorkspace?.id || 'default';
+            const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+            const packages = data ? JSON.parse(data) : [];
+            
+            // Make sure excelPackages global variable is updated
+            excelPackages = packages;
+            
+            console.log(`📦 Workspace data loaded: ${excelPackages.length} packages for workspace: ${workspaceId}`);
+            return packages;
+        } catch (error) {
+            console.error('❌ Error loading workspace data:', error);
+            excelPackages = [];
+            return [];
+        }
     }
-}
   
     
     // Restore original Excel functions
@@ -315,8 +313,6 @@ async loadWorkspaceData() {
     }
 }
 
-
-
 // Generate proper UUID v4 for Excel packages
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -325,8 +321,6 @@ function generateUUID() {
         return v.toString(16);
     });
 }
-
-
 
 // EmailJS initialization
 (function() {
@@ -698,7 +692,7 @@ const ExcelJS = {
 // Merge ExcelStorage functionality into ExcelJS
 Object.assign(ExcelJS, ExcelStorage);
 
-// FIXED: Supabase istemcisini başlat - Singleton pattern ile
+// FIXED: Supabase istemcisini başlat - Better error handling
 function initializeSupabase() {
     // Global değişkenleri kontrol et
     if (typeof SUPABASE_ANON_KEY === 'undefined' || !SUPABASE_ANON_KEY) {
@@ -710,13 +704,22 @@ function initializeSupabase() {
     }
     
     // Eğer client zaten oluşturulmuşsa, mevcut olanı döndür
-    if (window.supabase && window.SUPABASE_ANON_KEY) {
+    if (window.supabase && window.SUPABASE_ANON_KEY === SUPABASE_ANON_KEY) {
         console.log('Using existing Supabase client');
         window.isUsingExcel = false;
         return window.supabase;
     }
     
     try {
+        // Check if Supabase is available globally
+        if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
+            console.error('Supabase client library not loaded properly');
+            showAlert('Supabase kütüphanesi yüklenemedi. Excel moduna geçiliyor.', 'warning');
+            window.isUsingExcel = true;
+            showApiKeyModal();
+            return null;
+        }
+        
         // Global supabase değişkenine ata
         window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized successfully');
@@ -730,6 +733,50 @@ function initializeSupabase() {
         return null;
     }
 }
+
+// FIXED: Initialize Supabase on page load with better error handling
+async function initializeApp() {
+    try {
+        // First try to load saved API key
+        const savedApiKey = localStorage.getItem('procleanApiKey');
+        if (savedApiKey) {
+            SUPABASE_ANON_KEY = savedApiKey;
+            console.log('Loaded API key from localStorage');
+        }
+        
+        // Initialize workspace manager first
+        await window.workspaceManager.initialize();
+        
+        // Then initialize Supabase if we have an API key
+        if (SUPABASE_ANON_KEY) {
+            const client = initializeSupabase();
+            if (client) {
+                await testConnection();
+            }
+        } else {
+            // No API key, use Excel mode
+            window.isUsingExcel = true;
+            showApiKeyModal();
+        }
+        
+        // Initialize Excel storage
+        await initializeExcelStorage();
+        
+        console.log('App initialized successfully');
+        
+    } catch (error) {
+        console.error('App initialization error:', error);
+        showAlert('Uygulama başlatılırken hata oluştu', 'error');
+        // Fallback to Excel mode
+        window.isUsingExcel = true;
+        await initializeExcelStorage();
+    }
+}
+
+// Call this when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApp();
+});
 
 async function initializeExcelStorage() {
     try {
@@ -752,6 +799,7 @@ async function initializeExcelStorage() {
         return [];
     }
 }
+
 async function saveToExcel(packageData) {
     try {
         // Get current workspace
@@ -891,6 +939,7 @@ function saveApiKey() {
     
     // Eski client'ı temizle
     supabase = null;
+    window.supabase = null;
     
     // Yeni API key'i ayarla
     SUPABASE_ANON_KEY = apiKey;
@@ -908,7 +957,6 @@ function saveApiKey() {
         setTimeout(syncExcelWithSupabase, 2000);
     }
 }
-
         
 let connectionAlertShown = false; // Prevent duplicate success alert
 
@@ -944,8 +992,6 @@ async function testConnection() {
         return false;
     }
 }
-
-
 
 
  // Çevrimdışı destek
