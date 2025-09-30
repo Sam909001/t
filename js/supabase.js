@@ -538,64 +538,63 @@ const ExcelStorage = {
     },
     
     // Export daily file to downloadable format
-    exportDailyFile: function(dateString) {
-        try {
-            const fileName = `packages_${dateString}.json`;
-            const fileData = localStorage.getItem(fileName);
-            
-            if (!fileData) {
-                showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
-                return;
-            }
-            
-            const packages = JSON.parse(fileData);
-            
-            // Convert to CSV format for better Excel compatibility
-            const csvContent = this.convertToCSV(packages);
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `proclean_packages_${dateString}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            showAlert(`${dateString} tarihli ${packages.length} paket CSV olarak indirildi`, 'success');
-            
-        } catch (error) {
-            console.error('Export error:', error);
-            showAlert('Dosya dışa aktarılırken hata oluştu', 'error');
+exportDailyFile: function(dateString) {
+    try {
+        const fileName = `packages_${dateString}.json`;
+        const fileData = localStorage.getItem(fileName);
+        
+        if (!fileData) {
+            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
+            return;
         }
-    },
+        
+        const packages = JSON.parse(fileData);
+        
+        // Convert to CSV format for better Excel compatibility
+        const csvContent = this.convertToCSV(packages);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `proclean_packages_${dateString}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showAlert(`${dateString} tarihli ${packages.length} paket CSV olarak indirildi`, 'success');
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert('Dosya dışa aktarılırken hata oluştu', 'error');
+    }
+},
     
-    // Convert to CSV format
-    convertToCSV: function(data) {
-        if (!data || data.length === 0) {
-            return 'Paket No,Müşteri Adı,Müşteri Kodu,Ürünler,Toplam Adet,Durum,Paketleyen,Tarih,İstasyon\n';
-        }
-        
-        const headers = ['Paket No', 'Müşteri Adı', 'Müşteri Kodu', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Tarih', 'İstasyon'];
-        let csv = headers.join(',') + '\n';
-        
-        data.forEach(item => {
-            const row = [
-                `"${item.package_no || ''}"`,
-                `"${item.customer_name || ''}"`,
-                `"${item.customer_code || ''}"`,
-                `"${item.items_display || ''}"`,
-                item.total_quantity || 0,
-                `"${item.status || ''}"`,
-                `"${item.packer || ''}"`,
-                `"${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : ''}"`,
-                `"${item.station_name || ''}"`
-            ];
-            csv += row.join(',') + '\n';
-        });
-        
-        return csv;
-    },
+ // Convert to CSV format - Professional version
+convertToCSV: function(data) {
+    if (!data || data.length === 0) {
+        return 'PAKET NO,MÜŞTERİ ADI,MÜŞTERİ KODU,ÜRÜN TİPLERİ,ÜRÜN DETAYLARI,TOPLAM ADET,DURUM,PAKETLEYEN,OLUŞTURULMA TARİHİ,İSTASYON,KONTEYNER NO\n';
+    }
+    
+    const excelData = ProfessionalExcelExport.convertToProfessionalExcel(data);
+    const headers = Object.keys(excelData[0]);
+    
+    const csvContent = [
+        headers.join(','), // Header row
+        ...excelData.map(row => 
+            headers.map(header => {
+                const value = row[header];
+                // Escape commas and quotes in values
+                if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                    return `"${value.replace(/"/g, '""')}"`;
+                }
+                return value;
+            }).join(',')
+        )
+    ].join('\n');
+    
+    return csvContent;
+},
     
     // Clean up old files (keep only last 7 days)
     cleanupOldFiles: function() {
@@ -682,6 +681,234 @@ toExcelFormat: function(packages) {
     convertToCSV: ExcelStorage.convertToCSV,
     cleanupOldFiles: ExcelStorage.cleanupOldFiles
 };
+
+
+
+// ==================== PROFESSIONAL EXCEL EXPORT ====================
+const ProfessionalExcelExport = {
+    // Convert packages to Excel-friendly format with proper headers
+    convertToProfessionalExcel: function(packages) {
+        if (!packages || packages.length === 0) {
+            return [];
+        }
+
+        // Define professional headers
+        const excelData = packages.map(pkg => {
+            // Extract items information professionally
+            let itemsInfo = 'Ürün bilgisi yok';
+            let itemTypes = 'Bilinmiyor';
+            
+            if (pkg.items) {
+                if (Array.isArray(pkg.items)) {
+                    // Array format: [{name: "Product", qty: 5}]
+                    itemsInfo = pkg.items.map(item => 
+                        `${item.name || 'Ürün'}: ${item.qty || 0} adet`
+                    ).join('; ');
+                    itemTypes = pkg.items.map(item => item.name || 'Ürün').join('; ');
+                } else if (typeof pkg.items === 'object') {
+                    // Object format: {"Product1": 5, "Product2": 3}
+                    itemsInfo = Object.entries(pkg.items).map(([product, quantity]) => 
+                        `${product}: ${quantity} adet`
+                    ).join('; ');
+                    itemTypes = Object.keys(pkg.items).join('; ');
+                }
+            } else if (pkg.items_display) {
+                // Fallback to items_display
+                itemsInfo = pkg.items_display;
+                itemTypes = pkg.items_display.split(',').map(item => 
+                    item.split(':')[0].trim()
+                ).join('; ');
+            }
+
+            return {
+                'PAKET NO': pkg.package_no || 'N/A',
+                'MÜŞTERİ ADI': pkg.customer_name || pkg.customers?.name || 'Bilinmeyen Müşteri',
+                'MÜŞTERİ KODU': pkg.customer_code || pkg.customers?.code || '',
+                'ÜRÜN TİPLERİ': itemTypes,
+                'ÜRÜN DETAYLARI': itemsInfo,
+                'TOPLAM ADET': pkg.total_quantity || 0,
+                'DURUM': pkg.status === 'sevk-edildi' ? 'SEVK EDİLDİ' : 'BEKLEMEDE',
+                'PAKETLEYEN': pkg.packer || 'Bilinmiyor',
+                'OLUŞTURULMA TARİHİ': pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A',
+                'GÜNCELLENME TARİHİ': pkg.updated_at ? new Date(pkg.updated_at).toLocaleDateString('tr-TR') : 'N/A',
+                'İSTASYON': pkg.station_name || pkg.workspace_id || 'Default',
+                'KONTEYNER NO': pkg.container_id || 'Yok'
+            };
+        });
+
+        return excelData;
+    },
+
+    // Create professional Excel file with proper styling
+    exportToProfessionalExcel: function(packages, filename = null) {
+        try {
+            if (!packages || packages.length === 0) {
+                showAlert('Excel için paket verisi bulunamadı', 'warning');
+                return false;
+            }
+
+            const excelData = this.convertToProfessionalExcel(packages);
+            
+            if (!filename) {
+                const date = new Date().toISOString().split('T')[0];
+                filename = `ProClean_Paketler_${date}_${getCurrentWorkspaceName()}.xlsx`;
+            }
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            
+            // Convert data to worksheet
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            
+            // Set column widths for better readability
+            const colWidths = [
+                { wch: 15 }, // PAKET NO
+                { wch: 25 }, // MÜŞTERİ ADI
+                { wch: 15 }, // MÜŞTERİ KODU
+                { wch: 30 }, // ÜRÜN TİPLERİ
+                { wch: 40 }, // ÜRÜN DETAYLARI
+                { wch: 12 }, // TOPLAM ADET
+                { wch: 12 }, // DURUM
+                { wch: 20 }, // PAKETLEYEN
+                { wch: 15 }, // OLUŞTURULMA TARİHİ
+                { wch: 15 }, // GÜNCELLENME TARİHİ
+                { wch: 15 }, // İSTASYON
+                { wch: 15 }  // KONTEYNER NO
+            ];
+            ws['!cols'] = colWidths;
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Paketler');
+
+            // Create header style
+            if (ws['!ref']) {
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                
+                // Style header row (row 0)
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cell_address = { c: C, r: 0 };
+                    const cell_ref = XLSX.utils.encode_cell(cell_address);
+                    if (!ws[cell_ref]) continue;
+                    
+                    // Make header cells bold
+                    if (!ws[cell_ref].s) {
+                        ws[cell_ref].s = {};
+                    }
+                    ws[cell_ref].s = {
+                        font: { bold: true, color: { rgb: "FFFFFF" } },
+                        fill: { fgColor: { rgb: "2F75B5" } },
+                        alignment: { horizontal: "center", vertical: "center" }
+                    };
+                }
+
+                // Add auto filters
+                ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+            }
+
+            // Write and download file
+            XLSX.writeFile(wb, filename);
+            
+            showAlert(`✅ ${packages.length} paket profesyonel Excel formatında dışa aktarıldı`, 'success');
+            console.log('Professional Excel exported:', packages.length, 'packages');
+            
+            return true;
+
+        } catch (error) {
+            console.error('Professional Excel export error:', error);
+            showAlert('Excel dışa aktarım hatası: ' + error.message, 'error');
+            return false;
+        }
+    },
+
+    // Enhanced CSV export with proper formatting
+    exportToProfessionalCSV: function(packages, filename = null) {
+        try {
+            if (!packages || packages.length === 0) {
+                showAlert('CSV için paket verisi bulunamadı', 'warning');
+                return false;
+            }
+
+            const excelData = this.convertToProfessionalExcel(packages);
+            
+            if (!filename) {
+                const date = new Date().toISOString().split('T')[0];
+                filename = `ProClean_Paketler_${date}_${getCurrentWorkspaceName()}.csv`;
+            }
+
+            // Convert to CSV with proper formatting
+            const headers = Object.keys(excelData[0]);
+            const csvContent = [
+                headers.join(','), // Header row
+                ...excelData.map(row => 
+                    headers.map(header => {
+                        const value = row[header];
+                        // Escape commas and quotes in values
+                        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                            return `"${value.replace(/"/g, '""')}"`;
+                        }
+                        return value;
+                    }).join(',')
+                )
+            ].join('\n');
+
+            // Create and download CSV file
+            const blob = new Blob(['\uFEFF' + csvContent], { 
+                type: 'text/csv;charset=utf-8;' 
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showAlert(`✅ ${packages.length} paket CSV formatında dışa aktarıldı`, 'success');
+            return true;
+
+        } catch (error) {
+            console.error('Professional CSV export error:', error);
+            showAlert('CSV dışa aktarım hatası: ' + error.message, 'error');
+            return false;
+        }
+    }
+};
+
+// Replace the existing ExcelStorage export functions with professional versions
+ExcelStorage.exportDailyFile = function(dateString) {
+    try {
+        const fileName = `packages_${dateString}.json`;
+        const fileData = localStorage.getItem(fileName);
+        
+        if (!fileData) {
+            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
+            return;
+        }
+        
+        const packages = JSON.parse(fileData);
+        
+        if (packages.length === 0) {
+            showAlert(`${dateString} tarihli dosyada paket bulunmamaktadır`, 'info');
+            return;
+        }
+
+        // Use professional Excel export
+        const filename = `ProClean_Paketler_${dateString}.xlsx`;
+        ProfessionalExcelExport.exportToProfessionalExcel(packages, filename);
+        
+    } catch (error) {
+        console.error('Enhanced export error:', error);
+        showAlert('Dosya dışa aktarılırken hata oluştu', 'error');
+    }
+};
+
+// Enhanced ExcelJS export functions
+ExcelJS.exportToExcel = ProfessionalExcelExport.exportToProfessionalExcel;
+ExcelJS.exportToCSV = ProfessionalExcelExport.exportToProfessionalCSV;
+
+
+
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
