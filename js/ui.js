@@ -1989,3 +1989,221 @@ function setupKeyboardShortcuts() {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(setupKeyboardShortcuts, 1000);
 });
+
+
+
+// ==================== EVENT LISTENER MANAGEMENT ====================
+
+// Add this to ui.js after existing functions
+
+class EventListenerManager {
+    constructor() {
+        this.listeners = new Map();
+        this.initialized = false;
+    }
+
+    // Initialize all event listeners once
+    initializeEventListeners() {
+        if (this.initialized) {
+            console.warn('⚠️ Event listeners already initialized');
+            return;
+        }
+
+        this.cleanupAllListeners();
+        this.setupCoreListeners();
+        this.initialized = true;
+        
+        console.log('✅ Event listeners initialized');
+    }
+
+    // Setup core application listeners
+    setupCoreListeners() {
+        // Settings button
+        this.addListener('settingsBtn', 'click', showSettingsModal);
+        
+        // Close settings modal
+        this.addListener('closeSettingsModalBtn', 'click', closeSettingsModal);
+        
+        // Login button and form
+        this.addListener('loginBtn', 'click', login);
+        this.addListener('email', 'keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+        this.addListener('password', 'keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+        
+        // Quantity modal
+        this.addListener('quantityInput', 'keypress', (e) => {
+            if (e.key === 'Enter') confirmQuantity();
+        });
+        
+        // Customer select
+        this.addListener('customerSelect', 'change', function() {
+            const customerId = this.value;
+            if (customerId) {
+                const selectedOption = this.options[this.selectedIndex];
+                selectedCustomer = {
+                    id: customerId,
+                    name: selectedOption.textContent.split(' (')[0],
+                    code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
+                showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
+            } else {
+                selectedCustomer = null;
+            }
+        });
+        
+        // Tab system
+        document.querySelectorAll('.tab').forEach(tab => {
+            this.addListener(tab, 'click', function() {
+                const tabName = this.getAttribute('data-tab');
+                if (tabName) switchTab(tabName);
+            });
+        });
+        
+        // Close modal when clicking outside
+        this.addListener(window, 'click', function(event) {
+            if (event.target === document.getElementById('settingsModal')) {
+                closeSettingsModal();
+            }
+        });
+        
+        // Online/offline detection
+        this.addListener(window, 'online', this.handleOnlineStatus);
+        this.addListener(window, 'offline', this.handleOfflineStatus);
+        
+        // Barcode scanner (single instance)
+        this.setupBarcodeScanner();
+    }
+
+    // Add listener with tracking
+    addListener(elementOrId, event, handler) {
+        const element = typeof elementOrId === 'string' 
+            ? document.getElementById(elementOrId)
+            : elementOrId;
+            
+        if (!element) {
+            console.warn(`⚠️ Element not found for listener: ${elementOrId}`);
+            return;
+        }
+        
+        const key = `${element.id || 'anonymous'}_${event}`;
+        
+        // Remove existing listener first
+        if (this.listeners.has(key)) {
+            const { element: oldElement, event: oldEvent, handler: oldHandler } = this.listeners.get(key);
+            oldElement.removeEventListener(oldEvent, oldHandler);
+        }
+        
+        // Add new listener
+        element.addEventListener(event, handler);
+        this.listeners.set(key, { element, event, handler });
+    }
+
+    // Handle online status
+    handleOnlineStatus() {
+        document.getElementById('offlineIndicator').style.display = 'none';
+        if (elements.connectionStatus) {
+            elements.connectionStatus.textContent = 'Çevrimiçi';
+        }
+        showAlert('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
+        
+        // Trigger sync after coming online
+        setTimeout(() => {
+            if (excelSyncQueue.length > 0) {
+                syncExcelWithSupabase();
+            }
+        }, 2000);
+    }
+
+    // Handle offline status
+    handleOfflineStatus() {
+        document.getElementById('offlineIndicator').style.display = 'block';
+        if (elements.connectionStatus) {
+            elements.connectionStatus.textContent = 'Çevrimdışı';
+        }
+        showAlert('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
+    }
+
+    // Fixed barcode scanner setup
+    setupBarcodeScanner() {
+        if (!elements.barcodeInput) {
+            console.error('Barcode input element not found');
+            return;
+        }
+        
+        // Remove any existing listeners
+        this.removeBarcodeListeners();
+        
+        let barcodeBuffer = '';
+        let lastKeyTime = Date.now();
+        
+        const barcodeHandler = (e) => {
+            const currentTime = Date.now();
+            
+            if (scannerMode || currentTime - lastKeyTime < 50) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (barcodeBuffer.length > 5) {
+                        elements.barcodeInput.value = barcodeBuffer;
+                        processBarcode();
+                    }
+                    barcodeBuffer = '';
+                } else {
+                    barcodeBuffer += e.key;
+                }
+            } else {
+                barcodeBuffer = '';
+            }
+            
+            lastKeyTime = currentTime;
+        };
+        
+        this.addListener(elements.barcodeInput, 'keypress', barcodeHandler);
+        console.log('✅ Barcode scanner listener setup complete');
+    }
+
+    // Remove barcode listeners specifically
+    removeBarcodeListeners() {
+        const barcodeKeys = Array.from(this.listeners.keys()).filter(key => 
+            key.includes('barcode') || key.includes('anonymous_keypress')
+        );
+        
+        barcodeKeys.forEach(key => {
+            const { element, event, handler } = this.listeners.get(key);
+            element.removeEventListener(event, handler);
+            this.listeners.delete(key);
+        });
+    }
+
+    // Cleanup all listeners
+    cleanupAllListeners() {
+        this.listeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
+        });
+        this.listeners.clear();
+        this.initialized = false;
+        
+        console.log('🧹 All event listeners cleaned up');
+    }
+
+    // Reinitialize listeners (for page transitions)
+    reinitialize() {
+        this.cleanupAllListeners();
+        this.initializeEventListeners();
+    }
+}
+
+// Initialize event listener manager
+const eventListenerManager = new EventListenerManager();
+
+// Replace the existing setupEventListeners function
+function setupEventListeners() {
+    eventListenerManager.initializeEventListeners();
+}
+
+// Add cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    eventListenerManager.cleanupAllListeners();
+});
