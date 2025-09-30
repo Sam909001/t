@@ -13,14 +13,21 @@ window.printSelectedElectron = async function() {
         showAlert('Önce çalışma istasyonu seçin!', 'error');
         
         // Force workspace selection
-        await window.workspaceManager.showWorkspaceSelection();
+        if (window.workspaceManager?.showWorkspaceSelection) {
+            await window.workspaceManager.showWorkspaceSelection();
+        }
         return false;
     }
     
     // Check if printer instance exists
     if (!window.printerElectron) {
         console.log('🔄 Initializing printer service...');
-        window.printerElectron = new PrinterServiceElectronWithSettings();
+        if (typeof PrinterServiceElectronWithSettings !== 'undefined') {
+            window.printerElectron = new PrinterServiceElectronWithSettings();
+        } else {
+            showAlert('Yazıcı modülü yüklenemedi', 'error');
+            return false;
+        }
     }
     
     const currentWorkspace = window.workspaceManager.currentWorkspace;
@@ -28,12 +35,14 @@ window.printSelectedElectron = async function() {
     
     console.log(`🖨️ Printing from ${currentWorkspace.name} on ${printerConfig.name}`);
     
+    // Get selected packages
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     if (checkboxes.length === 0) {
         showAlert('En az bir paket seçin', 'error');
         return false;
     }
 
+    // Process packages
     const packages = Array.from(checkboxes).map((checkbox, i) => {
         const row = checkbox.closest('tr');
         const packageNo = row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}-${i}`;
@@ -83,21 +92,22 @@ window.printSelectedElectron = async function() {
         return {
             package_no: packageNo,
             customer_name: customerName,
-            items: items, // FIXED: Use the actual items array, not empty array
+            items: items,
             created_at: new Date().toLocaleDateString('tr-TR')
         };
     });
 
-    // Get settings and add workspace info
+    // Get settings
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
-    // ADDED: Include workstation and printer info in settings
+    // Add workspace info to settings
     settings.workspace = {
         id: currentWorkspace.id,
         name: currentWorkspace.name,
         printer: printerConfig
     };
 
+    // Update UI
     const printBtn = document.getElementById('printBarcodeBtn');
     let originalText = '';
     
@@ -111,9 +121,9 @@ window.printSelectedElectron = async function() {
         console.log('📦 Final packages to print:', packages);
         console.log('🖨️ Printer settings:', settings.workspace);
         
+        // Call the printer
         const success = await window.printerElectron.printAllLabels(packages, settings);
         
-        // Show success message with printer info
         if (success) {
             showAlert(`Etiketler ${printerConfig.name} yazıcısına gönderildi ✅`, 'success');
         } else {
@@ -121,14 +131,17 @@ window.printSelectedElectron = async function() {
         }
         
         return success;
+        
     } catch (error) {
-        console.error('Print error:', error);
-        showAlert(`${printerConfig.name} yazıcısında hata: ${error.message}`, 'error');
+        console.error('❌ Print error:', error);
+        showAlert(`Yazdırma hatası: ${error.message}`, 'error');
         return false;
+        
     } finally {
+        // Restore button state
         if (printBtn) {
             printBtn.disabled = false;
-            printBtn.innerHTML = originalText;
+            printBtn.innerHTML = originalText || 'Etiket Yazdır';
         }
     }
 };
