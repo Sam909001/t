@@ -2432,3 +2432,205 @@ async function completePackage() {
         showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
+
+
+
+// ==================== PERFORMANCE OPTIMIZATION ====================
+
+// Add this to ui.js
+
+class PerformanceOptimizer {
+    constructor() {
+        this.debounceTimers = new Map();
+        this.throttleFlags = new Map();
+        this.largeDataCache = new Map();
+    }
+
+    // Debounce function for search and filter
+    debounce(func, delay, context) {
+        const key = func.name || 'anonymous';
+        
+        return (...args) => {
+            clearTimeout(this.debounceTimers.get(key));
+            
+            const timer = setTimeout(() => {
+                func.apply(context, args);
+                this.debounceTimers.delete(key);
+            }, delay);
+            
+            this.debounceTimers.set(key, timer);
+        };
+    }
+
+    // Throttle function for scroll and resize
+    throttle(func, delay, context) {
+        const key = func.name || 'anonymous';
+        
+        return (...args) => {
+            if (this.throttleFlags.get(key)) return;
+            
+            this.throttleFlags.set(key, true);
+            func.apply(context, args);
+            
+            setTimeout(() => {
+                this.throttleFlags.delete(key);
+            }, delay);
+        };
+    }
+
+    // Optimize large dataset rendering
+    optimizeTableRendering(data, containerId, renderFunction, chunkSize = 50) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        // Clear container
+        container.innerHTML = '';
+        
+        // Render in chunks for better performance
+        let currentIndex = 0;
+        
+        const renderChunk = () => {
+            const chunk = data.slice(currentIndex, currentIndex + chunkSize);
+            
+            chunk.forEach(item => {
+                const element = renderFunction(item);
+                if (element) {
+                    container.appendChild(element);
+                }
+            });
+            
+            currentIndex += chunkSize;
+            
+            if (currentIndex < data.length) {
+                requestAnimationFrame(renderChunk);
+            }
+        };
+        
+        renderChunk();
+    }
+
+    // Cache expensive operations
+    memoize(func, keyGenerator) {
+        return (...args) => {
+            const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
+            
+            if (this.largeDataCache.has(key)) {
+                return this.largeDataCache.get(key);
+            }
+            
+            const result = func(...args);
+            this.largeDataCache.set(key, result);
+            
+            return result;
+        };
+    }
+
+    // Cleanup memory
+    cleanupMemory() {
+        // Clear debounce timers
+        this.debounceTimers.forEach((timer, key) => {
+            clearTimeout(timer);
+        });
+        this.debounceTimers.clear();
+        
+        // Clear throttle flags
+        this.throttleFlags.clear();
+        
+        // Clear old cache entries (keep only last 100)
+        if (this.largeDataCache.size > 100) {
+            const keys = Array.from(this.largeDataCache.keys());
+            const keysToDelete = keys.slice(0, keys.length - 100);
+            
+            keysToDelete.forEach(key => {
+                this.largeDataCache.delete(key);
+            });
+        }
+        
+        console.log('🧹 Memory cleanup completed');
+    }
+}
+
+// Initialize performance optimizer
+const performanceOptimizer = new PerformanceOptimizer();
+
+// Optimized search function
+const debouncedSearchPackages = performanceOptimizer.debounce(function(searchTerm) {
+    if (!searchTerm || searchTerm.length < 2) {
+        safePopulatePackagesTable();
+        return;
+    }
+    
+    const filteredPackages = window.packages.filter(pkg => 
+        pkg.package_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pkg.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pkg.customer_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pkg.packer?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    populatePackagesTable(filteredPackages);
+}, 300);
+
+// Optimized filter function
+const debouncedFilterPackages = performanceOptimizer.debounce(function(filters) {
+    let filteredPackages = window.packages;
+    
+    if (filters.customer) {
+        filteredPackages = filteredPackages.filter(pkg => 
+            pkg.customer_id === filters.customer
+        );
+    }
+    
+    if (filters.status) {
+        filteredPackages = filteredPackages.filter(pkg => 
+            pkg.status === filters.status
+        );
+    }
+    
+    if (filters.dateFrom) {
+        filteredPackages = filteredPackages.filter(pkg => 
+            new Date(pkg.created_at) >= new Date(filters.dateFrom)
+        );
+    }
+    
+    populatePackagesTable(filteredPackages);
+}, 300);
+
+// Replace existing search and filter event listeners
+function setupOptimizedEventListeners() {
+    // Search input
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            debouncedSearchPackages(e.target.value);
+        });
+    }
+    
+    // Filter inputs
+    const customerFilter = document.getElementById('customerFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const dateFromFilter = document.getElementById('dateFromFilter');
+    
+    const applyFilters = () => {
+        const filters = {
+            customer: customerFilter?.value,
+            status: statusFilter?.value,
+            dateFrom: dateFromFilter?.value
+        };
+        
+        debouncedFilterPackages(filters);
+    };
+    
+    if (customerFilter) customerFilter.addEventListener('change', applyFilters);
+    if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+    if (dateFromFilter) dateFromFilter.addEventListener('change', applyFilters);
+}
+
+// Memory cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    performanceOptimizer.cleanupMemory();
+});
+
+// Periodic memory cleanup
+setInterval(() => {
+    performanceOptimizer.cleanupMemory();
+}, 30000); // Every 30 seconds
