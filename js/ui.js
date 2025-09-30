@@ -1947,3 +1947,138 @@ function setupPasswordProtection() {
         window.deleteCustomer = deleteCustomerWithPassword;
     }
 }
+
+
+
+
+// Excel preview functionality
+function setupExcelPreview() {
+    const previewButton = document.createElement('button');
+    previewButton.className = 'btn btn-info btn-sm';
+    previewButton.innerHTML = '<i class="fas fa-eye"></i> İncele';
+    previewButton.onclick = previewExcelData;
+    
+    // Add preview button next to download buttons
+    const downloadButtons = document.querySelectorAll('[onclick*="exportDailyFile"], [onclick*="exportToExcel"]');
+    downloadButtons.forEach(btn => {
+        btn.parentNode.insertBefore(previewButton.cloneNode(true), btn.nextSibling);
+    });
+}
+
+async function previewExcelData() {
+    try {
+        const packages = await ExcelJS.readFile();
+        
+        if (packages.length === 0) {
+            showAlert("Önizlenecek veri bulunamadı", "info");
+            return;
+        }
+
+        // Create preview modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
+            align-items: center; z-index: 10000;
+        `;
+
+        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 20px; border-radius: 8px; max-width: 90%; max-height: 90%; width: 1000px; overflow: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0;">
+                        <i class="fas fa-file-excel"></i> Excel Önizleme
+                        <small style="color: #666; font-size: 0.8em;">(${packages.length} kayıt)</small>
+                    </h3>
+                    <div>
+                        <button onclick="downloadPreviewedExcel()" class="btn btn-success btn-sm">
+                            <i class="fas fa-download"></i> İndir
+                        </button>
+                        <button onclick="this.closest('.modal').remove()" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-times"></i> Kapat
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="padding: 8px 12px; background: #e9ecef; border-radius: 4px;">
+                        <strong>Toplam Paket:</strong> ${packages.length}
+                    </div>
+                    <div style="padding: 8px 12px; background: #e9ecef; border-radius: 4px;">
+                        <strong>Toplam Adet:</strong> ${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)}
+                    </div>
+                    <div style="padding: 8px 12px; background: #e9ecef; border-radius: 4px;">
+                        <strong>Bekleyen:</strong> ${packages.filter(p => p.status === 'beklemede').length}
+                    </div>
+                    <div style="padding: 8px 12px; background: #e9ecef; border-radius: 4px;">
+                        <strong>Sevk Edilen:</strong> ${packages.filter(p => p.status === 'sevk-edildi').length}
+                    </div>
+                </div>
+                
+                <div style="max-height: 500px; overflow: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.8em;">
+                        <thead style="background: #f8f9fa; position: sticky; top: 0;">
+                            <tr>
+                                ${Object.keys(excelData[0] || {}).map(key => 
+                                    `<th style="padding: 8px; border: 1px solid #dee2e6; text-align: left;">${key}</th>`
+                                ).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${excelData.slice(0, 100).map(row => `
+                                <tr>
+                                    ${Object.values(row).map(value => `
+                                        <td style="padding: 6px; border: 1px solid #dee2e6; max-width: 200px; word-wrap: break-word;">
+                                            ${escapeHtml(String(value || ''))}
+                                        </td>
+                                    `).join('')}
+                                </tr>
+                            `).join('')}
+                            ${excelData.length > 100 ? `
+                                <tr>
+                                    <td colspan="${Object.keys(excelData[0] || {}).length}" style="text-align: center; padding: 10px; color: #666; font-style: italic;">
+                                        ... ve ${excelData.length - 100} daha kayıt
+                                    </td>
+                                </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
+                </div>
+                
+                ${excelData.length > 100 ? `
+                    <div style="margin-top: 15px; text-align: center; color: #666;">
+                        <small>Not: Sadece ilk 100 kayıt gösteriliyor. Tüm veriyi indirmek için "İndir" butonunu kullanın.</small>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+    } catch (error) {
+        console.error("Excel preview error:", error);
+        showAlert("Excel önizleme hatası: " + error.message, "error");
+    }
+}
+
+function downloadPreviewedExcel() {
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `ProClean_Paketler_${date}_Onizleme.xlsx`;
+    
+    ExcelJS.readFile().then(packages => {
+        ProfessionalExcelExport.exportToProfessionalExcel(packages, filename);
+    });
+    
+    // Close modal after download
+    const modal = document.querySelector('.modal');
+    if (modal) modal.remove();
+}
