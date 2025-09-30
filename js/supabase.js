@@ -5161,4 +5161,4 @@ window.supabase = createSecureSupabaseClient();
 
 
 
-window.workspaceManager = new WorkspaceManager();
+window.workspaceManager = new EnhancedWorkspaceManager();
