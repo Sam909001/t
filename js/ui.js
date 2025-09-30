@@ -267,127 +267,139 @@ function setupBarcodeScanner() {
     barcodeListenerAttached = true;
 }
 
-// Stok düzenleme fonksiyonları
-let currentEditingRow = null;
+// Stock management functions
+let editingStockItem = null;
 
 function editStockItem(code) {
     // Prevent multiple edits
-    if (currentEditingRow && currentEditingRow !== code) {
+    if (editingStockItem && editingStockItem !== code) {
         showAlert('Önce mevcut düzenlemeyi tamamlayın', 'warning');
         return;
     }
     
-    currentEditingRow = code;
+    editingStockItem = code;
     
     const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
     if (!row) {
         console.error('Stock row not found for code:', code);
+        editingStockItem = null;
         return;
     }
     
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const editButton = row.querySelector('button');
-    const editButtons = row.querySelector('.edit-buttons');
-    
-    if (!quantitySpan || !quantityInput) {
-        console.error('Stock edit elements not found');
+    const quantityCell = row.cells[2]; // Quantity is in 3rd column (index 2)
+    if (!quantityCell) {
+        console.error('Quantity cell not found');
+        editingStockItem = null;
         return;
     }
     
-    // Switch to edit mode
-    quantitySpan.style.display = 'none';
-    quantityInput.style.display = 'block';
-    if (editButton) editButton.style.display = 'none';
-    if (editButtons) editButtons.style.display = 'flex';
+    const currentQuantity = parseInt(quantityCell.textContent) || 0;
     
-    editingStockItem = code;
+    // Create edit interface
+    quantityCell.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 5px;">
+            <input type="number" 
+                   class="stock-quantity-input" 
+                   value="${currentQuantity}" 
+                   min="0"
+                   style="width: 80px; padding: 2px;"
+                   onkeypress="if(event.key==='Enter') saveStockItem('${code}', this)">
+            <div class="edit-buttons" style="display: flex; gap: 2px;">
+                <button onclick="saveStockItem('${code}', this.previousElementSibling)" 
+                        class="btn btn-success btn-sm" 
+                        style="padding: 2px 5px;">✓</button>
+                <button onclick="cancelStockEdit('${code}', ${currentQuantity})" 
+                        class="btn btn-danger btn-sm" 
+                        style="padding: 2px 5px;">✗</button>
+            </div>
+        </div>
+    `;
+    
+    // Focus the input
+    const input = quantityCell.querySelector('input');
+    if (input) {
+        input.focus();
+        input.select();
+    }
 }
 
-// Add missing saveStockItem function
-async function saveStockItem(code, input) {
-    // Prevent multiple saves
-    if (input.disabled) {
+async function saveStockItem(code, inputElement) {
+    if (!inputElement) {
+        console.error('No input element provided');
         return;
     }
     
-    const newQuantity = parseInt(input.value);
+    const newQuantity = parseInt(inputElement.value);
     
     if (isNaN(newQuantity) || newQuantity < 0) {
         showAlert('Geçerli bir sayı girin (0 veya üzeri)', 'error');
-        input.focus();
-        return;
-    }
-    
-    const originalQuantity = input.getAttribute('data-original');
-    
-    if (newQuantity.toString() === originalQuantity) {
-        cancelEditStockItem(code, originalQuantity);
+        inputElement.focus();
         return;
     }
     
     try {
-        input.disabled = true;
+        inputElement.disabled = true;
         
-        // Only show one loading message
-        const loadingAlert = showAlert('Güncelleniyor...', 'info', 1000);
+        showAlert('Stok güncelleniyor...', 'info');
         
-        // Simulate API call
+        // Simulate API call - replace with actual Supabase call
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Update the UI
-        const row = input.closest('tr');
-        const quantityCell = row.querySelector('td:nth-child(3)');
-        const actionsCell = row.querySelector('td:last-child');
-        const statusCell = row.querySelector('td:nth-child(5)');
-        const lastUpdateCell = row.querySelector('td:nth-child(6)');
+        const row = inputElement.closest('tr');
+        const quantityCell = row.cells[2];
+        const statusCell = row.cells[4];
+        const lastUpdateCell = row.cells[5];
         
+        // Update quantity display
         quantityCell.textContent = newQuantity;
         
+        // Update status
         if (statusCell) {
+            let statusClass, statusText;
             if (newQuantity === 0) {
-                statusCell.innerHTML = '<span class="status-badge out-of-stock">Tükendi</span>';
-            } else if (newQuantity <= 5) {
-                statusCell.innerHTML = '<span class="status-badge low-stock">Düşük</span>';
+                statusClass = 'status-kritik';
+                statusText = 'Tükendi';
+            } else if (newQuantity < 10) {
+                statusClass = 'status-az-stok';
+                statusText = 'Az Stok';
+            } else if (newQuantity < 50) {
+                statusClass = 'status-uyari';
+                statusText = 'Düşük';
             } else {
-                statusCell.innerHTML = '<span class="status-badge in-stock">Mevcut</span>';
+                statusClass = 'status-stokta';
+                statusText = 'Stokta';
             }
+            statusCell.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
         }
         
+        // Update last update time
         if (lastUpdateCell) {
             lastUpdateCell.textContent = new Date().toLocaleDateString('tr-TR');
         }
         
-        restoreEditButton(actionsCell, code);
         editingStockItem = null;
-        currentEditingRow = null;
         
         showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
         
     } catch (error) {
         console.error('Stok güncelleme hatası:', error);
         showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
-        input.disabled = false;
-        input.focus();
+        inputElement.disabled = false;
+        inputElement.focus();
     }
 }
 
-function cancelEditStockItem(code, originalQuantity) {
+function cancelStockEdit(code, originalQuantity) {
     const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const editButton = row.querySelector('button');
-    const editButtons = row.querySelector('.edit-buttons');
+    const quantityCell = row.cells[2];
     
-    // Değişiklikleri iptal et
-    quantityInput.value = originalQuantity;
-    quantitySpan.style.display = 'block';
-    quantityInput.style.display = 'none';
-    editButton.style.display = 'block';
-    editButtons.style.display = 'none';
-    
+    // Restore original quantity
+    quantityCell.textContent = originalQuantity;
     editingStockItem = null;
 }
+
+
 
 function checkOnlineStatus() {
     if (!navigator.onLine) {
