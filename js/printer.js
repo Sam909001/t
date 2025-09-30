@@ -6,21 +6,24 @@ const logoPathFinal = (typeof window !== 'undefined' && window.electronAPI) ? lo
 // ================== GLOBAL FUNCTIONS - DEFINED FIRST ==================
 
 // Update your existing printSelectedElectron function to use workstation-specific printing
+// Enhanced printSelectedElectron function
 window.printSelectedElectron = async function() {
-    console.log('🖨️ printSelectedElectron called');
-    
-    // Check if printer instance exists, if not create it
-    if (!window.printerElectron) {
-        window.printerElectron = new PrinterServiceElectronWithSettings();
+    // Wait for workspace manager to be ready
+    if (!window.workspaceManager) {
+        console.error('🚨 Workspace manager not initialized');
+        showAlert('Çalışma istasyonu yükleniyor, lütfen bekleyin...', 'error');
+        return false;
     }
     
-    // ADDED: Get current workstation printer info
-    if (window.workspaceManager?.currentWorkspace) {
-        const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
-        console.log(`🖨️ Printing from ${window.workspaceManager.currentWorkspace.name} on ${printerConfig.name}`);
-    } else {
-        console.warn('⚠️ No workspace selected, using default printing');
+    // Ensure workspace is selected
+    if (!window.workspaceManager.currentWorkspace) {
+        showAlert('Önce çalışma istasyonu seçin', 'error');
+        return false;
     }
+    
+    // Rest of your existing code...
+    console.log('🖨️ printSelectedElectron called for workspace:', 
+                window.workspaceManager.currentWorkspace.name);
     
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     if (checkboxes.length === 0) {
@@ -651,17 +654,38 @@ function showAlert(message, type = "info") {
     }, 3000);
 }
 
-// ================== INITIALIZATION ==================
+// In printer (17).js, modify the initialization
 document.addEventListener("DOMContentLoaded", function() {
-    console.log("🖨️ Printer module initialized");
-    console.log("Global functions available:", {
-        printSelectedElectron: typeof window.printSelectedElectron,
-        testPrintWithSettings: typeof window.testPrintWithSettings,
-        getPrinterElectron: typeof window.getPrinterElectron
-    });
+    console.log("🖨️ Enhanced printer module initialized");
     
-    // Initialize printer instance
-    window.printerElectron = new PrinterServiceElectronWithSettings();
+    // Wait for workspace manager to be ready
+    const initPrinter = () => {
+        if (!window.workspaceManager) {
+            setTimeout(initPrinter, 100);
+            return;
+        }
+        
+        console.log("🎯 Workspace ready, initializing printer...");
+        window.printerElectron = new PrinterServiceElectronWithSettings();
+        
+        // Update printer UI with workspace info
+        updatePrinterUI();
+    };
+    
+    initPrinter();
+});
+
+// Add this function to update printer UI
+function updatePrinterUI() {
+    const printerIndicator = document.getElementById('printerIndicator');
+    if (printerIndicator && window.workspaceManager?.currentWorkspace) {
+        const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
+        printerIndicator.innerHTML = `
+            <i class="fas fa-print"></i> 
+            ${window.workspaceManager.currentWorkspace.name}: ${printerConfig.name}
+        `;
+    }
+}
     
     // Test printer button
     const btnTestPrinter = document.getElementById("test-printer");
@@ -744,3 +768,29 @@ if (typeof module !== 'undefined' && module.exports) {
         testPrintWithSettings: window.testPrintWithSettings
     };
 }
+
+
+// Temporary debug function
+window.debugPrintingSystem = function() {
+    console.log('🔧 Printing System Debug:');
+    console.log('- Workspace Manager:', !!window.workspaceManager);
+    console.log('- Current Workspace:', window.workspaceManager?.currentWorkspace);
+    console.log('- Printer Electron:', !!window.printerElectron);
+    console.log('- Print Function:', typeof window.printSelectedElectron);
+    
+    if (window.workspaceManager?.currentWorkspace) {
+        const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
+        console.log('- Current Printer Config:', printerConfig);
+    }
+    
+    // Test if Electron API is available
+    if (window.electronAPI) {
+        console.log('- Electron API:', {
+            printBarcode: !!window.electronAPI.printBarcode,
+            getPrinters: !!window.electronAPI.getPrinters,
+            printToSpecificPrinter: !!window.electronAPI.printToSpecificPrinter
+        });
+    }
+};
+
+// Call this in browser console to see what's broken
