@@ -2860,7 +2860,7 @@ async function populateReportsTable() {
     }
 }
 
-// Add missing report functions
+// Enhanced reports functionality
 async function generateCustomReport() {
     const reportType = document.getElementById('reportType').value;
     const startDate = document.getElementById('startDate').value;
@@ -2871,53 +2871,176 @@ async function generateCustomReport() {
         return;
     }
     
-    showAlert('Rapor oluşturuluyor...', 'info');
-    
     try {
-        // Simulate report generation
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        showAlert('Rapor oluşturuluyor...', 'info');
         
-        // Create report data
-        const reportData = {
-            report_type: reportType,
-            start_date: startDate,
-            end_date: endDate,
-            package_count: Math.floor(Math.random() * 100) + 1,
-            total_quantity: Math.floor(Math.random() * 1000) + 100,
-            created_by: currentUser?.name || 'Sistem'
-        };
+        let reportData = [];
+        const workspaceId = getCurrentWorkspaceId();
         
-        showAlert('Rapor başarıyla oluşturuldu', 'success');
-        await populateReportsTable();
+        if (supabase && navigator.onLine) {
+            // Generate from Supabase
+            let query = supabase
+                .from('packages')
+                .select('*')
+                .eq('workspace_id', workspaceId);
+            
+            if (reportType === 'custom' && startDate && endDate) {
+                query = query.gte('created_at', startDate).lte('created_at', endDate);
+            } else if (reportType === 'daily') {
+                const today = new Date().toISOString().split('T')[0];
+                query = query.gte('created_at', today);
+            }
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            reportData = data || [];
+        } else {
+            // Generate from Excel files
+            const dailyFiles = ExcelStorage.getAvailableDailyFiles();
+            reportData = dailyFiles.flatMap(file => file.data);
+            
+            if (reportType === 'custom' && startDate && endDate) {
+                reportData = reportData.filter(pkg => {
+                    const pkgDate = pkg.created_at?.split('T')[0];
+                    return pkgDate >= startDate && pkgDate <= endDate;
+                });
+            } else if (reportType === 'daily') {
+                const today = new Date().toISOString().split('T')[0];
+                reportData = reportData.filter(pkg => pkg.created_at?.startsWith(today));
+            }
+        }
+        
+        if (reportData.length === 0) {
+            showAlert('Seçilen kriterlere uygun rapor verisi bulunamadı', 'info');
+            return;
+        }
+        
+        // Display report results
+        displayReportResults(reportData, reportType, startDate, endDate);
         
     } catch (error) {
-        console.error('Error generating report:', error);
-        showAlert('Rapor oluşturulurken hata oluştu', 'error');
+        console.error('Report generation error:', error);
+        showAlert('Rapor oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
 
-async function exportReports() {
-    showAlert('Raporlar dışa aktarılıyor...', 'info');
+function displayReportResults(data, reportType, startDate, endDate) {
+    const reportsContainer = document.getElementById('reportsTab');
     
+    const totalQuantity = data.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
+    const shippedCount = data.filter(pkg => pkg.status === 'sevk-edildi').length;
+    const waitingCount = data.filter(pkg => pkg.status === 'beklemede').length;
+    
+    const reportHTML = `
+        <div style="margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h4>Rapor Sonuçları</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #007bff;">${data.length}</div>
+                    <div>Toplam Paket</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #28a745;">${totalQuantity}</div>
+                    <div>Toplam Adet</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #ffc107;">${shippedCount}</div>
+                    <div>Sevk Edilen</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #dc3545;">${waitingCount}</div>
+                    <div>Bekleyen</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button onclick="exportReportData(data, '${reportType}')" class="btn btn-success">
+                    <i class="fas fa-download"></i> Raporu Dışa Aktar
+                </button>
+                <button onclick="printReport()" class="btn btn-primary">
+                    <i class="fas fa-print"></i> Yazdır
+                </button>
+            </div>
+        </div>
+        
+        <div style="max-height: 400px; overflow: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: #343a40; color: white;">
+                    <tr>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Paket No</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Müşteri</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Ürünler</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Adet</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Durum</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Tarih</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(pkg => `
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${pkg.package_no}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${pkg.customer_name}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${pkg.items_display || 'N/A'}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pkg.total_quantity}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">
+                                <span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span>
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    reportsContainer.innerHTML = reportHTML;
+}
+
+async function exportReports() {
     try {
-        // Simulate export process
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        showAlert('Raporlar başarıyla dışa aktarıldı', 'success');
+        const dailyFiles = ExcelStorage.getAvailableDailyFiles();
+        if (dailyFiles.length === 0) {
+            showAlert('Dışa aktarılacak rapor bulunamadı', 'info');
+            return;
+        }
+        
+        const allPackages = dailyFiles.flatMap(file => file.data);
+        
+        if (allPackages.length === 0) {
+            showAlert('Dışa aktarılacak veri bulunamadı', 'info');
+            return;
+        }
+        
+        const date = new Date().toISOString().split('T')[0];
+        const filename = `ProClean_Tum_Raporlar_${date}.xlsx`;
+        
+        ProfessionalExcelExport.exportToProfessionalExcel(allPackages, filename);
+        
     } catch (error) {
-        console.error('Error exporting reports:', error);
+        console.error('Export reports error:', error);
         showAlert('Raporlar dışa aktarılırken hata oluştu', 'error');
     }
 }
 
+async function loadReports() {
+    await populateReportsTable();
+    showAlert('Raporlar yüklendi', 'success');
+}
+
 function viewReport(reportId) {
     showAlert(`Rapor #${reportId} görüntüleniyor...`, 'info');
-    // Implement report viewing logic here
+    // Implement detailed report view
+    ExcelStorage.previewExcelData();
 }
 
 function exportReport(reportId) {
     showAlert(`Rapor #${reportId} dışa aktarılıyor...`, 'info');
-    // Implement report export logic here
+    // Implement single report export
+    ExcelStorage.exportDailyFile(new Date().toISOString().split('T')[0]);
 }
+
+
+
 
 // Add missing stock edit function
 function editStockItem(stockCode) {
