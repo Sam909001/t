@@ -343,6 +343,19 @@ async loadWorkspaceData() {
 }
 
 
+// Add this to supabase.js after workspace manager initialization
+document.addEventListener('DOMContentLoaded', async function() {
+    // Force workspace selection if none is selected
+    setTimeout(async () => {
+        if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+            console.log('🔄 No workspace selected, forcing selection...');
+            await window.workspaceManager.showWorkspaceSelection();
+        }
+    }, 1000);
+});
+
+
+
 // ==================== WORKSPACE UTILITIES ====================
 // Safe workspace ID getter
 function getCurrentWorkspaceId() {
