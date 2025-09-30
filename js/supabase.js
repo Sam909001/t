@@ -2381,21 +2381,20 @@ async function populatePackagesTable() {
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-            row.innerHTML = `
-                <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-                <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-                <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-                <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-                    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-                </td>
-                <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-                    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-                </td>
-                <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                <td style="text-align: center;">${sourceIcon}</td>
-            `;
-
+           row.innerHTML = `
+    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
+    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+    </td>
+    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+    </td>
+    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+    <td style="text-align: center;">${sourceIcon}</td>
+`;
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
             });
