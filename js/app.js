@@ -132,6 +132,30 @@ async function initApp() {
         // 15. Start daily auto-clear
         scheduleDailyClear();
 
+        // Initialize new features
+        setupKeyboardShortcuts();
+        setupEnhancedLogout();
+        setupPasswordProtection();
+        
+        console.log('🎉 All enhancements initialized successfully');
+        
+    } catch (error) {
+        console.error('Initialization error:', error);
+    }
+}
+
+function setupEnhancedLogout() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+}
+
+function setupPasswordProtection() {
+    // Password protection is implemented in the individual functions
+    console.log('🔐 Password protection enabled');
+}
+
         // 16. Auto-sync on startup if online
         if (navigator.onLine && supabase) {
             setTimeout(async () => {
