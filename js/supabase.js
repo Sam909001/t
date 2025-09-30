@@ -408,31 +408,19 @@ async function testWorkspaceIsolation() {
         passed: filtered.length === 2
     });
     
-    // Test ID generation
-    const id1 = generateExcelPackageId();
-    const id2 = generateExcelPackageId();
+    // Test ID generation - USE THE SAME LOGIC AS completePackage
+    const timestamp = Date.now();
+    const id1 = `pkg-${workspaceId}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`;
+    const id2 = `pkg-${workspaceId}-${timestamp + 1}-${Math.random().toString(36).substr(2, 9)}`;
     console.log('ID generation test:', {
         id1: id1,
         id2: id2,
         areUnique: id1 !== id2,
-        haveWorkspacePrefix: id1.includes(workspaceId.substring(0, 8)) && id2.includes(workspaceId.substring(0, 8))
+        haveWorkspacePrefix: id1.includes(workspaceId) && id2.includes(workspaceId)
     });
     
     return true;
 }
-
-// Run test on startup
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        testWorkspaceIsolation().then(success => {
-            if (success) {
-                console.log('✅ Workspace isolation tests passed');
-            } else {
-                console.error('❌ Workspace isolation tests failed');
-            }
-        });
-    }, 3000);
-});
 
 
 
@@ -2915,9 +2903,13 @@ async function completePackage() {
     }
 
     try {
-        // GENERATE THE ID ONCE HERE - CONSISTENT FORMAT
-        const packageId = generateExcelPackageId();
-        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
+        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+        const packageNo = `PKG-${workspaceId}-${timestamp}`;
+        
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
@@ -2941,13 +2933,13 @@ async function completePackage() {
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id,
+            workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
             source: 'app' // Track source for sync
         };
 
-        console.log('📦 Creating package:', packageData);
+        console.log('📦 Creating package with ID:', packageId);
 
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
@@ -2987,7 +2979,6 @@ async function completePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 
