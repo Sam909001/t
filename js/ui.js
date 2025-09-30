@@ -1837,3 +1837,39 @@ function setupWorkspaceAwareUI() {
     // Initial update
     setTimeout(updateUIVisibility, 1000);
 }
+
+
+
+
+// ui (24).js (Add this function to the file)
+
+/**
+ * Extracts item names from a package object for use in reports.
+ * Handles both array-based and object-based item structures (the likely cause of the issue).
+ * @param {object} packageData - The package object containing item details.
+ * @returns {string} - Comma-separated list of product names (e.g., "Büyük çarşaf, Havlu").
+ */
+function getProductType(packageData) {
+    if (!packageData || !packageData.items) {
+        return 'Ürün Yok';
+    }
+
+    // 1. CRITICAL: Handle the structure where items is an OBJECT (most common for scanned inventory)
+    if (typeof packageData.items === 'object' && !Array.isArray(packageData.items) && Object.keys(packageData.items).length > 0) {
+        // Return the keys (which are the product names) joined by a comma
+        return Object.keys(packageData.items).join(', '); 
+    }
+    
+    // 2. Handle the case where items is an ARRAY of objects (for compatibility)
+    if (Array.isArray(packageData.items) && packageData.items.length > 0) {
+        // Return the 'name' property of the objects
+        return packageData.items.map(it => it.name).join(', ');
+    }
+    
+    // 3. Fallback
+    if (packageData.product) {
+        return packageData.product;
+    }
+    
+    return 'Ürün Yok';
+}
