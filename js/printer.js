@@ -4,36 +4,38 @@ const logoBase64 = "data:image/jpeg;base64,...";
 const logoPathFinal = (typeof window !== 'undefined' && window.electronAPI) ? logoPath : logoBase64;
 
 // ================== GLOBAL FUNCTIONS - DEFINED FIRST ==================
-
-// Update your existing printSelectedElectron function to use workstation-specific printing
-// Enhanced printSelectedElectron function
 window.printSelectedElectron = async function() {
-    // Wait for workspace manager to be ready
-    if (!window.workspaceManager) {
-        console.error('🚨 Workspace manager not initialized');
-        showAlert('Çalışma istasyonu yükleniyor, lütfen bekleyin...', 'error');
+    console.log('🖨️ printSelectedElectron called');
+    
+    // Check if workspace is selected
+    if (!window.workspaceManager?.currentWorkspace) {
+        console.error('❌ No workspace selected');
+        showAlert('Önce çalışma istasyonu seçin!', 'error');
+        
+        // Force workspace selection
+        await window.workspaceManager.showWorkspaceSelection();
         return false;
     }
     
-    // Ensure workspace is selected
-    if (!window.workspaceManager.currentWorkspace) {
-        showAlert('Önce çalışma istasyonu seçin', 'error');
-        return false;
+    // Check if printer instance exists
+    if (!window.printerElectron) {
+        console.log('🔄 Initializing printer service...');
+        window.printerElectron = new PrinterServiceElectronWithSettings();
     }
     
-    // Rest of your existing code...
-    console.log('🖨️ printSelectedElectron called for workspace:', 
-                window.workspaceManager.currentWorkspace.name);
+    const currentWorkspace = window.workspaceManager.currentWorkspace;
+    const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
+    
+    console.log(`🖨️ Printing from ${currentWorkspace.name} on ${printerConfig.name}`);
     
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     if (checkboxes.length === 0) {
-        alert('En az bir paket seçin');
+        showAlert('En az bir paket seçin', 'error');
         return false;
     }
 
     const packages = Array.from(checkboxes).map((checkbox, i) => {
         const row = checkbox.closest('tr');
-        
         const packageNo = row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}-${i}`;
         const customerName = row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri';
         
@@ -81,39 +83,28 @@ window.printSelectedElectron = async function() {
         return {
             package_no: packageNo,
             customer_name: customerName,
-            items: items,
-            created_at: row.cells[5]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
+            items: items, // FIXED: Use the actual items array, not empty array
+            created_at: new Date().toLocaleDateString('tr-TR')
         };
     });
 
-   // This part you already have is correct - just make sure it's included
-const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    // Get settings and add workspace info
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
-// ADDED: Include workstation and printer info in settings
-if (window.workspaceManager?.currentWorkspace) {
-    const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
+    // ADDED: Include workstation and printer info in settings
     settings.workspace = {
-        id: window.workspaceManager.currentWorkspace.id,
-        name: window.workspaceManager.currentWorkspace.name,
+        id: currentWorkspace.id,
+        name: currentWorkspace.name,
         printer: printerConfig
     };
-    console.log('🖨️ Sending printer config to Electron:', settings.workspace);
-}
-    
+
     const printBtn = document.getElementById('printBarcodeBtn');
     let originalText = '';
     
     if (printBtn) {
         originalText = printBtn.innerHTML;
         printBtn.disabled = true;
-        
-        // ADDED: Show which printer is being used
-        if (window.workspaceManager?.currentWorkspace) {
-            const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
-            printBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${printerConfig.name} ile yazdırılıyor...`;
-        } else {
-            printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yazdırılıyor...';
-        }
+        printBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${printerConfig.name} ile yazdırılıyor...`;
     }
 
     try {
@@ -122,26 +113,17 @@ if (window.workspaceManager?.currentWorkspace) {
         
         const success = await window.printerElectron.printAllLabels(packages, settings);
         
-        // ADDED: Show success message with printer info
-        if (success && window.workspaceManager?.currentWorkspace) {
-            const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
-            showAlert(`Etiketler ${printerConfig.name} yazıcısına gönderildi`, 'success');
-        } else if (success) {
-            showAlert('Etiketler yazdırıldı', 'success');
+        // Show success message with printer info
+        if (success) {
+            showAlert(`Etiketler ${printerConfig.name} yazıcısına gönderildi ✅`, 'success');
+        } else {
+            showAlert('Yazdırma başarısız', 'error');
         }
         
         return success;
     } catch (error) {
         console.error('Print error:', error);
-        
-        // ADDED: Enhanced error message with printer info
-        if (window.workspaceManager?.currentWorkspace) {
-            const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
-            showAlert(`${printerConfig.name} yazıcısında hata: ${error.message}`, 'error');
-        } else {
-            showAlert('Yazdırma hatası: ' + error.message, 'error');
-        }
-        
+        showAlert(`${printerConfig.name} yazıcısında hata: ${error.message}`, 'error');
         return false;
     } finally {
         if (printBtn) {
