@@ -271,6 +271,7 @@ function setupBarcodeScanner() {
 let currentEditingRow = null;
 
 // Enhanced stock editing functionality
+// Enhanced stock editing functionality
 function editStockItem(code) {
     if (!requirePassword('Stok öğesini düzenlemek üzeresiniz.')) return;
     
@@ -356,6 +357,9 @@ async function updateStockItem(code, newQuantity, row) {
         populateStockTable();
     }
 }
+
+
+
 // Add missing saveStockItem function
 async function saveStockItem(code, input) {
     // Prevent multiple saves
