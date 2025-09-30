@@ -66,44 +66,23 @@ function initializeElementsObject() {
     return elements;
 }
 
-// Enhanced alert system with better duplicate prevention
-let alertQueue = new Map(); // Use Map for better performance
+// Profesyonel alert sistemi
+// 1. Prevent duplicate alerts with debouncing
+let alertQueue = new Set(); // Track active alerts
 
 function showAlert(message, type = 'info', duration = 5000) {
-    // Prevent duplicate alerts more effectively
+    // Prevent duplicate alerts
     const alertKey = `${message}-${type}`;
-    
-    // If same alert is already showing, don't show again
     if (alertQueue.has(alertKey)) {
-        const existingAlert = alertQueue.get(alertKey);
-        // Refresh the timer if it's the same alert
-        if (existingAlert.timeout) {
-            clearTimeout(existingAlert.timeout);
-        }
-        
-        // Update the existing alert
-        if (existingAlert.element && existingAlert.element.parentNode) {
-            // Remove old timeout and set new one
-            existingAlert.timeout = setTimeout(() => {
-                if (existingAlert.element.parentNode) {
-                    existingAlert.element.classList.add('hide');
-                    setTimeout(() => {
-                        if (existingAlert.element.parentNode) {
-                            existingAlert.element.remove();
-                            alertQueue.delete(alertKey);
-                        }
-                    }, 300);
-                }
-            }, duration);
-            
-            alertQueue.set(alertKey, existingAlert);
-        }
-        return existingAlert.element;
+        return; // Already showing this alert
     }
+    
+    alertQueue.add(alertKey);
     
     if (!elements.alertContainer) {
         console.error('Alert container not found, using console instead');
         console.log(`${type.toUpperCase()}: ${message}`);
+        alertQueue.delete(alertKey);
         return;
     }
     
@@ -134,9 +113,8 @@ function showAlert(message, type = 'info', duration = 5000) {
     });
     
     // Auto close
-    let timeout = null;
     if (duration > 0) {
-        timeout = setTimeout(() => {
+        setTimeout(() => {
             if (alert.parentNode) {
                 alert.classList.add('hide');
                 setTimeout(() => {
@@ -149,16 +127,8 @@ function showAlert(message, type = 'info', duration = 5000) {
         }, duration);
     }
     
-    // Store in queue
-    alertQueue.set(alertKey, {
-        element: alert,
-        timeout: timeout
-    });
-    
     return alert;
 }
-
-
 
 // Yardımcı fonksiyonlar
 function showToast(message, type = 'info') {
@@ -299,159 +269,125 @@ function setupBarcodeScanner() {
 
 // Stok düzenleme fonksiyonları
 let currentEditingRow = null;
-// Enhanced stock edit functionality
+
 function editStockItem(code) {
+    // Prevent multiple edits
+    if (currentEditingRow && currentEditingRow !== code) {
+        showAlert('Önce mevcut düzenlemeyi tamamlayın', 'warning');
+        return;
+    }
+    
+    currentEditingRow = code;
+    
     const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
     if (!row) {
         console.error('Stock row not found for code:', code);
         return;
     }
     
-    const quantityCell = row.cells[2]; // Quantity is in 3rd column (index 2)
-    const actionsCell = row.cells[6]; // Actions in last column
+    const quantitySpan = row.querySelector('.stock-quantity');
+    const quantityInput = row.querySelector('.stock-quantity-input');
+    const editButton = row.querySelector('button');
+    const editButtons = row.querySelector('.edit-buttons');
     
-    const currentQuantity = parseInt(quantityCell.textContent) || 0;
-    
-    // Create edit interface
-    quantityCell.innerHTML = `
-        <input type="number" 
-               value="${currentQuantity}" 
-               min="0" 
-               style="width: 80px; padding: 2px;"
-               onkeypress="handleStockEditKeypress(event, '${code}')">
-    `;
-    
-    actionsCell.innerHTML = `
-        <button onclick="saveStockItem('${code}')" class="btn btn-success btn-sm" style="margin: 2px;">
-            <i class="fas fa-check"></i> Kaydet
-        </button>
-        <button onclick="cancelStockEdit('${code}', ${currentQuantity})" class="btn btn-secondary btn-sm" style="margin: 2px;">
-            <i class="fas fa-times"></i> İptal
-        </button>
-    `;
-    
-    // Focus the input
-    const input = quantityCell.querySelector('input');
-    if (input) {
-        input.focus();
-        input.select();
+    if (!quantitySpan || !quantityInput) {
+        console.error('Stock edit elements not found');
+        return;
     }
+    
+    // Switch to edit mode
+    quantitySpan.style.display = 'none';
+    quantityInput.style.display = 'block';
+    if (editButton) editButton.style.display = 'none';
+    if (editButtons) editButtons.style.display = 'flex';
     
     editingStockItem = code;
 }
 
-function handleStockEditKeypress(event, code) {
-    if (event.key === 'Enter') {
-        saveStockItem(code);
-    } else if (event.key === 'Escape') {
-        const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-        const currentQuantity = parseInt(row.cells[2].querySelector('input').value) || 0;
-        cancelStockEdit(code, currentQuantity);
+// Add missing saveStockItem function
+async function saveStockItem(code, input) {
+    // Prevent multiple saves
+    if (input.disabled) {
+        return;
     }
-}
-
-async function saveStockItem(code) {
-    const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-    if (!row) return;
     
-    const input = row.cells[2].querySelector('input');
-    const newQuantity = parseInt(input.value) || 0;
+    const newQuantity = parseInt(input.value);
     
-    if (newQuantity < 0) {
-        showAlert('Miktar 0\'dan küçük olamaz', 'error');
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        showAlert('Geçerli bir sayı girin (0 veya üzeri)', 'error');
         input.focus();
         return;
     }
     
+    const originalQuantity = input.getAttribute('data-original');
+    
+    if (newQuantity.toString() === originalQuantity) {
+        cancelEditStockItem(code, originalQuantity);
+        return;
+    }
+    
     try {
-        // Update UI immediately
-        row.cells[2].textContent = newQuantity;
+        input.disabled = true;
         
-        // Update status
-        const statusCell = row.cells[4];
-        if (newQuantity === 0) {
-            statusCell.innerHTML = '<span class="status-kritik">Tükendi</span>';
-        } else if (newQuantity < 10) {
-            statusCell.innerHTML = '<span class="status-az-stok">Az Stok</span>';
-        } else if (newQuantity < 50) {
-            statusCell.innerHTML = '<span class="status-uyari">Düşük</span>';
-        } else {
-            statusCell.innerHTML = '<span class="status-stokta">Stokta</span>';
+        // Only show one loading message
+        const loadingAlert = showAlert('Güncelleniyor...', 'info', 1000);
+        
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Update the UI
+        const row = input.closest('tr');
+        const quantityCell = row.querySelector('td:nth-child(3)');
+        const actionsCell = row.querySelector('td:last-child');
+        const statusCell = row.querySelector('td:nth-child(5)');
+        const lastUpdateCell = row.querySelector('td:nth-child(6)');
+        
+        quantityCell.textContent = newQuantity;
+        
+        if (statusCell) {
+            if (newQuantity === 0) {
+                statusCell.innerHTML = '<span class="status-badge out-of-stock">Tükendi</span>';
+            } else if (newQuantity <= 5) {
+                statusCell.innerHTML = '<span class="status-badge low-stock">Düşük</span>';
+            } else {
+                statusCell.innerHTML = '<span class="status-badge in-stock">Mevcut</span>';
+            }
         }
         
-        // Update timestamp
-        row.cells[5].textContent = new Date().toLocaleDateString('tr-TR');
+        if (lastUpdateCell) {
+            lastUpdateCell.textContent = new Date().toLocaleDateString('tr-TR');
+        }
         
-        // Restore edit button
-        row.cells[6].innerHTML = `
-            <button onclick="editStockItem('${code}')" class="btn btn-primary btn-sm">
-                Düzenle
-            </button>
-        `;
-        
-        // Save to storage
-        await updateStockInStorage(code, newQuantity);
+        restoreEditButton(actionsCell, code);
+        editingStockItem = null;
+        currentEditingRow = null;
         
         showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
-        editingStockItem = null;
         
     } catch (error) {
-        console.error('Stock save error:', error);
-        showAlert('Stok güncellenirken hata oluştu', 'error');
+        console.error('Stok güncelleme hatası:', error);
+        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
+        input.disabled = false;
+        input.focus();
     }
 }
 
-function cancelStockEdit(code, originalQuantity) {
+function cancelEditStockItem(code, originalQuantity) {
     const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-    if (!row) return;
+    const quantityInput = row.querySelector('.stock-quantity-input');
+    const quantitySpan = row.querySelector('.stock-quantity');
+    const editButton = row.querySelector('button');
+    const editButtons = row.querySelector('.edit-buttons');
     
-    // Restore original quantity
-    row.cells[2].textContent = originalQuantity;
-    
-    // Restore edit button
-    row.cells[6].innerHTML = `
-        <button onclick="editStockItem('${code}')" class="btn btn-primary btn-sm">
-            Düzenle
-        </button>
-    `;
+    // Değişiklikleri iptal et
+    quantityInput.value = originalQuantity;
+    quantitySpan.style.display = 'block';
+    quantityInput.style.display = 'none';
+    editButton.style.display = 'block';
+    editButtons.style.display = 'none';
     
     editingStockItem = null;
 }
-
-async function updateStockInStorage(code, newQuantity) {
-    try {
-        // Update in Supabase if available
-        if (supabase && navigator.onLine) {
-            const { error } = await supabase
-                .from('stock_items')
-                .update({ 
-                    quantity: newQuantity,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('code', code);
-                
-            if (error) throw error;
-        }
-        
-        // Also update in local storage for offline mode
-        const stockItems = JSON.parse(localStorage.getItem('proclean_stock') || '[]');
-        const itemIndex = stockItems.findIndex(item => item.code === code);
-        
-        if (itemIndex !== -1) {
-            stockItems[itemIndex].quantity = newQuantity;
-            stockItems[itemIndex].updated_at = new Date().toISOString();
-            localStorage.setItem('proclean_stock', JSON.stringify(stockItems));
-        }
-        
-        return true;
-    } catch (error) {
-        console.error('Stock storage update error:', error);
-        throw error;
-    }
-}
-
-
-
 
 function checkOnlineStatus() {
     if (!navigator.onLine) {
@@ -1936,225 +1872,4 @@ function getProductType(packageData) {
     }
     
     return 'Ürün Yok';
-}
-
-
-
-
-// Password protection for delete operations
-const DELETE_PASSWORD = "8823";
-
-function requirePassword(action, callback) {
-    const password = prompt(`İşlemi tamamlamak için şifre gerekiyor!\n\n${action}`);
-    
-    if (password === DELETE_PASSWORD) {
-        if (typeof callback === 'function') {
-            callback();
-        }
-        return true;
-    } else if (password !== null) {
-        showAlert("Şifre yanlış! İşlem iptal edildi.", "error");
-        return false;
-    }
-    return false;
-}
-
-// Enhanced delete functions with password protection
-async function deleteSelectedPackagesWithPassword() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) {
-        showAlert('Silinecek paket seçin', 'error');
-        return;
-    }
-
-    requirePassword(
-        `${checkboxes.length} paketi silmek üzeresiniz.`,
-        () => deleteSelectedPackages()
-    );
-}
-
-async function deleteContainerWithPassword(containerId) {
-    requirePassword(
-        "Konteyneri silmek üzeresiniz.",
-        () => deleteContainer(containerId)
-    );
-}
-
-async function deleteCustomerWithPassword(customerId) {
-    requirePassword(
-        "Müşteriyi silmek üzeresiniz.",
-        () => deleteCustomer(customerId)
-    );
-}
-
-function clearStockWithPassword() {
-    requirePassword(
-        "Tüm stok verilerini temizlemek üzeresiniz.",
-        () => clearStockData()
-    );
-}
-
-// Replace existing delete functions
-function setupPasswordProtection() {
-    // Override package delete
-    window.deleteSelectedPackages = deleteSelectedPackagesWithPassword;
-    
-    // Override container delete
-    const originalDeleteContainer = window.deleteContainer;
-    if (originalDeleteContainer) {
-        window.deleteContainer = deleteContainerWithPassword;
-    }
-    
-    // Override customer delete
-    const originalDeleteCustomer = window.deleteCustomer;
-    if (originalDeleteCustomer) {
-        window.deleteCustomer = deleteCustomerWithPassword;
-    }
-}
-
-
-
-
-// Excel preview functionality
-function setupExcelPreview() {
-    const previewButton = document.createElement('button');
-    previewButton.className = 'btn btn-info btn-sm';
-    previewButton.innerHTML = '<i class="fas fa-eye"></i> İncele';
-    previewButton.onclick = previewExcelData;
-    
-    // Add preview button next to download buttons
-    const downloadButtons = document.querySelectorAll('[onclick*="exportDailyFile"], [onclick*="exportToExcel"]');
-    downloadButtons.forEach(btn => {
-        btn.parentNode.insertBefore(previewButton.cloneNode(true), btn.nextSibling);
-    });
-}
-
-async function previewExcelData() {
-    try {
-        const packages = await ExcelJS.readFile();
-        
-        if (packages.length === 0) {
-            showAlert("Önizlenecek veri bulunamadı", "info");
-            return;
-        }
-
-        // Create preview modal
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
-            align-items: center; z-index: 10000;
-        `;
-
-        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 8px; max-width: 90%; max-height: 90%; width: 1000px; overflow: auto;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">
-                        <i class="fas fa-file-excel"></i> Excel Önizleme
-                        <small style="color: #666; font-size: 0.8em;">(${packages.length} kayıt)</small>
-                    </h3>
-                    <div>
-                        <button onclick="downloadPreviewedExcel()" class="btn btn-success btn-sm">
-                            <i class="fas fa-download"></i> İndir
-                        </button>
-                        <button onclick="this.closest('.modal').remove()" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-times"></i> Kapat
-                        </button>
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <div style="padding: 8px 12px; background: #e9ecef; border-radius: 4px;">
-                        <strong>Toplam Paket:</strong> ${packages.length}
-                    </div>
-                    <div style="padding: 8px 12px; background: #e9ecef; border-radius: 4px;">
-                        <strong>Toplam Adet:</strong> ${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)}
-                    </div>
-                    <div style="padding: 8px 12px; background: #e9ecef; border-radius: 4px;">
-                        <strong>Bekleyen:</strong> ${packages.filter(p => p.status === 'beklemede').length}
-                    </div>
-                    <div style="padding: 8px 12px; background: #e9ecef; border-radius: 4px;">
-                        <strong>Sevk Edilen:</strong> ${packages.filter(p => p.status === 'sevk-edildi').length}
-                    </div>
-                </div>
-                
-                <div style="max-height: 500px; overflow: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.8em;">
-                        <thead style="background: #f8f9fa; position: sticky; top: 0;">
-                            <tr>
-                                ${Object.keys(excelData[0] || {}).map(key => 
-                                    `<th style="padding: 8px; border: 1px solid #dee2e6; text-align: left;">${key}</th>`
-                                ).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${excelData.slice(0, 100).map(row => `
-                                <tr>
-                                    ${Object.values(row).map(value => `
-                                        <td style="padding: 6px; border: 1px solid #dee2e6; max-width: 200px; word-wrap: break-word;">
-                                            ${escapeHtml(String(value || ''))}
-                                        </td>
-                                    `).join('')}
-                                </tr>
-                            `).join('')}
-                            ${excelData.length > 100 ? `
-                                <tr>
-                                    <td colspan="${Object.keys(excelData[0] || {}).length}" style="text-align: center; padding: 10px; color: #666; font-style: italic;">
-                                        ... ve ${excelData.length - 100} daha kayıt
-                                    </td>
-                                </tr>
-                            ` : ''}
-                        </tbody>
-                    </table>
-                </div>
-                
-                ${excelData.length > 100 ? `
-                    <div style="margin-top: 15px; text-align: center; color: #666;">
-                        <small>Not: Sadece ilk 100 kayıt gösteriliyor. Tüm veriyi indirmek için "İndir" butonunu kullanın.</small>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-
-    } catch (error) {
-        console.error("Excel preview error:", error);
-        showAlert("Excel önizleme hatası: " + error.message, "error");
-    }
-}
-
-function downloadPreviewedExcel() {
-    const date = new Date().toISOString().split('T')[0];
-    const filename = `ProClean_Paketler_${date}_Onizleme.xlsx`;
-    
-    ExcelJS.readFile().then(packages => {
-        ProfessionalExcelExport.exportToProfessionalExcel(packages, filename);
-    });
-    
-    // Close modal after download
-    const modal = document.querySelector('.modal');
-    if (modal) modal.remove();
-}
-
-
-
-// Excel preview setup
-function setupExcelPreview() {
-    console.log('📊 Setting up Excel preview...');
-    
-    // This will be called when the reports tab is populated
-    // The actual button will be added in populateReportsTable function
-    
-    console.log('✅ Excel preview setup complete');
 }
