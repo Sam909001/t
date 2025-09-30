@@ -174,6 +174,31 @@ class PrinterServiceElectronWithSettings {
         this.isConnected = true;
     }
 
+    
+    // ADD THIS METHOD:
+    async checkPrinterCapabilities() {
+        try {
+            const capabilities = {
+                hasSpecificPrinter: !!(window.electronAPI && window.electronAPI.printToSpecificPrinter),
+                hasGetPrinters: !!(window.electronAPI && window.electronAPI.getPrinters),
+                hasPrintBarcode: !!(window.electronAPI && window.electronAPI.printBarcode),
+                electronAPI: !!window.electronAPI
+            };
+            
+            console.log('🖨️ Printer capabilities:', capabilities);
+            return capabilities;
+        } catch (error) {
+            console.error('Error checking printer capabilities:', error);
+            return {
+                hasSpecificPrinter: false,
+                hasGetPrinters: false,
+                hasPrintBarcode: false,
+                electronAPI: false
+            };
+        }
+    }
+
+
     // ---------------- GENERATE BARCODE SVG ----------------
     generateBarcodeSVG(barcodeText, settings = {}) {
         try {
