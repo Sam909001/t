@@ -4248,4 +4248,540 @@ function exportReport(reportId) {
 }
 
 
+// ==================== CONFLICT RESOLUTION ====================
+
+// Add this to supabase.js
+
+class ConflictResolver {
+    constructor() {
+        this.strategies = {
+            'timestamp': this.resolveByTimestamp,
+            'merge': this.resolveByMerge,
+            'user_priority': this.resolveByUserPriority,
+            'workspace': this.resolveByWorkspace
+        };
+    }
+
+    // Detect conflicts between local and remote data
+    detectConflicts(localData, remoteData) {
+        const conflicts = [];
+        
+        // Check for same ID but different content
+        if (localData.id === remoteData.id) {
+            const localHash = this.generateDataHash(localData);
+            const remoteHash = this.generateDataHash(remoteData);
+            
+            if (localHash !== remoteHash) {
+                conflicts.push({
+                    type: 'data_conflict',
+                    field: 'content',
+                    local: localData,
+                    remote: remoteData,
+                    severity: 'high'
+                });
+            }
+        }
+        
+        // Check timestamp conflicts
+        const localTime = new Date(localData.updated_at || localData.created_at);
+        const remoteTime = new Date(remoteData.updated_at || remoteData.created_at);
+        
+        if (Math.abs(localTime - remoteTime) > 5000) { // 5 second threshold
+            conflicts.push({
+                type: 'timestamp_conflict',
+                local: localTime,
+                remote: remoteTime,
+                severity: 'medium'
+            });
+        }
+        
+        return conflicts;
+    }
+
+    // Resolve conflicts with appropriate strategy
+    resolveSyncConflicts(localData, remoteData, strategy = 'timestamp') {
+        const conflicts = this.detectConflicts(localData, remoteData);
+        
+        if (conflicts.length === 0) {
+            return { resolved: localData, conflicts: [] };
+        }
+        
+        console.log('🔄 Resolving conflicts:', conflicts);
+        
+        const resolver = this.strategies[strategy] || this.strategies.timestamp;
+        const resolved = resolver(localData, remoteData, conflicts);
+        
+        return {
+            resolved: resolved,
+            conflicts: conflicts,
+            strategy: strategy
+        };
+    }
+
+    // Resolve by timestamp (most recent wins)
+    resolveByTimestamp(localData, remoteData, conflicts) {
+        const localTime = new Date(localData.updated_at || localData.created_at);
+        const remoteTime = new Date(remoteData.updated_at || remoteData.created_at);
+        
+        return remoteTime > localTime ? remoteData : localData;
+    }
+
+    // Merge strategy for non-destructive updates
+    resolveByMerge(localData, remoteData, conflicts) {
+        const merged = { ...localData };
+        
+        // Merge updated_at (always take latest)
+        const localTime = new Date(localData.updated_at || localData.created_at);
+        const remoteTime = new Date(remoteData.updated_at || remoteData.created_at);
+        merged.updated_at = remoteTime > localTime 
+            ? remoteData.updated_at 
+            : localData.updated_at;
+        
+        // Merge items (combine quantities)
+        if (localData.items && remoteData.items) {
+            merged.items = { ...localData.items };
+            for (const [product, quantity] of Object.entries(remoteData.items)) {
+                merged.items[product] = (merged.items[product] || 0) + quantity;
+            }
+        }
+        
+        // Recalculate total quantity
+        if (merged.items) {
+            merged.total_quantity = Object.values(merged.items).reduce((sum, qty) => sum + qty, 0);
+        }
+        
+        return merged;
+    }
+
+    // Workspace-specific resolution
+    resolveByWorkspace(localData, remoteData, conflicts) {
+        const currentWorkspaceId = window.workspaceManager?.currentWorkspace?.id;
+        
+        // Always prefer data from current workspace
+        if (localData.workspace_id === currentWorkspaceId && 
+            remoteData.workspace_id !== currentWorkspaceId) {
+            return localData;
+        }
+        
+        if (remoteData.workspace_id === currentWorkspaceId && 
+            localData.workspace_id !== currentWorkspaceId) {
+            return remoteData;
+        }
+        
+        // Fallback to timestamp if same workspace
+        return this.resolveByTimestamp(localData, remoteData, conflicts);
+    }
+
+    // Generate hash for data comparison
+    generateDataHash(data) {
+        const relevantData = {
+            items: data.items,
+            total_quantity: data.total_quantity,
+            status: data.status,
+            container_id: data.container_id
+        };
+        
+        return JSON.stringify(relevantData);
+    }
+}
+
+// Initialize conflict resolver
+const conflictResolver = new ConflictResolver();
+
+// Enhanced sync with conflict resolution
+async function syncWithConflictResolution() {
+    try {
+        const workspaceId = getCurrentWorkspaceId();
+        const pendingOperations = excelSyncQueue.filter(op => 
+            op.workspace_id === workspaceId && op.status !== 'success'
+        );
+
+        for (const operation of pendingOperations) {
+            try {
+                // Check for conflicts before syncing
+                const conflictCheck = await checkForConflicts(operation);
+                
+                if (conflictCheck.hasConflicts) {
+                    console.log('🔄 Resolving conflicts for operation:', operation.fingerprint);
+                    
+                    const resolution = conflictResolver.resolveSyncConflicts(
+                        operation.data,
+                        conflictCheck.remoteData,
+                        'timestamp'
+                    );
+                    
+                    // Update operation with resolved data
+                    operation.data = resolution.resolved;
+                    
+                    // Log conflict resolution
+                    if (resolution.conflicts.length > 0) {
+                        console.log('✅ Conflicts resolved:', resolution);
+                    }
+                }
+                
+                // Proceed with sync
+                await atomicSyncManager.executeSingleOperation(operation);
+                
+            } catch (error) {
+                console.error('❌ Conflict resolution failed:', error);
+                operation.status = 'failed';
+                operation.lastError = error.message;
+            }
+        }
+        
+        // Commit successful operations
+        await atomicSyncManager.commitSync();
+        
+    } catch (error) {
+        console.error('❌ Sync with conflict resolution failed:', error);
+        await atomicSyncManager.rollbackSync();
+    }
+}
+
+// Check for conflicts with remote data
+async function checkForConflicts(operation) {
+    if (!supabase || operation.type === 'add') {
+        return { hasConflicts: false };
+    }
+    
+    try {
+        const { data: remoteData, error } = await supabase
+            .from('packages')
+            .select('*')
+            .eq('id', operation.data.id)
+            .single();
+            
+        if (error || !remoteData) {
+            return { hasConflicts: false };
+        }
+        
+        const conflicts = conflictResolver.detectConflicts(operation.data, remoteData);
+        
+        return {
+            hasConflicts: conflicts.length > 0,
+            remoteData: remoteData,
+            conflicts: conflicts
+        };
+        
+    } catch (error) {
+        console.error('Error checking conflicts:', error);
+        return { hasConflicts: false };
+    }
+}
+
+
+// ==================== SECURITY ENHANCEMENTS ====================
+
+// Add this to supabase.js
+
+class SecurityManager {
+    constructor() {
+        this.rateLimiters = new Map();
+        this.sessionTimeout = 30 * 60 * 1000; // 30 minutes
+        this.sessionTimer = null;
+        this.setupSessionTimeout();
+    }
+
+    // Input sanitization for all forms
+    static sanitizeInput(input) {
+        if (typeof input !== 'string') return input;
+        
+        // Remove potentially dangerous characters
+        return input
+            .replace(/[<>]/g, '') // Remove < and >
+            .replace(/javascript:/gi, '') // Remove javascript: protocol
+            .replace(/on\w+=/gi, '') // Remove event handlers
+            .trim();
+    }
+
+    // Sanitize object recursively
+    static sanitizeObject(obj) {
+        if (typeof obj !== 'object' || obj === null) return obj;
+        
+        if (Array.isArray(obj)) {
+            return obj.map(item => this.sanitizeObject(item));
+        }
+        
+        const sanitized = {};
+        for (const [key, value] of Object.entries(obj)) {
+            if (typeof value === 'string') {
+                sanitized[key] = this.sanitizeInput(value);
+            } else if (typeof value === 'object') {
+                sanitized[key] = this.sanitizeObject(value);
+            } else {
+                sanitized[key] = value;
+            }
+        }
+        
+        return sanitized;
+    }
+
+    // Rate limiting for API calls
+    isRateLimited(operation, maxRequests, timeWindow) {
+        const key = `rate_limit_${operation}`;
+        const now = Date.now();
+        
+        if (!this.rateLimiters.has(key)) {
+            this.rateLimiters.set(key, []);
+        }
+        
+        const requests = this.rateLimiters.get(key);
+        
+        // Remove old requests outside the time window
+        const windowStart = now - timeWindow;
+        const recentRequests = requests.filter(time => time > windowStart);
+        
+        this.rateLimiters.set(key, recentRequests);
+        
+        if (recentRequests.length >= maxRequests) {
+            return true;
+        }
+        
+        // Add current request
+        recentRequests.push(now);
+        return false;
+    }
+
+    // Session timeout management
+    setupSessionTimeout() {
+        this.resetSessionTimer();
+        
+        // Reset timer on user activity
+        const activities = ['mousemove', 'keypress', 'click', 'scroll'];
+        activities.forEach(event => {
+            document.addEventListener(event, () => this.resetSessionTimer());
+        });
+        
+        // Handle visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.pauseSessionTimer();
+            } else {
+                this.resumeSessionTimer();
+            }
+        });
+    }
+
+    resetSessionTimer() {
+        if (this.sessionTimer) {
+            clearTimeout(this.sessionTimer);
+        }
+        
+        this.sessionTimer = setTimeout(() => {
+            this.handleSessionTimeout();
+        }, this.sessionTimeout);
+    }
+
+    pauseSessionTimer() {
+        if (this.sessionTimer) {
+            clearTimeout(this.sessionTimer);
+        }
+    }
+
+    resumeSessionTimer() {
+        this.resetSessionTimer();
+    }
+
+    handleSessionTimeout() {
+        console.log('🔒 Session timeout');
+        
+        // Show timeout warning
+        this.showTimeoutWarning();
+        
+        // Logout user after additional grace period
+        setTimeout(() => {
+            if (currentUser) {
+                this.forceLogout('Oturum süreniz doldu. Lütfen tekrar giriş yapın.');
+            }
+        }, 30000); // 30 second grace period
+    }
+
+    showTimeoutWarning() {
+        const warningHtml = `
+            <div id="sessionTimeoutWarning" class="session-timeout-warning">
+                <div class="warning-content">
+                    <h4>Oturum Süresi Dolmak Üzere</h4>
+                    <p>Oturumunuz 30 saniye içinde sona erecek. Devam etmek için tıklayın.</p>
+                    <button type="button" class="btn btn-primary" 
+                            onclick="securityManager.extendSession()">
+                        Oturumu Uzat
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing warning
+        const existingWarning = document.getElementById('sessionTimeoutWarning');
+        if (existingWarning) {
+            existingWarning.remove();
+        }
+        
+        document.body.insertAdjacentHTML('beforeend', warningHtml);
+    }
+
+    extendSession() {
+        this.resetSessionTimer();
+        
+        const warning = document.getElementById('sessionTimeoutWarning');
+        if (warning) {
+            warning.remove();
+        }
+        
+        showAlert('Oturum uzatıldı', 'success');
+    }
+
+    forceLogout(message) {
+        // Clear user data
+        if (typeof logout === 'function') {
+            logout();
+        }
+        
+        // Clear local storage (keep backups)
+        const backups = localStorage.getItem('app_backups');
+        localStorage.clear();
+        if (backups) {
+            localStorage.setItem('app_backups', backups);
+        }
+        
+        showAlert(message, 'warning');
+        
+        // Redirect to login
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+    }
+
+    // Validate workspace permissions
+    validateWorkspacePermission(workspaceId, action) {
+        if (!currentUser) return false;
+        
+        const currentWorkspaceId = window.workspaceManager?.currentWorkspace?.id;
+        
+        // Ensure user can only access current workspace
+        if (workspaceId && workspaceId !== currentWorkspaceId) {
+            console.error('🚨 SECURITY: Attempt to access different workspace', {
+                user: currentUser.email,
+                requestedWorkspace: workspaceId,
+                currentWorkspace: currentWorkspaceId,
+                action: action
+            });
+            return false;
+        }
+        
+        // Add action-specific permissions here
+        const permissions = {
+            'create_package': true,
+            'delete_package': true,
+            'modify_package': true,
+            'view_packages': true
+        };
+        
+        return permissions[action] !== false;
+    }
+
+    // Audit security events
+    logSecurityEvent(event, details) {
+        const auditEntry = {
+            timestamp: new Date().toISOString(),
+            event: event,
+            user: currentUser?.email || 'unknown',
+            workspace: window.workspaceManager?.currentWorkspace?.id || 'unknown',
+            ip: 'unknown', // Would need server-side for real IP
+            userAgent: navigator.userAgent,
+            details: details
+        };
+        
+        console.log('🔍 Security Event:', auditEntry);
+        
+        // Store in localStorage for debugging
+        const securityLog = JSON.parse(localStorage.getItem('security_audit_log') || '[]');
+        securityLog.push(auditEntry);
+        
+        // Keep only last 1000 entries
+        if (securityLog.length > 1000) {
+            securityLog.splice(0, securityLog.length - 1000);
+        }
+        
+        localStorage.setItem('security_audit_log', JSON.stringify(securityLog));
+    }
+}
+
+// Initialize security manager
+const securityManager = new SecurityManager();
+
+// Enhanced Supabase client with security wrappers
+function createSecureSupabaseClient() {
+    if (!window.supabase) return null;
+    
+    // Create proxy for secure operations
+    return new Proxy(window.supabase, {
+        get(target, prop) {
+            const original = target[prop];
+            
+            if (typeof original === 'function') {
+                return function(...args) {
+                    // Add security checks before operations
+                    if (prop === 'from') {
+                        const tableName = args[0];
+                        if (tableName === 'packages' || tableName === 'containers') {
+                            // Validate workspace access
+                            const workspaceId = getCurrentWorkspaceId();
+                            if (!workspaceId) {
+                                throw new Error('No workspace selected');
+                            }
+                            
+                            // Log data access
+                            securityManager.logSecurityEvent('data_access', {
+                                table: tableName,
+                                workspace: workspaceId
+                            });
+                        }
+                    }
+                    
+                    // Apply rate limiting
+                    if (securityManager.isRateLimited(`supabase_${prop}`, 100, 60000)) {
+                        throw new Error('Rate limit exceeded. Please try again later.');
+                    }
+                    
+                    return original.apply(this, args);
+                };
+            }
+            
+            return original;
+        }
+    });
+}
+
+// Secure version of completePackage
+async function completePackageSecure() {
+    // Validate inputs
+    const sanitizedItems = SecurityManager.sanitizeObject(currentPackage.items);
+    
+    if (Object.keys(sanitizedItems).length === 0) {
+        throw new Error('No valid items in package');
+    }
+    
+    // Check permissions
+    if (!securityManager.validateWorkspacePermission(
+        getCurrentWorkspaceId(), 
+        'create_package'
+    )) {
+        throw new Error('Insufficient permissions to create package');
+    }
+    
+    // Apply rate limiting
+    if (securityManager.isRateLimited('complete_package', 10, 60000)) {
+        throw new Error('Too many package creation attempts. Please wait.');
+    }
+    
+    // Proceed with secure operation
+    return await completePackage();
+}
+
+// Replace original functions with secure versions
+window.completePackage = completePackageSecure;
+window.supabase = createSecureSupabaseClient();
+
+
+
 window.workspaceManager = new WorkspaceManager();
