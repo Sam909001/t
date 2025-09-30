@@ -632,6 +632,19 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         });
     }
 
+
+    // Redefine the test function
+window.testWorkstationPrinting = function() {
+    if (window.workspaceManager?.currentWorkspace) {
+        const printer = window.workspaceManager.getCurrentPrinterConfig();
+        console.log(`🎯 Current workstation: ${window.workspaceManager.currentWorkspace.name}`);
+        console.log(`🖨️ Assigned printer: ${printer.name}`);
+        console.log(`🔧 Printer type: ${printer.type}`);
+        console.log(`📝 Description: ${printer.description}`);
+    } else {
+        console.log('❌ No workspace selected');
+    }
+};
     // ==================== EXISTING DATA VALIDATION METHODS ====================
 
     // Setup validation rules for all data types
