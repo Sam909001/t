@@ -531,16 +531,15 @@ getCurrentPrinterConfig() {
 getDefaultPrinterConfig() {
     return {
         name: 'Default Printer',
-        selectedPrinterName: 'Default Printer', // Add this
+        selectedPrinterName: 'Default Printer',
         type: 'generic',
-        connection: 'usb',
+        connection: 'wifi', // Changed to 'wifi' as the new default
         paperWidth: 50,
         paperHeight: 30,
         dpi: 203,
         description: 'Varsayılan Yazıcı'
     };
 }
-
     // Get printer configuration for specific workspace
     getPrinterConfig(workspaceId) {
         return this.printerConfigs.get(workspaceId) || this.getDefaultPrinterConfig();
