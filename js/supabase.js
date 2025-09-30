@@ -1485,6 +1485,83 @@ function enhanceSyncQueue() {
     }
 }
 
+
+// ==================== SYNC QUEUE MANAGEMENT ====================
+
+// Initialize sync queue system
+function initializeSyncQueue() {
+    console.log('🔄 Initializing sync queue...');
+    
+    // Load existing sync queue from localStorage
+    const savedQueue = localStorage.getItem('excelSyncQueue');
+    excelSyncQueue = savedQueue ? JSON.parse(savedQueue) : [];
+    
+    // Convert old queue format if needed
+    enhanceSyncQueue();
+    
+    console.log(`✅ Sync queue initialized with ${excelSyncQueue.length} pending operations`);
+    
+    // Setup periodic sync if online
+    if (navigator.onLine) {
+        setInterval(() => {
+            if (excelSyncQueue.length > 0 && supabase) {
+                console.log('🔄 Periodic sync check');
+                syncExcelWithSupabase();
+            }
+        }, 60000); // Check every minute
+    }
+}
+
+// Enhanced sync queue with better structure
+function enhanceSyncQueue() {
+    if (excelSyncQueue.length > 0 && !excelSyncQueue[0].fingerprint) {
+        console.log('🔄 Enhancing old queue format...');
+        excelSyncQueue = excelSyncQueue.map((op, index) => ({
+            ...op,
+            fingerprint: `${op.type}-${op.data?.id || index}-${Date.now()}`,
+            attempts: op.attempts || 0,
+            maxAttempts: 3,
+            lastAttempt: op.lastAttempt || null,
+            status: op.status || 'pending',
+            workspace_id: op.workspace_id || getCurrentWorkspaceId()
+        }));
+        
+        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+    }
+}
+
+// Setup enhanced sync triggers
+function setupEnhancedSyncTriggers() {
+    // Auto-sync when coming online
+    window.addEventListener('online', async () => {
+        console.log('🌐 Online - Starting auto-sync');
+        if (excelSyncQueue.length > 0) {
+            await syncExcelWithSupabase();
+        }
+    });
+
+    // Manual sync function for UI
+    window.manualSync = async function() {
+        if (!supabase) {
+            showAlert('❌ Supabase bağlantısı yok', 'error');
+            return;
+        }
+        
+        if (!navigator.onLine) {
+            showAlert('❌ İnternet bağlantısı yok', 'error');
+            return;
+        }
+        
+        showAlert('🔄 Manuel senkronizasyon başlatılıyor...', 'info');
+        
+        const success = await syncExcelWithSupabase();
+        if (success) {
+            isUsingExcel = false;
+            updateStorageIndicator();
+        }
+    };
+}
+
 // FIXED: API anahtarını kaydet ve istemciyi başlat
 function saveApiKey() {
     const apiKey = document.getElementById('apiKeyInput').value.trim();
