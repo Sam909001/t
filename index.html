@@ -80,6 +80,11 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="user-info">
                 <span id="userRole">Operatör: Yükleniyor...</span>
 
+                  <!-- Printer Status Indicator -->
+    <div id="printerIndicator" class="printer-indicator" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 4px 8px; font-size: 0.9em; display: inline-flex; align-items: center; gap: 5px;">
+        <i class="fas fa-print"></i>
+        <span>Yazıcı Yükleniyor...</span>
+    </div>
             
    <button id="settingsBtn" class="btn btn-secondary" onclick="showSettingsModal()">
     <i class="fas fa-cog"></i>
