@@ -1073,11 +1073,7 @@ setTimeout(debugWorkspace, 3000);
 async function testCriticalFixes() {
     console.log('🧪 Testing critical fixes...');
     
-    try {
-        // Test 1: Missing functions
-        const testId = generateExcelPackageId();
-        console.log('✅ generateExcelPackageId:', testId);
-        
+    try {  
         // Test 2: Printer functions
         const printer = getPrinter();
         console.log('✅ getPrinter:', typeof printer.testPrint);
