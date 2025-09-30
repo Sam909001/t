@@ -1258,7 +1258,7 @@ async function collectAllAppData() {
             allData.packages = window.packages.map(pkg => ({
                 package_no: pkg.package_no,
                 customer_name: pkg.customer_name,
-                product: pkg.product,
+                product: pkg.item_type || '', // fallback to empty string if missing
                 total_quantity: pkg.total_quantity,
                 status: pkg.status,
                 container_id: pkg.container_id,
