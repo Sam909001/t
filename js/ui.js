@@ -269,125 +269,159 @@ function setupBarcodeScanner() {
 
 // Stok düzenleme fonksiyonları
 let currentEditingRow = null;
-
+// Enhanced stock edit functionality
 function editStockItem(code) {
-    // Prevent multiple edits
-    if (currentEditingRow && currentEditingRow !== code) {
-        showAlert('Önce mevcut düzenlemeyi tamamlayın', 'warning');
-        return;
-    }
-    
-    currentEditingRow = code;
-    
     const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
     if (!row) {
         console.error('Stock row not found for code:', code);
         return;
     }
     
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const editButton = row.querySelector('button');
-    const editButtons = row.querySelector('.edit-buttons');
+    const quantityCell = row.cells[2]; // Quantity is in 3rd column (index 2)
+    const actionsCell = row.cells[6]; // Actions in last column
     
-    if (!quantitySpan || !quantityInput) {
-        console.error('Stock edit elements not found');
-        return;
+    const currentQuantity = parseInt(quantityCell.textContent) || 0;
+    
+    // Create edit interface
+    quantityCell.innerHTML = `
+        <input type="number" 
+               value="${currentQuantity}" 
+               min="0" 
+               style="width: 80px; padding: 2px;"
+               onkeypress="handleStockEditKeypress(event, '${code}')">
+    `;
+    
+    actionsCell.innerHTML = `
+        <button onclick="saveStockItem('${code}')" class="btn btn-success btn-sm" style="margin: 2px;">
+            <i class="fas fa-check"></i> Kaydet
+        </button>
+        <button onclick="cancelStockEdit('${code}', ${currentQuantity})" class="btn btn-secondary btn-sm" style="margin: 2px;">
+            <i class="fas fa-times"></i> İptal
+        </button>
+    `;
+    
+    // Focus the input
+    const input = quantityCell.querySelector('input');
+    if (input) {
+        input.focus();
+        input.select();
     }
-    
-    // Switch to edit mode
-    quantitySpan.style.display = 'none';
-    quantityInput.style.display = 'block';
-    if (editButton) editButton.style.display = 'none';
-    if (editButtons) editButtons.style.display = 'flex';
     
     editingStockItem = code;
 }
 
-// Add missing saveStockItem function
-async function saveStockItem(code, input) {
-    // Prevent multiple saves
-    if (input.disabled) {
-        return;
+function handleStockEditKeypress(event, code) {
+    if (event.key === 'Enter') {
+        saveStockItem(code);
+    } else if (event.key === 'Escape') {
+        const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+        const currentQuantity = parseInt(row.cells[2].querySelector('input').value) || 0;
+        cancelStockEdit(code, currentQuantity);
     }
+}
+
+async function saveStockItem(code) {
+    const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+    if (!row) return;
     
-    const newQuantity = parseInt(input.value);
+    const input = row.cells[2].querySelector('input');
+    const newQuantity = parseInt(input.value) || 0;
     
-    if (isNaN(newQuantity) || newQuantity < 0) {
-        showAlert('Geçerli bir sayı girin (0 veya üzeri)', 'error');
+    if (newQuantity < 0) {
+        showAlert('Miktar 0\'dan küçük olamaz', 'error');
         input.focus();
-        return;
-    }
-    
-    const originalQuantity = input.getAttribute('data-original');
-    
-    if (newQuantity.toString() === originalQuantity) {
-        cancelEditStockItem(code, originalQuantity);
         return;
     }
     
     try {
-        input.disabled = true;
+        // Update UI immediately
+        row.cells[2].textContent = newQuantity;
         
-        // Only show one loading message
-        const loadingAlert = showAlert('Güncelleniyor...', 'info', 1000);
-        
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Update the UI
-        const row = input.closest('tr');
-        const quantityCell = row.querySelector('td:nth-child(3)');
-        const actionsCell = row.querySelector('td:last-child');
-        const statusCell = row.querySelector('td:nth-child(5)');
-        const lastUpdateCell = row.querySelector('td:nth-child(6)');
-        
-        quantityCell.textContent = newQuantity;
-        
-        if (statusCell) {
-            if (newQuantity === 0) {
-                statusCell.innerHTML = '<span class="status-badge out-of-stock">Tükendi</span>';
-            } else if (newQuantity <= 5) {
-                statusCell.innerHTML = '<span class="status-badge low-stock">Düşük</span>';
-            } else {
-                statusCell.innerHTML = '<span class="status-badge in-stock">Mevcut</span>';
-            }
+        // Update status
+        const statusCell = row.cells[4];
+        if (newQuantity === 0) {
+            statusCell.innerHTML = '<span class="status-kritik">Tükendi</span>';
+        } else if (newQuantity < 10) {
+            statusCell.innerHTML = '<span class="status-az-stok">Az Stok</span>';
+        } else if (newQuantity < 50) {
+            statusCell.innerHTML = '<span class="status-uyari">Düşük</span>';
+        } else {
+            statusCell.innerHTML = '<span class="status-stokta">Stokta</span>';
         }
         
-        if (lastUpdateCell) {
-            lastUpdateCell.textContent = new Date().toLocaleDateString('tr-TR');
-        }
+        // Update timestamp
+        row.cells[5].textContent = new Date().toLocaleDateString('tr-TR');
         
-        restoreEditButton(actionsCell, code);
-        editingStockItem = null;
-        currentEditingRow = null;
+        // Restore edit button
+        row.cells[6].innerHTML = `
+            <button onclick="editStockItem('${code}')" class="btn btn-primary btn-sm">
+                Düzenle
+            </button>
+        `;
+        
+        // Save to storage
+        await updateStockInStorage(code, newQuantity);
         
         showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
+        editingStockItem = null;
         
     } catch (error) {
-        console.error('Stok güncelleme hatası:', error);
-        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
-        input.disabled = false;
-        input.focus();
+        console.error('Stock save error:', error);
+        showAlert('Stok güncellenirken hata oluştu', 'error');
     }
 }
 
-function cancelEditStockItem(code, originalQuantity) {
+function cancelStockEdit(code, originalQuantity) {
     const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-    const quantityInput = row.querySelector('.stock-quantity-input');
-    const quantitySpan = row.querySelector('.stock-quantity');
-    const editButton = row.querySelector('button');
-    const editButtons = row.querySelector('.edit-buttons');
+    if (!row) return;
     
-    // Değişiklikleri iptal et
-    quantityInput.value = originalQuantity;
-    quantitySpan.style.display = 'block';
-    quantityInput.style.display = 'none';
-    editButton.style.display = 'block';
-    editButtons.style.display = 'none';
+    // Restore original quantity
+    row.cells[2].textContent = originalQuantity;
+    
+    // Restore edit button
+    row.cells[6].innerHTML = `
+        <button onclick="editStockItem('${code}')" class="btn btn-primary btn-sm">
+            Düzenle
+        </button>
+    `;
     
     editingStockItem = null;
 }
+
+async function updateStockInStorage(code, newQuantity) {
+    try {
+        // Update in Supabase if available
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('stock_items')
+                .update({ 
+                    quantity: newQuantity,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('code', code);
+                
+            if (error) throw error;
+        }
+        
+        // Also update in local storage for offline mode
+        const stockItems = JSON.parse(localStorage.getItem('proclean_stock') || '[]');
+        const itemIndex = stockItems.findIndex(item => item.code === code);
+        
+        if (itemIndex !== -1) {
+            stockItems[itemIndex].quantity = newQuantity;
+            stockItems[itemIndex].updated_at = new Date().toISOString();
+            localStorage.setItem('proclean_stock', JSON.stringify(stockItems));
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Stock storage update error:', error);
+        throw error;
+    }
+}
+
+
+
 
 function checkOnlineStatus() {
     if (!navigator.onLine) {
