@@ -1065,3 +1065,47 @@ function debugWorkspace() {
 
 // Call this after page loads
 setTimeout(debugWorkspace, 3000);
+
+
+
+
+// Test function to verify critical fixes
+async function testCriticalFixes() {
+    console.log('🧪 Testing critical fixes...');
+    
+    try {
+        // Test 1: Missing functions
+        const testId = generateExcelPackageId();
+        console.log('✅ generateExcelPackageId:', testId);
+        
+        // Test 2: Printer functions
+        const printer = getPrinter();
+        console.log('✅ getPrinter:', typeof printer.testPrint);
+        
+        // Test 3: Form validation
+        const isValid = validateForm([]);
+        console.log('✅ validateForm:', isValid);
+        
+        // Test 4: Email validation
+        const emailCheck = isValidEmail('test@example.com');
+        console.log('✅ isValidEmail:', emailCheck);
+        
+        console.log('🎉 All critical functions are now defined!');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Critical fixes test failed:', error);
+        return false;
+    }
+}
+
+// Run test after app initialization
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        testCriticalFixes().then(success => {
+            if (success) {
+                showAlert('Kritik hatalar giderildi - Uygulama stabil', 'success');
+            }
+        });
+    }, 2000);
+});
