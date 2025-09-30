@@ -225,7 +225,7 @@ class WorkspaceManager {
         this.loadWorkspaceData();
     }
     
-    // Load workspace-specific data
+   
   // Load workspace-specific data
 async loadWorkspaceData() {
     try {
@@ -1031,6 +1031,55 @@ function addToSyncQueue(operationType, data) {
 }
 
 
+
+// Enhanced workspace data migration
+async function migrateExistingDataToWorkspace() {
+    const workspaceId = getCurrentWorkspaceId();
+    console.log('🔄 Checking for data migration to workspace:', workspaceId);
+    
+    try {
+        // Read current Excel data
+        const currentPackages = await ExcelJS.readFile();
+        let migratedCount = 0;
+        
+        // Migrate packages without workspace_id
+        const migratedPackages = currentPackages.map(pkg => {
+            if (!pkg.workspace_id) {
+                migratedCount++;
+                return {
+                    ...pkg,
+                    workspace_id: workspaceId,
+                    station_name: getCurrentWorkspaceName(),
+                    updated_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        
+        if (migratedCount > 0) {
+            console.log(`🔄 Migrated ${migratedCount} packages to workspace: ${workspaceId}`);
+            await ExcelJS.writeFile(migratedPackages);
+            excelPackages = migratedPackages;
+        }
+        
+        // Also migrate sync queue
+        const needsMigration = excelSyncQueue.some(op => !op.workspace_id);
+        if (needsMigration) {
+            excelSyncQueue = excelSyncQueue.map(op => ({
+                ...op,
+                workspace_id: op.workspace_id || workspaceId
+            }));
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            console.log('🔄 Migrated sync queue to workspace');
+        }
+        
+        return migratedCount;
+        
+    } catch (error) {
+        console.error('Data migration error:', error);
+        return 0;
+    }
+}
 
 
 // Enhanced results reporting
