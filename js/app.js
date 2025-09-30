@@ -1,3 +1,6 @@
+let appInitialized = false;
+let excelPackages = [];
+
 // Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
 document.addEventListener('DOMContentLoaded', () => {
     const savedApiKey = localStorage.getItem('procleanApiKey');
@@ -714,6 +717,15 @@ async function initAppWithEnhancements() {
     console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
+        // Check if required classes/functions are available
+        if (typeof WorkspaceManager === 'undefined') {
+            throw new Error('WorkspaceManager class not loaded');
+        }
+        
+        if (typeof initializeElementsObject === 'undefined') {
+            throw new Error('UI functions not loaded');
+        }
+
         // 1. Initialize workspace system FIRST
         if (!window.workspaceManager) {
             window.workspaceManager = new WorkspaceManager();
@@ -726,21 +738,44 @@ async function initAppWithEnhancements() {
         initializeElementsObject();
         
         // 3. Initialize workspace-aware UI
-        initializeWorkspaceUI();
-        setupWorkspaceAwareUI();
+        if (typeof initializeWorkspaceUI === 'function') {
+            initializeWorkspaceUI();
+        }
+        
+        if (typeof setupWorkspaceAwareUI === 'function') {
+            setupWorkspaceAwareUI();
+        }
 
         // 4. Setup all enhancements
-        setupEnhancedLogout();
-        setupPasswordProtection();
-        setupKeyboardShortcuts();
-        setupExcelPreview();
+        if (typeof setupEnhancedLogout === 'function') {
+            setupEnhancedLogout();
+        }
+        
+        if (typeof setupPasswordProtection === 'function') {
+            setupPasswordProtection();
+        }
+        
+        if (typeof setupKeyboardShortcuts === 'function') {
+            setupKeyboardShortcuts();
+        }
+        
+        if (typeof setupExcelPreview === 'function') {
+            setupExcelPreview();
+        }
         
         // 5. Migrate existing data to workspace
-        await migrateExistingDataToWorkspace();
+        if (typeof migrateExistingDataToWorkspace === 'function') {
+            await migrateExistingDataToWorkspace();
+        }
 
         // 6. Initialize sync system
-        initializeSyncQueue();
-        setupEnhancedSyncTriggers();
+        if (typeof initializeSyncQueue === 'function') {
+            initializeSyncQueue();
+        }
+        
+        if (typeof setupEnhancedSyncTriggers === 'function') {
+            setupEnhancedSyncTriggers();
+        }
 
         // 7. Setup event listeners
         setupEventListeners();
@@ -752,55 +787,81 @@ async function initAppWithEnhancements() {
         initializeSettings();
 
         // 10. Initialize daily Excel file system
-        await ExcelStorage.cleanupOldFiles();
-        await ExcelStorage.readFile();
+        if (typeof ExcelStorage !== 'undefined') {
+            await ExcelStorage.cleanupOldFiles();
+            await ExcelStorage.readFile();
+        }
         
         // 11. Populate UI
-        elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-        await populateCustomers();
-        await populatePersonnel();
+        if (elements.currentDate) {
+            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        }
+        
+        if (typeof populateCustomers === 'function') {
+            await populateCustomers();
+        }
+        
+        if (typeof populatePersonnel === 'function') {
+            await populatePersonnel();
+        }
         
         // 12. Load saved state
         loadAppState();
         
         // 13. Load data
-        await loadPackagesData();
-        await populateStockTable();
-        await populateShippingTable();
+        if (typeof loadPackagesData === 'function') {
+            await loadPackagesData();
+        }
+        
+        if (typeof populateStockTable === 'function') {
+            await populateStockTable();
+        }
+        
+        if (typeof populateShippingTable === 'function') {
+            await populateShippingTable();
+        }
         
         // 14. Test connection
-        await testConnection();
+        if (typeof testConnection === 'function') {
+            await testConnection();
+        }
         
         // 15. Set up auto-save and offline support
         setInterval(saveAppState, 5000);
-        setupOfflineSupport();
-        setupBarcodeScanner();
+        
+        if (typeof setupOfflineSupport === 'function') {
+            setupOfflineSupport();
+        }
+        
+        if (typeof setupBarcodeScanner === 'function') {
+            setupBarcodeScanner();
+        }
         
         // 16. Start daily auto-clear
-        scheduleDailyClear();
+        if (typeof scheduleDailyClear === 'function') {
+            scheduleDailyClear();
+        }
 
         // 17. Auto-sync on startup if online
-        if (navigator.onLine && supabase) {
+        if (navigator.onLine && supabase && typeof syncExcelWithSupabase === 'function') {
             setTimeout(async () => {
                 await syncExcelWithSupabase();
             }, 5000);
         }
         
         console.log(`🎉 ProClean fully initialized with enhancements for workspace: ${window.workspaceManager.currentWorkspace.name}`);
-        showAlert('Uygulama başarıyla başlatıldı! Tüm geliştirmeler aktif.', 'success');
+        
+        // Only use showAlert if elements is ready
+        if (elements.alertContainer && typeof showAlert === 'function') {
+            showAlert('Uygulama başarıyla başlatıldı! Tüm geliştirmeler aktif.', 'success');
+        }
 
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        // Use console.error instead of showAlert for critical errors
+        console.error('Uygulama başlatılırken hata oluştu: ' + error.message);
     }
 }
-
-// Replace the main initialization
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Starting ProClean application with enhancements...');
-    initAppWithEnhancements();
-});
-
 
 
 
