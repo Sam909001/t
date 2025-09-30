@@ -502,35 +502,44 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         console.log('🖨️ Printer configurations loaded for all workstations');
     }
 
-    // Get current workstation's printer configuration
-    getCurrentPrinterConfig() {
-        const workspaceId = this.currentWorkspace?.id;
-        if (!workspaceId) {
-            console.warn('No workspace selected, using default printer');
-            return this.getDefaultPrinterConfig();
-        }
-        
-        const config = this.printerConfigs.get(workspaceId);
-        if (!config) {
-            console.warn(`No printer config for workspace ${workspaceId}, using default`);
-            return this.getDefaultPrinterConfig();
-        }
-        
-        return config;
+    
+// In the EnhancedWorkspaceManager class, replace getCurrentPrinterConfig:
+getCurrentPrinterConfig() {
+    const workspaceId = this.currentWorkspace?.id;
+    if (!workspaceId) {
+        console.warn('No workspace selected, using default printer');
+        return this.getDefaultPrinterConfig();
     }
+    
+    const config = this.printerConfigs.get(workspaceId);
+    if (!config) {
+        console.warn(`No printer config for workspace ${workspaceId}, using default`);
+        return this.getDefaultPrinterConfig();
+    }
+    
+    // Ensure selectedPrinterName exists
+    if (!config.selectedPrinterName) {
+        console.warn(`⚠️ Missing selectedPrinterName for ${workspaceId}, using name as fallback`);
+        config.selectedPrinterName = config.name;
+        this.savePrinterConfigurations(); // Save the fix
+    }
+    
+    return config;
+}
 
-    // Get default printer configuration
-    getDefaultPrinterConfig() {
-        return {
-            name: 'Default Printer',
-            type: 'generic',
-            connection: 'usb',
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203,
-            description: 'Varsayılan Yazıcı'
-        };
-    }
+// Also update getDefaultPrinterConfig:
+getDefaultPrinterConfig() {
+    return {
+        name: 'Default Printer',
+        selectedPrinterName: 'Default Printer', // Add this
+        type: 'generic',
+        connection: 'usb',
+        paperWidth: 50,
+        paperHeight: 30,
+        dpi: 203,
+        description: 'Varsayılan Yazıcı'
+    };
+}
 
     // Get printer configuration for specific workspace
     getPrinterConfig(workspaceId) {
