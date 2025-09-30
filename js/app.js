@@ -503,9 +503,17 @@ function scheduleDailyClear() {
     }, msUntilMidnight);
 }
 
-// Main initialization
+// Main initialization - prevent multiple calls
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
+    
+    // Prevent multiple initializations
+    if (appInitialized) {
+        console.log('⚠️ App already initialized, skipping...');
+        return;
+    }
+    
+    appInitialized = true;
 
     try {
         // Initialize workspace system FIRST
@@ -539,6 +547,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 });
+
 
 // Separate function for event listeners
 function setupEventListeners() {
