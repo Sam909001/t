@@ -2634,3 +2634,362 @@ window.addEventListener('beforeunload', () => {
 setInterval(() => {
     performanceOptimizer.cleanupMemory();
 }, 30000); // Every 30 seconds
+
+
+
+// ==================== USER EXPERIENCE ENHANCEMENTS ====================
+
+// Add this to ui.js
+
+class UXEnhancer {
+    constructor() {
+        this.loadingStates = new Map();
+        this.autoSaveTimers = new Map();
+        this.bulkOperations = new Set();
+    }
+
+    // Loading states management
+    showLoading(elementId, message = 'Yükleniyor...') {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        const originalContent = element.innerHTML;
+        const loadingId = `loading-${elementId}-${Date.now()}`;
+        
+        this.loadingStates.set(elementId, {
+            originalContent: originalContent,
+            loadingId: loadingId
+        });
+        
+        element.innerHTML = `
+            <div id="${loadingId}" class="loading-state">
+                <div class="spinner"></div>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        element.disabled = true;
+    }
+
+    hideLoading(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        const loadingState = this.loadingStates.get(elementId);
+        if (loadingState) {
+            const loadingElement = document.getElementById(loadingState.loadingId);
+            if (loadingElement) {
+                loadingElement.remove();
+            }
+            
+            element.innerHTML = loadingState.originalContent;
+            this.loadingStates.delete(elementId);
+        }
+        
+        element.disabled = false;
+    }
+
+    // Auto-save functionality
+    enableAutoSave(formId, saveFunction, delay = 2000) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+        
+        // Clear existing timer
+        if (this.autoSaveTimers.has(formId)) {
+            clearTimeout(this.autoSaveTimers.get(formId));
+        }
+        
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('input', () => {
+                this.debouncedAutoSave(formId, saveFunction, delay);
+            });
+        });
+    }
+
+    debouncedAutoSave(formId, saveFunction, delay) {
+        // Clear existing timer
+        if (this.autoSaveTimers.has(formId)) {
+            clearTimeout(this.autoSaveTimers.get(formId));
+        }
+        
+        // Set new timer
+        const timer = setTimeout(async () => {
+            try {
+                this.showAutoSaveIndicator(formId, 'saving');
+                await saveFunction();
+                this.showAutoSaveIndicator(formId, 'saved');
+            } catch (error) {
+                this.showAutoSaveIndicator(formId, 'error');
+            }
+        }, delay);
+        
+        this.autoSaveTimers.set(formId, timer);
+    }
+
+    showAutoSaveIndicator(formId, state) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+        
+        let indicator = form.querySelector('.auto-save-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'auto-save-indicator';
+            form.appendChild(indicator);
+        }
+        
+        const states = {
+            saving: { text: 'Kaydediliyor...', className: 'saving' },
+            saved: { text: 'Kaydedildi', className: 'saved' },
+            error: { text: 'Kaydedilemedi', className: 'error' }
+        };
+        
+        const currentState = states[state] || states.saving;
+        indicator.textContent = currentState.text;
+        indicator.className = `auto-save-indicator ${currentState.className}`;
+        
+        // Hide saved indicator after 2 seconds
+        if (state === 'saved') {
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 300);
+            }, 2000);
+        }
+    }
+
+    // Bulk operations
+    enableBulkSelection(tableId, options = {}) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        
+        // Add select all checkbox to header
+        const headerRow = table.querySelector('thead tr');
+        if (headerRow && !table.querySelector('.bulk-select-header')) {
+            const selectAllTh = document.createElement('th');
+            selectAllTh.className = 'bulk-select-header';
+            selectAllTh.innerHTML = `
+                <input type="checkbox" id="selectAll-${tableId}" 
+                       onchange="toggleSelectAll('${tableId}')">
+            `;
+            headerRow.insertBefore(selectAllTh, headerRow.firstChild);
+        }
+        
+        // Add checkboxes to each row
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach((row, index) => {
+            if (!row.querySelector('.bulk-select-cell')) {
+                const selectTd = document.createElement('td');
+                selectTd.className = 'bulk-select-cell';
+                selectTd.innerHTML = `
+                    <input type="checkbox" class="row-select" 
+                           data-row-index="${index}"
+                           onchange="updateBulkActions('${tableId}')">
+                `;
+                row.insertBefore(selectTd, row.firstChild);
+            }
+        });
+        
+        // Add bulk actions toolbar
+        this.createBulkActionsToolbar(tableId, options.actions);
+    }
+
+    createBulkActionsToolbar(tableId, actions = []) {
+        const existingToolbar = document.getElementById(`bulk-actions-${tableId}`);
+        if (existingToolbar) existingToolbar.remove();
+        
+        const defaultActions = [
+            { id: 'delete', label: 'Sil', action: () => this.bulkDelete(tableId) },
+            { id: 'export', label: 'Dışa Aktar', action: () => this.bulkExport(tableId) },
+            { id: 'status', label: 'Durumu Değiştir', action: () => this.bulkStatusChange(tableId) }
+        ];
+        
+        const toolbarActions = actions.length > 0 ? actions : defaultActions;
+        
+        const toolbar = document.createElement('div');
+        toolbar.id = `bulk-actions-${tableId}`;
+        toolbar.className = 'bulk-actions-toolbar';
+        toolbar.style.display = 'none';
+        toolbar.innerHTML = `
+            <div class="bulk-selection-count">
+                <span id="selectedCount-${tableId}">0</span> öğe seçildi
+            </div>
+            <div class="bulk-action-buttons">
+                ${toolbarActions.map(action => `
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            onclick="${action.action}">
+                        ${action.label}
+                    </button>
+                `).join('')}
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        onclick="clearSelection('${tableId}')">
+                    Temizle
+                </button>
+            </div>
+        `;
+        
+        table.parentNode.insertBefore(toolbar, table);
+    }
+
+    // Keyboard navigation
+    enableKeyboardNavigation() {
+        document.addEventListener('keydown', (e) => {
+            // Escape key closes modals
+            if (e.key === 'Escape') {
+                this.closeOpenModals();
+            }
+            
+            // Ctrl+S for save
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                this.triggerAutoSave();
+            }
+            
+            // Tab navigation enhancement
+            if (e.key === 'Tab') {
+                this.enhanceTabNavigation(e);
+            }
+        });
+    }
+
+    closeOpenModals() {
+        const openModals = document.querySelectorAll('.modal.show');
+        openModals.forEach(modal => {
+            const closeBtn = modal.querySelector('[data-dismiss="modal"], .close');
+            if (closeBtn) {
+                closeBtn.click();
+            }
+        });
+    }
+
+    enhanceTabNavigation(e) {
+        const focusableElements = document.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        if (e.shiftKey && document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+        }
+    }
+
+    // Progress indicators for long operations
+    showProgress(operationId, message, total = 100) {
+        const progressId = `progress-${operationId}`;
+        let progressContainer = document.getElementById(progressId);
+        
+        if (!progressContainer) {
+            progressContainer = document.createElement('div');
+            progressContainer.id = progressId;
+            progressContainer.className = 'progress-container';
+            progressContainer.innerHTML = `
+                <div class="progress-message">${message}</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-percentage">0%</div>
+            `;
+            document.body.appendChild(progressContainer);
+        }
+        
+        return {
+            update: (current) => {
+                const percentage = Math.min(100, Math.round((current / total) * 100));
+                const fill = progressContainer.querySelector('.progress-fill');
+                const percentageText = progressContainer.querySelector('.progress-percentage');
+                
+                if (fill) fill.style.width = `${percentage}%`;
+                if (percentageText) percentageText.textContent = `${percentage}%`;
+            },
+            complete: () => {
+                setTimeout(() => {
+                    if (progressContainer.parentNode) {
+                        progressContainer.parentNode.removeChild(progressContainer);
+                    }
+                }, 1000);
+            },
+            error: (errorMessage) => {
+                progressContainer.innerHTML = `
+                    <div class="progress-error">${errorMessage}</div>
+                `;
+                setTimeout(() => {
+                    if (progressContainer.parentNode) {
+                        progressContainer.parentNode.removeChild(progressContainer);
+                    }
+                }, 3000);
+            }
+        };
+    }
+}
+
+// Initialize UX enhancer
+const uxEnhancer = new UXEnhancer();
+
+// Bulk selection functions
+function toggleSelectAll(tableId) {
+    const selectAll = document.getElementById(`selectAll-${tableId}`);
+    const rowSelects = document.querySelectorAll(`#${tableId} .row-select`);
+    
+    rowSelects.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkActions(tableId);
+}
+
+function updateBulkActions(tableId) {
+    const selectedCount = document.querySelectorAll(`#${tableId} .row-select:checked`).length;
+    const toolbar = document.getElementById(`bulk-actions-${tableId}`);
+    const countElement = document.getElementById(`selectedCount-${tableId}`);
+    
+    if (countElement) {
+        countElement.textContent = selectedCount;
+    }
+    
+    if (toolbar) {
+        toolbar.style.display = selectedCount > 0 ? 'flex' : 'none';
+    }
+}
+
+function clearSelection(tableId) {
+    const selectAll = document.getElementById(`selectAll-${tableId}`);
+    const rowSelects = document.querySelectorAll(`#${tableId} .row-select`);
+    
+    selectAll.checked = false;
+    rowSelects.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    updateBulkActions(tableId);
+}
+
+// Enhanced sync with progress indicator
+async function syncWithProgress() {
+    const progress = uxEnhancer.showProgress(
+        'sync', 
+        'Veriler senkronize ediliyor...', 
+        excelSyncQueue.length
+    );
+    
+    try {
+        let processed = 0;
+        
+        for (const operation of excelSyncQueue) {
+            await atomicSyncManager.executeSingleOperation(operation);
+            processed++;
+            progress.update(processed);
+        }
+        
+        progress.complete();
+        showAlert('Senkronizasyon başarıyla tamamlandı!', 'success');
+        
+    } catch (error) {
+        progress.error('Senkronizasyon sırasında hata oluştu');
+        showAlert('Senkronizasyon tamamlanamadı', 'error');
+    }
+}
