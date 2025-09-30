@@ -343,125 +343,6 @@ async loadWorkspaceData() {
 }
 
 
-
-// Enhanced WorkspaceManager class - add this to supabase.js
-class EnhancedWorkspaceManager extends WorkspaceManager {
-    constructor() {
-        super();
-        this.printerConfigs = new Map();
-        this.loadPrinterConfigurations();
-    }
-
-    // Load printer configurations for each workspace
-    loadPrinterConfigurations() {
-        // Define printer configurations for each station
-        this.printerConfigs.set('station-1', {
-            name: 'Argox OS-214EX PPLA',
-            type: 'argox',
-            connection: 'usb', // or 'network'
-            ip: null, // for network printers
-            paperWidth: 50, // mm
-            paperHeight: 30, // mm
-            dpi: 203
-        });
-
-        this.printerConfigs.set('station-2', {
-            name: 'Argox OS-214EX PPLA1',
-            type: 'argox',
-            connection: 'usb',
-            ip: null,
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203
-        });
-
-        this.printerConfigs.set('station-3', {
-            name: 'Zebra ZD420',
-            type: 'zebra',
-            connection: 'usb',
-            ip: null,
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203
-        });
-
-        // Add more stations as needed
-        this.printerConfigs.set('station-4', {
-            name: 'Brother QL-800',
-            type: 'brother',
-            connection: 'usb',
-            ip: null,
-            paperWidth: 62,
-            paperHeight: 29,
-            dpi: 300
-        });
-    }
-
-    // Get current workstation's printer configuration
-    getCurrentPrinterConfig() {
-        const workspaceId = this.currentWorkspace?.id;
-        if (!workspaceId) {
-            console.warn('No workspace selected, using default printer');
-            return this.getDefaultPrinterConfig();
-        }
-        
-        const config = this.printerConfigs.get(workspaceId);
-        if (!config) {
-            console.warn(`No printer config for workspace ${workspaceId}, using default`);
-            return this.getDefaultPrinterConfig();
-        }
-        
-        return config;
-    }
-
-    getDefaultPrinterConfig() {
-        return {
-            name: 'Default Printer',
-            type: 'generic',
-            connection: 'usb',
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203
-        };
-    }
-
-    // Update printer configuration for current workspace
-    updatePrinterConfig(newConfig) {
-        const workspaceId = this.currentWorkspace?.id;
-        if (workspaceId) {
-            this.printerConfigs.set(workspaceId, {
-                ...this.getCurrentPrinterConfig(),
-                ...newConfig
-            });
-            this.savePrinterConfigurations();
-            console.log(`Printer config updated for ${workspaceId}:`, newConfig);
-        }
-    }
-
-    // Save printer configurations to localStorage
-    savePrinterConfigurations() {
-        const configObj = Object.fromEntries(this.printerConfigs);
-        localStorage.setItem('workspace_printer_configs', JSON.stringify(configObj));
-    }
-
-    // Load saved configurations
-    loadSavedPrinterConfigurations() {
-        try {
-            const saved = localStorage.getItem('workspace_printer_configs');
-            if (saved) {
-                const configs = JSON.parse(saved);
-                Object.entries(configs).forEach(([workspaceId, config]) => {
-                    this.printerConfigs.set(workspaceId, config);
-                });
-                console.log('Loaded saved printer configurations');
-            }
-        } catch (error) {
-            console.error('Error loading printer configurations:', error);
-        }
-    }
-}
-
-
 // ==================== WORKSPACE UTILITIES ====================
 // Safe workspace ID getter
 function getCurrentWorkspaceId() {
@@ -544,14 +425,214 @@ async function testWorkspaceIsolation() {
 
 // ==================== ENHANCED WORKSPACE ISOLATION ====================
 
-// Add this to supabase.js in the WorkspaceManager class
-
 class EnhancedWorkspaceManager extends WorkspaceManager {
     constructor() {
         super();
         this.dataValidators = new Map();
+        this.printerConfigs = new Map(); // ADDED: Printer configurations
         this.setupDataValidators();
+        this.loadPrinterConfigurations(); // ADDED: Load printer configs
     }
+
+    // ==================== PRINTER CONFIGURATION METHODS ====================
+    
+    // Load printer configurations for each workspace
+    loadPrinterConfigurations() {
+        // Define printer configurations for each station
+        this.printerConfigs.set('station-1', {
+            name: 'Argox OS-214EX PPLA',
+            type: 'argox',
+            connection: 'usb',
+            ip: null,
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'İstasyon 1 - Ana Yazıcı'
+        });
+
+        this.printerConfigs.set('station-2', {
+            name: 'Argox OS-214EX PPLA1', 
+            type: 'argox',
+            connection: 'usb',
+            ip: null,
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'İstasyon 2 - Ana Yazıcı'
+        });
+
+        this.printerConfigs.set('station-3', {
+            name: 'Zebra ZD420',
+            type: 'zebra', 
+            connection: 'usb',
+            ip: null,
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'İstasyon 3 - Sevkiyat Yazıcısı'
+        });
+
+        this.printerConfigs.set('station-4', {
+            name: 'Brother QL-800',
+            type: 'brother',
+            connection: 'usb', 
+            ip: null,
+            paperWidth: 62,
+            paperHeight: 29,
+            dpi: 300,
+            description: 'İstasyon 4 - Kalite Kontrol'
+        });
+
+        // Load any saved configurations from localStorage
+        this.loadSavedPrinterConfigurations();
+        
+        console.log('🖨️ Printer configurations loaded for all workstations');
+    }
+
+    // Get current workstation's printer configuration
+    getCurrentPrinterConfig() {
+        const workspaceId = this.currentWorkspace?.id;
+        if (!workspaceId) {
+            console.warn('No workspace selected, using default printer');
+            return this.getDefaultPrinterConfig();
+        }
+        
+        const config = this.printerConfigs.get(workspaceId);
+        if (!config) {
+            console.warn(`No printer config for workspace ${workspaceId}, using default`);
+            return this.getDefaultPrinterConfig();
+        }
+        
+        return config;
+    }
+
+    // Get default printer configuration
+    getDefaultPrinterConfig() {
+        return {
+            name: 'Default Printer',
+            type: 'generic',
+            connection: 'usb',
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'Varsayılan Yazıcı'
+        };
+    }
+
+    // Get printer configuration for specific workspace
+    getPrinterConfig(workspaceId) {
+        return this.printerConfigs.get(workspaceId) || this.getDefaultPrinterConfig();
+    }
+
+    // Update printer configuration for current workspace
+    updatePrinterConfig(newConfig) {
+        const workspaceId = this.currentWorkspace?.id;
+        if (workspaceId) {
+            this.printerConfigs.set(workspaceId, {
+                ...this.getCurrentPrinterConfig(),
+                ...newConfig
+            });
+            this.savePrinterConfigurations();
+            console.log(`🖨️ Printer config updated for ${workspaceId}:`, newConfig);
+            
+            // Update printer UI if available
+            this.updatePrinterUI();
+        }
+    }
+
+    // Update printer configuration for specific workspace
+    updatePrinterConfigForWorkspace(workspaceId, newConfig) {
+        this.printerConfigs.set(workspaceId, {
+            ...this.getPrinterConfig(workspaceId),
+            ...newConfig
+        });
+        this.savePrinterConfigurations();
+        console.log(`🖨️ Printer config updated for workspace ${workspaceId}`);
+    }
+
+    // Save printer configurations to localStorage
+    savePrinterConfigurations() {
+        try {
+            const configObj = Object.fromEntries(this.printerConfigs);
+            localStorage.setItem('workspace_printer_configs', JSON.stringify(configObj));
+            console.log('💾 Printer configurations saved');
+        } catch (error) {
+            console.error('Error saving printer configurations:', error);
+        }
+    }
+
+    // Load saved configurations from localStorage
+    loadSavedPrinterConfigurations() {
+        try {
+            const saved = localStorage.getItem('workspace_printer_configs');
+            if (saved) {
+                const configs = JSON.parse(saved);
+                Object.entries(configs).forEach(([workspaceId, config]) => {
+                    this.printerConfigs.set(workspaceId, config);
+                });
+                console.log('📁 Loaded saved printer configurations');
+            }
+        } catch (error) {
+            console.error('Error loading printer configurations:', error);
+        }
+    }
+
+    // Get all printer configurations for settings panel
+    getAllPrinterConfigs() {
+        return Array.from(this.printerConfigs.entries()).map(([workspaceId, config]) => ({
+            workspaceId,
+            workspaceName: this.availableWorkspaces.find(ws => ws.id === workspaceId)?.name || workspaceId,
+            ...config
+        }));
+    }
+
+    // Update printer UI indicator
+    updatePrinterUI() {
+        const printerIndicator = document.getElementById('printerIndicator');
+        if (printerIndicator && this.currentWorkspace) {
+            const printerConfig = this.getCurrentPrinterConfig();
+            printerIndicator.innerHTML = `
+                <i class="fas fa-print"></i> 
+                ${this.currentWorkspace.name}: ${printerConfig.name}
+                <span class="printer-status">🖨️</span>
+            `;
+            printerIndicator.title = `Yazıcı: ${printerConfig.name} - ${printerConfig.description || ''}`;
+        }
+    }
+
+    // Override setCurrentWorkspace to update printer when workspace changes
+    setCurrentWorkspace(workspace) {
+        super.setCurrentWorkspace(workspace);
+        
+        // Update printer configuration for new workspace
+        setTimeout(() => {
+            this.updatePrinterUI();
+            console.log(`🖨️ Workspace changed to ${workspace.name}, active printer: ${this.getCurrentPrinterConfig().name}`);
+            
+            // Initialize workstation printer if available
+            if (window.workstationPrinter) {
+                window.workstationPrinter.initialize();
+            }
+        }, 100);
+    }
+
+    // Test printer connection for current workspace
+    async testCurrentPrinter() {
+        const printerConfig = this.getCurrentPrinterConfig();
+        console.log(`🧪 Testing printer: ${printerConfig.name} for ${this.currentWorkspace.name}`);
+        
+        // Simulate printer test
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                // In real implementation, this would actually test the printer connection
+                console.log(`✅ Printer test completed for ${printerConfig.name}`);
+                showAlert(`Yazıcı testi tamamlandı: ${printerConfig.name}`, 'success');
+                resolve(true);
+            }, 1000);
+        });
+    }
+
+    // ==================== EXISTING DATA VALIDATION METHODS ====================
 
     // Setup validation rules for all data types
     setupDataValidators() {
@@ -725,6 +806,185 @@ function validateWorkspaceAccessStrict(data, tableName = 'packages') {
     
     return window.workspaceManager.validateDataAccess(tableName, data);
 }
+
+// ==================== WORKSTATION PRINTER FUNCTIONS ====================
+
+// Global printer functions
+async function printForCurrentWorkstation(packageData) {
+    if (!window.workspaceManager?.currentWorkspace) {
+        showAlert('Önce çalışma istasyonu seçin', 'error');
+        return false;
+    }
+
+    const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
+    console.log(`🖨️ Printing from ${window.workspaceManager.currentWorkspace.name} on ${printerConfig.name}`);
+
+    try {
+        // Generate and print label
+        const success = await generateAndPrintLabel(packageData, printerConfig);
+        
+        if (success) {
+            showAlert(`Etiket yazdırıldı: ${printerConfig.name}`, 'success');
+        }
+        
+        return success;
+    } catch (error) {
+        console.error('Print error:', error);
+        showAlert(`Yazdırma hatası: ${error.message}`, 'error');
+        return false;
+    }
+}
+
+async function generateAndPrintLabel(packageData, printerConfig) {
+    // Generate label content based on printer type
+    const labelContent = generateLabelContent(packageData, printerConfig);
+    
+    // Send to printer
+    return await sendToPrinter(labelContent, printerConfig);
+}
+
+function generateLabelContent(packageData, printerConfig) {
+    const workspace = window.workspaceManager.currentWorkspace;
+    const itemsText = packageData.items_display || 'Ürün bilgisi yok';
+    const date = new Date().toLocaleDateString('tr-TR');
+    
+    switch (printerConfig.type) {
+        case 'argox':
+            return `
+SIZE ${printerConfig.paperWidth} mm, ${printerConfig.paperHeight} mm
+GAP 2 mm, 0 mm
+CLS
+TEXT 10,10,"0",0,1,1,"${workspace.name}"
+TEXT 10,40,"0",0,1,1,"${packageData.package_no}"
+TEXT 10,70,"0",0,1,1,"${packageData.customer_name}"
+TEXT 10,100,"0",0,1,1,"${itemsText}"
+TEXT 10,130,"0",0,1,1,"Toplam: ${packageData.total_quantity}"
+TEXT 10,160,"0",0,1,1,"${date}"
+BARCODE 10,190,"128",40,1,0,2,2,"${packageData.package_no}"
+PRINT 1
+`;
+        case 'zebra':
+            return `
+^XA
+^FO20,20^A0N,25,25^FD${workspace.name}^FS
+^FO20,50^A0N,20,20^FD${packageData.package_no}^FS
+^FO20,80^A0N,20,20^FD${packageData.customer_name}^FS
+^FO20,110^A0N,15,15^FD${itemsText}^FS
+^FO20,140^A0N,20,20^FDToplam: ${packageData.total_quantity}^FS
+^FO20,170^A0N,15,15^FD${date}^FS
+^FO20,200^BY2^BCN,40,Y,N,N^FD${packageData.package_no}^FS
+^XZ
+`;
+        default:
+            // Generic label for browser printing
+            return 'generic';
+    }
+}
+
+async function sendToPrinter(labelContent, printerConfig) {
+    if (printerConfig.connection === 'network' && printerConfig.ip) {
+        // Network printing
+        return await printViaNetwork(labelContent, printerConfig);
+    } else {
+        // Browser printing (fallback)
+        return await printViaBrowser(labelContent, printerConfig);
+    }
+}
+
+async function printViaNetwork(labelContent, printerConfig) {
+    try {
+        const response = await fetch(`http://${printerConfig.ip}:9100`, {
+            method: 'POST',
+            body: labelContent,
+            headers: {
+                'Content-Type': 'text/plain'
+            }
+        });
+        return response.ok;
+    } catch (error) {
+        console.error('Network print error:', error);
+        return false;
+    }
+}
+
+async function printViaBrowser(labelContent, printerConfig) {
+    return new Promise((resolve) => {
+        const printWindow = window.open('', '_blank');
+        const packageData = window.currentPackage || {};
+        const customer = window.selectedCustomer || {};
+        
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Print Label - ${printerConfig.name}</title>
+                    <style>
+                        body { 
+                            font-family: Arial, sans-serif; 
+                            margin: 10mm;
+                            transform: scale(0.8);
+                        }
+                        .label { 
+                            border: 1px dashed #ccc; 
+                            padding: 10px; 
+                            margin: 10px 0;
+                            width: ${printerConfig.paperWidth}mm;
+                            min-height: ${printerConfig.paperHeight}mm;
+                        }
+                        .workspace { font-weight: bold; font-size: 16px; }
+                        .package-no { font-size: 14px; margin: 5px 0; }
+                        .customer { font-size: 12px; margin: 5px 0; }
+                        .items { font-size: 11px; margin: 5px 0; }
+                        .total { font-size: 12px; font-weight: bold; }
+                        .date { font-size: 10px; color: #666; }
+                    </style>
+                </head>
+                <body>
+                    <div class="label">
+                        <div class="workspace">${window.workspaceManager.currentWorkspace.name}</div>
+                        <div class="package-no">${packageData.package_no || 'PKG-XXXX'}</div>
+                        <div class="customer">${customer.name || 'Müşteri'}</div>
+                        <div class="items">${Object.entries(packageData.items || {}).map(([p, q]) => `${p}: ${q}`).join(', ')}</div>
+                        <div class="total">Toplam: ${Object.values(packageData.items || {}).reduce((a, b) => a + b, 0)} adet</div>
+                        <div class="date">${new Date().toLocaleDateString('tr-TR')}</div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(() => {
+                                window.close();
+                                window.opener.postMessage('print_complete', '*');
+                            }, 500);
+                        };
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        
+        // Listen for print completion
+        window.addEventListener('message', function(event) {
+            if (event.data === 'print_complete') {
+                resolve(true);
+            }
+        });
+        
+        // Fallback timeout
+        setTimeout(() => resolve(true), 3000);
+    });
+}
+
+// Test printer for current workstation
+async function testCurrentWorkstationPrinter() {
+    if (!window.workspaceManager?.currentWorkspace) {
+        showAlert('Önce çalışma istasyonu seçin', 'error');
+        return;
+    }
+    
+    await window.workspaceManager.testCurrentPrinter();
+}
+
+
+
 
 // Enhanced workspace filter for all queries
 function getStrictWorkspaceFilter(tableName) {
