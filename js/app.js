@@ -1083,3 +1083,174 @@ function debugWorkspace() {
 
 // Call this after page loads
 setTimeout(debugWorkspace, 3000);
+
+
+
+
+// ==================== COMPREHENSIVE ERROR HANDLING ====================
+
+// Add this to app.js
+
+class ErrorHandler {
+    constructor() {
+        this.maxRetries = 3;
+        this.retryDelays = [1000, 3000, 5000]; // 1s, 3s, 5s
+        this.setupGlobalErrorHandling();
+    }
+
+    // Setup global error handlers
+    setupGlobalErrorHandling() {
+        // Handle unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('🔴 Unhandled Promise Rejection:', event.reason);
+            this.handleError(event.reason, 'UNHANDLED_PROMISE');
+            event.preventDefault();
+        });
+
+        // Handle global errors
+        window.addEventListener('error', (event) => {
+            console.error('🔴 Global Error:', event.error);
+            this.handleError(event.error, 'GLOBAL_ERROR');
+        });
+
+        console.log('✅ Global error handling setup complete');
+    }
+
+    // Enhanced error handling with retry
+    async executeWithRetry(operation, context, retryCount = 0) {
+        try {
+            const result = await operation();
+            return result;
+        } catch (error) {
+            console.error(`❌ Error in ${context} (attempt ${retryCount + 1}/${this.maxRetries}):`, error);
+            
+            // Check if we should retry
+            if (this.shouldRetry(error) && retryCount < this.maxRetries) {
+                const delay = this.retryDelays[retryCount] || 5000;
+                console.log(`🔄 Retrying ${context} in ${delay}ms...`);
+                
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return this.executeWithRetry(operation, context, retryCount + 1);
+            }
+            
+            // Final failure
+            this.handleError(error, context);
+            throw error;
+        }
+    }
+
+    // Determine if error is retryable
+    shouldRetry(error) {
+        const retryableErrors = [
+            'network',
+            'timeout', 
+            'fetch',
+            'offline',
+            'connection',
+            'socket',
+            'ECONNREFUSED',
+            'ETIMEDOUT'
+        ];
+        
+        const errorMessage = error.message?.toLowerCase() || '';
+        return retryableErrors.some(term => errorMessage.includes(term));
+    }
+
+    // Handle different types of errors appropriately
+    handleError(error, context) {
+        const errorInfo = {
+            timestamp: new Date().toISOString(),
+            context: context,
+            message: error.message,
+            stack: error.stack,
+            user: currentUser?.email || 'unknown',
+            workspace: window.workspaceManager?.currentWorkspace?.id || 'unknown',
+            online: navigator.onLine
+        };
+
+        // Log error for debugging
+        console.error('🔴 Application Error:', errorInfo);
+
+        // Store error in localStorage for debugging
+        this.storeError(errorInfo);
+
+        // Show user-friendly error message
+        this.showUserError(error, context);
+    }
+
+    // Store errors for debugging
+    storeError(errorInfo) {
+        try {
+            const errorLog = JSON.parse(localStorage.getItem('app_error_log') || '[]');
+            errorLog.push(errorInfo);
+            
+            // Keep only last 100 errors
+            if (errorLog.length > 100) {
+                errorLog.splice(0, errorLog.length - 100);
+            }
+            
+            localStorage.setItem('app_error_log', JSON.stringify(errorLog));
+        } catch (storageError) {
+            console.error('Failed to store error log:', storageError);
+        }
+    }
+
+    // Show user-friendly error messages
+    showUserError(error, context) {
+        let userMessage = 'Bir hata oluştu.';
+        
+        // Network errors
+        if (!navigator.onLine) {
+            userMessage = 'İnternet bağlantınız yok. Çevrimdışı moda geçiliyor.';
+            isUsingExcel = true;
+            updateStorageIndicator();
+        }
+        // Database errors
+        else if (error.message?.includes('Supabase') || error.message?.includes('database')) {
+            userMessage = 'Veritabanı bağlantısında sorun var. Excel moduna geçiliyor.';
+            isUsingExcel = true;
+            updateStorageIndicator();
+        }
+        // Permission errors
+        else if (error.message?.includes('permission') || error.message?.includes('auth')) {
+            userMessage = 'Bu işlem için yetkiniz bulunmuyor.';
+        }
+        // Data validation errors
+        else if (error.message?.includes('validation') || error.message?.includes('invalid')) {
+            userMessage = 'Geçersiz veri. Lütfen girdiğiniz bilgileri kontrol edin.';
+        }
+        
+        showAlert(userMessage, 'error');
+    }
+
+    // Safe wrapper for any async function
+    createSafeAsync(fn, context) {
+        return async (...args) => {
+            try {
+                return await this.executeWithRetry(
+                    () => fn(...args), 
+                    context || fn.name
+                );
+            } catch (error) {
+                // Error already handled by executeWithRetry
+                throw error;
+            }
+        };
+    }
+}
+
+// Initialize error handler
+const errorHandler = new ErrorHandler();
+
+// Wrap critical functions with error handling
+const safeCompletePackage = errorHandler.createSafeAsync(completePackage, 'completePackage');
+const safeSyncExcelWithSupabase = errorHandler.createSafeAsync(syncExcelWithSupabase, 'syncExcelWithSupabase');
+const safePopulatePackagesTable = errorHandler.createSafeAsync(populatePackagesTable, 'populatePackagesTable');
+const safeSaveToExcel = errorHandler.createSafeAsync(saveToExcel, 'saveToExcel');
+
+// Replace the existing completePackage function with safe version
+async function completePackage() {
+    return await safeCompletePackage();
+}
+
+// Replace other critical functions similarly...
