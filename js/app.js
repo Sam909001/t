@@ -1218,3 +1218,34 @@ function showKeyboardShortcutsHelp() {
     
     alert(helpText);
 }
+
+
+
+// Enhanced logout setup
+function setupEnhancedLogout() {
+    // Replace any existing logout functionality
+    const logoutButtons = document.querySelectorAll('[onclick*="logout"], [onclick*="signOut"]');
+    logoutButtons.forEach(btn => {
+        btn.onclick = logoutWithConfirmation;
+    });
+    
+    // Also add logout button to settings if not exists
+    if (!document.getElementById('enhancedLogoutBtn')) {
+        setTimeout(() => {
+            const settingsPanel = document.querySelector('.settings-panel, .settings-content');
+            if (settingsPanel) {
+                const logoutBtn = document.createElement('button');
+                logoutBtn.id = 'enhancedLogoutBtn';
+                logoutBtn.className = 'btn btn-danger';
+                logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Çıkış Yap';
+                logoutBtn.onclick = logoutWithConfirmation;
+                logoutBtn.style.marginTop = '10px';
+                settingsPanel.appendChild(logoutBtn);
+            }
+        }, 1000);
+    }
+}
+
+
+
+
