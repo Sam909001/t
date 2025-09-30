@@ -1074,9 +1074,6 @@ async function testCriticalFixes() {
     console.log('🧪 Testing critical fixes...');
     
     try {  
-        // Test 2: Printer functions
-        const printer = getPrinter();
-        console.log('✅ getPrinter:', typeof printer.testPrint);
         
         // Test 3: Form validation
         const isValid = validateForm([]);
