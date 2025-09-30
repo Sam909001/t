@@ -1457,3 +1457,300 @@ window.addEventListener('beforeunload', () => {
     memoryManager.performCleanup();
     memoryManager.stopCleanupCycle();
 });
+
+
+
+// ==================== ERROR RECOVERY MECHANISMS ====================
+
+// Add this to app.js
+
+class ErrorRecovery {
+    constructor() {
+        this.backupInterval = null;
+        this.retryQueue = [];
+        this.maxRetryAttempts = 3;
+    }
+
+    // Create data backups
+    startBackupCycle() {
+        // Create backup every 5 minutes
+        this.backupInterval = setInterval(() => {
+            this.createDataBackup();
+        }, 5 * 60 * 1000);
+        
+        // Also backup before unload
+        window.addEventListener('beforeunload', () => {
+            this.createDataBackup();
+        });
+    }
+
+    async createDataBackup() {
+        try {
+            const backupData = {
+                timestamp: new Date().toISOString(),
+                packages: await ExcelJS.readFile(),
+                syncQueue: JSON.parse(JSON.stringify(excelSyncQueue)),
+                currentPackage: JSON.parse(JSON.stringify(currentPackage)),
+                selectedCustomer: JSON.parse(JSON.stringify(selectedCustomer)),
+                user: currentUser ? { email: currentUser.email } : null,
+                workspace: window.workspaceManager?.currentWorkspace?.id || null
+            };
+            
+            // Store backup in localStorage
+            const backupKey = `backup_${new Date().toISOString().split('T')[0]}`;
+            const existingBackups = JSON.parse(localStorage.getItem('app_backups') || '{}');
+            
+            // Keep only last 7 days of backups
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            
+            Object.keys(existingBackups).forEach(key => {
+                const backupDate = new Date(key.split('_')[1]);
+                if (backupDate < oneWeekAgo) {
+                    delete existingBackups[key];
+                }
+            });
+            
+            existingBackups[backupKey] = backupData;
+            localStorage.setItem('app_backups', JSON.stringify(existingBackups));
+            
+            console.log('💾 Backup created:', backupKey);
+            
+        } catch (error) {
+            console.error('Backup creation failed:', error);
+        }
+    }
+
+    // Restore from backup
+    async restoreFromBackup(backupKey = null) {
+        try {
+            const backups = JSON.parse(localStorage.getItem('app_backups') || '{}');
+            
+            if (Object.keys(backups).length === 0) {
+                throw new Error('No backups available');
+            }
+            
+            // Use specified backup or latest
+            const keyToRestore = backupKey || Object.keys(backups).sort().pop();
+            const backup = backups[keyToRestore];
+            
+            if (!backup) {
+                throw new Error('Backup not found');
+            }
+            
+            // Restore data
+            await ExcelJS.writeFile(backup.packages);
+            excelSyncQueue = backup.syncQueue || [];
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            
+            // Restore application state
+            if (backup.currentPackage) {
+                window.currentPackage = backup.currentPackage;
+            }
+            
+            if (backup.selectedCustomer) {
+                window.selectedCustomer = backup.selectedCustomer;
+            }
+            
+            console.log('✅ Backup restored:', keyToRestore);
+            showAlert('Veriler yedekten geri yüklendi', 'success');
+            
+            // Refresh UI
+            await safePopulatePackagesTable();
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Backup restoration failed:', error);
+            showAlert('Yedekten geri yükleme başarısız', 'error');
+            return false;
+        }
+    }
+
+    // Add operation to retry queue
+    addToRetryQueue(operation, context) {
+        const retryEntry = {
+            operation: operation,
+            context: context,
+            attempts: 0,
+            lastAttempt: null,
+            nextRetry: Date.now(),
+            maxAttempts: this.maxRetryAttempts
+        };
+        
+        this.retryQueue.push(retryEntry);
+        this.processRetryQueue();
+    }
+
+    // Process retry queue
+    async processRetryQueue() {
+        const now = Date.now();
+        const readyToRetry = this.retryQueue.filter(entry => 
+            entry.attempts < entry.maxAttempts && 
+            entry.nextRetry <= now
+        );
+        
+        for (const entry of readyToRetry) {
+            try {
+                console.log(`🔄 Retrying ${entry.context} (attempt ${entry.attempts + 1})`);
+                
+                await entry.operation();
+                
+                // Remove successful operations
+                this.retryQueue = this.retryQueue.filter(e => e !== entry);
+                
+            } catch (error) {
+                entry.attempts++;
+                entry.lastAttempt = now;
+                entry.nextRetry = now + (Math.pow(2, entry.attempts) * 1000); // Exponential backoff
+                
+                console.error(`❌ Retry failed for ${entry.context}:`, error);
+                
+                if (entry.attempts >= entry.maxAttempts) {
+                    console.error(`💥 Max retries exceeded for ${entry.context}`);
+                    this.retryQueue = this.retryQueue.filter(e => e !== entry);
+                }
+            }
+        }
+        
+        // Schedule next processing if queue not empty
+        if (this.retryQueue.length > 0) {
+            const nextRetryTime = Math.min(...this.retryQueue.map(entry => entry.nextRetry));
+            const delay = Math.max(1000, nextRetryTime - now);
+            
+            setTimeout(() => this.processRetryQueue(), delay);
+        }
+    }
+
+    // User-friendly error messages with recovery options
+    showRecoveryError(error, context, recoveryOptions = {}) {
+        const errorId = `error-${Date.now()}`;
+        const errorMessage = this.getUserFriendlyErrorMessage(error, context);
+        
+        const errorHtml = `
+            <div id="${errorId}" class="error-recovery-modal">
+                <div class="error-header">
+                    <h3>İşlem Başarısız</h3>
+                </div>
+                <div class="error-content">
+                    <p>${errorMessage}</p>
+                    ${recoveryOptions.allowRetry ? `
+                        <button type="button" class="btn btn-primary" 
+                                onclick="errorRecovery.retryLastOperation()">
+                            Tekrar Dene
+                        </button>
+                    ` : ''}
+                    ${recoveryOptions.allowBackupRestore ? `
+                        <button type="button" class="btn btn-secondary"
+                                onclick="errorRecovery.showBackupRestoreOptions()">
+                            Yedekten Geri Yükle
+                        </button>
+                    ` : ''}
+                    ${recoveryOptions.allowSkip ? `
+                        <button type="button" class="btn btn-outline-secondary"
+                                onclick="document.getElementById('${errorId}').remove()">
+                            İşlemi Atla
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', errorHtml);
+    }
+
+    getUserFriendlyErrorMessage(error, context) {
+        const errorMap = {
+            'network': 'İnternet bağlantısı yok. Çevrimdışı moda geçiliyor.',
+            'database': 'Veritabanına bağlanılamıyor. Yerel depolama kullanılıyor.',
+            'permission': 'Bu işlem için yetkiniz bulunmuyor.',
+            'validation': 'Geçersiz veri. Lütfen girdiğiniz bilgileri kontrol edin.',
+            'sync': 'Veri senkronizasyonu başarısız. Değişiklikler yerelde saklanıyor.',
+            'default': 'Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.'
+        };
+        
+        const errorMessage = error.message?.toLowerCase() || '';
+        
+        for (const [key, message] of Object.entries(errorMap)) {
+            if (errorMessage.includes(key) || context.includes(key)) {
+                return message;
+            }
+        }
+        
+        return errorMap.default;
+    }
+
+    // Recovery actions
+    retryLastOperation() {
+        // Implementation depends on your specific operation tracking
+        console.log('Retrying last operation...');
+    }
+
+    showBackupRestoreOptions() {
+        const backups = JSON.parse(localStorage.getItem('app_backups') || '{}');
+        const backupKeys = Object.keys(backups).sort().reverse();
+        
+        if (backupKeys.length === 0) {
+            showAlert('Kullanılabilir yedek bulunamadı', 'warning');
+            return;
+        }
+        
+        const optionsHtml = backupKeys.map(key => `
+            <div class="backup-option">
+                <span>${new Date(key.split('_')[1]).toLocaleString()}</span>
+                <button type="button" class="btn btn-sm btn-primary"
+                        onclick="errorRecovery.restoreFromBackup('${key}')">
+                    Geri Yükle
+                </button>
+            </div>
+        `).join('');
+        
+        const modalHtml = `
+            <div class="modal show" style="display: block">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Yedekten Geri Yükle</h5>
+                            <button type="button" class="close" onclick="this.closest('.modal').remove()">
+                                &times;
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Hangi yedeği geri yüklemek istiyorsunuz?</p>
+                            <div class="backup-list">
+                                ${optionsHtml}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+}
+
+// Initialize error recovery
+const errorRecovery = new ErrorRecovery();
+
+// Start backup cycle when app loads
+errorRecovery.startBackupCycle();
+
+// Enhanced error handling with recovery options
+async function completePackageWithRecovery() {
+    try {
+        await completePackage();
+    } catch (error) {
+        console.error('Package completion failed:', error);
+        
+        errorRecovery.showRecoveryError(error, 'complete_package', {
+            allowRetry: true,
+            allowBackupRestore: false,
+            allowSkip: true
+        });
+        
+        // Add to retry queue
+        errorRecovery.addToRetryQueue(completePackage, 'complete_package');
+    }
+}
+
