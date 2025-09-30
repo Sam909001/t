@@ -2767,3 +2767,234 @@ async function syncWithProgress() {
         showAlert('Senkronizasyon tamamlanamadı', 'error');
     }
 }
+
+
+
+
+
+// ==================== DATA VALIDATION & SANITIZATION ====================
+
+// Add this to ui.js
+
+class DataValidator {
+    // Validate package data before save
+    static validatePackageData(packageData) {
+        const errors = [];
+        
+        // Required fields
+        if (!packageData.id) errors.push('Package ID is required');
+        if (!packageData.package_no) errors.push('Package number is required');
+        if (!packageData.customer_id) errors.push('Customer is required');
+        if (!packageData.workspace_id) errors.push('Workspace is required');
+        
+        // Items validation
+        if (!packageData.items || Object.keys(packageData.items).length === 0) {
+            errors.push('Package must contain at least one item');
+        } else {
+            for (const [product, quantity] of Object.entries(packageData.items)) {
+                if (typeof quantity !== 'number' || quantity < 1) {
+                    errors.push(`Invalid quantity for ${product}: ${quantity}`);
+                }
+            }
+        }
+        
+        // Quantity validation
+        if (typeof packageData.total_quantity !== 'number' || packageData.total_quantity < 1) {
+            errors.push(`Invalid total quantity: ${packageData.total_quantity}`);
+        }
+        
+        // Date validation
+        if (!packageData.created_at || isNaN(new Date(packageData.created_at).getTime())) {
+            errors.push('Invalid creation date');
+        }
+        
+        if (errors.length > 0) {
+            throw new Error(`Package validation failed: ${errors.join(', ')}`);
+        }
+        
+        return true;
+    }
+    
+    // Sanitize package data
+    static sanitizePackageData(packageData) {
+        const sanitized = { ...packageData };
+        
+        // Trim string fields
+        if (sanitized.package_no) sanitized.package_no = sanitized.package_no.trim();
+        if (sanitized.customer_name) sanitized.customer_name = sanitized.customer_name.trim();
+        if (sanitized.customer_code) sanitized.customer_code = sanitized.customer_code.trim();
+        if (sanitized.packer) sanitized.packer = sanitized.packer.trim();
+        
+        // Ensure numeric fields
+        sanitized.total_quantity = Number(sanitized.total_quantity) || 0;
+        
+        // Sanitize items
+        if (sanitized.items && typeof sanitized.items === 'object') {
+            const sanitizedItems = {};
+            for (const [product, quantity] of Object.entries(sanitized.items)) {
+                const cleanProduct = product.trim();
+                const cleanQuantity = Math.max(0, Number(quantity) || 0);
+                if (cleanQuantity > 0) {
+                    sanitizedItems[cleanProduct] = cleanQuantity;
+                }
+            }
+            sanitized.items = sanitizedItems;
+        }
+        
+        // Ensure workspace data
+        if (!sanitized.workspace_id && window.workspaceManager?.currentWorkspace) {
+            sanitized.workspace_id = window.workspaceManager.currentWorkspace.id;
+        }
+        
+        return sanitized;
+    }
+    
+    // Validate form inputs
+    static validateForm(inputs) {
+        let isValid = true;
+        
+        inputs.forEach(inputConfig => {
+            const element = document.getElementById(inputConfig.id);
+            const errorElement = document.getElementById(inputConfig.errorId);
+            
+            if (!element) return;
+            
+            const value = element.value.trim();
+            let inputValid = true;
+            let errorMessage = '';
+            
+            // Required field validation
+            if (inputConfig.required && !value) {
+                inputValid = false;
+                errorMessage = 'Bu alan zorunludur';
+            }
+            // Email validation
+            else if (inputConfig.type === 'email' && value && !this.isValidEmail(value)) {
+                inputValid = false;
+                errorMessage = 'Geçerli bir e-posta adresi girin';
+            }
+            // Number validation
+            else if (inputConfig.type === 'number' && value) {
+                const numValue = Number(value);
+                if (isNaN(numValue) || numValue < 0) {
+                    inputValid = false;
+                    errorMessage = 'Geçerli bir sayı girin';
+                }
+            }
+            
+            // Update UI
+            if (errorElement) {
+                errorElement.textContent = errorMessage;
+                errorElement.style.display = inputValid ? 'none' : 'block';
+            }
+            
+            element.classList.toggle('error', !inputValid);
+            
+            if (!inputValid) isValid = false;
+        });
+        
+        return isValid;
+    }
+    
+    // Email validation
+    static isValidEmail(email) {
+        const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        return re.test(String(email).toLowerCase());
+    }
+}
+
+// Enhanced completePackage with validation
+async function completePackage() {
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    // Check workspace permissions
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
+    try {
+        // Generate package data
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+        const packageNo = `PKG-${workspaceId}-${timestamp}`;
+        
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect?.value || '';
+
+        // Create package data
+        const packageData = {
+            id: packageId,
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name} (${qty})`
+            ).join(', '),
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel,
+            workspace_id: workspaceId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        // Validate and sanitize data
+        DataValidator.validatePackageData(packageData);
+        const sanitizedData = DataValidator.sanitizePackageData(packageData);
+
+        // Save to Excel
+        const excelData = await ExcelJS.readFile();
+        excelData.push(sanitizedData);
+        await ExcelJS.writeFile(excelData);
+
+        // Add to sync queue
+        const syncOperation = {
+            fingerprint: `${packageId}-${Date.now()}`,
+            type: 'add',
+            data: sanitizedData,
+            status: 'pending',
+            workspace_id: workspaceId,
+            created_at: new Date().toISOString()
+        };
+        
+        excelSyncQueue.push(syncOperation);
+        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+
+        // Try to sync immediately
+        if (supabase && navigator.onLine) {
+            await safeSyncExcelWithSupabase();
+        }
+
+        // Reset form
+        resetPackageForm();
+        showAlert('Paket başarıyla oluşturuldu!', 'success');
+
+        // Refresh packages table
+        await safePopulatePackagesTable();
+
+    } catch (error) {
+        console.error('Error completing package:', error);
+        showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
+    }
+}
+
+
+
+
