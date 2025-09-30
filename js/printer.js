@@ -83,18 +83,19 @@ window.printSelectedElectron = async function() {
         };
     });
 
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    
-    // ADDED: Include workstation and printer info in settings
-    if (window.workspaceManager?.currentWorkspace) {
-        const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
-        settings.workspace = {
-            id: window.workspaceManager.currentWorkspace.id,
-            name: window.workspaceManager.currentWorkspace.name,
-            printer: printerConfig
-        };
-        console.log('🖨️ Sending printer config to Electron:', settings.workspace);
-    }
+   // This part you already have is correct - just make sure it's included
+const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+
+// ADDED: Include workstation and printer info in settings
+if (window.workspaceManager?.currentWorkspace) {
+    const printerConfig = window.workspaceManager.getCurrentPrinterConfig();
+    settings.workspace = {
+        id: window.workspaceManager.currentWorkspace.id,
+        name: window.workspaceManager.currentWorkspace.name,
+        printer: printerConfig
+    };
+    console.log('🖨️ Sending printer config to Electron:', settings.workspace);
+}
     
     const printBtn = document.getElementById('printBarcodeBtn');
     let originalText = '';
@@ -208,17 +209,58 @@ class PrinterServiceElectronWithSettings {
         }
     }
 
+    // ---------------- GET AVAILABLE PRINTERS ----------------
+async getAvailablePrinters() {
+    try {
+        if (window.electronAPI && window.electronAPI.getPrinters) {
+            const printers = await window.electronAPI.getPrinters();
+            console.log('🖨️ Available printers:', printers);
+            return printers;
+        } else {
+            console.warn('⚠️ getPrinters API not available');
+            return [];
+        }
+    } catch (error) {
+        console.error('❌ Error getting printers:', error);
+        return [];
+    }
+}
+
+// ---------------- PRINT TO SPECIFIC PRINTER ----------------
+async printToSpecificPrinter(htmlContent, printerName) {
+    try {
+        if (window.electronAPI && window.electronAPI.printToSpecificPrinter) {
+            return await window.electronAPI.printToSpecificPrinter(htmlContent, printerName);
+        } else {
+            console.warn('⚠️ printToSpecificPrinter not available, using default');
+            return await window.electronAPI.printBarcode(htmlContent);
+        }
+    } catch (error) {
+        console.error('❌ Specific printer error:', error);
+        throw error;
+    }
+}
+    
     // ---------------- PRINT MULTIPLE LABELS ----------------
-    async printAllLabels(packages, settings = {}) {
-        if (!packages || packages.length === 0) {
-            alert("Yazdırılacak paket bulunamadı.");
-            return false;
+async printAllLabels(packages, settings = {}) {
+    if (!packages || packages.length === 0) {
+        alert("Yazdırılacak paket bulunamadı.");
+        return false;
+    }
+
+    try {
+        // ADDED: Get workstation printer info
+        let targetPrinterName = null;
+        if (settings.workspace && settings.workspace.printer) {
+            targetPrinterName = settings.workspace.printer.name;
+            console.log(`🎯 Using workstation printer: ${targetPrinterName} for ${settings.workspace.name}`);
+        } else {
+            console.log('ℹ️ No workstation printer specified, using default');
         }
 
-        try {
-            const MAX_ITEMS_PER_LABEL = 8;
+        const MAX_ITEMS_PER_LABEL = 8;
 
-            let htmlContent = `
+        let htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -350,92 +392,92 @@ class PrinterServiceElectronWithSettings {
         white-space: nowrap;
     }
     
-  .footer {
-    display: flex;
-    justify-content: flex-end; /* keep total on the right */
-    align-items: center;
-    font-size: 15px;
-    color: #333;
-    margin-top: 0.5mm;
-    padding-top: 0.5mm;
-    border-top: 0.5px solid #ccc; /* this is the bottom line */
-    line-height: 1.3;
-    position: relative;
-}
+    .footer {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        font-size: 15px;
+        color: #333;
+        margin-top: 0.5mm;
+        padding-top: 0.5mm;
+        border-top: 0.5px solid #ccc;
+        line-height: 1.3;
+        position: relative;
+    }
 
-.total-info {
-    font-weight: bold;
-    background: #333;
-    color: #fff;
-    padding: 0.3mm 1mm;
-    border-radius: 1px;
-    position: relative;
-    top: -0.5mm; /* makes it hover just above the line */
-}
+    .total-info {
+        font-weight: bold;
+        background: #333;
+        color: #fff;
+        padding: 0.3mm 1mm;
+        border-radius: 1px;
+        position: relative;
+        top: -0.5mm;
+    }
 
-.date-info {
-    margin-top: 1mm; /* spacing under border */
-    font-weight: 600;
-    text-align: left; /* or center if preferred */
-    font-size: 12px;
-}
+    .date-info {
+        margin-top: 1mm;
+        font-weight: 600;
+        text-align: left;
+        font-size: 12px;
+    }
 
 </style>
 </head>
 <body>
 `;
 
-            for (const pkg of packages) {
-                const packageNo = pkg.package_no || '';
-                const customerName = pkg.customer_name || '';
-                
-                console.log('📦 Package data received:', pkg);
-                
-                let items = [];
-                
-                if (pkg.items && Array.isArray(pkg.items)) {
-                    if (pkg.items.length > 0 && pkg.items[0].name) {
-                        items = pkg.items;
-                        console.log('✅ Using direct items array:', items);
-                    } else if (pkg.items.length > 0 && typeof pkg.items[0] === 'string') {
-                        items = pkg.items.map(item => ({ name: item, qty: 1 }));
-                        console.log('✅ Converted string array to items:', items);
-                    }
+        for (const pkg of packages) {
+            const packageNo = pkg.package_no || '';
+            const customerName = pkg.customer_name || '';
+            
+            console.log('📦 Package data received:', pkg);
+            
+            let items = [];
+            
+            if (pkg.items && Array.isArray(pkg.items)) {
+                if (pkg.items.length > 0 && pkg.items[0].name) {
+                    items = pkg.items;
+                    console.log('✅ Using direct items array:', items);
+                } else if (pkg.items.length > 0 && typeof pkg.items[0] === 'string') {
+                    items = pkg.items.map(item => ({ name: item, qty: 1 }));
+                    console.log('✅ Converted string array to items:', items);
                 }
+            }
+            
+            if (items.length === 0 && pkg.product) {
+                items = [{ name: pkg.product, qty: pkg.qty || 1 }];
+                console.log('✅ Using product field:', items);
+            }
+            
+            if (items.length === 0) {
+                items = [{ name: 'Ürün belirtilmemiş', qty: 1 }];
+                console.log('⚠️ Using default item');
+            }
+
+            console.log('📋 Final items to print:', items);
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('tr-TR');
+            const timeStr = now.toLocaleTimeString('tr-TR', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            const dateTime = `${dateStr} ${timeStr}`;
+
+            const barcodeSVG = this.generateBarcodeSVG(packageNo, settings);
+            const totalItems = items.reduce((sum, item) => sum + (item.qty || 1), 0);
+
+            for (let i = 0; i < items.length; i += MAX_ITEMS_PER_LABEL) {
+                const chunk = items.slice(i, i + MAX_ITEMS_PER_LABEL);
                 
-                if (items.length === 0 && pkg.product) {
-                    items = [{ name: pkg.product, qty: pkg.qty || 1 }];
-                    console.log('✅ Using product field:', items);
-                }
-                
-                if (items.length === 0) {
-                    items = [{ name: 'Ürün belirtilmemiş', qty: 1 }];
-                    console.log('⚠️ Using default item');
-                }
+                const itemHTML = chunk.map((item, index) => {
+                    const totalQty = item.qty || 1;
+                    return `
+                    <div class="item-row">
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-qty">${totalQty} AD</span>
+                    </div>`;
+                }).join('');
 
-                console.log('📋 Final items to print:', items);
-
-                const now = new Date();
-                const dateStr = now.toLocaleDateString('tr-TR');
-                const timeStr = now.toLocaleTimeString('tr-TR', { hour12: false, hour: '2-digit', minute: '2-digit' });
-                const dateTime = `${dateStr} ${timeStr}`;
-
-                const barcodeSVG = this.generateBarcodeSVG(packageNo, settings);
-                const totalItems = items.reduce((sum, item) => sum + (item.qty || 1), 0);
-
-                for (let i = 0; i < items.length; i += MAX_ITEMS_PER_LABEL) {
-                    const chunk = items.slice(i, i + MAX_ITEMS_PER_LABEL);
-                    
-                    const itemHTML = chunk.map((item, index) => {
-                        const totalQty = item.qty || 1;
-                        return `
-                        <div class="item-row">
-                            <span class="item-name">${item.name}</span>
-                            <span class="item-qty">${totalQty} AD</span>
-                        </div>`;
-                    }).join('');
-
-                    htmlContent += `
+                htmlContent += `
 <div class="label">
     <div class="header">
         <div class="logo-section"><img src="${logoPath}" class="logo-img" onerror="this.style.display='none'"></div>
@@ -452,25 +494,42 @@ class PrinterServiceElectronWithSettings {
     </div>
     <div class="date-info">${dateTime}</div>
 </div>`;
-                }
             }
-
-            htmlContent += `</body></html>`;
-
-            if (window.electronAPI && window.electronAPI.printBarcode) {
-                console.log('🖨️ Using Electron printing...');
-                return await window.electronAPI.printBarcode(htmlContent);
-            } else {
-                console.log('⚠️ Using browser fallback print');
-                return this.browserFallbackPrint(htmlContent);
-            }
-
-        } catch (error) {
-            console.error("❌ Print error:", error);
-            alert("Yazdırma hatası: " + error.message);
-            return false;
         }
+
+        htmlContent += `</body></html>`;
+
+        // MODIFIED: Pass printer name to Electron API
+        if (window.electronAPI && window.electronAPI.printBarcode) {
+            console.log('🖨️ Using Electron printing...');
+            
+            // If we have a target printer, use it
+            if (targetPrinterName) {
+                console.log(`🎯 Sending to specific printer: ${targetPrinterName}`);
+                
+                // Check if the electron API supports printer selection
+                if (window.electronAPI.printToSpecificPrinter) {
+                    return await window.electronAPI.printToSpecificPrinter(htmlContent, targetPrinterName);
+                } else {
+                    console.warn('⚠️ printToSpecificPrinter not available, using default printer');
+                    return await window.electronAPI.printBarcode(htmlContent);
+                }
+            } else {
+                return await window.electronAPI.printBarcode(htmlContent);
+            }
+        } else {
+            console.log('⚠️ Using browser fallback print');
+            return this.browserFallbackPrint(htmlContent);
+        }
+
+    } catch (error) {
+        console.error("❌ Print error:", error);
+        alert("Yazdırma hatası: " + error.message);
+        return false;
     }
+}
+
+    
 
     // ---------------- BROWSER FALLBACK PRINT ----------------
     browserFallbackPrint(htmlContent) {
@@ -506,35 +565,40 @@ class PrinterServiceElectronWithSettings {
         return await this.printAllLabels([pkg], settings);
     }
 
-    // ---------------- TEST PRINT ----------------
-    async testPrint(settings = {}) {
-        const testPackage = {
-            package_no: 'TEST123456',
-            customer_name: 'GRAND HOTEL İSTANBUL',
-            items: [
-                { name: 'Büyük Çarşaf', qty: 10 },
-                { name: 'Havlu', qty: 20 },
-                { name: 'Yastık Kılıfı', qty: 15 },
-                { name: 'Nevresim Takımı', qty: 5 },
-                { name: 'Bornoz', qty: 8 },
-                { name: 'Küçük Havlu', qty: 12 },
-                { name: 'Peştemal', qty: 6 },
-                { name: 'Masa Örtüsü', qty: 4 }
-            ],
-            created_at: new Date().toLocaleDateString('tr-TR')
-        };
-        
-        console.log('🧪 Starting test print with multiple items...');
-        const success = await this.printAllLabels([testPackage], settings);
-        
-        if (success) {
-            console.log('✅ Test print completed successfully');
-        } else {
-            console.error('❌ Test print failed');
-        }
-        
-        return success;
+   // ---------------- TEST PRINT ----------------
+async testPrint(settings = {}) {
+    // ADDED: Include workstation info in test
+    let workstationInfo = '';
+    if (settings.workspace && settings.workspace.printer) {
+        workstationInfo = ` (${settings.workspace.name} - ${settings.workspace.printer.name})`;
     }
+    
+    const testPackage = {
+        package_no: 'TEST123456',
+        customer_name: 'GRAND HOTEL İSTANBUL',
+        items: [
+            { name: 'Büyük Çarşaf', qty: 10 },
+            { name: 'Havlu', qty: 20 },
+            { name: 'Yastık Kılıfı', qty: 15 },
+            { name: 'Nevresim Takımı', qty: 5 },
+            { name: 'Bornoz', qty: 8 },
+            { name: 'Küçük Havlu', qty: 12 },
+            { name: 'Peştemal', qty: 6 },
+            { name: 'Masa Örtüsü', qty: 4 }
+        ],
+        created_at: new Date().toLocaleDateString('tr-TR')
+    };
+    
+    console.log(`🧪 Starting test print${workstationInfo}...`);
+    const success = await this.printAllLabels([testPackage], settings);
+    
+    if (success) {
+        console.log('✅ Test print completed successfully');
+    } else {
+        console.error('❌ Test print failed');
+    }
+    
+    return success;
 }
 
 // ================== HELPER FUNCTIONS ==================
