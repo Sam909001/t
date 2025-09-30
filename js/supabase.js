@@ -983,6 +983,129 @@ ExcelJS.exportToCSV = ProfessionalExcelExport.exportToProfessionalCSV;
 
 
 
+
+
+  // Preview Excel data
+    previewExcelData: function(dateString = null) {
+        try {
+            const fileName = dateString ? `packages_${dateString}.json` : this.getCurrentFileName();
+            const fileData = localStorage.getItem(fileName);
+            
+            if (!fileData) {
+                showAlert('Excel dosyası bulunamadı', 'error');
+                return;
+            }
+            
+            const packages = JSON.parse(fileData);
+            
+            // Create preview modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; justify-content: center;
+                align-items: center; z-index: 10000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 24px; border-radius: 8px; max-width: 95%; max-height: 90%; width: 1200px; overflow: auto;">
+                    <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">
+                            <i class="fas fa-file-excel"></i> Excel Önizleme - ${dateString || 'Bugün'}
+                        </h3>
+                        <button onclick="this.closest('.modal').remove()" 
+                                style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">
+                            ×
+                        </button>
+                    </div>
+                    
+                    <div style="margin-bottom: 16px; display: flex; gap: 10px;">
+                        <button onclick="ExcelStorage.exportDailyFile('${dateString}')" class="btn btn-success">
+                            <i class="fas fa-download"></i> İndir
+                        </button>
+                        <button onclick="ExcelStorage.printPreview()" class="btn btn-primary">
+                            <i class="fas fa-print"></i> Yazdır
+                        </button>
+                        <span style="margin-left: auto; color: #666;">
+                            ${packages.length} kayıt bulundu
+                        </span>
+                    </div>
+                    
+                    <div style="max-height: 500px; overflow: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.8em;">
+                            <thead style="background: #f0f0f0; position: sticky; top: 0;">
+                                <tr>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Paket No</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Müşteri</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Ürünler</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Adet</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Durum</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Oluşturulma</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${packages.map(pkg => `
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${pkg.package_no || 'N/A'}</td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
+                                        <td style="padding: 8px; border: 1px solid #ddd; max-width: 200px;">
+                                            ${pkg.items_display || 'N/A'}
+                                        </td>
+                                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pkg.total_quantity || 0}</td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">
+                                            <span class="status-${pkg.status || 'beklemede'}">
+                                                ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">
+                                            ${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+            
+        } catch (error) {
+            console.error('Excel preview error:', error);
+            showAlert('Önizleme oluşturulurken hata oluştu', 'error');
+        }
+    },
+    
+    printPreview: function() {
+        window.print();
+    }
+};
+
+// Update the reports table to include preview buttons
+// In populateReportsTable function, modify the button section:
+// Replace the existing button code with:
+`
+<button onclick="ExcelStorage.previewExcelData('${file.date}')" 
+        class="btn btn-info btn-sm"
+        style="white-space: nowrap;">
+    <i class="fas fa-eye"></i> İncele
+</button>
+<button onclick="ExcelStorage.exportDailyFile('${file.date}')" 
+        class="btn btn-success btn-sm" 
+        style="white-space: nowrap;">
+    <i class="fas fa-download"></i> İndir
+</button>
+`
+
+
+
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
 function initializeSupabase() {
     // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
