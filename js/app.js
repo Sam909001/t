@@ -1391,38 +1391,56 @@ class MemoryManager {
 // Initialize memory manager
 const memoryManager = new MemoryManager();
 
-// Enhanced table population with memory management
-function populatePackagesTable(packages = window.packages) {
+async function populatePackagesTable() {
     const tableBody = document.getElementById('packagesTableBody');
-    if (!tableBody) return;
-
-    // Clear existing table
-    tableBody.innerHTML = '';
-    
-    // Track packages array for cleanup
-    memoryManager.trackLargeArray(packages, 'packages_table_data');
-    
-    // Use optimized rendering for large datasets
-    if (packages.length > 100) {
-        performanceOptimizer.optimizeTableRendering(
-            packages, 
-            'packagesTableBody', 
-            createPackageTableRow,
-            50
-        );
-    } else {
-        // Render all at once for small datasets
-        packages.forEach(pkg => {
-            const row = createPackageTableRow(pkg);
-            if (row) {
-                tableBody.appendChild(row);
-            }
-        });
+    if (!tableBody) {
+        console.error('Package table body not found');
+        return;
     }
-    
-    updateTableSummary(packages);
-}
 
+    try {
+        tableBody.innerHTML = '';
+        
+        const packages = window.packages || [];
+        
+        if (packages.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="8" style="text-align:center; color:#666;">
+                Henüz paket yok (${getCurrentWorkspaceName()})
+            </td>`;
+            tableBody.appendChild(row);
+            return;
+        }
+
+        // Use optimized rendering for large datasets
+        if (packages.length > 100) {
+            performanceOptimizer.optimizeTableRendering(
+                packages, 
+                'packagesTableBody', 
+                createPackageTableRow,
+                50
+            );
+        } else {
+            // Render all at once for small datasets
+            packages.forEach(pkg => {
+                const row = createPackageTableRow(pkg);
+                if (row) {
+                    tableBody.appendChild(row);
+                }
+            });
+        }
+        
+        updateTableSummary(packages);
+        
+    } catch (error) {
+        console.error('Error in populatePackagesTable:', error);
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="8" style="text-align:center; color:red;">
+            Tablo yüklenirken hata oluştu
+        </td>`;
+        tableBody.appendChild(row);
+    }
+}
 // Component cleanup example
 function cleanupPackageManagement() {
     memoryManager.destroyComponent('package_management');
@@ -1752,228 +1770,4 @@ async function completePackageWithRecovery() {
         // Add to retry queue
         errorRecovery.addToRetryQueue(completePackage, 'complete_package');
     }
-}
-
-
-
-// ==================== MISSING FUNCTION DEFINITIONS ====================
-
-// Create package table row function
-function createPackageTableRow(pkg) {
-    const row = document.createElement('tr');
-    
-    // Validate workspace access for each package
-    if (!validateWorkspaceAccess(pkg)) {
-        console.warn('Skipping package from different workspace:', pkg.id);
-        return null;
-    }
-    
-    // Determine storage source
-    const isExcelPackage = pkg.source === 'excel' || pkg.id.includes('excel-') || pkg.id.includes('pkg-');
-    const sourceIcon = isExcelPackage ? 
-        '<i class="fas fa-file-excel" title="Excel Kaynaklı" style="color: #217346;"></i>' :
-        '<i class="fas fa-database" title="Supabase Kaynaklı" style="color: #3ecf8e;"></i>';
-
-    // Ensure items is properly formatted
-    let itemsArray = [];
-    if (pkg.items && typeof pkg.items === 'object') {
-        if (Array.isArray(pkg.items)) {
-            itemsArray = pkg.items;
-        } else {
-            // Convert object to array
-            itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ 
-                name: name, 
-                qty: qty 
-            }));
-        }
-    } else {
-        // Fallback for packages without items array
-        itemsArray = [{ 
-            name: pkg.product || 'Bilinmeyen Ürün', 
-            qty: pkg.total_quantity || 1 
-        }];
-    }
-
-    const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-    row.innerHTML = `
-        <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-        <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-        <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-        <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-            ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-        </td>
-        <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-            ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-        </td>
-        <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-        <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-        <td style="text-align: center;">${sourceIcon}</td>
-    `;
-
-    row.addEventListener('click', (e) => {
-        if (e.target.type !== 'checkbox') selectPackage(pkg);
-    });
-
-    return row;
-}
-
-// Update package selection function
-function updatePackageSelection() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-    
-    const selectionIndicator = document.getElementById('selectedPackagesCount');
-    if (selectionIndicator) {
-        selectionIndicator.textContent = selectedCount > 0 ? `${selectedCount} paket seçildi` : '';
-    }
-}
-
-// Select package function
-function selectPackage(pkg) {
-    const packageDetailContent = document.getElementById('packageDetailContent');
-    if (!packageDetailContent) return;
-
-    let itemsArray = [];
-    if (pkg.items && typeof pkg.items === 'object') {
-        if (Array.isArray(pkg.items)) {
-            itemsArray = pkg.items;
-        } else {
-            itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ name, qty }));
-        }
-    }
-
-    packageDetailContent.innerHTML = `
-        <div class="package-detail-card">
-            <h4>Paket Detayları</h4>
-            <div class="detail-row">
-                <strong>Paket No:</strong> ${escapeHtml(pkg.package_no || 'N/A')}
-            </div>
-            <div class="detail-row">
-                <strong>Müşteri:</strong> ${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}
-            </div>
-            <div class="detail-row">
-                <strong>Müşteri Kodu:</strong> ${escapeHtml(pkg.customers?.code || pkg.customer_code || 'N/A')}
-            </div>
-            <div class="detail-row">
-                <strong>Ürünler:</strong>
-                <ul>
-                    ${itemsArray.map(item => `
-                        <li>${escapeHtml(item.name)}: ${item.qty} adet</li>
-                    `).join('')}
-                </ul>
-            </div>
-            <div class="detail-row">
-                <strong>Toplam Adet:</strong> ${pkg.total_quantity || 0}
-            </div>
-            <div class="detail-row">
-                <strong>Durum:</strong> <span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span>
-            </div>
-            <div class="detail-row">
-                <strong>Paketleyen:</strong> ${escapeHtml(pkg.packer || 'Bilinmiyor')}
-            </div>
-            <div class="detail-row">
-                <strong>Oluşturulma:</strong> ${pkg.created_at ? new Date(pkg.created_at).toLocaleString('tr-TR') : 'N/A'}
-            </div>
-            <div class="detail-row">
-                <strong>İstasyon:</strong> ${escapeHtml(pkg.station_name || pkg.workspace_id || 'Default')}
-            </div>
-        </div>
-    `;
-}
-
-// Table summary function
-function updateTableSummary(packages) {
-    const totalPackagesElement = document.getElementById('totalPackages');
-    if (totalPackagesElement) {
-        totalPackagesElement.textContent = packages.length.toString();
-    }
-}
-
-// Performance optimizer class
-class PerformanceOptimizer {
-    optimizeTableRendering(data, tableBodyId, rowCreator, chunkSize = 50) {
-        const tableBody = document.getElementById(tableBodyId);
-        if (!tableBody) return;
-
-        let currentIndex = 0;
-
-        const renderChunk = () => {
-            const chunk = data.slice(currentIndex, currentIndex + chunkSize);
-            
-            chunk.forEach(item => {
-                const row = rowCreator(item);
-                if (row) {
-                    tableBody.appendChild(row);
-                }
-            });
-
-            currentIndex += chunkSize;
-
-            if (currentIndex < data.length) {
-                setTimeout(renderChunk, 0);
-            }
-        };
-
-        renderChunk();
-    }
-}
-
-// Initialize performance optimizer
-const performanceOptimizer = new PerformanceOptimizer();
-
-// Workspace UI initialization
-function initializeWorkspaceUI() {
-    const workspaceIndicator = document.getElementById('workspaceIndicator');
-    if (workspaceIndicator && window.workspaceManager?.currentWorkspace) {
-        workspaceIndicator.innerHTML = `
-            <i class="fas fa-desktop"></i> 
-            ${window.workspaceManager.currentWorkspace.name}
-            <span class="workspace-type">${window.workspaceManager.getWorkspaceTypeLabel()}</span>
-        `;
-        workspaceIndicator.title = `Çalışma İstasyonu: ${window.workspaceManager.currentWorkspace.name}`;
-    }
-}
-
-function setupWorkspaceAwareUI() {
-    // Add workspace-specific UI enhancements here
-    console.log('Workspace-aware UI setup complete');
-}
-
-// Sync queue initialization
-function initializeSyncQueue() {
-    const savedQueue = localStorage.getItem('excelSyncQueue');
-    excelSyncQueue = savedQueue ? JSON.parse(savedQueue) : [];
-    console.log('Sync queue initialized:', excelSyncQueue.length, 'operations');
-}
-
-// Settings initialization
-function initializeSettings() {
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem('procleanSettings');
-    if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        // Apply settings as needed
-    }
-}
-
-// Barcode scanner setup
-function setupBarcodeScanner() {
-    const barcodeInput = document.getElementById('barcodeInput');
-    if (barcodeInput) {
-        barcodeInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                processBarcode();
-            }
-        });
-    }
-}
-
-// Toggle select all for customer containers
-function toggleSelectAllCustomer(checkbox) {
-    const folder = checkbox.closest('.customer-folder');
-    const containerCheckboxes = folder.querySelectorAll('.container-checkbox');
-    containerCheckboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-    });
 }
