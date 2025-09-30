@@ -2909,22 +2909,21 @@ async function completePackage() {
     }
 
     // Check workspace permissions
-    if (!window.workspaceManager.canPerformAction('create_package')) {
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
     try {
-        const workspaceId = getCurrentWorkspaceId();
-        const workspaceName = getCurrentWorkspaceName();
-        
-        const packageNo = `PKG-${workspaceId}-${Date.now()}`; // Include workspace in ID
+        // GENERATE THE ID ONCE HERE - CONSISTENT FORMAT
+        const packageId = generateExcelPackageId();
+        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect.value;
+        const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Enhanced package data with workspace info
+        // Enhanced package data with workspace info - USE THE SAME ID
         const packageData = {
-            id: packageId, // SAME ID FOR SUPABASE AND EXCEL
+            id: packageId, // SAME ID FOR BOTH SYSTEMS
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
@@ -2942,10 +2941,13 @@ async function completePackage() {
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: workspaceId, // STRICT workspace assignment
-            station_name: workspaceName,
-            daily_file: ExcelStorage.getTodayDateString()
+            workspace_id: window.workspaceManager.currentWorkspace.id,
+            station_name: window.workspaceManager.currentWorkspace.name,
+            daily_file: ExcelStorage.getTodayDateString(),
+            source: 'app' // Track source for sync
         };
+
+        console.log('📦 Creating package:', packageData);
 
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
@@ -2957,20 +2959,20 @@ async function completePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (${workspaceName})`, 'success');
-                await saveToExcel(packageData);
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                await saveToExcel(packageData); // SAME packageData with SAME ID
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${workspaceName})`, 'warning');
+                await saveToExcel(packageData); // SAME packageData with SAME ID
+                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${workspaceName})`, 'warning');
+            await saveToExcel(packageData); // SAME packageData with SAME ID
+            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
 
@@ -2982,7 +2984,7 @@ async function completePackage() {
 
     } catch (error) {
         console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası', 'error');
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
 
