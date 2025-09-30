@@ -69,65 +69,83 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
-// Initialize application
 async function initApp() {
-    // Initialize workspace system first
-    await window.workspaceManager.initialize();
+    console.log('🚀 Starting enhanced ProClean initialization...');
+    
+    try {
+        // 1. Initialize workspace system FIRST
+        if (!window.workspaceManager) {
+            window.workspaceManager = new WorkspaceManager();
+        }
+        await window.workspaceManager.initialize();
+        
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
 
-     // Initialize daily Excel file system
-    await ExcelStorage.cleanupOldFiles(); // Clean up old files
-    await ExcelStorage.readFile(); // Ensure today's file exists
+        // 2. Initialize elements
+        initializeElementsObject();
+        
+        // 3. Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
 
-     // Initialize daily Excel file system
-    await ExcelStorage.cleanupOldFiles(); // Clean up old files
-    await ExcelStorage.readFile(); // Ensure today's file exists
-    
-    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-    
-    // Initialize workspace-aware UI
-    initializeWorkspaceUI();
-    setupWorkspaceAwareUI();
-    
-    // Populate dropdowns
-    await populateCustomers();
-    await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
-    
-    // Load workspace-specific data
-    await loadPackagesData();
-    await populateStockTable();
-    await populateShippingTable();
-    
-    // Test connection
-    await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000);
-    
-    // Set up offline support
-    setupOfflineSupport();
+        // 4. Migrate existing data to workspace
+        await migrateExistingDataToWorkspace();
 
+        // 5. Initialize sync system
+        initializeSyncQueue();
+        setupEnhancedSyncTriggers();
 
-    // Initialize enhanced sync system
-    enhanceSyncQueue();
-    setupEnhancedSyncTriggers();
-    
-    // Auto-sync on startup if online
-    if (navigator.onLine && supabase) {
-        setTimeout(async () => {
-            await syncExcelWithSupabase();
-        }, 5000); // Wait 5 seconds for app to fully load
+        // 6. Setup event listeners
+        setupEventListeners();
+        
+        // 7. API key initialization
+        initializeApiAndAuth();
+
+        // 8. Initialize settings
+        initializeSettings();
+
+        // 9. Initialize daily Excel file system
+        await ExcelStorage.cleanupOldFiles();
+        await ExcelStorage.readFile();
+        
+        // 10. Populate UI
+        elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        await populateCustomers();
+        await populatePersonnel();
+        
+        // 11. Load saved state
+        loadAppState();
+        
+        // 12. Load data
+        await loadPackagesData();
+        await populateStockTable();
+        await populateShippingTable();
+        
+        // 13. Test connection
+        await testConnection();
+        
+        // 14. Set up auto-save and offline support
+        setInterval(saveAppState, 5000);
+        setupOfflineSupport();
+        setupBarcodeScanner();
+        
+        // 15. Start daily auto-clear
+        scheduleDailyClear();
+
+        // 16. Auto-sync on startup if online
+        if (navigator.onLine && supabase) {
+            setTimeout(async () => {
+                await syncExcelWithSupabase();
+            }, 5000);
+        }
+        
+        console.log(`🎉 ProClean fully initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
+        showAlert('Uygulama başarıyla başlatıldı!', 'success');
+
+    } catch (error) {
+        console.error('❌ Critical error during initialization:', error);
+        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
-    
-    // Set up barcode scanner listener
-    setupBarcodeScanner();
-    
-    // Start daily auto-clear
-    scheduleDailyClear();
-    
-    console.log(`App initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
 }
 
 
