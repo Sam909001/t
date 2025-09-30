@@ -700,40 +700,100 @@ function loadAppState() {
     }
 }
 
-// Initialize application
-async function initApp() {
-    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+// Enhanced initialization
+async function initAppWithEnhancements() {
+    console.log('🚀 Starting enhanced ProClean initialization...');
     
-    // Storage indicator'ı güncelle
-    updateStorageIndicator();
-    
-    // Populate dropdowns
-    await populateCustomers();
-    await populatePersonnel();
-    
-    // Load saved state
-    loadAppState();
-    
-    // Load data - önce Excel'den, sonra Supabase'den
-    await loadPackagesData();
-    await populateStockTable();
-    await populateShippingTable();
-    
-    // Test connection
-    await testConnection();
-    
-    // Set up auto-save
-    setInterval(saveAppState, 5000); // Save every 5 seconds
-    
-    // Set up offline support
-    setupOfflineSupport();
-    
-    // Set up barcode scanner listener
-    setupBarcodeScanner();
-    
-    // Start daily auto-clear
-    scheduleDailyClear();
+    try {
+        // 1. Initialize workspace system FIRST
+        if (!window.workspaceManager) {
+            window.workspaceManager = new WorkspaceManager();
+        }
+        await window.workspaceManager.initialize();
+        
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
+
+        // 2. Initialize elements
+        initializeElementsObject();
+        
+        // 3. Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+
+        // 4. Setup all enhancements
+        setupEnhancedLogout();
+        setupPasswordProtection();
+        setupKeyboardShortcuts();
+        setupExcelPreview();
+        
+        // 5. Migrate existing data to workspace
+        await migrateExistingDataToWorkspace();
+
+        // 6. Initialize sync system
+        initializeSyncQueue();
+        setupEnhancedSyncTriggers();
+
+        // 7. Setup event listeners
+        setupEventListeners();
+        
+        // 8. API key initialization
+        initializeApiAndAuth();
+
+        // 9. Initialize settings
+        initializeSettings();
+
+        // 10. Initialize daily Excel file system
+        await ExcelStorage.cleanupOldFiles();
+        await ExcelStorage.readFile();
+        
+        // 11. Populate UI
+        elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        await populateCustomers();
+        await populatePersonnel();
+        
+        // 12. Load saved state
+        loadAppState();
+        
+        // 13. Load data
+        await loadPackagesData();
+        await populateStockTable();
+        await populateShippingTable();
+        
+        // 14. Test connection
+        await testConnection();
+        
+        // 15. Set up auto-save and offline support
+        setInterval(saveAppState, 5000);
+        setupOfflineSupport();
+        setupBarcodeScanner();
+        
+        // 16. Start daily auto-clear
+        scheduleDailyClear();
+
+        // 17. Auto-sync on startup if online
+        if (navigator.onLine && supabase) {
+            setTimeout(async () => {
+                await syncExcelWithSupabase();
+            }, 5000);
+        }
+        
+        console.log(`🎉 ProClean fully initialized with enhancements for workspace: ${window.workspaceManager.currentWorkspace.name}`);
+        showAlert('Uygulama başarıyla başlatıldı! Tüm geliştirmeler aktif.', 'success');
+
+    } catch (error) {
+        console.error('❌ Critical error during initialization:', error);
+        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+    }
 }
+
+// Replace the main initialization
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Starting ProClean application with enhancements...');
+    initAppWithEnhancements();
+});
+
+
+
 
 // REPLACE the existing loadPackagesData function with this:
 async function loadPackagesData() {
