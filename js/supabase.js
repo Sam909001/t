@@ -424,6 +424,299 @@ async function testWorkspaceIsolation() {
 
 
 
+// ==================== ENHANCED WORKSPACE ISOLATION ====================
+
+// Add this to supabase.js in the WorkspaceManager class
+
+class EnhancedWorkspaceManager extends WorkspaceManager {
+    constructor() {
+        super();
+        this.dataValidators = new Map();
+        this.setupDataValidators();
+    }
+
+    // Setup validation rules for all data types
+    setupDataValidators() {
+        // Package validation
+        this.dataValidators.set('packages', (data) => {
+            const currentWorkspaceId = this.currentWorkspace?.id;
+            
+            // Critical: Reject packages from different workspaces
+            if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
+                console.error('🚨 WORKSPACE VIOLATION: Package from different workspace', {
+                    packageId: data.id,
+                    packageWorkspace: data.workspace_id,
+                    currentWorkspace: currentWorkspaceId
+                });
+                return false;
+            }
+            
+            // Ensure workspace_id is set
+            if (!data.workspace_id) {
+                data.workspace_id = currentWorkspaceId;
+            }
+            
+            return true;
+        });
+
+        // Container validation
+        this.dataValidators.set('containers', (data) => {
+            // Containers are workspace-specific but might not have explicit workspace_id
+            // We'll filter them based on their packages
+            return true;
+        });
+
+        // Sync operation validation
+        this.dataValidators.set('sync_operations', (data) => {
+            const currentWorkspaceId = this.currentWorkspace?.id;
+            
+            if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
+                console.error('🚨 WORKSPACE VIOLATION: Sync operation from different workspace', data);
+                return false;
+            }
+            
+            data.workspace_id = currentWorkspaceId;
+            return true;
+        });
+    }
+
+    // Enhanced workspace filtering for queries
+    createWorkspaceFilter(tableName) {
+        const currentWorkspaceId = this.currentWorkspace?.id;
+        
+        if (!currentWorkspaceId) {
+            console.warn('⚠️ No current workspace for filter');
+            return {};
+        }
+        
+        // Different tables might have different workspace field names
+        const workspaceFields = {
+            'packages': 'workspace_id',
+            'containers': 'workspace_id', 
+            'sync_queue': 'workspace_id',
+            'stock_items': 'workspace_id'
+        };
+        
+        const field = workspaceFields[tableName] || 'workspace_id';
+        
+        return { [field]: currentWorkspaceId };
+    }
+
+    // Validate data before any operation
+    validateDataAccess(tableName, data, operation = 'access') {
+        const currentWorkspaceId = this.currentWorkspace?.id;
+        
+        if (!currentWorkspaceId) {
+            console.error('🚨 No current workspace set during data validation');
+            return false;
+        }
+        
+        const validator = this.dataValidators.get(tableName);
+        if (validator) {
+            return validator(data);
+        }
+        
+        // Default validation for unknown tables
+        if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
+            console.error(`🚨 WORKSPACE VIOLATION: ${operation} on ${tableName}`, {
+                dataWorkspace: data.workspace_id,
+                currentWorkspace: currentWorkspaceId,
+                dataId: data.id
+            });
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Enhanced workspace-aware data loading
+    async loadWorkspaceDataStrict() {
+        const workspaceId = this.currentWorkspace?.id;
+        
+        if (!workspaceId) {
+            throw new Error('No workspace selected');
+        }
+        
+        console.log(`🔒 Loading STRICT workspace data for: ${workspaceId}`);
+        
+        try {
+            // Load from Excel with strict filtering
+            const allExcelData = await ExcelJS.readFile();
+            const workspaceData = allExcelData.filter(item => {
+                const isValid = item.workspace_id === workspaceId;
+                if (!isValid) {
+                    console.warn('🔒 Filtered out non-workspace Excel data:', {
+                        id: item.id,
+                        itemWorkspace: item.workspace_id,
+                        currentWorkspace: workspaceId
+                    });
+                }
+                return isValid;
+            });
+            
+            // Update global excelPackages
+            excelPackages = workspaceData;
+            
+            console.log(`✅ Strict workspace data loaded: ${workspaceData.length} items`);
+            return workspaceData;
+            
+        } catch (error) {
+            console.error('❌ Error in strict workspace data loading:', error);
+            throw error;
+        }
+    }
+
+    // Audit data access for security
+    auditDataAccess(tableName, operation, data) {
+        const auditEntry = {
+            timestamp: new Date().toISOString(),
+            workspace: this.currentWorkspace?.id,
+            table: tableName,
+            operation: operation,
+            dataId: data.id,
+            user: currentUser?.email || 'unknown'
+        };
+        
+        // Log to console in development
+        if (window.DEBUG_MODE) {
+            console.log('🔍 Data Access Audit:', auditEntry);
+        }
+        
+        // Store in localStorage for debugging
+        const auditLog = JSON.parse(localStorage.getItem('workspace_audit_log') || '[]');
+        auditLog.push(auditEntry);
+        
+        // Keep only last 1000 entries
+        if (auditLog.length > 1000) {
+            auditLog.splice(0, auditLog.length - 1000);
+        }
+        
+        localStorage.setItem('workspace_audit_log', JSON.stringify(auditLog));
+    }
+}
+
+// Replace the existing WorkspaceManager
+window.workspaceManager = new EnhancedWorkspaceManager();
+
+// Enhanced workspace validation function
+function validateWorkspaceAccessStrict(data, tableName = 'packages') {
+    if (!window.workspaceManager) {
+        console.error('🚨 Workspace manager not initialized');
+        return false;
+    }
+    
+    return window.workspaceManager.validateDataAccess(tableName, data);
+}
+
+// Enhanced workspace filter for all queries
+function getStrictWorkspaceFilter(tableName) {
+    if (!window.workspaceManager) {
+        console.error('🚨 Workspace manager not initialized for filter');
+        return {};
+    }
+    
+    return window.workspaceManager.createWorkspaceFilter(tableName);
+}
+
+// Replace ALL data loading functions with strict versions
+async function loadPackagesDataStrict() {
+    if (!window.workspaceManager?.currentWorkspace) {
+        console.warn('Workspace not initialized, using default');
+    }
+    
+    try {
+        const workspaceId = getCurrentWorkspaceId();
+        
+        console.log(`🔒 STRICT: Loading packages for workspace: ${workspaceId}`);
+        
+        // Load from workspace-specific Excel with strict filtering
+        const excelData = await ExcelJS.readFile();
+        const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
+        
+        // STRICT workspace filtering with validation
+        const workspacePackages = excelPackagesList.filter(pkg => {
+            const isValidWorkspace = pkg.workspace_id === workspaceId;
+            const isWaiting = pkg.status === 'beklemede';
+            const hasNoContainer = !pkg.container_id || pkg.container_id === null;
+            
+            if (!isValidWorkspace) {
+                console.warn('🔒 STRICT: Filtered package from different workspace:', {
+                    packageId: pkg.id,
+                    packageWorkspace: pkg.workspace_id,
+                    currentWorkspace: workspaceId
+                });
+                return false;
+            }
+            
+            return isWaiting && hasNoContainer;
+        });
+        
+        console.log(`✅ STRICT: Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
+        window.packages = workspacePackages;
+        
+        // Load from Supabase with STRICT workspace filtering
+        if (supabase && navigator.onLine) {
+            try {
+                const workspaceFilter = getStrictWorkspaceFilter('packages');
+                
+                const { data: supabasePackages, error } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .is('container_id', null)
+                    .eq('status', 'beklemede')
+                    .eq('workspace_id', workspaceId) // STRICT FILTER
+                    .order('created_at', { ascending: false });
+                
+                if (!error && supabasePackages && supabasePackages.length > 0) {
+                    console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
+                    
+                    // Validate each package from Supabase
+                    const validSupabasePackages = supabasePackages.filter(pkg => 
+                        validateWorkspaceAccessStrict(pkg)
+                    );
+                    
+                    // Merge with Excel data (Supabase takes priority)
+                    const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
+                    window.packages = mergedPackages;
+                    
+                    // Update Excel storage with merged data
+                    const excelData = ExcelJS.toExcelFormat(mergedPackages);
+                    await ExcelJS.writeFile(excelData);
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase load failed, using Excel data:', supabaseError);
+            }
+        }
+        
+        await populatePackagesTable();
+        
+    } catch (error) {
+        console.error('❌ Error in strict packages data loading:', error);
+        showAlert('Paket verileri yüklenirken hata oluştu', 'error');
+    }
+}
+
+// Strict merge function
+function mergePackagesStrict(excelPackages, supabasePackages) {
+    const merged = [...excelPackages];
+    const excelIds = new Set(excelPackages.map(p => p.id));
+    
+    for (const supabasePkg of supabasePackages) {
+        // Validate workspace access before merging
+        if (!validateWorkspaceAccessStrict(supabasePkg)) {
+            console.warn('🔒 Skipping Supabase package from different workspace:', supabasePkg.id);
+            continue;
+        }
+        
+        if (!excelIds.has(supabasePkg.id)) {
+            merged.push(supabasePkg);
+        }
+    }
+    
+    return merged;
+}
+
+
 
 // Generate proper UUID v4 for Excel packages
 function generateUUID() {
