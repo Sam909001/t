@@ -632,19 +632,6 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         });
     }
 
-
-    // Redefine the test function
-window.testWorkstationPrinting = function() {
-    if (window.workspaceManager?.currentWorkspace) {
-        const printer = window.workspaceManager.getCurrentPrinterConfig();
-        console.log(`🎯 Current workstation: ${window.workspaceManager.currentWorkspace.name}`);
-        console.log(`🖨️ Assigned printer: ${printer.name}`);
-        console.log(`🔧 Printer type: ${printer.type}`);
-        console.log(`📝 Description: ${printer.description}`);
-    } else {
-        console.log('❌ No workspace selected');
-    }
-};
     // ==================== EXISTING DATA VALIDATION METHODS ====================
 
     // Setup validation rules for all data types
@@ -810,6 +797,40 @@ window.testWorkstationPrinting = function() {
 // Replace the existing WorkspaceManager
 window.workspaceManager = new EnhancedWorkspaceManager();
 
+// ==================== WORKSTATION PRINTER TEST FUNCTIONS ====================
+
+// Test function for workstation printing system
+window.testWorkstationPrinting = function() {
+    if (window.workspaceManager?.currentWorkspace) {
+        const printer = window.workspaceManager.getCurrentPrinterConfig();
+        console.log(`🎯 Current workstation: ${window.workspaceManager.currentWorkspace.name}`);
+        console.log(`🖨️ Assigned printer: ${printer.name}`);
+        console.log(`🔧 Printer type: ${printer.type}`);
+        console.log(`📝 Description: ${printer.description}`);
+        
+        return {
+            workstation: window.workspaceManager.currentWorkspace.name,
+            printer: printer.name,
+            type: printer.type,
+            description: printer.description
+        };
+    } else {
+        console.log('❌ No workspace selected');
+        return null;
+    }
+};
+
+// Function to test all workstation printers
+window.showAllWorkstationPrinters = function() {
+    const allPrinters = window.workspaceManager.getAllPrinterConfigs();
+    console.log('🏢 All Workstation Printers:');
+    allPrinters.forEach((printer, index) => {
+        console.log(`  ${index + 1}. ${printer.workspaceName} (${printer.workspaceId}) → ${printer.name} [${printer.type}]`);
+        console.log(`     Description: ${printer.description}`);
+    });
+    return allPrinters;
+};
+
 // Enhanced workspace validation function
 function validateWorkspaceAccessStrict(data, tableName = 'packages') {
     if (!window.workspaceManager) {
@@ -819,6 +840,8 @@ function validateWorkspaceAccessStrict(data, tableName = 'packages') {
     
     return window.workspaceManager.validateDataAccess(tableName, data);
 }
+
+
 
 // ==================== WORKSTATION PRINTER FUNCTIONS ====================
 
