@@ -2116,3 +2116,15 @@ function downloadPreviewedExcel() {
     const modal = document.querySelector('.modal');
     if (modal) modal.remove();
 }
+
+
+
+// Excel preview setup
+function setupExcelPreview() {
+    console.log('📊 Setting up Excel preview...');
+    
+    // This will be called when the reports tab is populated
+    // The actual button will be added in populateReportsTable function
+    
+    console.log('✅ Excel preview setup complete');
+}
