@@ -1873,3 +1873,77 @@ function getProductType(packageData) {
     
     return 'Ürün Yok';
 }
+
+
+
+
+// Password protection for delete operations
+const DELETE_PASSWORD = "8823";
+
+function requirePassword(action, callback) {
+    const password = prompt(`İşlemi tamamlamak için şifre gerekiyor!\n\n${action}`);
+    
+    if (password === DELETE_PASSWORD) {
+        if (typeof callback === 'function') {
+            callback();
+        }
+        return true;
+    } else if (password !== null) {
+        showAlert("Şifre yanlış! İşlem iptal edildi.", "error");
+        return false;
+    }
+    return false;
+}
+
+// Enhanced delete functions with password protection
+async function deleteSelectedPackagesWithPassword() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    requirePassword(
+        `${checkboxes.length} paketi silmek üzeresiniz.`,
+        () => deleteSelectedPackages()
+    );
+}
+
+async function deleteContainerWithPassword(containerId) {
+    requirePassword(
+        "Konteyneri silmek üzeresiniz.",
+        () => deleteContainer(containerId)
+    );
+}
+
+async function deleteCustomerWithPassword(customerId) {
+    requirePassword(
+        "Müşteriyi silmek üzeresiniz.",
+        () => deleteCustomer(customerId)
+    );
+}
+
+function clearStockWithPassword() {
+    requirePassword(
+        "Tüm stok verilerini temizlemek üzeresiniz.",
+        () => clearStockData()
+    );
+}
+
+// Replace existing delete functions
+function setupPasswordProtection() {
+    // Override package delete
+    window.deleteSelectedPackages = deleteSelectedPackagesWithPassword;
+    
+    // Override container delete
+    const originalDeleteContainer = window.deleteContainer;
+    if (originalDeleteContainer) {
+        window.deleteContainer = deleteContainerWithPassword;
+    }
+    
+    // Override customer delete
+    const originalDeleteCustomer = window.deleteCustomer;
+    if (originalDeleteCustomer) {
+        window.deleteCustomer = deleteCustomerWithPassword;
+    }
+}
