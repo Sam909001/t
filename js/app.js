@@ -1,6 +1,3 @@
-let appInitialized = false;
-let excelPackages = [];
-
 // Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
 document.addEventListener('DOMContentLoaded', () => {
     const savedApiKey = localStorage.getItem('procleanApiKey');
@@ -506,17 +503,9 @@ function scheduleDailyClear() {
     }, msUntilMidnight);
 }
 
-// Main initialization - prevent multiple calls
+// Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
-    
-    // Prevent multiple initializations
-    if (appInitialized) {
-        console.log('⚠️ App already initialized, skipping...');
-        return;
-    }
-    
-    appInitialized = true;
 
     try {
         // Initialize workspace system FIRST
@@ -550,7 +539,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 });
-
 
 // Separate function for event listeners
 function setupEventListeners() {
@@ -712,158 +700,40 @@ function loadAppState() {
     }
 }
 
-// Enhanced initialization
-async function initAppWithEnhancements() {
-    console.log('🚀 Starting enhanced ProClean initialization...');
+// Initialize application
+async function initApp() {
+    elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
-    try {
-        // Check if required classes/functions are available
-        if (typeof WorkspaceManager === 'undefined') {
-            throw new Error('WorkspaceManager class not loaded');
-        }
-        
-        if (typeof initializeElementsObject === 'undefined') {
-            throw new Error('UI functions not loaded');
-        }
-
-        // 1. Initialize workspace system FIRST
-        if (!window.workspaceManager) {
-            window.workspaceManager = new WorkspaceManager();
-        }
-        await window.workspaceManager.initialize();
-        
-        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-
-        // 2. Initialize elements
-        initializeElementsObject();
-        
-        // 3. Initialize workspace-aware UI
-        if (typeof initializeWorkspaceUI === 'function') {
-            initializeWorkspaceUI();
-        }
-        
-        if (typeof setupWorkspaceAwareUI === 'function') {
-            setupWorkspaceAwareUI();
-        }
-
-        // 4. Setup all enhancements
-        if (typeof setupEnhancedLogout === 'function') {
-            setupEnhancedLogout();
-        }
-        
-        if (typeof setupPasswordProtection === 'function') {
-            setupPasswordProtection();
-        }
-        
-        if (typeof setupKeyboardShortcuts === 'function') {
-            setupKeyboardShortcuts();
-        }
-        
-        if (typeof setupExcelPreview === 'function') {
-            setupExcelPreview();
-        }
-        
-        // 5. Migrate existing data to workspace
-        if (typeof migrateExistingDataToWorkspace === 'function') {
-            await migrateExistingDataToWorkspace();
-        }
-
-        // 6. Initialize sync system
-        if (typeof initializeSyncQueue === 'function') {
-            initializeSyncQueue();
-        }
-        
-        if (typeof setupEnhancedSyncTriggers === 'function') {
-            setupEnhancedSyncTriggers();
-        }
-
-        // 7. Setup event listeners
-        setupEventListeners();
-        
-        // 8. API key initialization
-        initializeApiAndAuth();
-
-        // 9. Initialize settings
-        initializeSettings();
-
-        // 10. Initialize daily Excel file system
-        if (typeof ExcelStorage !== 'undefined') {
-            await ExcelStorage.cleanupOldFiles();
-            await ExcelStorage.readFile();
-        }
-        
-        // 11. Populate UI
-        if (elements.currentDate) {
-            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-        }
-        
-        if (typeof populateCustomers === 'function') {
-            await populateCustomers();
-        }
-        
-        if (typeof populatePersonnel === 'function') {
-            await populatePersonnel();
-        }
-        
-        // 12. Load saved state
-        loadAppState();
-        
-        // 13. Load data
-        if (typeof loadPackagesData === 'function') {
-            await loadPackagesData();
-        }
-        
-        if (typeof populateStockTable === 'function') {
-            await populateStockTable();
-        }
-        
-        if (typeof populateShippingTable === 'function') {
-            await populateShippingTable();
-        }
-        
-        // 14. Test connection
-        if (typeof testConnection === 'function') {
-            await testConnection();
-        }
-        
-        // 15. Set up auto-save and offline support
-        setInterval(saveAppState, 5000);
-        
-        if (typeof setupOfflineSupport === 'function') {
-            setupOfflineSupport();
-        }
-        
-        if (typeof setupBarcodeScanner === 'function') {
-            setupBarcodeScanner();
-        }
-        
-        // 16. Start daily auto-clear
-        if (typeof scheduleDailyClear === 'function') {
-            scheduleDailyClear();
-        }
-
-        // 17. Auto-sync on startup if online
-        if (navigator.onLine && supabase && typeof syncExcelWithSupabase === 'function') {
-            setTimeout(async () => {
-                await syncExcelWithSupabase();
-            }, 5000);
-        }
-        
-        console.log(`🎉 ProClean fully initialized with enhancements for workspace: ${window.workspaceManager.currentWorkspace.name}`);
-        
-        // Only use showAlert if elements is ready
-        if (elements.alertContainer && typeof showAlert === 'function') {
-            showAlert('Uygulama başarıyla başlatıldı! Tüm geliştirmeler aktif.', 'success');
-        }
-
-    } catch (error) {
-        console.error('❌ Critical error during initialization:', error);
-        // Use console.error instead of showAlert for critical errors
-        console.error('Uygulama başlatılırken hata oluştu: ' + error.message);
-    }
+    // Storage indicator'ı güncelle
+    updateStorageIndicator();
+    
+    // Populate dropdowns
+    await populateCustomers();
+    await populatePersonnel();
+    
+    // Load saved state
+    loadAppState();
+    
+    // Load data - önce Excel'den, sonra Supabase'den
+    await loadPackagesData();
+    await populateStockTable();
+    await populateShippingTable();
+    
+    // Test connection
+    await testConnection();
+    
+    // Set up auto-save
+    setInterval(saveAppState, 5000); // Save every 5 seconds
+    
+    // Set up offline support
+    setupOfflineSupport();
+    
+    // Set up barcode scanner listener
+    setupBarcodeScanner();
+    
+    // Start daily auto-clear
+    scheduleDailyClear();
 }
-
-
 
 // REPLACE the existing loadPackagesData function with this:
 async function loadPackagesData() {
@@ -1213,109 +1083,3 @@ function debugWorkspace() {
 
 // Call this after page loads
 setTimeout(debugWorkspace, 3000);
-
-
-
-// Keyboard shortcuts
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', function(e) {
-        // Prevent shortcuts in input fields
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-            return;
-        }
-
-        // F2 - Paketle
-        if (e.key === 'F2') {
-            e.preventDefault();
-            if (typeof completePackage === 'function') {
-                completePackage();
-            }
-        }
-        
-        // F4 - Etiketi Yazdır
-        if (e.key === 'F4') {
-            e.preventDefault();
-            const selectedPackage = getSelectedPackage();
-            if (selectedPackage && typeof printPackageWithSettings === 'function') {
-                printPackageWithSettings(selectedPackage);
-            } else {
-                showAlert("Yazdırmak için önce bir paket seçin", "warning");
-            }
-        }
-        
-        // F8 - Delete
-        if (e.key === 'F8') {
-            e.preventDefault();
-            if (typeof deleteSelectedPackages === 'function') {
-                deleteSelectedPackages();
-            }
-        }
-        
-        // F9 - Send to Ramp
-        if (e.key === 'F9') {
-            e.preventDefault();
-            if (typeof sendToRamp === 'function') {
-                sendToRamp();
-            }
-        }
-        
-        // Ctrl+Q - Select All Packages
-        if (e.ctrlKey && e.key === 'q') {
-            e.preventDefault();
-            const selectAll = document.getElementById('selectAllPackages');
-            if (selectAll) {
-                selectAll.checked = !selectAll.checked;
-                toggleSelectAll();
-            }
-        }
-    });
-}
-
-// Add help tooltip for shortcuts
-function showKeyboardShortcutsHelp() {
-    const shortcuts = [
-        { key: 'F2', action: 'Paketle - Yeni paket oluştur' },
-        { key: 'F4', action: 'Etiketi Yazdır - Seçili paketin etiketini yazdır' },
-        { key: 'F8', action: 'Sil - Seçili öğeleri sil' },
-        { key: 'F9', action: 'Sevkiyata Gönder - Paketleri rampa gönder' },
-        { key: 'Ctrl+Q', action: 'Tümünü Seç - Tüm paketleri seç' }
-    ];
-    
-    let helpText = "Klavye Kısayolları:\n\n";
-    shortcuts.forEach(shortcut => {
-        helpText += `${shortcut.key}: ${shortcut.action}\n`;
-    });
-    
-    alert(helpText);
-}
-
-
-
-// Enhanced logout setup
-function setupEnhancedLogout() {
-    // Replace any existing logout functionality
-    const logoutButtons = document.querySelectorAll('[onclick*="logout"], [onclick*="signOut"]');
-    logoutButtons.forEach(btn => {
-        btn.onclick = logoutWithConfirmation;
-    });
-    
-    // Also add logout button to settings if not exists
-    if (!document.getElementById('enhancedLogoutBtn')) {
-        setTimeout(() => {
-            const settingsPanel = document.querySelector('.settings-panel, .settings-content');
-            if (settingsPanel) {
-                const logoutBtn = document.createElement('button');
-                logoutBtn.id = 'enhancedLogoutBtn';
-                logoutBtn.className = 'btn btn-danger';
-                logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Çıkış Yap';
-                logoutBtn.onclick = logoutWithConfirmation;
-                logoutBtn.style.marginTop = '10px';
-                settingsPanel.appendChild(logoutBtn);
-            }
-        }, 1000);
-    }
-}
-
-
-
-
