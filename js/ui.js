@@ -66,23 +66,44 @@ function initializeElementsObject() {
     return elements;
 }
 
-// Profesyonel alert sistemi
-// 1. Prevent duplicate alerts with debouncing
-let alertQueue = new Set(); // Track active alerts
+// Enhanced alert system with better duplicate prevention
+let alertQueue = new Map(); // Use Map for better performance
 
 function showAlert(message, type = 'info', duration = 5000) {
-    // Prevent duplicate alerts
+    // Prevent duplicate alerts more effectively
     const alertKey = `${message}-${type}`;
-    if (alertQueue.has(alertKey)) {
-        return; // Already showing this alert
-    }
     
-    alertQueue.add(alertKey);
+    // If same alert is already showing, don't show again
+    if (alertQueue.has(alertKey)) {
+        const existingAlert = alertQueue.get(alertKey);
+        // Refresh the timer if it's the same alert
+        if (existingAlert.timeout) {
+            clearTimeout(existingAlert.timeout);
+        }
+        
+        // Update the existing alert
+        if (existingAlert.element && existingAlert.element.parentNode) {
+            // Remove old timeout and set new one
+            existingAlert.timeout = setTimeout(() => {
+                if (existingAlert.element.parentNode) {
+                    existingAlert.element.classList.add('hide');
+                    setTimeout(() => {
+                        if (existingAlert.element.parentNode) {
+                            existingAlert.element.remove();
+                            alertQueue.delete(alertKey);
+                        }
+                    }, 300);
+                }
+            }, duration);
+            
+            alertQueue.set(alertKey, existingAlert);
+        }
+        return existingAlert.element;
+    }
     
     if (!elements.alertContainer) {
         console.error('Alert container not found, using console instead');
         console.log(`${type.toUpperCase()}: ${message}`);
-        alertQueue.delete(alertKey);
         return;
     }
     
@@ -113,8 +134,9 @@ function showAlert(message, type = 'info', duration = 5000) {
     });
     
     // Auto close
+    let timeout = null;
     if (duration > 0) {
-        setTimeout(() => {
+        timeout = setTimeout(() => {
             if (alert.parentNode) {
                 alert.classList.add('hide');
                 setTimeout(() => {
@@ -127,8 +149,16 @@ function showAlert(message, type = 'info', duration = 5000) {
         }, duration);
     }
     
+    // Store in queue
+    alertQueue.set(alertKey, {
+        element: alert,
+        timeout: timeout
+    });
+    
     return alert;
 }
+
+
 
 // Yardımcı fonksiyonlar
 function showToast(message, type = 'info') {
