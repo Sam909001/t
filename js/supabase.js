@@ -1485,7 +1485,6 @@ function enhanceSyncQueue() {
     }
 }
 
-
 // FIXED: API anahtarını kaydet ve istemciyi başlat
 function saveApiKey() {
     const apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -2366,30 +2365,6 @@ async function populateReportsTable() {
         } else {
             dailyFiles.forEach(file => {
                 const isToday = file.date === ExcelStorage.getTodayDateString();
-
-
-                reportsHTML += `
-        <div class="daily-file-item" style="...">
-            <div style="display: flex; justify-content: between; align-items: center;">
-                <div style="flex: 1;">
-                    <!-- existing content -->
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <button onclick="ExcelStorage.exportDailyFile('${file.date}')" 
-                            class="btn btn-success btn-sm" 
-                            style="white-space: nowrap;">
-                        <i class="fas fa-download"></i> CSV İndir
-                    </button>
-                    <button onclick="previewDailyFile('${file.date}')" 
-                            class="btn btn-info btn-sm"
-                            style="white-space: nowrap;">
-                        <i class="fas fa-eye"></i> İncele
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-});
                 
                 reportsHTML += `
                     <div class="daily-file-item" style="
