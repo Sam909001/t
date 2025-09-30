@@ -1083,3 +1083,78 @@ function debugWorkspace() {
 
 // Call this after page loads
 setTimeout(debugWorkspace, 3000);
+
+
+
+// Keyboard shortcuts
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Prevent shortcuts in input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+            return;
+        }
+
+        // F2 - Paketle
+        if (e.key === 'F2') {
+            e.preventDefault();
+            if (typeof completePackage === 'function') {
+                completePackage();
+            }
+        }
+        
+        // F4 - Etiketi Yazdır
+        if (e.key === 'F4') {
+            e.preventDefault();
+            const selectedPackage = getSelectedPackage();
+            if (selectedPackage && typeof printPackageWithSettings === 'function') {
+                printPackageWithSettings(selectedPackage);
+            } else {
+                showAlert("Yazdırmak için önce bir paket seçin", "warning");
+            }
+        }
+        
+        // F8 - Delete
+        if (e.key === 'F8') {
+            e.preventDefault();
+            if (typeof deleteSelectedPackages === 'function') {
+                deleteSelectedPackages();
+            }
+        }
+        
+        // F9 - Send to Ramp
+        if (e.key === 'F9') {
+            e.preventDefault();
+            if (typeof sendToRamp === 'function') {
+                sendToRamp();
+            }
+        }
+        
+        // Ctrl+Q - Select All Packages
+        if (e.ctrlKey && e.key === 'q') {
+            e.preventDefault();
+            const selectAll = document.getElementById('selectAllPackages');
+            if (selectAll) {
+                selectAll.checked = !selectAll.checked;
+                toggleSelectAll();
+            }
+        }
+    });
+}
+
+// Add help tooltip for shortcuts
+function showKeyboardShortcutsHelp() {
+    const shortcuts = [
+        { key: 'F2', action: 'Paketle - Yeni paket oluştur' },
+        { key: 'F4', action: 'Etiketi Yazdır - Seçili paketin etiketini yazdır' },
+        { key: 'F8', action: 'Sil - Seçili öğeleri sil' },
+        { key: 'F9', action: 'Sevkiyata Gönder - Paketleri rampa gönder' },
+        { key: 'Ctrl+Q', action: 'Tümünü Seç - Tüm paketleri seç' }
+    ];
+    
+    let helpText = "Klavye Kısayolları:\n\n";
+    shortcuts.forEach(shortcut => {
+        helpText += `${shortcut.key}: ${shortcut.action}\n`;
+    });
+    
+    alert(helpText);
+}
