@@ -570,10 +570,10 @@ exportDailyFile: function(dateString) {
     }
 },
     
- // Convert to CSV format - Professional version
+// Convert to CSV format - Professional version
 convertToCSV: function(data) {
     if (!data || data.length === 0) {
-        return 'PAKET NO,MÜŞTERİ ADI,MÜŞTERİ KODU,ÜRÜN TİPLERİ,ÜRÜN DETAYLARI,TOPLAM ADET,DURUM,PAKETLEYEN,OLUŞTURULMA TARİHİ,İSTASYON,KONTEYNER NO\n';
+        return 'PAKET NO,MÜŞTERİ ADI,MÜŞTERİ KODU,ÜRÜN TİPLERİ,ÜRÜN DETAYLARI,TOPLAM ADET,DURUM,KONTEYNER,PAKETLEYEN,OLUŞTURULMA TARİHİ,GÜNCELLENME TARİHİ,İSTASYON,BARCODE\n';
     }
     
     const excelData = ProfessionalExcelExport.convertToProfessionalExcel(data);
@@ -585,7 +585,7 @@ convertToCSV: function(data) {
             headers.map(header => {
                 const value = row[header];
                 // Escape commas and quotes in values
-                if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
                     return `"${value.replace(/"/g, '""')}"`;
                 }
                 return value;
@@ -694,10 +694,12 @@ const ProfessionalExcelExport = {
 
         // Define professional headers
         const excelData = packages.map(pkg => {
-            // Extract items information professionally
+            // Extract items information professionally - FIXED VERSION
             let itemsInfo = 'Ürün bilgisi yok';
             let itemTypes = 'Bilinmiyor';
+            let totalQuantity = pkg.total_quantity || 0;
             
+            // FIXED: Better product extraction
             if (pkg.items) {
                 if (Array.isArray(pkg.items)) {
                     // Array format: [{name: "Product", qty: 5}]
@@ -705,34 +707,60 @@ const ProfessionalExcelExport = {
                         `${item.name || 'Ürün'}: ${item.qty || 0} adet`
                     ).join('; ');
                     itemTypes = pkg.items.map(item => item.name || 'Ürün').join('; ');
+                    
+                    // Calculate total quantity from items array
+                    if (pkg.items.length > 0 && !totalQuantity) {
+                        totalQuantity = pkg.items.reduce((sum, item) => sum + (item.qty || 0), 0);
+                    }
                 } else if (typeof pkg.items === 'object') {
                     // Object format: {"Product1": 5, "Product2": 3}
-                    itemsInfo = Object.entries(pkg.items).map(([product, quantity]) => 
+                    const itemsArray = Object.entries(pkg.items);
+                    itemsInfo = itemsArray.map(([product, quantity]) => 
                         `${product}: ${quantity} adet`
                     ).join('; ');
-                    itemTypes = Object.keys(pkg.items).join('; ');
+                    itemTypes = itemsArray.map(([product]) => product).join('; ');
+                    
+                    // Calculate total quantity from items object
+                    if (itemsArray.length > 0 && !totalQuantity) {
+                        totalQuantity = itemsArray.reduce((sum, [_, quantity]) => sum + quantity, 0);
+                    }
                 }
             } else if (pkg.items_display) {
                 // Fallback to items_display
                 itemsInfo = pkg.items_display;
-                itemTypes = pkg.items_display.split(',').map(item => 
-                    item.split(':')[0].trim()
-                ).join('; ');
+                // Extract just product names from items_display
+                const productMatches = pkg.items_display.match(/([^:]+):/g);
+                if (productMatches) {
+                    itemTypes = productMatches.map(match => match.replace(':', '').trim()).join('; ');
+                }
+            } else if (pkg.product) {
+                // Fallback to single product field
+                itemsInfo = `${pkg.product}: ${totalQuantity} adet`;
+                itemTypes = pkg.product;
             }
+
+            // Get customer information
+            const customerName = pkg.customer_name || pkg.customers?.name || 'Bilinmeyen Müşteri';
+            const customerCode = pkg.customer_code || pkg.customers?.code || '';
+            
+            // Format dates properly
+            const createdDate = pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A';
+            const updatedDate = pkg.updated_at ? new Date(pkg.updated_at).toLocaleDateString('tr-TR') : 'N/A';
 
             return {
                 'PAKET NO': pkg.package_no || 'N/A',
-                'MÜŞTERİ ADI': pkg.customer_name || pkg.customers?.name || 'Bilinmeyen Müşteri',
-                'MÜŞTERİ KODU': pkg.customer_code || pkg.customers?.code || '',
+                'MÜŞTERİ ADI': customerName,
+                'MÜŞTERİ KODU': customerCode,
                 'ÜRÜN TİPLERİ': itemTypes,
                 'ÜRÜN DETAYLARI': itemsInfo,
-                'TOPLAM ADET': pkg.total_quantity || 0,
+                'TOPLAM ADET': totalQuantity,
                 'DURUM': pkg.status === 'sevk-edildi' ? 'SEVK EDİLDİ' : 'BEKLEMEDE',
+                'KONTEYNER': pkg.container_id || 'Yok',
                 'PAKETLEYEN': pkg.packer || 'Bilinmiyor',
-                'OLUŞTURULMA TARİHİ': pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A',
-                'GÜNCELLENME TARİHİ': pkg.updated_at ? new Date(pkg.updated_at).toLocaleDateString('tr-TR') : 'N/A',
+                'OLUŞTURULMA TARİHİ': createdDate,
+                'GÜNCELLENME TARİHİ': updatedDate,
                 'İSTASYON': pkg.station_name || pkg.workspace_id || 'Default',
-                'KONTEYNER NO': pkg.container_id || 'Yok'
+                'BARCODE': pkg.barcode || ''
             };
         });
 
@@ -760,20 +788,21 @@ const ProfessionalExcelExport = {
             // Convert data to worksheet
             const ws = XLSX.utils.json_to_sheet(excelData);
             
-            // Set column widths for better readability
+            // Set column widths for better readability - WIDER COLUMNS
             const colWidths = [
-                { wch: 15 }, // PAKET NO
+                { wch: 18 }, // PAKET NO
                 { wch: 25 }, // MÜŞTERİ ADI
                 { wch: 15 }, // MÜŞTERİ KODU
-                { wch: 30 }, // ÜRÜN TİPLERİ
-                { wch: 40 }, // ÜRÜN DETAYLARI
+                { wch: 25 }, // ÜRÜN TİPLERİ
+                { wch: 35 }, // ÜRÜN DETAYLARI
                 { wch: 12 }, // TOPLAM ADET
                 { wch: 12 }, // DURUM
-                { wch: 20 }, // PAKETLEYEN
+                { wch: 15 }, // KONTEYNER
+                { wch: 18 }, // PAKETLEYEN
                 { wch: 15 }, // OLUŞTURULMA TARİHİ
                 { wch: 15 }, // GÜNCELLENME TARİHİ
-                { wch: 15 }, // İSTASYON
-                { wch: 15 }  // KONTEYNER NO
+                { wch: 12 }, // İSTASYON
+                { wch: 15 }  // BARCODE
             ];
             ws['!cols'] = colWidths;
 
@@ -790,19 +819,64 @@ const ProfessionalExcelExport = {
                     const cell_ref = XLSX.utils.encode_cell(cell_address);
                     if (!ws[cell_ref]) continue;
                     
-                    // Make header cells bold
+                    // Make header cells bold with professional styling
                     if (!ws[cell_ref].s) {
                         ws[cell_ref].s = {};
                     }
                     ws[cell_ref].s = {
-                        font: { bold: true, color: { rgb: "FFFFFF" } },
-                        fill: { fgColor: { rgb: "2F75B5" } },
-                        alignment: { horizontal: "center", vertical: "center" }
+                        font: { 
+                            bold: true, 
+                            color: { rgb: "FFFFFF" },
+                            sz: 11
+                        },
+                        fill: { 
+                            fgColor: { rgb: "2F75B5" } 
+                        },
+                        alignment: { 
+                            horizontal: "center", 
+                            vertical: "center",
+                            wrapText: true
+                        },
+                        border: {
+                            top: { style: "thin", color: { rgb: "1F5B95" } },
+                            left: { style: "thin", color: { rgb: "1F5B95" } },
+                            bottom: { style: "thin", color: { rgb: "1F5B95" } },
+                            right: { style: "thin", color: { rgb: "1F5B95" } }
+                        }
                     };
+                }
+
+                // Style data rows for better readability
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cell_address = { c: C, r: R };
+                        const cell_ref = XLSX.utils.encode_cell(cell_address);
+                        if (!ws[cell_ref]) continue;
+                        
+                        if (!ws[cell_ref].s) {
+                            ws[cell_ref].s = {};
+                        }
+                        
+                        // Alternate row coloring for better readability
+                        if (R % 2 === 0) {
+                            ws[cell_ref].s.fill = { fgColor: { rgb: "F8F9FA" } };
+                        }
+                        
+                        // Add borders to all cells
+                        ws[cell_ref].s.border = {
+                            top: { style: "thin", color: { rgb: "E0E0E0" } },
+                            left: { style: "thin", color: { rgb: "E0E0E0" } },
+                            bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+                            right: { style: "thin", color: { rgb: "E0E0E0" } }
+                        };
+                    }
                 }
 
                 // Add auto filters
                 ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+                
+                // Freeze header row
+                ws['!freeze'] = { x: 0, y: 1 };
             }
 
             // Write and download file
@@ -843,7 +917,7 @@ const ProfessionalExcelExport = {
                     headers.map(header => {
                         const value = row[header];
                         // Escape commas and quotes in values
-                        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
                             return `"${value.replace(/"/g, '""')}"`;
                         }
                         return value;
@@ -906,7 +980,6 @@ ExcelStorage.exportDailyFile = function(dateString) {
 // Enhanced ExcelJS export functions
 ExcelJS.exportToExcel = ProfessionalExcelExport.exportToProfessionalExcel;
 ExcelJS.exportToCSV = ProfessionalExcelExport.exportToProfessionalCSV;
-
 
 
 
