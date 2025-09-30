@@ -1332,6 +1332,246 @@ function addToSyncQueue(operationType, data) {
 
 
 
+
+
+// ==================== ATOMIC SYNC QUEUE SYSTEM ====================
+
+// Add this to supabase.js after the existing sync functions
+
+class AtomicSyncManager {
+    constructor() {
+        this.isSyncing = false;
+        this.backupQueue = [];
+        this.maxRetries = 3;
+    }
+
+    // Create atomic transaction wrapper
+    async executeAtomicSync() {
+        if (this.isSyncing) {
+            console.log('🔄 Sync already in progress, skipping...');
+            return false;
+        }
+
+        this.isSyncing = true;
+        
+        try {
+            // Step 1: Create backup
+            await this.createSyncBackup();
+            
+            // Step 2: Process operations in transaction
+            const result = await this.processSyncTransaction();
+            
+            // Step 3: Only commit if ALL operations succeed
+            if (result.success) {
+                await this.commitSync();
+                return true;
+            } else {
+                await this.rollbackSync();
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('💥 Atomic sync failed:', error);
+            await this.rollbackSync();
+            return false;
+        } finally {
+            this.isSyncing = false;
+        }
+    }
+
+    // Create comprehensive backup
+    async createSyncBackup() {
+        this.backupQueue = JSON.parse(JSON.stringify(excelSyncQueue));
+        
+        // Also backup current Excel data
+        const currentData = await ExcelJS.readFile();
+        localStorage.setItem('sync_backup_data', JSON.stringify(currentData));
+        
+        console.log('📦 Sync backup created:', this.backupQueue.length, 'operations');
+    }
+
+    // Process operations as atomic transaction
+    async processSyncTransaction() {
+        if (!supabase || !navigator.onLine) {
+            throw new Error('Cannot sync: No Supabase client or offline');
+        }
+
+        const workspaceId = getCurrentWorkspaceId();
+        const workspaceOperations = excelSyncQueue.filter(op => 
+            op.workspace_id === workspaceId && op.status !== 'success'
+        );
+
+        if (workspaceOperations.length === 0) {
+            return { success: true, processed: 0 };
+        }
+
+        const results = {
+            successful: [],
+            failed: [],
+            skipped: []
+        };
+
+        // Process each operation with individual error handling
+        for (const operation of workspaceOperations) {
+            try {
+                if (operation.attempts >= this.maxRetries) {
+                    results.skipped.push(operation.fingerprint);
+                    continue;
+                }
+
+                const success = await this.executeSingleOperation(operation);
+                
+                if (success) {
+                    operation.status = 'success';
+                    results.successful.push(operation.fingerprint);
+                } else {
+                    throw new Error('Operation failed');
+                }
+
+            } catch (error) {
+                console.error(`❌ Sync failed for ${operation.type}:`, error);
+                operation.status = 'failed';
+                operation.lastError = error.message;
+                operation.attempts = (operation.attempts || 0) + 1;
+                results.failed.push(operation.fingerprint);
+
+                // Critical: Stop on network errors
+                if (this.isNetworkError(error)) {
+                    console.log('🌐 Network error detected, stopping sync');
+                    break;
+                }
+            }
+        }
+
+        return {
+            success: results.failed.length === 0,
+            results: results
+        };
+    }
+
+    // Execute single operation with timeout
+    async executeSingleOperation(operation) {
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Operation timeout')), 10000)
+        );
+
+        const operationPromise = this.executeOperation(operation);
+        
+        try {
+            await Promise.race([operationPromise, timeoutPromise]);
+            return true;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Execute specific operation types
+    async executeOperation(operation) {
+        const operationData = {
+            ...operation.data,
+            workspace_id: getCurrentWorkspaceId(),
+            updated_at: new Date().toISOString()
+        };
+
+        let result;
+
+        switch (operation.type) {
+            case 'add':
+                result = await supabase
+                    .from('packages')
+                    .upsert([operationData], {
+                        onConflict: 'id',
+                        ignoreDuplicates: false
+                    });
+                break;
+                
+            case 'update':
+                result = await supabase
+                    .from('packages')
+                    .update(operationData)
+                    .eq('id', operationData.id)
+                    .eq('workspace_id', getCurrentWorkspaceId());
+                break;
+                
+            case 'delete':
+                result = await supabase
+                    .from('packages')
+                    .delete()
+                    .eq('id', operationData.id)
+                    .eq('workspace_id', getCurrentWorkspaceId());
+                break;
+                
+            default:
+                throw new Error(`Unknown operation type: ${operation.type}`);
+        }
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        return true;
+    }
+
+    // Check if error is network-related
+    isNetworkError(error) {
+        const networkErrors = ['network', 'fetch', 'internet', 'offline', 'timeout'];
+        return networkErrors.some(term => 
+            error.message?.toLowerCase().includes(term)
+        );
+    }
+
+    // Commit successful sync
+    async commitSync() {
+        // Remove only successful operations
+        const updatedQueue = excelSyncQueue.filter(op => op.status !== 'success');
+        
+        // Verify integrity before committing
+        if (updatedQueue.length <= excelSyncQueue.length) {
+            excelSyncQueue = updatedQueue;
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            console.log('💾 Sync committed successfully');
+            
+            // Clear backup after successful commit
+            this.backupQueue = [];
+            localStorage.removeItem('sync_backup_data');
+        } else {
+            throw new Error('Queue integrity check failed during commit');
+        }
+    }
+
+    // Rollback to previous state
+    async rollbackSync() {
+        console.log('🔄 Rolling back sync...');
+        
+        // Restore queue from backup
+        if (this.backupQueue.length > 0) {
+            excelSyncQueue = this.backupQueue;
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+        }
+        
+        // Restore Excel data from backup
+        const backupData = localStorage.getItem('sync_backup_data');
+        if (backupData) {
+            await ExcelJS.writeFile(JSON.parse(backupData));
+        }
+        
+        console.log('✅ Sync rollback completed');
+    }
+}
+
+// Initialize atomic sync manager
+const atomicSyncManager = new AtomicSyncManager();
+
+// Replace the existing syncExcelWithSupabase function
+async function syncExcelWithSupabase() {
+    return await atomicSyncManager.executeAtomicSync();
+}
+
+
+
+
+
+
 // Enhanced workspace data migration
 async function migrateExistingDataToWorkspace() {
     const workspaceId = getCurrentWorkspaceId();
