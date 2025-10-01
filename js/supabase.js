@@ -151,34 +151,60 @@ class WorkspaceManager {
     }
     
     // Update UI to show current workspace
-    updateWorkspaceUI() {
-        const workspaceIndicator = document.getElementById('workspaceIndicator');
-        if (workspaceIndicator && this.currentWorkspace) {
-            workspaceIndicator.innerHTML = `
-                <i class="fas fa-desktop"></i> 
-                ${this.currentWorkspace.name}
-                <span class="workspace-type">${this.getWorkspaceTypeLabel()}</span>
-            `;
-            workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
-            console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
-        } else {
-            console.warn('⚠️ Workspace indicator element not found');
-        }
+   updateWorkspaceUI() {
+    const workspaceIndicator = document.getElementById('workspaceIndicator');
+    
+    if (workspaceIndicator && this.currentWorkspace) {
+        const typeLabel = this.getWorkspaceTypeLabel(this.currentWorkspace);
         
-        // Update document title
-        document.title = `ProClean - ${this.currentWorkspace.name}`;
+        workspaceIndicator.innerHTML = `
+            <i class="fas fa-desktop"></i> 
+            ${this.currentWorkspace.name}
+            <span class="workspace-type">${typeLabel}</span>
+        `;
+        workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
+        console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
+    } else {
+        console.warn('⚠️ Workspace indicator element not found or workspace is null');
     }
     
-    // Get workspace type label
-    getWorkspaceTypeLabel() {
-        const types = {
-            'packaging': 'Paketleme',
-            'shipping': 'Sevkiyat',
-            'quality': 'Kalite Kontrol',
-            'admin': 'Yönetici'
-        };
-        return types[this.currentWorkspace.type] || this.currentWorkspace.type;
+    // Update document title
+    if (this.currentWorkspace) {
+        document.title = `ProClean - ${this.currentWorkspace.name}`;
     }
+}
+
+    /* 
+Add this helper function to detect if running in Electron:
+*/
+
+function isElectron() {
+    return typeof window !== 'undefined' && 
+           typeof window.process === 'object' && 
+           window.process.type === 'renderer';
+}
+
+
+
+    
+    
+  getWorkspaceTypeLabel(workspace) {
+    // FIXED: Handle null workspace
+    const ws = workspace || this.currentWorkspace;
+    
+    if (!ws || !ws.type) {
+        return 'Genel'; // Default fallback
+    }
+    
+    const types = {
+        'packaging': 'Paketleme',
+        'shipping': 'Sevkiyat',
+        'quality': 'Kalite Kontrol',
+        'admin': 'Yönetici'
+    };
+    
+    return types[ws.type] || ws.type || 'Genel';
+}
     
     // Initialize workspace-specific Excel storage
     initializeWorkspaceStorage() {
@@ -254,74 +280,114 @@ async loadWorkspaceData() {
         }
     }
     
-    // Show workspace selection modal
-    async showWorkspaceSelection() {
-        return new Promise((resolve) => {
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
-                align-items: center; z-index: 10000;
-            `;
-            
-            modal.innerHTML = `
-                <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%;">
-                    <h2>Çalışma İstasyonu Seçin</h2>
-                    <p>Lütfen bu monitör için bir çalışma istasyonu seçin:</p>
-                    <div id="workspaceOptions" style="margin: 1rem 0;"></div>
-                    <button onclick="window.workspaceManager.createNewWorkspace()" 
-                            style="margin-top: 1rem; padding: 0.5rem 1rem;">
-                        <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
-                    </button>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Populate workspace options
-            const optionsContainer = document.getElementById('workspaceOptions');
+  async showWorkspaceSelection() {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal workspace-modal';
+        modal.style.cssText = `
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.8); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%;">
+                <h2>Çalışma İstasyonu Seçin</h2>
+                <p>Lütfen bu monitör için bir çalışma istasyonu seçin:</p>
+                <div id="workspaceOptions" style="margin: 1rem 0;"></div>
+                <button id="createNewWorkspaceBtn" 
+                        style="margin-top: 1rem; padding: 0.5rem 1rem; width: 100%; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Populate workspace options
+        const optionsContainer = document.getElementById('workspaceOptions');
+        
+        if (this.availableWorkspaces.length === 0) {
+            optionsContainer.innerHTML = '<p style="color: #666; text-align: center;">Henüz istasyon yok. Yeni istasyon oluşturun.</p>';
+        } else {
             this.availableWorkspaces.forEach(workspace => {
                 const button = document.createElement('button');
                 button.style.cssText = `
-                    display: block; width: 100%; padding: 1rem; margin: 0.5rem 0; 
-                    text-align: left; border: 1px solid #ddd; border-radius: 5px;
-                    background: #f9f9f9; cursor: pointer;
+                    display: block; 
+                    width: 100%; 
+                    padding: 1rem; 
+                    margin: 0.5rem 0; 
+                    text-align: left; 
+                    border: 1px solid #ddd; 
+                    border-radius: 5px;
+                    background: #f9f9f9; 
+                    cursor: pointer;
+                    transition: background 0.2s;
                 `;
+                
+                // FIXED: Pass workspace to getWorkspaceTypeLabel
+                const typeLabel = this.getWorkspaceTypeLabel(workspace);
+                
                 button.innerHTML = `
                     <strong>${workspace.name}</strong><br>
-                    <small>Tip: ${this.getWorkspaceTypeLabel(workspace.type)}</small>
+                    <small>Tip: ${typeLabel}</small>
                 `;
+                
+                button.onmouseover = () => button.style.background = '#e8e8e8';
+                button.onmouseout = () => button.style.background = '#f9f9f9';
+                
                 button.onclick = () => {
                     this.setCurrentWorkspace(workspace);
                     document.body.removeChild(modal);
                     resolve();
                 };
+                
                 optionsContainer.appendChild(button);
             });
-        });
-    }
+        }
+        
+        // Create new workspace button handler
+        const createBtn = document.getElementById('createNewWorkspaceBtn');
+        if (createBtn) {
+            createBtn.onclick = () => {
+                this.createNewWorkspace();
+                document.body.removeChild(modal);
+                resolve();
+            };
+        }
+    });
+}
     
     // Create new workspace
-    createNewWorkspace() {
-        const name = prompt('Yeni istasyon adını girin:');
-        if (!name) return;
-        
-        const newWorkspace = {
-            id: 'station-' + Date.now(),
-            name: name,
-            type: 'packaging',
-            created: new Date().toISOString()
-        };
-        
-        this.availableWorkspaces.push(newWorkspace);
-        this.saveWorkspaces();
-        this.setCurrentWorkspace(newWorkspace);
-        
-        // Remove modal
-        const modal = document.querySelector('.modal');
-        if (modal) document.body.removeChild(modal);
+   createNewWorkspace() {
+    const name = prompt('Yeni istasyon adını girin:');
+    if (!name || name.trim() === '') {
+        console.log('Workspace creation cancelled');
+        return;
     }
+    
+    const newWorkspace = {
+        id: 'station-' + Date.now(),
+        name: name.trim(),
+        type: 'packaging', // Default type
+        created: new Date().toISOString()
+    };
+    
+    this.availableWorkspaces.push(newWorkspace);
+    this.saveWorkspaces();
+    this.setCurrentWorkspace(newWorkspace);
+    
+    console.log('New workspace created:', newWorkspace);
+    showAlert(`Yeni istasyon oluşturuldu: ${newWorkspace.name}`, 'success');
+}
+
     
     // Save workspaces to localStorage
     saveWorkspaces() {
