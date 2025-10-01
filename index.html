@@ -755,6 +755,22 @@ document.addEventListener("DOMContentLoaded", function() {
 <!-- 5. Feature modules (depend on core functionality) -->
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script>
-
+    
+<script>
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Initialize elements first
+        window.elements = initializeElementsObject();
+        console.log('✅ Elements initialized');
+        
+        // Then start app
+        await initApp();
+    } catch (error) {
+        console.error('❌ Critical error during initialization:', error);
+        alert('Uygulama başlatılırken hata oluştu: ' + error.message);
+    }
+});
+</script>
 </body>
 </html>
