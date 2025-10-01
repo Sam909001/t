@@ -442,9 +442,9 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
     constructor() {
         super();
         this.dataValidators = new Map();
-        this.printerConfigs = new Map();
+        this.printerConfigs = new Map(); // ADDED: Printer configurations
         this.setupDataValidators();
-        this.loadPrinterConfigurations();
+        this.loadPrinterConfigurations(); // ADDED: Load printer configs
     }
 
     // ==================== PRINTER CONFIGURATION METHODS ====================
@@ -454,7 +454,6 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         // Define printer configurations for each station
         this.printerConfigs.set('station-1', {
             name: 'Argox OS-214EX PPLA',
-            selectedPrinterName: 'Argox OS-214EX PPLA',
             type: 'argox',
             connection: 'usb',
             ip: null,
@@ -465,8 +464,7 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         });
 
         this.printerConfigs.set('station-2', {
-            name: 'Argox OS-214EX PPLA1',
-            selectedPrinterName: 'Argox OS-214EX PPLA1',
+            name: 'Argox OS-214EX PPLA1', 
             type: 'argox',
             connection: 'usb',
             ip: null,
@@ -478,8 +476,7 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
 
         this.printerConfigs.set('station-3', {
             name: 'Zebra ZD420',
-            selectedPrinterName: 'Zebra ZD420',
-            type: 'zebra',
+            type: 'zebra', 
             connection: 'usb',
             ip: null,
             paperWidth: 50,
@@ -490,9 +487,8 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
 
         this.printerConfigs.set('station-4', {
             name: 'Brother QL-800',
-            selectedPrinterName: 'Brother QL-800',
             type: 'brother',
-            connection: 'usb',
+            connection: 'usb', 
             ip: null,
             paperWidth: 62,
             paperHeight: 29,
@@ -506,44 +502,44 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         console.log('🖨️ Printer configurations loaded for all workstations');
     }
 
-    // Get current printer configuration with null safety
-    getCurrentPrinterConfig() {
-        const workspaceId = this.currentWorkspace?.id;
-        if (!workspaceId) {
-            console.warn('No workspace selected, using default printer');
-            return this.getDefaultPrinterConfig();
-        }
-        
-        const config = this.printerConfigs.get(workspaceId);
-        if (!config) {
-            console.warn(`No printer config for workspace ${workspaceId}, using default`);
-            return this.getDefaultPrinterConfig();
-        }
-        
-        // Ensure selectedPrinterName exists
-        if (!config.selectedPrinterName) {
-            console.warn(`⚠️ Missing selectedPrinterName for ${workspaceId}, using name as fallback`);
-            config.selectedPrinterName = config.name;
-            this.savePrinterConfigurations();
-        }
-        
-        return config;
+    
+// In the EnhancedWorkspaceManager class, replace getCurrentPrinterConfig:
+getCurrentPrinterConfig() {
+    const workspaceId = this.currentWorkspace?.id;
+    if (!workspaceId) {
+        console.warn('No workspace selected, using default printer');
+        return this.getDefaultPrinterConfig();
     }
-
-    // Get default printer configuration
-    getDefaultPrinterConfig() {
-        return {
-            name: 'Default Printer',
-            selectedPrinterName: 'Default Printer',
-            type: 'generic',
-            connection: 'wifi',
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203,
-            description: 'Varsayılan Yazıcı'
-        };
+    
+    const config = this.printerConfigs.get(workspaceId);
+    if (!config) {
+        console.warn(`No printer config for workspace ${workspaceId}, using default`);
+        return this.getDefaultPrinterConfig();
     }
+    
+    // Ensure selectedPrinterName exists
+    if (!config.selectedPrinterName) {
+        console.warn(`⚠️ Missing selectedPrinterName for ${workspaceId}, using name as fallback`);
+        config.selectedPrinterName = config.name;
+        this.savePrinterConfigurations(); // Save the fix
+    }
+    
+    return config;
+}
 
+// Also update getDefaultPrinterConfig:
+getDefaultPrinterConfig() {
+    return {
+        name: 'Default Printer',
+        selectedPrinterName: 'Default Printer',
+        type: 'generic',
+        connection: 'wifi', // Changed to 'wifi' as the new default
+        paperWidth: 50,
+        paperHeight: 30,
+        dpi: 203,
+        description: 'Varsayılan Yazıcı'
+    };
+}
     // Get printer configuration for specific workspace
     getPrinterConfig(workspaceId) {
         return this.printerConfigs.get(workspaceId) || this.getDefaultPrinterConfig();
@@ -614,24 +610,14 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
     // Update printer UI indicator
     updatePrinterUI() {
         const printerIndicator = document.getElementById('printerIndicator');
-        if (printerIndicator) {
-            if (this.currentWorkspace) {
-                const printerConfig = this.getCurrentPrinterConfig();
-                printerIndicator.innerHTML = `
-                    <i class="fas fa-print"></i> 
-                    ${this.currentWorkspace.name}: ${printerConfig.name}
-                    <span class="printer-status">🖨️</span>
-                `;
-                printerIndicator.title = `Yazıcı: ${printerConfig.name} - ${printerConfig.description || ''}`;
-            } else {
-                // Handle case when no workspace is selected
-                printerIndicator.innerHTML = `
-                    <i class="fas fa-print"></i> 
-                    Yazıcı: İstasyon Seçilmedi
-                    <span class="printer-status">❓</span>
-                `;
-                printerIndicator.title = 'Yazıcı: Önce istasyon seçin';
-            }
+        if (printerIndicator && this.currentWorkspace) {
+            const printerConfig = this.getCurrentPrinterConfig();
+            printerIndicator.innerHTML = `
+                <i class="fas fa-print"></i> 
+                ${this.currentWorkspace.name}: ${printerConfig.name}
+                <span class="printer-status">🖨️</span>
+            `;
+            printerIndicator.title = `Yazıcı: ${printerConfig.name} - ${printerConfig.description || ''}`;
         }
     }
 
@@ -642,31 +628,24 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         // Update printer configuration for new workspace
         setTimeout(() => {
             this.updatePrinterUI();
-            if (workspace) {
-                const printerConfig = this.getCurrentPrinterConfig();
-                console.log(`🖨️ Workspace changed to ${workspace.name}, active printer: ${printerConfig.name}`);
-                
-                // Initialize workstation printer if available
-                if (window.workstationPrinter) {
-                    window.workstationPrinter.initialize();
-                }
+            console.log(`🖨️ Workspace changed to ${workspace.name}, active printer: ${this.getCurrentPrinterConfig().name}`);
+            
+            // Initialize workstation printer if available
+            if (window.workstationPrinter) {
+                window.workstationPrinter.initialize();
             }
         }, 100);
     }
 
     // Test printer connection for current workspace
     async testCurrentPrinter() {
-        if (!this.currentWorkspace) {
-            showAlert('Önce çalışma istasyonu seçin', 'error');
-            return false;
-        }
-        
         const printerConfig = this.getCurrentPrinterConfig();
         console.log(`🧪 Testing printer: ${printerConfig.name} for ${this.currentWorkspace.name}`);
         
         // Simulate printer test
         return new Promise((resolve) => {
             setTimeout(() => {
+                // In real implementation, this would actually test the printer connection
                 console.log(`✅ Printer test completed for ${printerConfig.name}`);
                 showAlert(`Yazıcı testi tamamlandı: ${printerConfig.name}`, 'success');
                 resolve(true);
@@ -681,11 +660,6 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         // Package validation
         this.dataValidators.set('packages', (data) => {
             const currentWorkspaceId = this.currentWorkspace?.id;
-            
-            if (!currentWorkspaceId) {
-                console.error('🚨 No current workspace set during package validation');
-                return false;
-            }
             
             // Critical: Reject packages from different workspaces
             if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
@@ -707,29 +681,14 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
 
         // Container validation
         this.dataValidators.set('containers', (data) => {
-            const currentWorkspaceId = this.currentWorkspace?.id;
-            
-            if (!currentWorkspaceId) {
-                console.error('🚨 No current workspace set during container validation');
-                return false;
-            }
-            
-            // Ensure workspace_id is set
-            if (!data.workspace_id) {
-                data.workspace_id = currentWorkspaceId;
-            }
-            
+            // Containers are workspace-specific but might not have explicit workspace_id
+            // We'll filter them based on their packages
             return true;
         });
 
         // Sync operation validation
         this.dataValidators.set('sync_operations', (data) => {
             const currentWorkspaceId = this.currentWorkspace?.id;
-            
-            if (!currentWorkspaceId) {
-                console.error('🚨 No current workspace set during sync validation');
-                return false;
-            }
             
             if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
                 console.error('🚨 WORKSPACE VIOLATION: Sync operation from different workspace', data);
@@ -831,7 +790,7 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
     auditDataAccess(tableName, operation, data) {
         const auditEntry = {
             timestamp: new Date().toISOString(),
-            workspace: this.currentWorkspace?.id || 'unknown',
+            workspace: this.currentWorkspace?.id,
             table: tableName,
             operation: operation,
             dataId: data.id,
@@ -854,244 +813,10 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         
         localStorage.setItem('workspace_audit_log', JSON.stringify(auditLog));
     }
-
-    // ==================== ENHANCED WORKSPACE INITIALIZATION ====================
-    
-    // Enhanced workspace detection for both web and Electron
-    async detectOrCreateWorkspace() {
-        console.log('🔍 Detecting workspace for platform...');
-        
-        // Try to get workspace from URL parameters (web)
-        const urlParams = new URLSearchParams(window.location.search);
-        const workspaceId = urlParams.get('workspace');
-        
-        if (workspaceId) {
-            const workspace = this.availableWorkspaces.find(ws => ws.id === workspaceId);
-            if (workspace) {
-                this.setCurrentWorkspace(workspace);
-                console.log('✅ Workspace from URL:', workspaceId);
-                return;
-            }
-        }
-        
-        // Try to get from localStorage
-        const savedWorkspace = localStorage.getItem(this.workspaceKey);
-        if (savedWorkspace) {
-            const workspace = this.availableWorkspaces.find(ws => ws.id === savedWorkspace);
-            if (workspace) {
-                this.setCurrentWorkspace(workspace);
-                console.log('✅ Workspace from localStorage:', savedWorkspace);
-                return;
-            }
-        }
-        
-        // For Electron, try to detect based on display/screen information
-        if (this.isElectron()) {
-            const electronWorkspace = await this.detectElectronWorkspace();
-            if (electronWorkspace) {
-                this.setCurrentWorkspace(electronWorkspace);
-                console.log('✅ Electron workspace detected:', electronWorkspace.name);
-                return;
-            }
-        }
-        
-        // Show workspace selection modal as fallback
-        console.log('🔄 Showing workspace selection modal');
-        await this.showWorkspaceSelection();
-    }
-    
-    // Check if running in Electron
-    isElectron() {
-        return window && window.process && window.process.type;
-    }
-    
-    // Detect workspace for Electron based on screen configuration
-    async detectElectronWorkspace() {
-        try {
-            // Get screen information in Electron
-            if (window.electronAPI && window.electronAPI.getScreenInfo) {
-                const screenInfo = await window.electronAPI.getScreenInfo();
-                console.log('🖥️ Electron screen info:', screenInfo);
-                
-                // Map screen to workspace based on position or display name
-                if (screenInfo && screenInfo.displays) {
-                    const display = screenInfo.displays[0];
-                    if (display) {
-                        // Try to match by display name or position
-                        const matchedWorkspace = this.availableWorkspaces.find(ws => 
-                            ws.displayName && display.label.includes(ws.displayName)
-                        );
-                        
-                        if (matchedWorkspace) {
-                            return matchedWorkspace;
-                        }
-                        
-                        // Fallback: assign based on display index
-                        const displayIndex = screenInfo.displays.indexOf(display);
-                        if (this.availableWorkspaces[displayIndex]) {
-                            return this.availableWorkspaces[displayIndex];
-                        }
-                    }
-                }
-            }
-            
-            // Fallback for Electron: use hostname or other system info
-            if (window.electronAPI && window.electronAPI.getSystemInfo) {
-                const systemInfo = await window.electronAPI.getSystemInfo();
-                console.log('💻 Electron system info:', systemInfo);
-                
-                // Use hostname to determine workspace
-                if (systemInfo && systemInfo.hostname) {
-                    const hostname = systemInfo.hostname.toLowerCase();
-                    const matchedWorkspace = this.availableWorkspaces.find(ws => 
-                        ws.hostname && hostname.includes(ws.hostname)
-                    );
-                    
-                    if (matchedWorkspace) {
-                        return matchedWorkspace;
-                    }
-                }
-            }
-            
-        } catch (error) {
-            console.warn('⚠️ Electron workspace detection failed:', error);
-        }
-        
-        return null;
-    }
-    
-    // Enhanced workspace selection with platform-specific options
-    async showWorkspaceSelection() {
-        return new Promise((resolve) => {
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
-                align-items: center; z-index: 10000;
-            `;
-            
-            const platformInfo = this.isElectron() ? 
-                '<p><small>🖥️ <strong>Electron Modu:</strong> Bu monitör için uygun istasyonu seçin</small></p>' :
-                '<p><small>🌐 <strong>Web Modu:</strong> Bu tarayıcı sekmesi için istasyon seçin</small></p>';
-            
-            modal.innerHTML = `
-                <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%;">
-                    <h2>Çalışma İstasyonu Seçin</h2>
-                    ${platformInfo}
-                    <p>Lütfen bu monitör için bir çalışma istasyonu seçin:</p>
-                    <div id="workspaceOptions" style="margin: 1rem 0;"></div>
-                    <button onclick="window.workspaceManager.createNewWorkspace()" 
-                            style="margin-top: 1rem; padding: 0.5rem 1rem;">
-                        <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
-                    </button>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Populate workspace options
-            const optionsContainer = document.getElementById('workspaceOptions');
-            this.availableWorkspaces.forEach(workspace => {
-                const button = document.createElement('button');
-                button.style.cssText = `
-                    display: block; width: 100%; padding: 1rem; margin: 0.5rem 0; 
-                    text-align: left; border: 1px solid #ddd; border-radius: 5px;
-                    background: #f9f9f9; cursor: pointer; transition: background 0.2s;
-                `;
-                button.onmouseover = () => button.style.background = '#e9e9e9';
-                button.onmouseout = () => button.style.background = '#f9f9f9';
-                
-                button.innerHTML = `
-                    <strong>${workspace.name}</strong><br>
-                    <small>Tip: ${this.getWorkspaceTypeLabel(workspace)}</small>
-                `;
-                button.onclick = () => {
-                    this.setCurrentWorkspace(workspace);
-                    document.body.removeChild(modal);
-                    resolve();
-                };
-                optionsContainer.appendChild(button);
-            });
-        });
-    }
-    
-    // Safe workspace type label getter
-    getWorkspaceTypeLabel(workspace = null) {
-        const workspaceToCheck = workspace || this.currentWorkspace;
-        
-        // Add null check to prevent the error
-        if (!workspaceToCheck) {
-            return 'Seçili Değil';
-        }
-        
-        const types = {
-            'packaging': 'Paketleme',
-            'shipping': 'Sevkiyat',
-            'quality': 'Kalite Kontrol',
-            'admin': 'Yönetici'
-        };
-        return types[workspaceToCheck.type] || workspaceToCheck.type || 'Belirsiz';
-    }
-    
-    // Enhanced initialization for both platforms
-    async initialize() {
-        console.log('🔄 Initializing workspace system for platform...');
-        await this.loadWorkspaces();
-        await this.detectOrCreateWorkspace();
-        this.initializeWorkspaceStorage();
-        console.log('✅ Workspace system ready:', this.currentWorkspace?.name || 'No workspace');
-        return this.currentWorkspace;
-    }
 }
 
-// Safe initialization function for both web and Electron
-async function initializeWorkspaceSafe() {
-    try {
-        if (!window.workspaceManager) {
-            window.workspaceManager = new EnhancedWorkspaceManager();
-        }
-        
-        await window.workspaceManager.initialize();
-        
-        // Double-check that workspace is set
-        if (!window.workspaceManager.currentWorkspace) {
-            console.warn('⚠️ No workspace selected after initialization, forcing selection...');
-            await window.workspaceManager.showWorkspaceSelection();
-        }
-        
-        console.log('✅ Workspace system fully initialized:', 
-            window.workspaceManager.currentWorkspace?.name || 'No workspace');
-            
-    } catch (error) {
-        console.error('❌ Workspace initialization failed:', error);
-        // Fallback: create a default workspace
-        const defaultWorkspace = {
-            id: 'station-default',
-            name: 'Varsayılan İstasyon',
-            type: 'packaging',
-            created: new Date().toISOString()
-        };
-        window.workspaceManager.setCurrentWorkspace(defaultWorkspace);
-    }
-}
-
-// Update the DOMContentLoaded event listener for both platforms
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Starting app initialization...');
-    
-    // Initialize workspace system safely
-    await initializeWorkspaceSafe();
-    
-    // Continue with other initializations only if workspace is set
-    if (window.workspaceManager.currentWorkspace) {
-        console.log('🎯 App starting with workspace:', window.workspaceManager.currentWorkspace.name);
-        // Initialize other components...
-    } else {
-        console.error('❌ Cannot start app: No workspace selected');
-        showAlert('Lütfen bir çalışma istasyonu seçin', 'error');
-    }
-});
+// Replace the existing WorkspaceManager
+window.workspaceManager = new EnhancedWorkspaceManager();
 
 // ==================== WORKSTATION PRINTER TEST FUNCTIONS ====================
 
