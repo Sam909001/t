@@ -1,3 +1,38 @@
+/* 
+Add this helper function to detect if running in Electron:
+*/
+
+function isElectron() {
+    return typeof window !== 'undefined' && 
+           typeof window.process === 'object' && 
+           window.process.type === 'renderer';
+}
+
+/* 
+Add this to the beginning of your DOMContentLoaded in app.js:
+*/
+
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 Starting ProClean application...');
+    
+    // Detect Electron environment
+    if (isElectron()) {
+        console.log('📱 Running in Electron');
+        // Add any Electron-specific initialization here
+    } else {
+        console.log('🌐 Running in Web Browser');
+    }
+
+    try {
+        // Initialize workspace FIRST
+        if (!window.workspaceManager) {
+            window.workspaceManager = new WorkspaceManager();
+        }
+        await window.workspaceManager.initialize();
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace?.name || 'None');
+
+
+
 // Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
 document.addEventListener('DOMContentLoaded', () => {
     const savedApiKey = localStorage.getItem('procleanApiKey');
