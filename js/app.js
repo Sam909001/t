@@ -77,7 +77,6 @@ async function initApp() {
         const runningInElectron = isElectron();
         if (runningInElectron) {
             console.log('📱 Running in Electron environment');
-            // Electron-specific configurations
             window.isElectronApp = true;
         } else {
             console.log('🌐 Running in Web Browser environment');
@@ -92,8 +91,16 @@ async function initApp() {
         
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
         
-        // 2. Initialize elements
-        initializeElementsObject();
+        // 2. Initialize elements - WITH SAFETY CHECK
+        if (typeof initializeElementsObject === 'function') {
+            initializeElementsObject();
+        } else {
+            console.error('❌ initializeElementsObject not found! Check if ui.js is loaded.');
+            // Fallback: create empty elements object
+            if (typeof elements === 'undefined') {
+                window.elements = {};
+            }
+        }
         
         // 3. Initialize workspace-aware UI
         if (typeof initializeWorkspaceUI === 'function') {
@@ -152,13 +159,13 @@ async function initApp() {
         await populateStockTable();
         await populateShippingTable();
         
-        // 13. Test connection (skip in Electron if offline mode preferred)
+        // 13. Test connection
         if (supabase) {
             await testConnection();
         }
         
         // 14. Set up auto-save and offline support
-        setInterval(saveAppState, 30000); // Every 30 seconds
+        setInterval(saveAppState, 30000);
         setupOfflineSupport();
         if (typeof setupBarcodeScanner === 'function') {
             setupBarcodeScanner();
@@ -167,7 +174,7 @@ async function initApp() {
         // 15. Start daily auto-clear
         scheduleDailyClear();
         
-        // 16. Auto-sync on startup if online and not in Electron (optional)
+        // 16. Auto-sync on startup if online and not in Electron
         if (navigator.onLine && supabase && !runningInElectron) {
             setTimeout(async () => {
                 if (typeof syncExcelWithSupabase === 'function') {
@@ -186,7 +193,6 @@ async function initApp() {
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 }
-
 
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
