@@ -1,47 +1,12 @@
-/* 
-Add this helper function to detect if running in Electron:
-*/
+// ==================== APP.JS - TOP OF FILE ====================
 
+// Detect if running in Electron
 function isElectron() {
     return typeof window !== 'undefined' && 
            typeof window.process === 'object' && 
            window.process.type === 'renderer';
 }
 
-/* 
-Add this to the beginning of your DOMContentLoaded in app.js:
-*/
-
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Starting ProClean application...');
-    
-    // Detect Electron environment
-    if (isElectron()) {
-        console.log('📱 Running in Electron');
-        // Add any Electron-specific initialization here
-    } else {
-        console.log('🌐 Running in Web Browser');
-    }
-
-    try {
-        // Initialize workspace FIRST
-        if (!window.workspaceManager) {
-            window.workspaceManager = new WorkspaceManager();
-        }
-        await window.workspaceManager.initialize();
-        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace?.name || 'None');
-
-
-
-// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
-document.addEventListener('DOMContentLoaded', () => {
-    const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
-        SUPABASE_ANON_KEY = savedApiKey;
-        initializeSupabase();
-        console.log('API key loaded from localStorage');
-    }
-});
 
 // State management functions
 function saveAppState() {
@@ -108,6 +73,17 @@ async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
+        // 0. Detect and log environment
+        const runningInElectron = isElectron();
+        if (runningInElectron) {
+            console.log('📱 Running in Electron environment');
+            // Electron-specific configurations
+            window.isElectronApp = true;
+        } else {
+            console.log('🌐 Running in Web Browser environment');
+            window.isElectronApp = false;
+        }
+        
         // 1. Initialize workspace system FIRST
         if (!window.workspaceManager) {
             window.workspaceManager = new WorkspaceManager();
@@ -115,36 +91,56 @@ async function initApp() {
         await window.workspaceManager.initialize();
         
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-
+        
         // 2. Initialize elements
         initializeElementsObject();
         
         // 3. Initialize workspace-aware UI
-        initializeWorkspaceUI();
-        setupWorkspaceAwareUI();
-
+        if (typeof initializeWorkspaceUI === 'function') {
+            initializeWorkspaceUI();
+        }
+        if (typeof setupWorkspaceAwareUI === 'function') {
+            setupWorkspaceAwareUI();
+        }
+        
         // 4. Migrate existing data to workspace
-        await migrateExistingDataToWorkspace();
-
+        if (typeof migrateExistingDataToWorkspace === 'function') {
+            await migrateExistingDataToWorkspace();
+        }
+        
         // 5. Initialize sync system
-        initializeSyncQueue();
-        setupEnhancedSyncTriggers();
-
+        if (typeof initializeSyncQueue === 'function') {
+            initializeSyncQueue();
+        }
+        if (typeof setupEnhancedSyncTriggers === 'function') {
+            setupEnhancedSyncTriggers();
+        }
+        
         // 6. Setup event listeners
         setupEventListeners();
         
         // 7. API key initialization
         initializeApiAndAuth();
-
+        
         // 8. Initialize settings
-        initializeSettings();
-
+        if (typeof initializeSettings === 'function') {
+            initializeSettings();
+        }
+        
         // 9. Initialize daily Excel file system
-        await ExcelStorage.cleanupOldFiles();
-        await ExcelStorage.readFile();
+        if (typeof ExcelStorage !== 'undefined') {
+            if (typeof ExcelStorage.cleanupOldFiles === 'function') {
+                await ExcelStorage.cleanupOldFiles();
+            }
+            if (typeof ExcelStorage.readFile === 'function') {
+                await ExcelStorage.readFile();
+            }
+        }
         
         // 10. Populate UI
-        elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        if (elements.currentDate) {
+            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        }
         await populateCustomers();
         await populatePersonnel();
         
@@ -156,33 +152,40 @@ async function initApp() {
         await populateStockTable();
         await populateShippingTable();
         
-        // 13. Test connection
-        await testConnection();
+        // 13. Test connection (skip in Electron if offline mode preferred)
+        if (supabase) {
+            await testConnection();
+        }
         
         // 14. Set up auto-save and offline support
-        setInterval(saveAppState, 5000);
+        setInterval(saveAppState, 30000); // Every 30 seconds
         setupOfflineSupport();
-        setupBarcodeScanner();
+        if (typeof setupBarcodeScanner === 'function') {
+            setupBarcodeScanner();
+        }
         
         // 15. Start daily auto-clear
         scheduleDailyClear();
-
-        // 16. Auto-sync on startup if online
-        if (navigator.onLine && supabase) {
+        
+        // 16. Auto-sync on startup if online and not in Electron (optional)
+        if (navigator.onLine && supabase && !runningInElectron) {
             setTimeout(async () => {
-                await syncExcelWithSupabase();
+                if (typeof syncExcelWithSupabase === 'function') {
+                    await syncExcelWithSupabase();
+                }
             }, 5000);
         }
         
-        console.log(`🎉 ProClean fully initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
-        showAlert('Uygulama başarıyla başlatıldı!', 'success');
-
+        const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
+        console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
+        showAlert('Uygulama başarıyla başlatıldı!', 'success', 3000);
+        
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
+        console.error('Error stack:', error.stack);
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 }
-
 
 
 
