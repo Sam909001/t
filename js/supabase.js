@@ -442,9 +442,9 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
     constructor() {
         super();
         this.dataValidators = new Map();
-        this.printerConfigs = new Map(); // ADDED: Printer configurations
+        this.printerConfigs = new Map();
         this.setupDataValidators();
-        this.loadPrinterConfigurations(); // ADDED: Load printer configs
+        this.loadPrinterConfigurations();
     }
 
     // ==================== PRINTER CONFIGURATION METHODS ====================
@@ -502,44 +502,44 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         console.log('🖨️ Printer configurations loaded for all workstations');
     }
 
-    
-// In the EnhancedWorkspaceManager class, replace getCurrentPrinterConfig:
-getCurrentPrinterConfig() {
-    const workspaceId = this.currentWorkspace?.id;
-    if (!workspaceId) {
-        console.warn('No workspace selected, using default printer');
-        return this.getDefaultPrinterConfig();
+    // Get current printer configuration
+    getCurrentPrinterConfig() {
+        const workspaceId = this.currentWorkspace?.id;
+        if (!workspaceId) {
+            console.warn('No workspace selected, using default printer');
+            return this.getDefaultPrinterConfig();
+        }
+        
+        const config = this.printerConfigs.get(workspaceId);
+        if (!config) {
+            console.warn(`No printer config for workspace ${workspaceId}, using default`);
+            return this.getDefaultPrinterConfig();
+        }
+        
+        // Ensure selectedPrinterName exists
+        if (!config.selectedPrinterName) {
+            console.warn(`⚠️ Missing selectedPrinterName for ${workspaceId}, using name as fallback`);
+            config.selectedPrinterName = config.name;
+            this.savePrinterConfigurations();
+        }
+        
+        return config;
     }
-    
-    const config = this.printerConfigs.get(workspaceId);
-    if (!config) {
-        console.warn(`No printer config for workspace ${workspaceId}, using default`);
-        return this.getDefaultPrinterConfig();
-    }
-    
-    // Ensure selectedPrinterName exists
-    if (!config.selectedPrinterName) {
-        console.warn(`⚠️ Missing selectedPrinterName for ${workspaceId}, using name as fallback`);
-        config.selectedPrinterName = config.name;
-        this.savePrinterConfigurations(); // Save the fix
-    }
-    
-    return config;
-}
 
-// Also update getDefaultPrinterConfig:
-getDefaultPrinterConfig() {
-    return {
-        name: 'Default Printer',
-        selectedPrinterName: 'Default Printer',
-        type: 'generic',
-        connection: 'wifi', // Changed to 'wifi' as the new default
-        paperWidth: 50,
-        paperHeight: 30,
-        dpi: 203,
-        description: 'Varsayılan Yazıcı'
-    };
-}
+    // Get default printer configuration
+    getDefaultPrinterConfig() {
+        return {
+            name: 'Default Printer',
+            selectedPrinterName: 'Default Printer',
+            type: 'generic',
+            connection: 'wifi',
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'Varsayılan Yazıcı'
+        };
+    }
+
     // Get printer configuration for specific workspace
     getPrinterConfig(workspaceId) {
         return this.printerConfigs.get(workspaceId) || this.getDefaultPrinterConfig();
@@ -629,11 +629,6 @@ getDefaultPrinterConfig() {
         setTimeout(() => {
             this.updatePrinterUI();
             console.log(`🖨️ Workspace changed to ${workspace.name}, active printer: ${this.getCurrentPrinterConfig().name}`);
-            
-            // Initialize workstation printer if available
-            if (window.workstationPrinter) {
-                window.workstationPrinter.initialize();
-            }
         }, 100);
     }
 
@@ -645,7 +640,6 @@ getDefaultPrinterConfig() {
         // Simulate printer test
         return new Promise((resolve) => {
             setTimeout(() => {
-                // In real implementation, this would actually test the printer connection
                 console.log(`✅ Printer test completed for ${printerConfig.name}`);
                 showAlert(`Yazıcı testi tamamlandı: ${printerConfig.name}`, 'success');
                 resolve(true);
@@ -653,6 +647,165 @@ getDefaultPrinterConfig() {
         });
     }
 
+    // ==================== EXISTING DATA VALIDATION METHODS ====================
+
+    // Setup validation rules for all data types
+    setupDataValidators() {
+        // Package validation
+        this.dataValidators.set('packages', (data) => {
+            const currentWorkspaceId = this.currentWorkspace?.id;
+            
+            // Critical: Reject packages from different workspaces
+            if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
+                console.error('🚨 WORKSPACE VIOLATION: Package from different workspace', {
+                    packageId: data.id,
+                    packageWorkspace: data.workspace_id,
+                    currentWorkspace: currentWorkspaceId
+                });
+                return false;
+            }
+            
+            // Ensure workspace_id is set
+            if (!data.workspace_id) {
+                data.workspace_id = currentWorkspaceId;
+            }
+            
+            return true;
+        });
+
+        // Container validation
+        this.dataValidators.set('containers', (data) => {
+            return true;
+        });
+
+        // Sync operation validation
+        this.dataValidators.set('sync_operations', (data) => {
+            const currentWorkspaceId = this.currentWorkspace?.id;
+            
+            if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
+                console.error('🚨 WORKSPACE VIOLATION: Sync operation from different workspace', data);
+                return false;
+            }
+            
+            data.workspace_id = currentWorkspaceId;
+            return true;
+        });
+    }
+
+    // Enhanced workspace filtering for queries
+    createWorkspaceFilter(tableName) {
+        const currentWorkspaceId = this.currentWorkspace?.id;
+        
+        if (!currentWorkspaceId) {
+            console.warn('⚠️ No current workspace for filter');
+            return {};
+        }
+        
+        // Different tables might have different workspace field names
+        const workspaceFields = {
+            'packages': 'workspace_id',
+            'containers': 'workspace_id', 
+            'sync_queue': 'workspace_id',
+            'stock_items': 'workspace_id'
+        };
+        
+        const field = workspaceFields[tableName] || 'workspace_id';
+        
+        return { [field]: currentWorkspaceId };
+    }
+
+    // Validate data before any operation
+    validateDataAccess(tableName, data, operation = 'access') {
+        const currentWorkspaceId = this.currentWorkspace?.id;
+        
+        if (!currentWorkspaceId) {
+            console.error('🚨 No current workspace set during data validation');
+            return false;
+        }
+        
+        const validator = this.dataValidators.get(tableName);
+        if (validator) {
+            return validator(data);
+        }
+        
+        // Default validation for unknown tables
+        if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
+            console.error(`🚨 WORKSPACE VIOLATION: ${operation} on ${tableName}`, {
+                dataWorkspace: data.workspace_id,
+                currentWorkspace: currentWorkspaceId,
+                dataId: data.id
+            });
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Enhanced workspace-aware data loading
+    async loadWorkspaceDataStrict() {
+        const workspaceId = this.currentWorkspace?.id;
+        
+        if (!workspaceId) {
+            throw new Error('No workspace selected');
+        }
+        
+        console.log(`🔒 Loading STRICT workspace data for: ${workspaceId}`);
+        
+        try {
+            // Load from Excel with strict filtering
+            const allExcelData = await ExcelJS.readFile();
+            const workspaceData = allExcelData.filter(item => {
+                const isValid = item.workspace_id === workspaceId;
+                if (!isValid) {
+                    console.warn('🔒 Filtered out non-workspace Excel data:', {
+                        id: item.id,
+                        itemWorkspace: item.workspace_id,
+                        currentWorkspace: workspaceId
+                    });
+                }
+                return isValid;
+            });
+            
+            // Update global excelPackages
+            excelPackages = workspaceData;
+            
+            console.log(`✅ Strict workspace data loaded: ${workspaceData.length} items`);
+            return workspaceData;
+            
+        } catch (error) {
+            console.error('❌ Error in strict workspace data loading:', error);
+            throw error;
+        }
+    }
+
+    // Audit data access for security
+    auditDataAccess(tableName, operation, data) {
+        const auditEntry = {
+            timestamp: new Date().toISOString(),
+            workspace: this.currentWorkspace?.id,
+            table: tableName,
+            operation: operation,
+            dataId: data.id,
+            user: currentUser?.email || 'unknown'
+        };
+        
+        // Log to console in development
+        if (window.DEBUG_MODE) {
+            console.log('🔍 Data Access Audit:', auditEntry);
+        }
+        
+        // Store in localStorage for debugging
+        const auditLog = JSON.parse(localStorage.getItem('workspace_audit_log') || '[]');
+        auditLog.push(auditEntry);
+        
+        // Keep only last 1000 entries
+        if (auditLog.length > 1000) {
+            auditLog.splice(0, auditLog.length - 1000);
+        }
+        
+        localStorage.setItem('workspace_audit_log', JSON.stringify(auditLog));
+    }
+}
     // ==================== EXISTING DATA VALIDATION METHODS ====================
 
     // Setup validation rules for all data types
