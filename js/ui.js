@@ -460,7 +460,6 @@ function closeContainerDetailModal() {
 }
 
 // Müşteri klasöründeki tüm konteynerleri seç
-function toggle// Müşteri klasöründeki tüm konteynerleri seç
 function toggleSelectAllCustomer(checkbox) {
     console.log('Toggle select all triggered');
     
