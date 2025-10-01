@@ -270,62 +270,91 @@ function setupBarcodeScanner() {
 // Stok düzenleme fonksiyonları
 let currentEditingRow = null;
 
+
 // Enhanced stock editing functionality
 // Enhanced stock editing functionality
 function editStockItem(code) {
-    if (!requirePassword('Stok öğesini düzenlemek üzeresiniz.')) return;
+    console.log('Editing stock item:', code);
     
-    const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-    if (!row) {
-        showAlert('Stok öğesi bulunamadı', 'error');
+    // Find the row
+    const stockTableBody = document.getElementById('stockTableBody');
+    if (!stockTableBody) {
+        console.error('Stock table body not found');
         return;
     }
     
-    const quantityCell = row.cells[2];
-    const currentQuantity = parseInt(quantityCell.textContent);
+    const rows = stockTableBody.querySelectorAll('tr');
+    let targetRow = null;
     
-    const newQuantity = prompt(`Yeni miktarı girin (${code}):`, currentQuantity);
+    for (let row of rows) {
+        const codeCell = row.querySelector('td:first-child');
+        if (codeCell && codeCell.textContent.trim() === code) {
+            targetRow = row;
+            break;
+        }
+    }
     
-    if (newQuantity === null) return; // User cancelled
+    if (!targetRow) {
+        showAlert('Stok öğesi bulunamadı: ' + code, 'error');
+        return;
+    }
+    
+    const quantityCell = targetRow.querySelector('td:nth-child(3)'); // 3rd column is quantity
+    if (!quantityCell) {
+        console.error('Quantity cell not found');
+        return;
+    }
+    
+    const currentQuantity = parseInt(quantityCell.textContent) || 0;
+    
+    const newQuantity = prompt(`${code} için yeni miktarı girin:`, currentQuantity);
+    
+    if (newQuantity === null) {
+        return; // User cancelled
+    }
     
     const quantity = parseInt(newQuantity);
+    
     if (isNaN(quantity) || quantity < 0) {
         showAlert('Geçerli bir miktar girin (0 veya üzeri)', 'error');
         return;
     }
     
-    updateStockItem(code, quantity, row);
+    // Update the stock
+    updateStockItem(code, quantity, targetRow);
 }
 
 async function updateStockItem(code, newQuantity, row) {
     try {
-        showAlert('Stok güncelleniyor...', 'info');
+        showAlert('Stok güncelleniyor...', 'info', 1000);
+        
+        const quantityCell = row.querySelector('td:nth-child(3)');
+        const statusCell = row.querySelector('td:nth-child(5)');
+        const dateCell = row.querySelector('td:nth-child(6)');
         
         // Update UI immediately
-        const quantityCell = row.cells[2];
-        const statusCell = row.cells[4];
-        const dateCell = row.cells[5];
-        
-        quantityCell.textContent = newQuantity;
-        dateCell.textContent = new Date().toLocaleDateString('tr-TR');
+        if (quantityCell) quantityCell.textContent = newQuantity;
+        if (dateCell) dateCell.textContent = new Date().toLocaleDateString('tr-TR');
         
         // Update status
-        let statusClass, statusText;
-        if (newQuantity === 0) {
-            statusClass = 'status-kritik';
-            statusText = 'Tükendi';
-        } else if (newQuantity < 10) {
-            statusClass = 'status-az-stok';
-            statusText = 'Az Stok';
-        } else if (newQuantity < 50) {
-            statusClass = 'status-uyari';
-            statusText = 'Düşük';
-        } else {
-            statusClass = 'status-stokta';
-            statusText = 'Stokta';
+        if (statusCell) {
+            let statusClass, statusText;
+            if (newQuantity === 0) {
+                statusClass = 'status-kritik';
+                statusText = 'Tükendi';
+            } else if (newQuantity < 10) {
+                statusClass = 'status-az-stok';
+                statusText = 'Az Stok';
+            } else if (newQuantity < 50) {
+                statusClass = 'status-uyari';
+                statusText = 'Düşük';
+            } else {
+                statusClass = 'status-stokta';
+                statusText = 'Stokta';
+            }
+            
+            statusCell.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
         }
-        
-        statusCell.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
         
         // Save to database if online
         if (supabase && navigator.onLine) {
@@ -337,27 +366,35 @@ async function updateStockItem(code, newQuantity, row) {
                 })
                 .eq('code', code);
                 
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase update error:', error);
+                throw error;
+            }
+            
+            showAlert(`✅ Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
         } else {
-            // Save to offline storage
-            saveOfflineData('stockUpdates', {
+            // Save to localStorage for offline mode
+            const stockUpdates = JSON.parse(localStorage.getItem('stockUpdates') || '[]');
+            stockUpdates.push({
                 code: code,
                 quantity: newQuantity,
                 updated_at: new Date().toISOString()
             });
+            localStorage.setItem('stockUpdates', JSON.stringify(stockUpdates));
+            
+            showAlert(`✅ Stok güncellendi (offline): ${code} - ${newQuantity} adet`, 'success');
         }
-        
-        showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
         
     } catch (error) {
         console.error('Stock update error:', error);
-        showAlert('Stok güncellenirken hata oluştu', 'error');
+        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
         
-        // Revert UI on error
-        populateStockTable();
+        // Reload table on error
+        if (typeof populateStockTable === 'function') {
+            populateStockTable();
+        }
     }
 }
-
 
 
 // Add missing saveStockItem function
