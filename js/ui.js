@@ -459,12 +459,33 @@ function closeContainerDetailModal() {
     currentContainerDetails = null;
 }
 
-// Müşteri klasöründeki tüm konteynerleri seç
-function toggleSelectAllCustomers(checkbox) {
-    const folder = checkbox.closest('.customer-folder');
-    const checkboxes = folder.querySelectorAll('.container-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+
+
+function toggleSelectAllCustomers() {
+    // elements nesnesinin daha önce ui (19).js içinde tanımlandığını varsayıyoruz.
+    const masterCheckbox = elements.selectAllPackages; 
+    const isChecked = masterCheckbox.checked;
+    
+    // Tüm paket tablosu satırlarını bulun
+    const checkboxes = elements.packagesTableBody.querySelectorAll('input[type="checkbox"][data-package-id]');
+
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+        // İsteğe bağlı: Seçim durumunu güncelleyen mevcut bir fonksiyon varsa onu çağırın
+        // Örneğin: updatePackageSelection(checkbox.dataset.packageId, isChecked);
+    });
+
+    // İsteğe bağlı: UI'daki toplam seçili paket sayısını güncelleyen bir fonksiyon çağrılabilir.
+    // updateSelectionCount();
 }
+
+// Sayfa yüklendiğinde olay dinleyicisini bağlayın
+document.addEventListener('DOMContentLoaded', () => {
+    // 'selectAllPackages' elementi yüklendikten sonra bu dinleyiciyi ekleyin
+    if (elements.selectAllPackages) {
+        elements.selectAllPackages.addEventListener('change', toggleSelectAllCustomers);
+    }
+});
 
 
 // Taranan barkodları göster
