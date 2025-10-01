@@ -1776,20 +1776,32 @@ function getSelectedPackage() {
 }
 
 function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllPackages');
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const selectAll = document.getElementById('selectAllPackages').checked;
+    
+    if (!selectAllCheckbox || checkboxes.length === 0) return;
+    
+    const selectAll = selectAllCheckbox.checked;
     
     checkboxes.forEach(checkbox => {
         checkbox.checked = selectAll;
     });
+    
+    // Update selection count
+    updateSelectionCount();
 }
 
 function updatePackageSelection() {
+    const selectAllCheckbox = document.getElementById('selectAllPackages');
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     
-    document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-}
+    if (!selectAllCheckbox || checkboxes.length === 0) return;
+    
+    const checkedBoxes = Array.from(checkboxes).filter(cb => cb.checked);
+    
+    // Update select all checkbox state
+    selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+    selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
 
 // Stock operations
 function searchStock() {
