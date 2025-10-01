@@ -73,6 +73,25 @@ async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
+        // 1. CRITICAL FIX: Initialize elements FIRST before anything else
+        if (typeof initializeElementsObject !== 'function') {
+            console.error('❌ initializeElementsObject function not loaded!');
+            // Fallback: load from ui.js if not available
+            if (typeof elements === 'undefined') {
+                window.elements = {};
+            }
+        } else {
+            initializeElementsObject();
+        }
+        
+        // 2. Initialize workspace system
+        if (!window.workspaceManager) {
+            window.workspaceManager = new WorkspaceManager();
+        }
+        await window.workspaceManager.initialize();
+        
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
+        
         // 0. Detect and log environment
         const runningInElectron = isElectron();
         if (runningInElectron) {
@@ -81,25 +100,6 @@ async function initApp() {
         } else {
             console.log('🌐 Running in Web Browser environment');
             window.isElectronApp = false;
-        }
-        
-        // 1. Initialize workspace system FIRST
-        if (!window.workspaceManager) {
-            window.workspaceManager = new WorkspaceManager();
-        }
-        await window.workspaceManager.initialize();
-        
-        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-        
-        // 2. Initialize elements - WITH SAFETY CHECK
-        if (typeof initializeElementsObject === 'function') {
-            initializeElementsObject();
-        } else {
-            console.error('❌ initializeElementsObject not found! Check if ui.js is loaded.');
-            // Fallback: create empty elements object
-            if (typeof elements === 'undefined') {
-                window.elements = {};
-            }
         }
         
         // 3. Initialize workspace-aware UI
