@@ -304,52 +304,72 @@ async function createNewContainer() {
 }
 
 async function deleteContainer() {
-    // Seçili konteynerleri al
-    const selectedContainers = Array.from(document.querySelectorAll('.container-checkbox:checked'))
-        .map(cb => cb.value);
-        
-    if (selectedContainers.length === 0) {
+    // Get selected container checkboxes
+    const selectedCheckboxes = document.querySelectorAll('.container-checkbox:checked');
+    
+    if (selectedCheckboxes.length === 0) {
         showAlert('Silinecek konteyner seçin', 'error');
         return;
     }
 
-    if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
+    // Extract container IDs (not container numbers!)
+    const selectedContainerIds = Array.from(selectedCheckboxes).map(cb => {
+        // The value should be the database ID, not the container number
+        return cb.getAttribute('data-container-id') || cb.value;
+    });
+
+    if (!confirm(`${selectedContainerIds.length} konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) {
+        return;
+    }
 
     try {
-        // Önce bu konteynerlere bağlı paketleri güncelle
+        showAlert('Konteynerler siliniyor...', 'info');
+
+        // First, update packages that belong to these containers
         const { error: updateError } = await supabase
             .from('packages')
             .update({ 
                 container_id: null,
                 status: 'beklemede'
             })
-            .in('container_id', selectedContainers);
+            .in('container_id', selectedContainerIds);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+            console.error('Error updating packages:', updateError);
+            throw updateError;
+        }
 
-        // Sonra konteynerleri sil
+        // Then delete the containers
         const { error: deleteError } = await supabase
             .from('containers')
             .delete()
-            .in('id', selectedContainers);
+            .in('id', selectedContainerIds);
 
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+            console.error('Error deleting containers:', deleteError);
+            throw deleteError;
+        }
 
-        // Eğer silinen konteyner aktif konteyner ise sıfırla
-        if (currentContainer && selectedContainers.includes(currentContainer)) {
+        // Clear current container if it was deleted
+        if (currentContainer && selectedContainerIds.includes(currentContainer)) {
             currentContainer = null;
-            elements.containerNumber.textContent = 'Yok';
+            if (elements.containerNumber) {
+                elements.containerNumber.textContent = 'Yok';
+            }
             saveAppState();
         }
         
-        showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
+        showAlert(`✅ ${selectedContainerIds.length} konteyner başarıyla silindi`, 'success');
+        
+        // Refresh the shipping table
         await populateShippingTable();
         
     } catch (error) {
-        console.error('Error deleting container:', error);
-        showAlert('Konteyner silinirken hata oluştu', 'error');
+        console.error('❌ Container deletion error:', error);
+        showAlert('Konteyner silinirken hata oluştu: ' + error.message, 'error');
     }
 }
+
 
 function switchTab(tabName) {
     // Hide all tab panes
