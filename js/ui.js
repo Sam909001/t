@@ -1753,13 +1753,23 @@ function getSelectedPackage() {
     };
 }
 
+// Fix for toggle select all packages
 function toggleSelectAll() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const selectAll = document.getElementById('selectAllPackages').checked;
+    const selectAllCheckbox = document.getElementById('selectAllPackages');
+    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
     
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = selectAll;
+    if (!selectAllCheckbox) {
+        console.error('Select all checkbox not found');
+        return;
+    }
+    
+    const isChecked = selectAllCheckbox.checked;
+    
+    packageCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
     });
+    
+    console.log(`✅ ${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
 }
 
 function updatePackageSelection() {
