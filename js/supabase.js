@@ -1093,11 +1093,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 });
 
-
-
-// Replace the existing WorkspaceManager
-window.workspaceManager = new EnhancedWorkspaceManager();
-
 // ==================== WORKSTATION PRINTER TEST FUNCTIONS ====================
 
 // Test function for workstation printing system
