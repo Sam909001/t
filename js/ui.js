@@ -460,7 +460,7 @@ function closeContainerDetailModal() {
 }
 
 // Müşteri klasöründeki tüm konteynerleri seç
-function toggleSelectAllCustomer(checkbox) {
+function toggleSelectAllCustomers(checkbox) {
     const folder = checkbox.closest('.customer-folder');
     const checkboxes = folder.querySelectorAll('.container-checkbox');
     checkboxes.forEach(cb => cb.checked = checkbox.checked);
