@@ -442,9 +442,9 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
     constructor() {
         super();
         this.dataValidators = new Map();
-        this.printerConfigs = new Map();
+        this.printerConfigs = new Map(); // ADDED: Printer configurations
         this.setupDataValidators();
-        this.loadPrinterConfigurations();
+        this.loadPrinterConfigurations(); // ADDED: Load printer configs
     }
 
     // ==================== PRINTER CONFIGURATION METHODS ====================
@@ -502,44 +502,44 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         console.log('🖨️ Printer configurations loaded for all workstations');
     }
 
-    // Get current printer configuration
-    getCurrentPrinterConfig() {
-        const workspaceId = this.currentWorkspace?.id;
-        if (!workspaceId) {
-            console.warn('No workspace selected, using default printer');
-            return this.getDefaultPrinterConfig();
-        }
-        
-        const config = this.printerConfigs.get(workspaceId);
-        if (!config) {
-            console.warn(`No printer config for workspace ${workspaceId}, using default`);
-            return this.getDefaultPrinterConfig();
-        }
-        
-        // Ensure selectedPrinterName exists
-        if (!config.selectedPrinterName) {
-            console.warn(`⚠️ Missing selectedPrinterName for ${workspaceId}, using name as fallback`);
-            config.selectedPrinterName = config.name;
-            this.savePrinterConfigurations();
-        }
-        
-        return config;
+    
+// In the EnhancedWorkspaceManager class, replace getCurrentPrinterConfig:
+getCurrentPrinterConfig() {
+    const workspaceId = this.currentWorkspace?.id;
+    if (!workspaceId) {
+        console.warn('No workspace selected, using default printer');
+        return this.getDefaultPrinterConfig();
     }
-
-    // Get default printer configuration
-    getDefaultPrinterConfig() {
-        return {
-            name: 'Default Printer',
-            selectedPrinterName: 'Default Printer',
-            type: 'generic',
-            connection: 'wifi',
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203,
-            description: 'Varsayılan Yazıcı'
-        };
+    
+    const config = this.printerConfigs.get(workspaceId);
+    if (!config) {
+        console.warn(`No printer config for workspace ${workspaceId}, using default`);
+        return this.getDefaultPrinterConfig();
     }
+    
+    // Ensure selectedPrinterName exists
+    if (!config.selectedPrinterName) {
+        console.warn(`⚠️ Missing selectedPrinterName for ${workspaceId}, using name as fallback`);
+        config.selectedPrinterName = config.name;
+        this.savePrinterConfigurations(); // Save the fix
+    }
+    
+    return config;
+}
 
+// Also update getDefaultPrinterConfig:
+getDefaultPrinterConfig() {
+    return {
+        name: 'Default Printer',
+        selectedPrinterName: 'Default Printer',
+        type: 'generic',
+        connection: 'wifi', // Changed to 'wifi' as the new default
+        paperWidth: 50,
+        paperHeight: 30,
+        dpi: 203,
+        description: 'Varsayılan Yazıcı'
+    };
+}
     // Get printer configuration for specific workspace
     getPrinterConfig(workspaceId) {
         return this.printerConfigs.get(workspaceId) || this.getDefaultPrinterConfig();
@@ -629,6 +629,11 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         setTimeout(() => {
             this.updatePrinterUI();
             console.log(`🖨️ Workspace changed to ${workspace.name}, active printer: ${this.getCurrentPrinterConfig().name}`);
+            
+            // Initialize workstation printer if available
+            if (window.workstationPrinter) {
+                window.workstationPrinter.initialize();
+            }
         }, 100);
     }
 
@@ -640,6 +645,7 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         // Simulate printer test
         return new Promise((resolve) => {
             setTimeout(() => {
+                // In real implementation, this would actually test the printer connection
                 console.log(`✅ Printer test completed for ${printerConfig.name}`);
                 showAlert(`Yazıcı testi tamamlandı: ${printerConfig.name}`, 'success');
                 resolve(true);
@@ -675,6 +681,8 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
 
         // Container validation
         this.dataValidators.set('containers', (data) => {
+            // Containers are workspace-specific but might not have explicit workspace_id
+            // We'll filter them based on their packages
             return true;
         });
 
@@ -806,6 +814,9 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
         localStorage.setItem('workspace_audit_log', JSON.stringify(auditLog));
     }
 }
+
+// Replace the existing WorkspaceManager
+window.workspaceManager = new EnhancedWorkspaceManager();
 
 // ==================== WORKSTATION PRINTER TEST FUNCTIONS ====================
 
