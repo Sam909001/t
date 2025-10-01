@@ -1,31 +1,7 @@
 // 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
-let elements = {};
-let scannerMode = false;
-let scannedBarcodes = [];
-let editingStockItem = null;
-let selectedCustomer = null;
-let currentPackage = { items: {} };
-let excelSyncQueue = [];
-
-// Add these function stubs to prevent errors
-function requirePassword() { return true; }
-function processBarcode() { console.log('Barcode processed'); }
-function getPrinter() { return window.printerElectron || {}; }
-function restoreEditButton() { /* implementation */ }
-function populateStockTable() { /* implementation */ }
-function closeModal() { /* implementation */ }
-function closeQuantityModal() { document.getElementById('quantityModal').style.display = 'none'; }
-function closeManualModal() { document.getElementById('manualModal').style.display = 'none'; }
-function saveOfflineData() { /* implementation */ }
-function validateForm() { return true; }
-function safePopulatePackagesTable() { /* implementation */ }
-function resetPackageForm() { currentPackage = { items: {} }; }
-function safeSyncExcelWithSupabase() { /* implementation */ }
-
-
-
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
+    const elements = {};
     
     elementIds.forEach(id => {
         elements[id] = document.getElementById(id);
@@ -2487,27 +2463,6 @@ class UXEnhancer {
         element.disabled = false;
     }
 
-
-
-    // In UXEnhancer class, add these methods:
-bulkDelete(tableId) {
-    console.log('Bulk delete for:', tableId);
-}
-
-bulkExport(tableId) {
-    console.log('Bulk export for:', tableId);
-}
-
-bulkStatusChange(tableId) {
-    console.log('Bulk status change for:', tableId);
-}
-
-triggerAutoSave() {
-    console.log('Auto-save triggered');
-}
-
-
-    
     // Auto-save functionality
     enableAutoSave(formId, saveFunction, delay = 2000) {
         const form = document.getElementById(formId);
@@ -3039,3 +2994,4 @@ async function completePackage() {
         showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
+
