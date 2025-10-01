@@ -460,7 +460,43 @@ function closeContainerDetailModal() {
 }
 
 // Müşteri klasöründeki tüm konteynerleri seç
+function toggle// Müşteri klasöründeki tüm konteynerleri seç
 function toggleSelectAllCustomer(checkbox) {
+    console.log('Toggle select all triggered');
+    
+    // Find the customer folder - use more specific traversal
+    const folder = checkbox.closest('.customer-folder');
+    if (!folder) {
+        console.error('Customer folder not found');
+        return;
+    }
+
+    // Find the folder content that contains the table
+    const folderContent = folder.querySelector('.folder-content');
+    if (!folderContent) {
+        console.error('Folder content not found');
+        return;
+    }
+
+    // Find all container checkboxes in the table body
+    const tableBody = folderContent.querySelector('tbody');
+    if (!tableBody) {
+        console.error('Table body not found');
+        return;
+    }
+
+    const checkboxes = tableBody.querySelectorAll('input[type="checkbox"].container-checkbox');
+    
+    console.log(`Found ${checkboxes.length} container checkboxes`);
+
+    // Toggle all checkboxes
+    const isChecked = checkbox.checked;
+    checkboxes.forEach(cb => {
+        cb.checked = isChecked;
+    });
+
+    console.log(`All checkboxes ${isChecked ? 'checked' : 'unchecked'}`);
+}(checkbox) {
     const folder = checkbox.closest('.customer-folder');
     const checkboxes = folder.querySelectorAll('.container-checkbox');
     checkboxes.forEach(cb => cb.checked = checkbox.checked);
