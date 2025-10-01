@@ -459,34 +459,12 @@ function closeContainerDetailModal() {
     currentContainerDetails = null;
 }
 
-
-
-function toggleSelectAllCustomers() {
-    // elements nesnesinin daha önce ui (19).js içinde tanımlandığını varsayıyoruz.
-    const masterCheckbox = elements.selectAllPackages; 
-    const isChecked = masterCheckbox.checked;
-    
-    // Tüm paket tablosu satırlarını bulun
-    const checkboxes = elements.packagesTableBody.querySelectorAll('input[type="checkbox"][data-package-id]');
-
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-        // İsteğe bağlı: Seçim durumunu güncelleyen mevcut bir fonksiyon varsa onu çağırın
-        // Örneğin: updatePackageSelection(checkbox.dataset.packageId, isChecked);
-    });
-
-    // İsteğe bağlı: UI'daki toplam seçili paket sayısını güncelleyen bir fonksiyon çağrılabilir.
-    // updateSelectionCount();
+// Müşteri klasöründeki tüm konteynerleri seç
+function toggleSelectAllCustomer(checkbox) {
+    const folder = checkbox.closest('.customer-folder');
+    const checkboxes = folder.querySelectorAll('.container-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
 }
-
-// Sayfa yüklendiğinde olay dinleyicisini bağlayın
-document.addEventListener('DOMContentLoaded', () => {
-    // 'selectAllPackages' elementi yüklendikten sonra bu dinleyiciyi ekleyin
-    if (elements.selectAllPackages) {
-        elements.selectAllPackages.addEventListener('change', toggleSelectAllCustomers);
-    }
-});
-
 
 // Taranan barkodları göster
 function displayScannedBarcodes() {
@@ -1776,32 +1754,20 @@ function getSelectedPackage() {
 }
 
 function toggleSelectAll() {
-    const selectAllCheckbox = document.getElementById('selectAllPackages');
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    
-    if (!selectAllCheckbox || checkboxes.length === 0) return;
-    
-    const selectAll = selectAllCheckbox.checked;
+    const selectAll = document.getElementById('selectAllPackages').checked;
     
     checkboxes.forEach(checkbox => {
         checkbox.checked = selectAll;
     });
-    
-    // Update selection count
-    updateSelectionCount();
 }
 
 function updatePackageSelection() {
-    const selectAllCheckbox = document.getElementById('selectAllPackages');
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
     
-    if (!selectAllCheckbox || checkboxes.length === 0) return;
-    
-    const checkedBoxes = Array.from(checkboxes).filter(cb => cb.checked);
-    
-    // Update select all checkbox state
-    selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-    selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
+    document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+}
 
 // Stock operations
 function searchStock() {
