@@ -2994,7 +2994,4 @@ async function completePackage() {
         showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
-});
-
-
 
