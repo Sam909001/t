@@ -174,17 +174,6 @@ class WorkspaceManager {
     }
 }
 
-    /* 
-Add this helper function to detect if running in Electron:
-*/
-
-function isElectron() {
-    return typeof window !== 'undefined' && 
-           typeof window.process === 'object' && 
-           window.process.type === 'renderer';
-}
-
-
 
     
     
