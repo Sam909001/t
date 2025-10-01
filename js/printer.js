@@ -1,4 +1,9 @@
-================== GLOBAL FUNCTIONS - DEFINED FIRST ==================
+///////////// ----------------- LOGO PATHS -----------------
+const logoPath = 'file:///C:/Users/munze/OneDrive/Documents/ElectronApp/t/laundry-logo.png';
+const logoBase64 = "data:image/jpeg;base64,..."; // Replace with your actual base64 string
+const logoPathFinal = (typeof window !== 'undefined' && window.electronAPI) ? logoPath : logoBase64;
+
+// ================== GLOBAL FUNCTIONS - DEFINED FIRST ==================
 window.printSelectedElectron = async function() {
     console.log('🖨️ printSelectedElectron called');
     
