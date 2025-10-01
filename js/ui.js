@@ -3007,4 +3007,145 @@ async function completePackage() {
 
 
 
+// Reports tab functionality fixes
+async function populateReportsTable() {
+    const reportsTableBody = document.getElementById('reportsTableBody');
+    
+    if (!reportsTableBody) {
+        console.error('Reports table body not found');
+        return;
+    }
+    
+    try {
+        showAlert('Raporlar yükleniyor...', 'info', 1000);
+        
+        let reports = [];
+        
+        // Get reports from localStorage
+        const localReports = Object.keys(localStorage)
+            .filter(key => key.startsWith('report_'))
+            .map(key => {
+                try {
+                    return JSON.parse(localStorage.getItem(key));
+                } catch (e) {
+                    return null;
+                }
+            })
+            .filter(report => report !== null);
+        
+        reports = localReports;
+        
+        // Also get from Supabase if available
+        if (supabase && navigator.onLine) {
+            const { data: supabaseReports, error } = await supabase
+                .from('reports')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (!error && supabaseReports) {
+                reports = [...reports, ...supabaseReports];
+            }
+        }
+        
+        // Sort by date
+        reports.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+        
+        // Populate table
+        reportsTableBody.innerHTML = reports.map(report => `
+            <tr>
+                <td>${new Date(report.date || report.created_at).toLocaleDateString('tr-TR')}</td>
+                <td>${report.fileName || 'Rapor'}</td>
+                <td>${report.packageCount || 0}</td>
+                <td>${report.totalQuantity || 0}</td>
+                <td>
+                    <button onclick="viewReport('${report.fileName}')" class="btn btn-sm btn-primary">
+                        <i class="fas fa-eye"></i> Görüntüle
+                    </button>
+                    <button onclick="downloadReport('${report.fileName}')" class="btn btn-sm btn-success">
+                        <i class="fas fa-download"></i> İndir
+                    </button>
+                    <button onclick="deleteReport('${report.fileName}')" class="btn btn-sm btn-danger">
+                        <i class="fas fa-trash"></i> Sil
+                    </button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="5" style="text-align:center;">Henüz rapor yok</td></tr>';
+        
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        showAlert('Raporlar yüklenirken hata oluştu', 'error');
+    }
+}
 
+// View report
+function viewReport(fileName) {
+    const reportKey = `report_${fileName}`;
+    const report = localStorage.getItem(reportKey);
+    
+    if (!report) {
+        showAlert('Rapor bulunamadı', 'error');
+        return;
+    }
+    
+    try {
+        const reportData = JSON.parse(report);
+        currentReportData = reportData;
+        previewReport();
+    } catch (error) {
+        console.error('Error viewing report:', error);
+        showAlert('Rapor görüntülenirken hata oluştu', 'error');
+    }
+}
+
+// Download report
+function downloadReport(fileName) {
+    const reportKey = `report_${fileName}`;
+    const report = localStorage.getItem(reportKey);
+    
+    if (!report) {
+        showAlert('Rapor bulunamadı', 'error');
+        return;
+    }
+    
+    try {
+        const blob = new Blob([report], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showAlert('Rapor indirildi', 'success');
+    } catch (error) {
+        console.error('Error downloading report:', error);
+        showAlert('Rapor indirilirken hata oluştu', 'error');
+    }
+}
+
+// Delete report
+async function deleteReport(fileName) {
+    if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) {
+        return;
+    }
+    
+    try {
+        const reportKey = `report_${fileName}`;
+        localStorage.removeItem(reportKey);
+        
+        // Also delete from Supabase if exists
+        if (supabase && navigator.onLine) {
+            await supabase
+                .from('reports')
+                .delete()
+                .eq('fileName', fileName);
+        }
+        
+        showAlert('Rapor silindi', 'success');
+        await populateReportsTable();
+        
+    } catch (error) {
+        console.error('Error deleting report:', error);
+        showAlert('Rapor silinirken hata oluştu', 'error');
+    }
+}
