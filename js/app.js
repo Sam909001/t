@@ -1380,3 +1380,29 @@ async function completePackageWithRecovery() {
         errorRecovery.addToRetryQueue(completePackage, 'complete_package');
     }
 }
+
+
+
+
+// Check printer status function
+function checkPrinterStatus() {
+    console.log('🔍 Checking printer status...');
+    
+    if (!printer) {
+        console.log('❌ Printer not defined');
+        showAlert('Yazıcı servisi başlatılmamış', 'error');
+        return false;
+    }
+    
+    console.log(`📊 Printer status:`, {
+        defined: !!printer,
+        connected: printer.isConnected,
+        serverUrl: printer.serverUrl
+    });
+    
+    showAlert(`Yazıcı durumu: ${printer.isConnected ? 'Bağlı' : 'Bağlı Değil'}`, 
+              printer.isConnected ? 'success' : 'error');
+    
+    return printer.isConnected;
+}
+
