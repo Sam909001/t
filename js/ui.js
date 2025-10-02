@@ -1979,62 +1979,7 @@ function getProductType(packageData) {
 
 
 
-// Keyboard shortcuts setup
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', function(e) {
-        // F2 - Paketle (Complete Package)
-        if (e.key === 'F2') {
-            e.preventDefault();
-            if (typeof completePackage === 'function') {
-                completePackage();
-            }
-        }
-        
-        // F4 - Etiketi Yazdır (Print Label)
-        if (e.key === 'F4') {
-            e.preventDefault();
-            const selectedPackage = getSelectedPackage();
-            if (selectedPackage && typeof printPackageWithSettings === 'function') {
-                printPackageWithSettings(selectedPackage);
-            } else {
-                showAlert('Önce bir paket seçin', 'warning');
-            }
-        }
-        
-        // F8 - Sil (Delete)
-        if (e.key === 'F8') {
-            e.preventDefault();
-            if (confirm('Seçili öğeleri silmek istediğinize emin misiniz?')) {
-                if (typeof deleteSelectedPackages === 'function') {
-                    deleteSelectedPackages();
-                }
-            }
-        }
-        
-        // F9 - Rampa Gönder (Send to Ramp)
-        if (e.key === 'F9') {
-            e.preventDefault();
-            if (typeof sendToRamp === 'function') {
-                sendToRamp();
-            }
-        }
-        
-        // Ctrl+Q - Tümünü Seç (Select All)
-        if (e.ctrlKey && e.key === 'q') {
-            e.preventDefault();
-            const selectAllCheckbox = document.getElementById('selectAllPackages');
-            if (selectAllCheckbox) {
-                selectAllCheckbox.checked = !selectAllCheckbox.checked;
-                toggleSelectAll();
-            }
-        }
-    });
-}
 
-// Call this in initialization
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(setupKeyboardShortcuts, 1000);
-});
 
 
 
