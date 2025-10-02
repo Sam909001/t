@@ -3351,11 +3351,10 @@ async function viewContainerDetails(containerId) {
 
 
 
-  let isStockTableLoading = false;
+let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// REPLACE the populateReportsTable function with this:
-// REPLACE the populateReportsTable function with this:
+// Enhanced populateReportsTable function
 async function populateReportsTable() {
     try {
         console.log('Populating reports table with daily Excel files...');
@@ -3365,6 +3364,14 @@ async function populateReportsTable() {
             console.error('Reports container not found');
             return;
         }
+        
+        // Show loading state
+        reportsContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <h4>Raporlar yükleniyor...</h4>
+            </div>
+        `;
         
         // Get daily Excel files
         const dailyFiles = ExcelStorage.getAvailableDailyFiles();
@@ -3396,8 +3403,10 @@ async function populateReportsTable() {
                         margin: 12px 0;
                         border-radius: 6px;
                         background: ${isToday ? '#f8fff8' : '#f9f9f9'};
-                    ">
-                        <div style="display: flex; justify-content: between; align-items: center;">
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="flex: 1;">
                                 <h4 style="margin: 0 0 8px 0; color: #333;">
                                     <i class="fas fa-calendar-day"></i> ${file.displayDate}
@@ -3419,7 +3428,7 @@ async function populateReportsTable() {
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <button onclick="ExcelStorage.exportDailyFile('${file.date}')" 
+                                <button onclick="exportDailyFile('${file.date}')" 
                                         class="btn btn-success btn-sm" 
                                         style="white-space: nowrap;">
                                     <i class="fas fa-download"></i> CSV İndir
@@ -3438,7 +3447,7 @@ async function populateReportsTable() {
             // Add cleanup button
             reportsHTML += `
                 <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
-                    <button onclick="ExcelStorage.cleanupOldFiles(); populateReportsTable();" 
+                    <button onclick="cleanupOldFiles()" 
                             class="btn btn-warning btn-sm">
                         <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
                     </button>
@@ -3468,7 +3477,7 @@ async function populateReportsTable() {
     }
 }
 
-// ADD this new function to view daily file details
+// Enhanced viewDailyFile function
 async function viewDailyFile(dateString) {
     try {
         const fileName = `packages_${dateString}.json`;
@@ -3481,93 +3490,203 @@ async function viewDailyFile(dateString) {
         
         const packages = JSON.parse(fileData);
         
+        // Remove existing modal if any
+        const existingModal = document.querySelector('.daily-file-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
         // Create a modal to show file details
         const modal = document.createElement('div');
+        modal.className = 'daily-file-modal';
         modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
-            align-items: center; z-index: 10000;
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(0,0,0,0.8); 
+            display: flex; 
+            justify-content: center;
+            align-items: center; 
+            z-index: 10000;
+            font-family: inherit;
         `;
         
         modal.innerHTML = `
-            <div style="background: white; padding: 24px; border-radius: 8px; max-width: 90%; max-height: 90%; width: 800px; overflow: auto;">
-                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">
-                        <i class="fas fa-file-excel"></i> ${dateString} - Paket Detayları
+            <div style="
+                background: white; 
+                padding: 24px; 
+                border-radius: 8px; 
+                max-width: 90%; 
+                max-height: 90%; 
+                width: 900px; 
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0;">
+                    <h3 style="margin: 0; color: #333;">
+                        <i class="fas fa-file-excel" style="color: #217346;"></i> 
+                        ${dateString} - Paket Detayları
                     </h3>
-                    <button onclick="this.closest('.modal').remove()" 
-                            style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">
+                    <button onclick="closeDailyFileModal()" 
+                            style="
+                                background: none; 
+                                border: none; 
+                                font-size: 24px; 
+                                cursor: pointer; 
+                                color: #666;
+                                padding: 0;
+                                width: 30px;
+                                height: 30px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">
                         ×
                     </button>
                 </div>
                 
-                <div style="margin-bottom: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
-                    <strong>Toplam:</strong> ${packages.length} paket, 
-                    ${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet
+                <div style="
+                    margin-bottom: 16px; 
+                    padding: 12px; 
+                    background: #f5f5f5; 
+                    border-radius: 4px;
+                    flex-shrink: 0;
+                ">
+                    <strong>Özet:</strong> 
+                    <span style="color: #2196F3; font-weight: bold;">${packages.length} paket</span>, 
+                    <span style="color: #4CAF50; font-weight: bold;">${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet</span>
                 </div>
                 
-                <div style="max-height: 400px; overflow: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                <div style="
+                    flex: 1; 
+                    overflow: auto; 
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                ">
+                    <table style="
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        font-size: 0.9em;
+                        min-width: 600px;
+                    ">
                         <thead style="background: #f0f0f0; position: sticky; top: 0;">
                             <tr>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Paket No</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Müşteri</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Ürünler</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Adet</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Durum</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Paket No</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Müşteri</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Ürünler</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: center; background: #e0e0e0;">Adet</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Durum</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${packages.map(pkg => `
-                                <tr>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.package_no || 'N/A'}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; word-wrap: break-word;">
-                                        ${pkg.items_display || 'N/A'}
+                                <tr style="transition: background-color 0.2s ease;" 
+                                    onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                                    onmouseout="this.style.backgroundColor='transparent'">
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 500;">${pkg.package_no || 'N/A'}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; max-width: 250px; word-wrap: break-word;">
+                                        ${pkg.items_display || pkg.product || 'N/A'}
                                     </td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pkg.total_quantity || 0}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">
-                                        <span class="status-${pkg.status || 'beklemede'}">
-                                            ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #2196F3;">
+                                        ${pkg.total_quantity || 0}
+                                    </td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">
+                                        <span style="
+                                            padding: 4px 8px;
+                                            border-radius: 12px;
+                                            font-size: 0.8em;
+                                            font-weight: 500;
+                                            ${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 
+                                                'background: #4CAF50; color: white;' : 
+                                                'background: #FF9800; color: white;'
+                                            }
+                                        ">
+                                            ${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 'Sevk Edildi' : 'Beklemede'}
                                         </span>
                                     </td>
                                 </tr>
                             `).join('')}
+                            ${packages.length === 0 ? `
+                                <tr>
+                                    <td colspan="5" style="padding: 40px; text-align: center; color: #666; border: 1px solid #ddd;">
+                                        <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; opacity: 0.5;"></i><br>
+                                        Bu dosyada paket bulunmamaktadır
+                                    </td>
+                                </tr>
+                            ` : ''}
                         </tbody>
                     </table>
                 </div>
                 
-                <div style="margin-top: 16px; text-align: center;">
-                    <button onclick="ExcelStorage.exportDailyFile('${dateString}')" class="btn btn-success">
+                <div style="
+                    margin-top: 16px; 
+                    text-align: center;
+                    flex-shrink: 0;
+                    padding-top: 16px;
+                    border-top: 1px solid #eee;
+                ">
+                    <button onclick="exportDailyFile('${dateString}')" 
+                            class="btn btn-success"
+                            style="margin-right: 8px;">
                         <i class="fas fa-download"></i> CSV Olarak İndir
+                    </button>
+                    <button onclick="printDailyFile('${dateString}')" 
+                            class="btn btn-primary"
+                            style="margin-right: 8px;">
+                        <i class="fas fa-print"></i> Yazdır
+                    </button>
+                    <button onclick="closeDailyFileModal()" 
+                            class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Kapat
                     </button>
                 </div>
             </div>
         `;
         
-        modal.classList.add('modal');
         document.body.appendChild(modal);
+        
+        // Close modal with Escape key
+        const closeModal = () => modal.remove();
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') closeModal();
+        };
+        
+        document.addEventListener('keydown', handleEscape);
+        modal._handleEscape = handleEscape;
         
         // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
-                modal.remove();
+                closeModal();
             }
         });
         
     } catch (error) {
         console.error('Error viewing daily file:', error);
-        showAlert('Dosya görüntülenirken hata oluştu', 'error');
+        showAlert('Dosya görüntülenirken hata oluştu: ' + error.message, 'error');
     }
 }
 
+// Close modal function
+function closeDailyFileModal() {
+    const modal = document.querySelector('.daily-file-modal');
+    if (modal) {
+        if (modal._handleEscape) {
+            document.removeEventListener('keydown', modal._handleEscape);
+        }
+        modal.remove();
+    }
+}
 
-
-
-
-// ADD this new function to view daily file details
-async function viewDailyFile(dateString) {
+// Enhanced export function
+async function exportDailyFile(dateString) {
     try {
+        showAlert('CSV dosyası hazırlanıyor...', 'info');
+        
         const fileName = `packages_${dateString}.json`;
         const fileData = localStorage.getItem(fileName);
         
@@ -3578,85 +3697,275 @@ async function viewDailyFile(dateString) {
         
         const packages = JSON.parse(fileData);
         
-        // Create a modal to show file details
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
-            align-items: center; z-index: 10000;
-        `;
+        if (packages.length === 0) {
+            showAlert('İndirilecek paket bulunamadı', 'warning');
+            return;
+        }
         
-        modal.innerHTML = `
-            <div style="background: white; padding: 24px; border-radius: 8px; max-width: 90%; max-height: 90%; width: 800px; overflow: auto;">
-                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">
-                        <i class="fas fa-file-excel"></i> ${dateString} - Paket Detayları
-                    </h3>
-                    <button onclick="this.closest('.modal').remove()" 
-                            style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">
-                        ×
-                    </button>
-                </div>
-                
-                <div style="margin-bottom: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
-                    <strong>Toplam:</strong> ${packages.length} paket, 
-                    ${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet
-                </div>
-                
-                <div style="max-height: 400px; overflow: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
-                        <thead style="background: #f0f0f0; position: sticky; top: 0;">
-                            <tr>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Paket No</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Müşteri</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Ürünler</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Adet</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Durum</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${packages.map(pkg => `
-                                <tr>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.package_no || 'N/A'}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; word-wrap: break-word;">
-                                        ${pkg.items_display || 'N/A'}
-                                    </td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pkg.total_quantity || 0}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">
-                                        <span class="status-${pkg.status || 'beklemede'}">
-                                            ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div style="margin-top: 16px; text-align: center;">
-                    <button onclick="ExcelStorage.exportDailyFile('${dateString}')" class="btn btn-success">
-                        <i class="fas fa-download"></i> CSV Olarak İndir
-                    </button>
-                </div>
-            </div>
-        `;
+        // Create CSV content
+        const headers = ['Paket No', 'Müşteri', 'Müşteri Kodu', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Oluşturulma Tarihi'];
+        const csvRows = [headers.join(',')];
         
-        modal.classList.add('modal');
-        document.body.appendChild(modal);
-        
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
+        packages.forEach(pkg => {
+            const row = [
+                `"${pkg.package_no || ''}"`,
+                `"${pkg.customer_name || ''}"`,
+                `"${pkg.customer_code || ''}"`,
+                `"${pkg.items_display || pkg.product || ''}"`,
+                pkg.total_quantity || 0,
+                `"${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 'Sevk Edildi' : 'Beklemede'}"`,
+                `"${pkg.packer || ''}"`,
+                `"${new Date(pkg.created_at).toLocaleDateString('tr-TR')}"`
+            ];
+            csvRows.push(row.join(','));
         });
         
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `paketler_${dateString}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showAlert(`CSV dosyası indirildi: ${packages.length} paket`, 'success');
+        
     } catch (error) {
-        console.error('Error viewing daily file:', error);
-        showAlert('Dosya görüntülenirken hata oluştu', 'error');
+        console.error('Error exporting daily file:', error);
+        showAlert('CSV dosyası indirilirken hata oluştu: ' + error.message, 'error');
     }
 }
+
+// Print function
+function printDailyFile(dateString) {
+    try {
+        const modal = document.querySelector('.daily-file-modal');
+        if (!modal) {
+            showAlert('Önce dosyayı görüntüleyin', 'warning');
+            return;
+        }
+        
+        const printContent = modal.querySelector('div').cloneNode(true);
+        const printWindow = window.open('', '_blank', 'width=1000,height=700');
+        
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Paket Raporu - ${dateString}</title>
+                <style>
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 20px; 
+                        color: #333;
+                    }
+                    h1 { 
+                        color: #2c3e50; 
+                        border-bottom: 2px solid #3498db;
+                        padding-bottom: 10px;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin: 20px 0;
+                    }
+                    th, td { 
+                        border: 1px solid #ddd; 
+                        padding: 12px; 
+                        text-align: left;
+                    }
+                    th { 
+                        background-color: #f8f9fa; 
+                        font-weight: bold;
+                    }
+                    tr:nth-child(even) {
+                        background-color: #f8f9fa;
+                    }
+                    .summary {
+                        background: #e3f2fd;
+                        padding: 15px;
+                        border-radius: 5px;
+                        margin: 15px 0;
+                        font-weight: bold;
+                    }
+                    @media print {
+                        body { margin: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>📦 Paket Raporu - ${dateString}</h1>
+                <div class="summary">
+                    Toplam: ${printContent.querySelector('div:nth-child(2)').textContent.replace('Özet:', '').trim()}
+                </div>
+                ${printContent.querySelector('table').outerHTML}
+                <div class="no-print" style="margin-top: 20px; text-align: center;">
+                    <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        🖨️ Yazdır
+                    </button>
+                    <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                        ❌ Kapat
+                    </button>
+                </div>
+                <script>
+                    window.onload = function() {
+                        // Auto-print if needed
+                        // window.print();
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        
+    } catch (error) {
+        console.error('Error printing daily file:', error);
+        showAlert('Yazdırma sırasında hata oluştu', 'error');
+    }
+}
+
+// Enhanced cleanup function
+async function cleanupOldFiles() {
+    try {
+        if (!confirm('7 günden eski dosyalar silinecek. Emin misiniz?')) {
+            return;
+        }
+        
+        showAlert('Eski dosyalar temizleniyor...', 'info');
+        
+        // Call ExcelStorage cleanup
+        if (typeof ExcelStorage.cleanupOldFiles === 'function') {
+            await ExcelStorage.cleanupOldFiles();
+        } else {
+            // Fallback cleanup
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('packages_')) {
+                    const dateStr = key.replace('packages_', '').replace('.json', '');
+                    const fileDate = new Date(dateStr);
+                    
+                    if (fileDate < oneWeekAgo) {
+                        localStorage.removeItem(key);
+                        console.log(`🗑️ Removed old file: ${key}`);
+                    }
+                }
+            }
+        }
+        
+        // Refresh the reports table
+        await populateReportsTable();
+        showAlert('Eski dosyalar başarıyla temizlendi', 'success');
+        
+    } catch (error) {
+        console.error('Error cleaning up old files:', error);
+        showAlert('Dosya temizleme sırasında hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Initialize reports when tab is shown
+function initializeReportsTab() {
+    // Set up tab click handler
+    const reportsTab = document.querySelector('[data-tab="reports"]');
+    if (reportsTab) {
+        reportsTab.addEventListener('click', async function() {
+            // Small delay to ensure tab is visible
+            setTimeout(async () => {
+                await populateReportsTable();
+            }, 100);
+        });
+    }
+    
+    // Also initialize if reports tab is active by default
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab && activeTab.getAttribute('data-tab') === 'reports') {
+        setTimeout(async () => {
+            await populateReportsTable();
+        }, 500);
+    }
+}
+
+// Enhanced error handling for missing functions
+function safeExcelStorageCall(method, ...args) {
+    if (typeof ExcelStorage !== 'undefined' && typeof ExcelStorage[method] === 'function') {
+        return ExcelStorage[method](...args);
+    } else {
+        console.warn(`ExcelStorage.${method} is not available, using fallback`);
+        // Provide fallback implementations if needed
+        return null;
+    }
+}
+
+// Add CSS styles for better appearance
+function addReportsStyles() {
+    if (!document.getElementById('reports-styles')) {
+        const styles = `
+            .daily-file-item {
+                transition: all 0.3s ease;
+            }
+            .daily-file-item:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+            .btn-success { background: #28a745; border-color: #28a745; }
+            .btn-primary { background: #007bff; border-color: #007bff; }
+            .btn-warning { background: #ffc107; border-color: #ffc107; color: #212529; }
+            .btn-secondary { background: #6c757d; border-color: #6c757d; }
+            .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+            .btn { 
+                display: inline-block; 
+                padding: 0.375rem 0.75rem; 
+                border: 1px solid transparent;
+                border-radius: 0.25rem; 
+                color: white; 
+                text-decoration: none;
+                cursor: pointer;
+                font-size: 1rem;
+                line-height: 1.5;
+                transition: all 0.15s ease;
+            }
+            .btn:hover {
+                opacity: 0.9;
+                transform: translateY(-1px);
+            }
+        `;
+        const styleSheet = document.createElement('style');
+        styleSheet.id = 'reports-styles';
+        styleSheet.textContent = styles;
+        document.head.appendChild(styleSheet);
+    }
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    addReportsStyles();
+    initializeReportsTab();
+    
+    // Also initialize if we're already on reports tab
+    setTimeout(() => {
+        const activeTab = document.querySelector('.tab.active');
+        if (activeTab && activeTab.getAttribute('data-tab') === 'reports') {
+            populateReportsTable();
+        }
+    }, 1000);
+});
+
+// Export functions for global access
+window.populateReportsTable = populateReportsTable;
+window.viewDailyFile = viewDailyFile;
+window.exportDailyFile = exportDailyFile;
+window.printDailyFile = printDailyFile;
+window.cleanupOldFiles = cleanupOldFiles;
+window.closeDailyFileModal = closeDailyFileModal;
+
+console.log('✅ Reports module loaded successfully');
 
 
 
