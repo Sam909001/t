@@ -1469,4 +1469,3 @@ function checkPrinterStatus() {
     
     return printer.isConnected;
 }
-
