@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -240,7 +239,39 @@ document.addEventListener("DOMContentLoaded", function() {
                         
                         <div class="package-actions">
                             <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
-                            <button type="button" class="btn btn-warning" onclick="printSelectedElectron()">Etiket Yazdır</button>
+                            <button type="button" class="btn btn-warning" id="printBarcodeBtn">Etiket Yazdır</button>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔍 DEBUG: DOM loaded');
+    
+    // Wait a bit for everything to load
+    setTimeout(() => {
+        const btn = document.getElementById('printBarcodeBtn');
+        console.log('🔍 DEBUG: Button found?', btn);
+        console.log('🔍 DEBUG: Button listeners:', getEventListeners ? getEventListeners(btn) : 'Cannot check listeners');
+        
+        // Add a direct click listener to test
+        if (btn) {
+            btn.addEventListener('click', function() {
+                console.log('🔍 DEBUG: BUTTON CLICKED!');
+            });
+        }
+        
+        // Check if printer.js functions exist
+        console.log('🔍 DEBUG: printSelectedPackages exists?', typeof window.printSelectedPackages);
+        console.log('🔍 DEBUG: printerService exists?', typeof window.printerService);
+        console.log('🔍 DEBUG: electronAPI exists?', typeof window.electronAPI);
+        
+        // Check table
+        const tbody = document.getElementById('packagesTableBody');
+        console.log('🔍 DEBUG: Table body found?', tbody);
+        if (tbody) {
+            const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+            console.log('🔍 DEBUG: Checkboxes found:', checkboxes.length);
+        }
+    }, 1000);
+});
+</script>
                             <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
                         </div>
                     </div>
@@ -737,40 +768,22 @@ document.addEventListener("DOMContentLoaded", function() {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
-
 <!-- 1. External libraries and database connection first -->
 <script src="js/supabase.js"></script>
-
 <!-- 2. UI functions (needed by other modules) -->
-<script src="js/printer.js"></script>
 <script src="js/ui.js"></script>
-
-<!-- 3. Authentication (depends on supabase and ui) -->
+<!-- 3. PRINTER BEFORE AUTH (so it loads even if auth fails) -->
+<script src="js/printer.js"></script>
+<!-- 4. Authentication (depends on supabase and ui) -->
 <script src="js/auth.js"></script>
-
-<!-- 4. Core application logic (depends on supabase, ui, auth) -->
+<!-- 5. Core application logic (depends on supabase, ui, auth) -->
 <script src="js/reports.js"></script>
 <script src="js/app.js"></script>
-
-<!-- 5. Feature modules (depend on core functionality) -->
+<!-- 6. Feature modules (depend on core functionality) -->
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script>
+
     
-<script>
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        // Initialize elements first
-        window.elements = initializeElementsObject();
-        console.log('✅ Elements initialized');
-        
-        // Then start app
-        await initApp();
-    } catch (error) {
-        console.error('❌ Critical error during initialization:', error);
-        alert('Uygulama başlatılırken hata oluştu: ' + error.message);
-    }
-});
-</script>
+    
 </body>
 </html>
