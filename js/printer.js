@@ -469,11 +469,6 @@ class PrinterServiceElectronWithSettings {
                 { name: 'Büyük Çarşaf', qty: 10 },
                 { name: 'Havlu', qty: 20 },
                 { name: 'Yastık Kılıfı', qty: 15 },
-                { name: 'Nevresim Takımı', qty: 5 },
-                { name: 'Bornoz', qty: 8 },
-                { name: 'Küçük Havlu', qty: 12 },
-                { name: 'Peştemal', qty: 6 },
-                { name: 'Masa Örtüsü', qty: 4 }
             ],
             created_at: new Date().toLocaleDateString('tr-TR')
         };
