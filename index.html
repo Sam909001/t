@@ -155,104 +155,114 @@ document.addEventListener("DOMContentLoaded", function() {
                     </div>
                 </div>
 
-                <div class="packaging-content">
-                    <div class="barcode-section">
-                        <h3>Barkod Okuma</h3>
-                        <div class="barcode-input">
-                            <input type="text" id="barcodeInput" placeholder="Barkod okutun veya girin" autofocus>
-                            <button type="button" onclick="processBarcode()"><i class="fas fa-search"></i></button>
-                        </div>
-                        <div id="barcodeResult">
-                            <div id="scannedBarcodes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
-                        </div>
-                        
-                        <div class="quick-buttons">
-                            <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
-                                <span>Büyük çarşaf</span>
-                                <div class="quantity-badge" id="Büyük Çarşaf-quantity">0</div>
-                            </div>
-                            <div class="quick-btn" onclick="openQuantityModal('Çarşaf')" data-product="Çarşaf">
-                                <span>Çarşaf</span>
-                                <div class="quantity-badge" id="Çarşaf-quantity">0</div>
-                            </div>
-                            <div class="quick-btn" onclick="openQuantityModal('Büyük Nevresim')" data-product="Büyük Nevresim">
-                                <span>Büyük Nevresim</span>
-                                <div class="quantity-badge" id="Büyük Nevresim-quantity">0</div>
-                            </div>
-                            <div class="quick-btn" onclick="openQuantityModal('Nevresim')" data-product="Nevresim">
-                                <span>Nevresim</span>
-                                <div class="quantity-badge" id="Nevresim-quantity">0</div>
-                            </div>
-                            <div class="quick-btn" onclick="openQuantityModal('Büyük Havlu')" data-product="Büyük Havlu">
-                                <span>Büyük Havlu</span>
-                                <div class="quantity-badge" id="Büyük Havlu-quantity">0</div>
-                            </div>
-                            <div class="quick-btn" onclick="openQuantityModal('Havlu')" data-product="Havlu">
-                                <span>Havlu</span>
-                                <div class="quantity-badge" id="Havlu-quantity">0</div>
-                            </div>
-                            <div class="quick-btn" onclick="openQuantityModal('Yastık')" data-product="Yastık">
-                                <span>Yastık</span>
-                                <div class="quantity-badge" id="Yastık-quantity">0</div>
-                            </div>
-                            <div class="quick-btn" onclick="openQuantityModal('Yastık Kılıfı')" data-product="Yastık Kılıfı">
-                                <span>Yastık Kılıfı</span>
-                                <div class="quantity-badge" id="Yastık Kılıfı-quantity">0</div>
-                            </div>
-                             <div class="quick-btn" onclick="openQuantityModal('Alez')" data-product="Alez">
-                                <span>Alez</span>
-                                <div class="quantity-badge" id="Alez-quantity">0</div>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; gap: 10px; margin-top: 1rem;">
-    <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="flex: 1;">Manuel Giriş</button>
-    <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;">Extra</button>
+               <div class="packaging-content">
+    <!-- LEFT COLUMN: Product Buttons Only -->
+    <div class="barcode-section">
+        <div class="quick-buttons">
+            <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
+                <span>Büyük çarşaf</span>
+                <div class="quantity-badge" id="Büyük Çarşaf-quantity">0</div>
+            </div>
+            <div class="quick-btn" onclick="openQuantityModal('Çarşaf')" data-product="Çarşaf">
+                <span>Çarşaf</span>
+                <div class="quantity-badge" id="Çarşaf-quantity">0</div>
+            </div>
+            <div class="quick-btn" onclick="openQuantityModal('Büyük Nevresim')" data-product="Büyük Nevresim">
+                <span>Büyük Nevresim</span>
+                <div class="quantity-badge" id="Büyük Nevresim-quantity">0</div>
+            </div>
+            <div class="quick-btn" onclick="openQuantityModal('Nevresim')" data-product="Nevresim">
+                <span>Nevresim</span>
+                <div class="quantity-badge" id="Nevresim-quantity">0</div>
+            </div>
+            <div class="quick-btn" onclick="openQuantityModal('Büyük Havlu')" data-product="Büyük Havlu">
+                <span>Büyük Havlu</span>
+                <div class="quantity-badge" id="Büyük Havlu-quantity">0</div>
+            </div>
+            <div class="quick-btn" onclick="openQuantityModal('Havlu')" data-product="Havlu">
+                <span>Havlu</span>
+                <div class="quantity-badge" id="Havlu-quantity">0</div>
+            </div>
+            <div class="quick-btn" onclick="openQuantityModal('Yastık')" data-product="Yastık">
+                <span>Yastık</span>
+                <div class="quantity-badge" id="Yastık-quantity">0</div>
+            </div>
+            <div class="quick-btn" onclick="openQuantityModal('Yastık Kılıfı')" data-product="Yastık Kılıfı">
+                <span>Yastık Kılıfı</span>
+                <div class="quantity-badge" id="Yastık Kılıfı-quantity">0</div>
+            </div>
+            <div class="quick-btn" onclick="openQuantityModal('Alez')" data-product="Alez">
+                <span>Alez</span>
+                <div class="quantity-badge" id="Alez-quantity">0</div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 1rem;">
+            <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="flex: 1;">Manuel Giriş</button>
+            <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;">Extra</button>
+        </div>
+
+        <div class="status-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+            <div class="quick-btn status-btn" id="Lekeli" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli">Lekeli</div>
+            <div class="quick-btn status-btn" id="Yırtık" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık">Yırtık</div>
+            <div class="quick-btn status-btn" id="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan">Çıkmayan</div>
+            <div class="quick-btn status-btn" id="Discard" onclick="openStatusQuantityModal('Discard')" data-status="Discard">Discard</div>
+        </div>
+    </div>
+
+    <!-- MIDDLE COLUMN: Bekleyen Paketler Table -->
+    <div class="pending-packages">
+        <h3>Bekleyen Paketler</h3>
+        <table class="package-table">
+            <thead>
+                <tr>
+                    <th>
+                        <input type="checkbox" id="selectAllPackages" onchange="toggleSelectAll()">
+                    </th>
+                    <th>Paket No</th>
+                    <th>Müşteri</th>
+                    <th>Ürün</th>
+                    <th>Adet</th>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody id="packagesTableBody">
+                <!-- Data will be populated here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- RIGHT COLUMN: Barcode + Package Details + Scanner Button -->
+    <div class="package-details">
+        <!-- Barcode Section at Top -->
+        <h3>Barkod Okuma</h3>
+        <div class="barcode-input">
+            <input type="text" id="barcodeInput" placeholder="Barkod okutun veya girin" autofocus>
+            <button type="button" onclick="processBarcode()"><i class="fas fa-search"></i></button>
+        </div>
+        <div id="barcodeResult">
+            <div id="scannedBarcodes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+        </div>
+
+        <!-- Package Details Section -->
+        <h3 style="margin-top: 1.5rem;">Paket Detayları</h3>
+        <div id="packageDetailContent">
+            <p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>
+        </div>
+        
+        <div class="package-actions">
+            <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
+            <button type="button" class="btn btn-warning" id="printBarcodeBtn">Etiket Yazdır</button>
+            <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
+        </div>
+
+        <!-- Scanner Button at Bottom -->
+        <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:1rem;" id="scannerToggle">
+            <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
+        </button>
+    </div>
 </div>
-
-<div class="status-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-<div class="quick-btn status-btn" id="Lekeli" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli">Lekeli</div>
-<div class="quick-btn status-btn" id="Yırtık" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık">Yırtık</div>
-<div class="quick-btn status-btn" id="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan">Çıkmayan</div>
-<div class="quick-btn status-btn" id="Discard" onclick="openStatusQuantityModal('Discard')" data-status="Discard">Discard</div>
-</div>
-
-                        <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:0.5rem;" id="scannerToggle">
-                            <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
-                        </button>
-                    </div>
-
-                   <div class="pending-packages">
-    <h3>Bekleyen Paketler</h3>
-    <table class="package-table">
-        <thead>
-            <tr>
-                <th>
-                    <input type="checkbox" id="selectAllPackages" onchange="toggleSelectAll()">
-                </th>
-                <th>Paket No</th>
-                <th>Müşteri</th>
-                <th>Ürün</th>
-                <th>Adet</th> <!-- ADD THIS COLUMN -->
-                <th>Tarih</th>
-                <th>Durum</th>
-            </tr>
-        </thead>
-        <tbody id="packagesTableBody">
-            <!-- Data will be populated here -->
-        </tbody>
-    </table>
-</div>
-
-                    <div class="package-details">
-                        <h3>Paket Detayları</h3>
-                        <div id="packageDetailContent">
-                            <p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>
-                        </div>
-                        
-                        <div class="package-actions">
-                            <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
-                            <button type="button" class="btn btn-warning" id="printBarcodeBtn">Etiket Yazdır</button>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔍 DEBUG: DOM loaded');
