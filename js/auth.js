@@ -141,25 +141,29 @@ function applyRoleBasedPermissions(role) {
     }
 }
 
-// Enhanced logout function with Excel file management
 async function logoutWithConfirmation() {
-    const confirmation = confirm("Çıkış yapmak üzeresiniz. Excel dosyası raporlar sayfasına taşınacak ve mevcut veriler temizlenecek. Devam etmek istiyor musunuz?");
+    const confirmation = confirm(
+        "Çıkış yapmak üzeresiniz. Excel dosyası raporlar sayfasına taşınacak, " +
+        "Sunucu ve Ana bilgisayara gönderilecek ve mevcut veriler temizlenecek. " +
+        "Devam etmek istiyor musunuz?"
+    );
     
-    if (!confirmation) {
-        return;
-    }
+    if (!confirmation) return;
 
     try {
-        showAlert("Excel dosyası raporlar sayfasına taşınıyor...", "info");
+        showAlert("Excel dosyası aktarılıyor...", "info");
         
-        // 1. Get current Excel data
+        // Get current Excel data
         const currentPackages = await ExcelJS.readFile();
         
         if (currentPackages.length > 0) {
-            // 2. Upload to Supabase storage
+            // Upload to Supabase
             await uploadExcelToSupabase(currentPackages);
+
+            // Send to Main PC
+            await sendExcelToMainPC(currentPackages);
             
-            // 3. Move to reports page (save with timestamp)
+            // LocalStorage backup
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const reportFileName = `rapor_${timestamp}.json`;
             localStorage.setItem(`report_${timestamp}`, JSON.stringify({
@@ -169,24 +173,25 @@ async function logoutWithConfirmation() {
                 packageCount: currentPackages.length,
                 totalQuantity: currentPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
             }));
-            
-            // 4. Clear current Excel file
+
+            // Clear local Excel
             await ExcelJS.writeFile([]);
             excelPackages = [];
-            
-            showAlert("Excel dosyası raporlara taşındı ve veritabanına yüklendi", "success");
+
+            showAlert("Excel dosyası Supabase ve Ana PC'ye gönderildi, raporlara taşındı", "success");
         }
-        
-        // 5. Perform logout
+
+        // Perform logout
         await performLogout();
-        
+
     } catch (error) {
         console.error("Logout error:", error);
         showAlert("Logout işlemi sırasında hata oluştu", "error");
     }
 }
 
-// Upload Excel data to Supabase storage
+
+// Upload Excel data to Supabase storage as XLSX
 async function uploadExcelToSupabase(packages) {
     if (!supabase || !navigator.onLine) {
         console.log("Supabase not available, skipping upload");
@@ -194,17 +199,36 @@ async function uploadExcelToSupabase(packages) {
     }
 
     try {
-        const timestamp = new Date().toISOString().split('T')[0];
-        const fileName = `backup_${timestamp}_${Date.now()}.json`;
-        const fileContent = JSON.stringify(packages, null, 2);
-        const fileBlob = new Blob([fileContent], { type: 'application/json' });
-        
+        // Create a new workbook
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet("Rapor");
+
+        // Add header
+        sheet.addRow(["Ürün", "Miktar", "Tarih"]);
+
+        // Add package rows
+        packages.forEach(pkg => {
+            sheet.addRow([
+                pkg.product_name || "",
+                pkg.total_quantity || 0,
+                new Date().toLocaleString()
+            ]);
+        });
+
+        // Convert workbook to Blob
+        const buffer = await workbook.xlsx.writeBuffer();
+        const fileBlob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+        // File name
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `backup_${timestamp}.xlsx`;
+
+        // Upload
         const { data, error } = await supabase.storage
             .from('reports')
             .upload(fileName, fileBlob);
 
         if (error) throw error;
-        
         console.log("Excel backup uploaded to Supabase:", fileName);
         return true;
     } catch (error) {
@@ -212,6 +236,41 @@ async function uploadExcelToSupabase(packages) {
         return false;
     }
 }
+
+
+// Save Excel file to Main PC shared folder
+async function sendExcelToMainPC(packages) {
+    try {
+        // Define the shared folder path (you must configure access in Windows first)
+        const sharedPath = "\\\\MAIN-PC\\SharedReports";  // Example: adjust to your real network name
+
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet("Rapor");
+
+        sheet.addRow(["Ürün", "Miktar", "Tarih"]);
+        packages.forEach(pkg => {
+            sheet.addRow([
+                pkg.product_name || "",
+                pkg.total_quantity || 0,
+                new Date().toLocaleString()
+            ]);
+        });
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filePath = `${sharedPath}\\rapor_${timestamp}.xlsx`;
+
+        // Node.js fs write
+        const buffer = await workbook.xlsx.writeBuffer();
+        require("fs").writeFileSync(filePath, Buffer.from(buffer));
+
+        console.log("Excel file sent to main PC:", filePath);
+        return true;
+    } catch (err) {
+        console.error("Main PC transfer error:", err);
+        return false;
+    }
+}
+
 
 // Perform actual logout
 async function performLogout() {
