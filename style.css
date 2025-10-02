@@ -2050,3 +2050,55 @@ input.error, select.error, textarea.error {
 
 
 
+
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+        padding: 10px;
+    }
+    
+    .sidebar {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    
+    .main-content {
+        width: 100%;
+    }
+    
+    table {
+        font-size: 12px;
+    }
+    
+    .btn {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+    
+    .modal-content {
+        margin: 10px;
+        width: auto;
+    }
+}
+
+/* Mobile-specific styles */
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 480px) {
+    .desktop-only {
+        display: none;
+    }
+    
+    .mobile-only {
+        display: block;
+    }
+    
+    .tab {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+}
