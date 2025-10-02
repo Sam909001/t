@@ -879,6 +879,9 @@ function mergePackages(excelPackages, supabasePackages) {
     return merged;
 }
 
+
+
+
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -890,23 +893,42 @@ async function completePackage() {
         return;
     }
 
-    // Check workspace permissions
-    if (!window.workspaceManager.canPerformAction('create_package')) {
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
     try {
-        // GENERATE THE ID ONCE HERE
-        const packageId = `pkg-${window.workspaceManager.currentWorkspace.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        
+        // Generate short station number (st1, st2, st3, st4)
+        const stationNumber = workspaceId.replace('station-', 'st');
+        
+        // Get today's package count for this station to generate sequential number
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const todayPackages = await ExcelJS.readFile();
+        const todayStationPackages = todayPackages.filter(pkg => 
+            pkg.workspace_id === workspaceId && 
+            new Date(pkg.created_at) >= todayStart
+        );
+        
+        // Sequential number: pad to 6 digits
+        const sequentialNumber = (todayStationPackages.length + 1).toString().padStart(6, '0');
+        
+        // Generate SHORT package number: pkg-st1-000123
+        const packageNo = `pkg-${stationNumber}-${sequentialNumber}`;
+        
+        // Generate unique ID for database
+        const packageId = `pkg-${workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect.value;
+        const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Enhanced package data with workspace info - USE THE SAME ID
         const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
-            package_no: packageNo,
+            id: packageId, // Unique ID for database
+            package_no: packageNo, // SHORT display number
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
             customer_code: selectedCustomer.code,
@@ -923,12 +945,13 @@ async function completePackage() {
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: window.workspaceManager.currentWorkspace.id,
+            workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
-            daily_file: ExcelStorage.getTodayDateString()
+            daily_file: ExcelStorage.getTodayDateString(),
+            source: 'app'
         };
 
-        // Save based on connectivity and workspace settings
+        // Save to database and Excel
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -938,20 +961,20 @@ async function completePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData); // SAME packageData with SAME ID
+                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+                await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData); // SAME packageData with SAME ID
-            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
-            showAlert(`Paket Excel'e kaydedildi: ${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
             isUsingExcel = true;
         }
 
@@ -963,10 +986,9 @@ async function completePackage() {
 
     } catch (error) {
         console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası', 'error');
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 
