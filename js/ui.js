@@ -3119,52 +3119,60 @@ async function populateReportsTable() {
     }
 }
 
-// View report
-function viewReport(fileName) {
-    const reportKey = `report_${fileName}`;
-    const report = localStorage.getItem(reportKey);
-    
-    if (!report) {
-        showAlert('Rapor bulunamadı', 'error');
-        return;
-    }
-    
+async function viewReport(reportId) {
     try {
-        const reportData = JSON.parse(report);
-        currentReportData = reportData;
-        previewReport();
+        const fileName = `report_${reportId}`;
+        const reportData = localStorage.getItem(fileName);
+        
+        if (!reportData) {
+            showAlert('Rapor bulunamadı', 'error');
+            return;
+        }
+        
+        const report = JSON.parse(reportData);
+        
+        // Create a modal to display report
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;';
+        modal.innerHTML = `
+            <div style="background:white; padding:2rem; border-radius:8px; max-width:800px; max-height:80vh; overflow:auto;">
+                <h3>${report.fileName || 'Rapor'}</h3>
+                <p>Tarih: ${new Date(report.date).toLocaleDateString('tr-TR')}</p>
+                <p>Paket Sayısı: ${report.packageCount || 0}</p>
+                <p>Toplam Adet: ${report.totalQuantity || 0}</p>
+                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Kapat</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
     } catch (error) {
-        console.error('Error viewing report:', error);
-        showAlert('Rapor görüntülenirken hata oluştu', 'error');
+        showAlert('Rapor görüntülenirken hata: ' + error.message, 'error');
     }
 }
 
-// Download report
-function downloadReport(fileName) {
-    const reportKey = `report_${fileName}`;
-    const report = localStorage.getItem(reportKey);
-    
-    if (!report) {
-        showAlert('Rapor bulunamadı', 'error');
-        return;
-    }
-    
+async function exportReport(reportId) {
     try {
-        const blob = new Blob([report], { type: 'application/json' });
+        const fileName = `report_${reportId}`;
+        const reportData = localStorage.getItem(fileName);
+        
+        if (!reportData) {
+            showAlert('Rapor bulunamadı', 'error');
+            return;
+        }
+        
+        const blob = new Blob([reportData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName + '.json';
+        a.download = `${fileName}.json`;
         a.click();
         URL.revokeObjectURL(url);
         
         showAlert('Rapor indirildi', 'success');
     } catch (error) {
-        console.error('Error downloading report:', error);
-        showAlert('Rapor indirilirken hata oluştu', 'error');
+        showAlert('İndirme hatası: ' + error.message, 'error');
     }
 }
-
 // Delete report
 async function deleteReport(fileName) {
     if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) {
