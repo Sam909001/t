@@ -4219,7 +4219,7 @@ async function completePackage() {
     }
 
     try {
-       // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
+        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         const timestamp = Date.now();
         const random = Math.random().toString(36).substr(2, 9);
