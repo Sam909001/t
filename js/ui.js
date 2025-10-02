@@ -3186,3 +3186,39 @@ async function deleteReport(fileName) {
         showAlert('Rapor silinirken hata oluştu', 'error');
     }
 }
+
+
+
+// ui.js dosyasına eklenmeli
+
+/**
+ * 'Tümünü Seç' onay kutusuna olay dinleyicisi ekler.
+ * Ana onay kutusunun durumuna göre tablodaki diğer paket checkbox'larını günceller.
+ */
+function setupSelectAllListener() {
+    // initializeElementsObject içinde tanımlandığını varsayıyoruz.
+    const selectAllCheckbox = window.elements.selectAllPackages; 
+    const packageTableBody = window.elements.packagesTableBody; 
+
+    if (selectAllCheckbox && packageTableBody) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            
+            // packagesTableBody içindeki TÜM checkbox'ları seç (kendisi hariç)
+            const checkboxes = packageTableBody.querySelectorAll('input[type="checkbox"]:not(#selectAllPackages)');
+            
+            checkboxes.forEach(checkbox => {
+                // Sadece devre dışı (disabled) olmayan checkbox'ları değiştir
+                if (!checkbox.disabled) {
+                    checkbox.checked = isChecked;
+                    // Eğer gerekiyorsa, UI'da başka bir mantığı tetiklemek için change olayı gönderilebilir
+                    // const event = new Event('change', { bubbles: true });
+                    // checkbox.dispatchEvent(event);
+                }
+            });
+        });
+        console.log('✅ "Tümünü Seç" dinleyicisi eklendi.');
+    } else {
+        console.warn('⚠️ "Tümünü Seç" veya Paketler Tablosu bulunamadı.');
+    }
+}
