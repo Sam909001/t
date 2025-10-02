@@ -2255,7 +2255,12 @@ window.addEventListener('beforeunload', () => {
     eventListenerManager.cleanupAllListeners();
 });
 
-
+// Add to initializeElementsObject() or setupEventListeners()
+const selectAllCheckbox = document.getElementById('selectAllPackages');
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', toggleSelectAll);
+    console.log('✅ Select all checkbox listener attached');
+}
 // ==================== PERFORMANCE OPTIMIZATION ====================
 
 // Add this to ui.js
