@@ -3200,3 +3200,61 @@ async function deleteReport(fileName) {
 }
 
 
+// Add to ui.js - Fix select all functionality
+function toggleSelectAllPackages() {
+    const selectAllCheckbox = document.getElementById('selectAllPackages');
+    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    
+    if (!selectAllCheckbox) {
+        console.error('Select all packages checkbox not found');
+        return;
+    }
+    
+    const isChecked = selectAllCheckbox.checked;
+    
+    packageCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    
+    console.log(`${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
+}
+
+function toggleSelectAllContainers() {
+    const selectAllCheckbox = document.getElementById('selectAllContainers');
+    const containerCheckboxes = document.querySelectorAll('.container-checkbox');
+    
+    if (!selectAllCheckbox) {
+        console.error('Select all containers checkbox not found');
+        return;
+    }
+    
+    const isChecked = selectAllCheckbox.checked;
+    
+    containerCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    
+    console.log(`${isChecked ? 'Selected' : 'Deselected'} ${containerCheckboxes.length} containers`);
+}
+
+// Update package selection count
+function updatePackageSelection() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    
+    const selectAllCheckbox = document.getElementById('selectAllPackages');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+    }
+}
+
+// Update container selection count
+function updateContainerSelection() {
+    const checkboxes = document.querySelectorAll('.container-checkbox');
+    const checkedBoxes = document.querySelectorAll('.container-checkbox:checked');
+    
+    const selectAllCheckbox = document.getElementById('selectAllContainers');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+    }
+}
