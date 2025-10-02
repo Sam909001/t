@@ -1,20 +1,3 @@
-// Mobile optimization
-function isMobile() {
-    return window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
-if (isMobile()) {
-    console.log('📱 Mobile device detected - enabling optimizations');
-    
-    // Reduce refresh intervals
-    window.MOBILE_MODE = true;
-    
-    // Disable heavy animations
-    document.documentElement.style.setProperty('--animation-duration', '0s');
-    
-    // Limit table rows on mobile
-    window.MAX_TABLE_ROWS = 50;
-}
 // ==================== APP.JS - TOP OF FILE ====================
 
 // Detect if running in Electron
@@ -320,7 +303,6 @@ async function createNewContainer() {
     }
 }
 
-// Replace the deleteContainer function in app.js
 async function deleteContainer() {
     // Get selected container checkboxes
     const selectedCheckboxes = document.querySelectorAll('.container-checkbox:checked');
@@ -330,12 +312,13 @@ async function deleteContainer() {
         return;
     }
 
-    // Extract container numbers (not IDs)
-    const selectedContainerNumbers = Array.from(selectedCheckboxes).map(cb => {
-        return cb.value; // This should be the container number
+    // Extract container IDs (not container numbers!)
+    const selectedContainerIds = Array.from(selectedCheckboxes).map(cb => {
+        // The value should be the database ID, not the container number
+        return cb.getAttribute('data-container-id') || cb.value;
     });
 
-    if (!confirm(`${selectedContainerNumbers.length} konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) {
+    if (!confirm(`${selectedContainerIds.length} konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) {
         return;
     }
 
@@ -349,18 +332,18 @@ async function deleteContainer() {
                 container_id: null,
                 status: 'beklemede'
             })
-            .in('container_id', selectedContainerNumbers);
+            .in('container_id', selectedContainerIds);
 
         if (updateError) {
             console.error('Error updating packages:', updateError);
             throw updateError;
         }
 
-        // Then delete the containers by container_no (not ID)
+        // Then delete the containers
         const { error: deleteError } = await supabase
             .from('containers')
             .delete()
-            .in('container_no', selectedContainerNumbers);
+            .in('id', selectedContainerIds);
 
         if (deleteError) {
             console.error('Error deleting containers:', deleteError);
@@ -368,7 +351,7 @@ async function deleteContainer() {
         }
 
         // Clear current container if it was deleted
-        if (currentContainer && selectedContainerNumbers.includes(currentContainer)) {
+        if (currentContainer && selectedContainerIds.includes(currentContainer)) {
             currentContainer = null;
             if (elements.containerNumber) {
                 elements.containerNumber.textContent = 'Yok';
@@ -376,7 +359,7 @@ async function deleteContainer() {
             saveAppState();
         }
         
-        showAlert(`✅ ${selectedContainerNumbers.length} konteyner başarıyla silindi`, 'success');
+        showAlert(`✅ ${selectedContainerIds.length} konteyner başarıyla silindi`, 'success');
         
         // Refresh the shipping table
         await populateShippingTable();
@@ -386,6 +369,7 @@ async function deleteContainer() {
         showAlert('Konteyner silinirken hata oluştu: ' + error.message, 'error');
     }
 }
+
 
 function switchTab(tabName) {
     // Hide all tab panes
@@ -1485,3 +1469,36 @@ function checkPrinterStatus() {
     
     return printer.isConnected;
 }
+
+
+
+
+
+
+
+
+
+// Fix for Select All Packages
+window.toggleSelectAllPackages = function() {
+    const selectAllCheckbox = document.getElementById('selectAllPackages');
+    if (!selectAllCheckbox) return;
+    
+    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:not(#selectAllPackages)');
+    
+    packageCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    console.log(`Selected ${packageCheckboxes.length} packages`);
+}
+
+// Make sure the checkbox has the right event listener
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        const selectAllCheckbox = document.getElementById('selectAllPackages');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.removeEventListener('change', toggleSelectAllPackages);
+            selectAllCheckbox.addEventListener('change', toggleSelectAllPackages);
+        }
+    }, 2000);
+});
