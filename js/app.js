@@ -320,63 +320,70 @@ async function createNewContainer() {
     }
 }
 
+// Replace the deleteContainer function in app.js
 async function deleteContainer() {
-    const checkboxes = document.querySelectorAll('.container-checkbox:checked');
-    if (checkboxes.length === 0) {
+    // Get selected container checkboxes
+    const selectedCheckboxes = document.querySelectorAll('.container-checkbox:checked');
+    
+    if (selectedCheckboxes.length === 0) {
         showAlert('Silinecek konteyner seçin', 'error');
         return;
     }
 
-    if (!confirm(`${checkboxes.length} konteyneri silmek istediğinize emin misiniz?`)) return;
+    // Extract container numbers (not IDs)
+    const selectedContainerNumbers = Array.from(selectedCheckboxes).map(cb => {
+        return cb.value; // This should be the container number
+    });
+
+    if (!confirm(`${selectedContainerNumbers.length} konteyneri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) {
+        return;
+    }
 
     try {
-        const containerIds = Array.from(checkboxes).map(cb => cb.value);
-        
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Excel mode - remove container references from packages
-            const updatedPackages = excelPackages.map(pkg => {
-                if (containerIds.includes(pkg.container_id)) {
-                    return {
-                        ...pkg,
-                        container_id: null,
-                        status: 'beklemede',
-                        updated_at: new Date().toISOString()
-                    };
-                }
-                return pkg;
-            });
-            
-            await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
-            excelPackages = updatedPackages;
-        } else {
-            // Supabase mode
-            // First remove container references from packages
-            const { error: packageError } = await supabase
-                .from('packages')
-                .update({ 
-                    container_id: null,
-                    status: 'beklemede'
-                })
-                .in('container_id', containerIds);
+        showAlert('Konteynerler siliniyor...', 'info');
 
-            if (packageError) throw packageError;
+        // First, update packages that belong to these containers
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ 
+                container_id: null,
+                status: 'beklemede'
+            })
+            .in('container_id', selectedContainerNumbers);
 
-            // Then delete containers
-            const { error: containerError } = await supabase
-                .from('containers')
-                .delete()
-                .in('id', containerIds);
-
-            if (containerError) throw containerError;
+        if (updateError) {
+            console.error('Error updating packages:', updateError);
+            throw updateError;
         }
 
-        showAlert(`${containerIds.length} konteyner silindi`, 'success');
-        await populateShippingTable();
-        await populatePackagesTable();
+        // Then delete the containers by container_no (not ID)
+        const { error: deleteError } = await supabase
+            .from('containers')
+            .delete()
+            .in('container_no', selectedContainerNumbers);
 
+        if (deleteError) {
+            console.error('Error deleting containers:', deleteError);
+            throw deleteError;
+        }
+
+        // Clear current container if it was deleted
+        if (currentContainer && selectedContainerNumbers.includes(currentContainer)) {
+            currentContainer = null;
+            if (elements.containerNumber) {
+                elements.containerNumber.textContent = 'Yok';
+            }
+            saveAppState();
+        }
+        
+        showAlert(`✅ ${selectedContainerNumbers.length} konteyner başarıyla silindi`, 'success');
+        
+        // Refresh the shipping table
+        await populateShippingTable();
+        
     } catch (error) {
-        console.error('Error deleting containers:', error);
-        showAlert('Konteyner silme hatası: ' + error.message, 'error');
+        console.error('❌ Container deletion error:', error);
+        showAlert('Konteyner silinirken hata oluştu: ' + error.message, 'error');
     }
 }
 
