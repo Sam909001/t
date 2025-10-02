@@ -1108,6 +1108,10 @@ function getStrictWorkspaceFilter(tableName) {
     return window.workspaceManager.createWorkspaceFilter(tableName);
 }
 
+
+        
+
+
 // Replace ALL data loading functions with strict versions
 async function loadPackagesDataStrict() {
     if (!window.workspaceManager?.currentWorkspace) {
@@ -1154,22 +1158,19 @@ async function loadPackagesDataStrict() {
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', workspaceId) // STRICT FILTER
+                    .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
                 
                 if (!error && supabasePackages && supabasePackages.length > 0) {
                     console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
-                    // Validate each package from Supabase
                     const validSupabasePackages = supabasePackages.filter(pkg => 
                         validateWorkspaceAccessStrict(pkg)
                     );
                     
-                    // Merge with Excel data (Supabase takes priority)
                     const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
                     window.packages = mergedPackages;
                     
-                    // Update Excel storage with merged data
                     const excelData = ExcelJS.toExcelFormat(mergedPackages);
                     await ExcelJS.writeFile(excelData);
                 }
@@ -1181,10 +1182,11 @@ async function loadPackagesDataStrict() {
         await populatePackagesTable();
         
     } catch (error) {
-        console.error('❌ Error in strict packages data loading:', error);
+        console.error('Error in strict packages data loading:', error);
         showAlert('Paket verileri yüklenirken hata oluştu', 'error');
     }
 }
+
 
 // Strict merge function
 function mergePackagesStrict(excelPackages, supabasePackages) {
