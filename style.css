@@ -2052,53 +2052,53 @@ input.error, select.error, textarea.error {
 
 
 
-/* Responsive design */
-@media (max-width: 768px) {
+
+
+<style>
+/* Mobile Responsive Fixes */
+@media screen and (max-width: 768px) {
     .app-container {
-        flex-direction: column;
-        padding: 10px;
+        flex-direction: column !important;
+        overflow-x: hidden !important;
     }
     
     .sidebar {
-        width: 100%;
-        margin-bottom: 20px;
+        width: 100% !important;
+        max-width: 100% !important;
+        position: relative !important;
     }
     
     .main-content {
-        width: 100%;
+        width: 100% !important;
+        padding: 10px !important;
     }
     
     table {
-        font-size: 12px;
+        display: block !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
     }
     
-    .btn {
-        padding: 8px 12px;
-        font-size: 14px;
+    .modal-dialog {
+        margin: 10px !important;
+        max-width: calc(100% - 20px) !important;
     }
     
-    .modal-content {
-        margin: 10px;
-        width: auto;
+    .bulk-actions-toolbar {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    /* Hide non-essential columns on mobile */
+    .hide-mobile {
+        display: none !important;
     }
 }
 
-/* Mobile-specific styles */
-.mobile-only {
-    display: none;
+/* Prevent body scroll when modal is open */
+body.modal-open {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
 }
-
-@media (max-width: 480px) {
-    .desktop-only {
-        display: none;
-    }
-    
-    .mobile-only {
-        display: block;
-    }
-    
-    .tab {
-        padding: 8px 12px;
-        font-size: 12px;
-    }
-}
+</style>
