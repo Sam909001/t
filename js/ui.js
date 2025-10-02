@@ -1790,32 +1790,31 @@ function getSelectedPackage() {
     };
 }
 
-// Fix for toggle select all packages
-function toggleSelectAll() {
-    const selectAllCheckbox = document.getElementById('selectAllPackages');
-    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    
-    if (!selectAllCheckbox) {
-        console.error('Select all checkbox not found');
-        return;
-    }
-    
-    const isChecked = selectAllCheckbox.checked;
-    
-    packageCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-    });
-    
-    console.log(`✅ ${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
-}
-
-function updatePackageSelection() {
+// FIXED: Select All for Packages
+function toggleSelectAll(source) {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    
-    document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = source.checked;
+    });
+    updatePackageSelection();
 }
 
+// FIXED: Select All for Containers
+function toggleSelectAllContainers(source) {
+    const checkboxes = document.querySelectorAll('.container-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = source.checked;
+    });
+}
+
+// FIXED: Select All for Customer Folders
+function toggleSelectAllCustomer(source) {
+    const folder = source.closest('.customer-folder');
+    const checkboxes = folder.querySelectorAll('.container-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = source.checked;
+    });
+}
 // Stock operations
 function searchStock() {
     if (!elements.stockSearch) {
