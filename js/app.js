@@ -1,3 +1,41 @@
+// Mobile optimization
+function isMobile() {
+    return window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+if (isMobile()) {
+    console.log('📱 Mobile device detected - enabling optimizations');
+    
+    // Reduce refresh intervals
+    window.MOBILE_MODE = true;
+    
+    // Disable heavy animations
+    document.documentElement.style.setProperty('--animation-duration', '0s');
+    
+    // Limit table rows on mobile
+    window.MAX_TABLE_ROWS = 50;
+}
+
+// In populatePackagesTable(), add:
+async function populatePackagesTable() {
+    try {
+        // ... existing code ...
+        
+        // MOBILE FIX: Limit rows
+        if (window.MOBILE_MODE && packages.length > window.MAX_TABLE_ROWS) {
+            packages = packages.slice(0, window.MAX_TABLE_ROWS);
+            showAlert(`Mobil görünüm: İlk ${window.MAX_TABLE_ROWS} paket gösteriliyor`, 'info');
+        }
+        
+        // ... rest of code ...
+    } catch (error) {
+        console.error('Table error:', error);
+    }
+}
+
+
+
+
 // ==================== APP.JS - TOP OF FILE ====================
 
 // Detect if running in Electron
