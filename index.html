@@ -783,7 +783,31 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script>
 
+    <script>
+function getCustomEventListeners(element) {
+    if (!element || typeof element.addEventListener !== 'function') {
+        return {};
+    }
+    // Yaygın olarak kullanılan olayları kontrol edin
+    const eventTypes = ['click', 'change', 'submit', 'input', 'keydown', 'keypress', 'keyup'];
+    const listeners = {};
+
+    eventTypes.forEach(type => {
+        const inlineListener = element[`on${type}`];
+        if (inlineListener) {
+            listeners[type] = [{ handler: inlineListener.toString() }];
+        }
+    });
+
+    if (Object.keys(listeners).length === 0) {
+        return "No direct inline or 'on[event]' listeners found. Check the element in DevTools for 'addEventListener' listeners.";
+    }
     
-    
+    return listeners;
+}
+// Global scope'a ekliyoruz, ancak tarayıcı konsolu dışında çağırmayın.
+window.getEventListenersCustom = getCustomEventListeners;
+console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
+</script>
 </body>
 </html>
