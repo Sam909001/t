@@ -321,53 +321,62 @@ async function createNewContainer() {
 }
 
 async function deleteContainer() {
-    const selectedCheckboxes = document.querySelectorAll('.container-checkbox:checked');
-    
-    if (selectedCheckboxes.length === 0) {
+    const checkboxes = document.querySelectorAll('.container-checkbox:checked');
+    if (checkboxes.length === 0) {
         showAlert('Silinecek konteyner seçin', 'error');
         return;
     }
 
-    // FIX: Get the actual container IDs from the checkbox values
-    const selectedContainerIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-
-    if (!confirm(`${selectedContainerIds.length} konteyneri silmek istediğinize emin misiniz?`)) {
-        return;
-    }
+    if (!confirm(`${checkboxes.length} konteyneri silmek istediğinize emin misiniz?`)) return;
 
     try {
-        // First, get containers to find their IDs
-        const { data: containers, error: fetchError } = await supabase
-            .from('containers')
-            .select('id, container_no')
-            .in('container_no', selectedContainerIds);
-
-        if (fetchError) throw fetchError;
-
-        const containerIds = containers.map(c => c.id);
-
-        // Update packages
-        const { error: updateError } = await supabase
-            .from('packages')
-            .update({ container_id: null, status: 'beklemede' })
-            .in('container_id', containerIds);
-
-        if (updateError) throw updateError;
-
-        // Delete containers
-        const { error: deleteError } = await supabase
-            .from('containers')
-            .delete()
-            .in('id', containerIds);
-
-        if (deleteError) throw deleteError;
-
-        showAlert(`✅ ${selectedContainerIds.length} konteyner silindi`, 'success');
-        await populateShippingTable();
+        const containerIds = Array.from(checkboxes).map(cb => cb.value);
         
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Excel mode - remove container references from packages
+            const updatedPackages = excelPackages.map(pkg => {
+                if (containerIds.includes(pkg.container_id)) {
+                    return {
+                        ...pkg,
+                        container_id: null,
+                        status: 'beklemede',
+                        updated_at: new Date().toISOString()
+                    };
+                }
+                return pkg;
+            });
+            
+            await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
+            excelPackages = updatedPackages;
+        } else {
+            // Supabase mode
+            // First remove container references from packages
+            const { error: packageError } = await supabase
+                .from('packages')
+                .update({ 
+                    container_id: null,
+                    status: 'beklemede'
+                })
+                .in('container_id', containerIds);
+
+            if (packageError) throw packageError;
+
+            // Then delete containers
+            const { error: containerError } = await supabase
+                .from('containers')
+                .delete()
+                .in('id', containerIds);
+
+            if (containerError) throw containerError;
+        }
+
+        showAlert(`${containerIds.length} konteyner silindi`, 'success');
+        await populateShippingTable();
+        await populatePackagesTable();
+
     } catch (error) {
-        console.error('Delete error:', error);
-        showAlert('Hata: ' + error.message, 'error');
+        console.error('Error deleting containers:', error);
+        showAlert('Konteyner silme hatası: ' + error.message, 'error');
     }
 }
 
