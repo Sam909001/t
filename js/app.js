@@ -1505,3 +1505,92 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 2000);
 });
+
+
+
+
+
+
+// Working Report Functions
+window.viewReport = async function(fileName) {
+    try {
+        const reportKey = `report_${fileName}`;
+        const reportData = localStorage.getItem(reportKey);
+        
+        if (!reportData) {
+            // Try to fetch from Supabase
+            if (supabase && navigator.onLine) {
+                const { data, error } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .eq('fileName', fileName)
+                    .single();
+                
+                if (data) {
+                    window.open('data:application/json,' + encodeURIComponent(JSON.stringify(data)));
+                    return;
+                }
+            }
+            showAlert('Rapor bulunamadı', 'error');
+            return;
+        }
+        
+        // Open report in new tab
+        const blob = new Blob([reportData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        
+    } catch (error) {
+        console.error('View report error:', error);
+        showAlert('Rapor görüntülenemedi', 'error');
+    }
+}
+
+window.downloadReport = function(fileName) {
+    try {
+        const reportKey = `report_${fileName}`;
+        const reportData = localStorage.getItem(reportKey) || '{}';
+        
+        const blob = new Blob([reportData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileName}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showAlert('Rapor indirildi', 'success');
+    } catch (error) {
+        console.error('Download error:', error);
+        showAlert('İndirme hatası', 'error');
+    }
+}
+
+window.deleteReport = async function(fileName) {
+    if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) return;
+    
+    try {
+        // Delete from localStorage
+        localStorage.removeItem(`report_${fileName}`);
+        
+        // Delete from Supabase if available
+        if (supabase && navigator.onLine) {
+            await supabase
+                .from('reports')
+                .delete()
+                .eq('fileName', fileName);
+        }
+        
+        showAlert('Rapor silindi', 'success');
+        
+        // Refresh table
+        if (typeof populateReportsTable === 'function') {
+            await populateReportsTable();
+        }
+    } catch (error) {
+        console.error('Delete report error:', error);
+        showAlert('Silme hatası', 'error');
+    }
+}
