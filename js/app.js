@@ -1622,7 +1622,6 @@ window.deleteReport = async function(fileName) {
 function printSinglePackage(packageId) {
     console.log('🖨️ Printing single package:', packageId);
     
-    // Get package from the table's data attribute
     const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
     
     if (!checkbox) {
@@ -1630,7 +1629,6 @@ function printSinglePackage(packageId) {
         return;
     }
     
-    // Parse the package data from the checkbox's data-package attribute
     const packageData = checkbox.getAttribute('data-package');
     if (!packageData) {
         showAlert('Paket verisi bulunamadı!', 'error');
@@ -1639,7 +1637,6 @@ function printSinglePackage(packageId) {
     
     let pkg;
     try {
-        // Decode the escaped HTML entities
         pkg = JSON.parse(packageData.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
     } catch (e) {
         console.error('Package parse error:', e);
@@ -1647,9 +1644,6 @@ function printSinglePackage(packageId) {
         return;
     }
     
-    console.log('Package to print:', pkg);
-    
-    // Call your existing print function with the package in an array
     if (typeof printSelectedPackages === 'function') {
         printSelectedPackages([pkg]);
     } else {
