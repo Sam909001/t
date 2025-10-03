@@ -207,7 +207,10 @@ function clearDataWithAuth() {
 
 function changeApiKeyWithAuth() {
     passwordGuard.askPasswordAndRun(
-        confirmApiKeyChange, 
+        () => {
+            // This is the function that will execute after password verification
+            showApiKeyModal();
+        }, 
         'admin', 
         'API anahtarını değiştirmek'
     );
