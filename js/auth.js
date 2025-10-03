@@ -1,6 +1,5 @@
-const { Workbook } = require('exceljs');  
-const fs = require('fs');
-
+const { Workbook } = require('exceljs');  // ✅ import Workbook directly
+const fs = require('fs');                 // Needed to write files to Main PC
 
 // FIXED: Kullanıcı girişi
 let connectionTested = false; // Flag to prevent duplicate connection tests
