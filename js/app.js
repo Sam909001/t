@@ -1639,3 +1639,70 @@ function printSinglePackage(packageId) {
         showAlert('Yazdırma fonksiyonu bulunamadı!', 'error');
     }
 }
+
+
+
+
+// Auto-refresh manager
+const autoRefreshManager = {
+    intervalId: null,
+    isEnabled: true,
+    refreshInterval: 5000, // 5 seconds
+    
+    start() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+        }
+        
+        this.intervalId = setInterval(() => {
+            if (this.isEnabled) {
+                this.refreshAllData();
+            }
+        }, this.refreshInterval);
+        
+        console.log('🔄 Auto-refresh started (5 seconds)');
+    },
+    
+    stop() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+            console.log('⏹️ Auto-refresh stopped');
+        }
+    },
+    
+    async refreshAllData() {
+        try {
+            // Only refresh if app is active and user is logged in
+            if (!isUserLoggedIn || document.hidden) {
+                return;
+            }
+            
+            console.log('🔄 Auto-refreshing data...');
+            
+            // Refresh packages table
+            await safePopulatePackagesTable();
+            
+            // Refresh preview modal if open
+            await refreshPreviewData();
+            
+            // Update any other live data
+            updateStorageIndicator();
+            updateConnectionStatus();
+            
+        } catch (error) {
+            console.error('Auto-refresh error:', error);
+        }
+    },
+    
+    setInterval(seconds) {
+        this.refreshInterval = seconds * 1000;
+        if (this.intervalId) {
+            this.stop();
+            this.start();
+        }
+    }
+};
+
+// Make it globally available
+window.autoRefreshManager = autoRefreshManager;
