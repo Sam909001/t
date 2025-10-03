@@ -3278,7 +3278,7 @@ async function getAllPackages() {
     try {
         // Try multiple sources
         if (window.packages && Array.isArray(window.packages)) {
-            return window.packages.slice(0, 10); // Limit for preview
+            return window.packages;
         }
         
         const localData = localStorage.getItem('proclean_packages') || 
