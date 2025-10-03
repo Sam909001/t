@@ -3007,29 +3007,33 @@ async function completePackage() {
         };
 
         // Validate and sanitize data
-        DataValidator.validatePackageData(packageData);
-        const sanitizedData = DataValidator.sanitizePackageData(packageData);
+        if (typeof DataValidator !== 'undefined') {
+            DataValidator.validatePackageData(packageData);
+            const sanitizedData = DataValidator.sanitizePackageData(packageData);
+        }
 
         // Save to Excel
         const excelData = await ExcelJS.readFile();
-        excelData.push(sanitizedData);
+        excelData.push(packageData);
         await ExcelJS.writeFile(excelData);
 
         // Add to sync queue
         const syncOperation = {
             fingerprint: `${packageId}-${Date.now()}`,
             type: 'add',
-            data: sanitizedData,
+            data: packageData,
             status: 'pending',
             workspace_id: workspaceId,
             created_at: new Date().toISOString()
         };
         
-        excelSyncQueue.push(syncOperation);
-        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+        if (window.excelSyncQueue) {
+            window.excelSyncQueue.push(syncOperation);
+            localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
+        }
 
         // Try to sync immediately
-        if (supabase && navigator.onLine) {
+        if (supabase && navigator.onLine && typeof safeSyncExcelWithSupabase === 'function') {
             await safeSyncExcelWithSupabase();
         }
 
@@ -3038,15 +3042,15 @@ async function completePackage() {
         showAlert('Paket başarıyla oluşturuldu!', 'success');
 
         // Refresh packages table
-        await safePopulatePackagesTable();
+        if (typeof safePopulatePackagesTable === 'function') {
+            await safePopulatePackagesTable();
+        }
 
     } catch (error) {
         console.error('Error completing package:', error);
         showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
-
-
 
 // Reports tab functionality fixes
 async function populateReportsTable() {
@@ -3091,30 +3095,43 @@ async function populateReportsTable() {
         // Sort by date
         reports.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
         
-        // Populate table
-        reportsTableBody.innerHTML = reports.map(report => `
-            <tr>
-                <td>${new Date(report.date || report.created_at).toLocaleDateString('tr-TR')}</td>
-                <td>${report.fileName || 'Rapor'}</td>
-                <td>${report.packageCount || 0}</td>
-                <td>${report.totalQuantity || 0}</td>
-                <td>
-                    <button onclick="viewReport('${report.fileName}')" class="btn btn-sm btn-primary">
-                        <i class="fas fa-eye"></i> Görüntüle
-                    </button>
-                    <button onclick="downloadReport('${report.fileName}')" class="btn btn-sm btn-success">
-                        <i class="fas fa-download"></i> İndir
-                    </button>
-                    <button onclick="deleteReport('${report.fileName}')" class="btn btn-sm btn-danger">
-                        <i class="fas fa-trash"></i> Sil
-                    </button>
-                </td>
-            </tr>
-        `).join('') || '<tr><td colspan="5" style="text-align:center;">Henüz rapor yok</td></tr>';
+        if (reports.length === 0) {
+            reportsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Henüz rapor yok</td></tr>';
+            return;
+        }
+        
+        // Populate table with real data
+        reportsTableBody.innerHTML = reports.map(report => {
+            const reportDate = report.date || report.created_at;
+            const fileName = report.fileName || 'Rapor';
+            const packageCount = report.packageCount || 0;
+            const totalQuantity = report.totalQuantity || 0;
+            
+            return `
+                <tr>
+                    <td>${new Date(reportDate).toLocaleDateString('tr-TR')}</td>
+                    <td>${fileName}</td>
+                    <td>${packageCount}</td>
+                    <td>${totalQuantity}</td>
+                    <td>
+                        <button onclick="viewReport('${fileName}')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> Görüntüle
+                        </button>
+                        <button onclick="downloadReport('${fileName}')" class="btn btn-sm btn-success">
+                            <i class="fas fa-download"></i> İndir
+                        </button>
+                        <button onclick="deleteReport('${fileName}')" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash"></i> Sil
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
         
     } catch (error) {
         console.error('Error loading reports:', error);
         showAlert('Raporlar yüklenirken hata oluştu', 'error');
+        reportsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: red;">Raporlar yüklenirken hata oluştu</td></tr>';
     }
 }
 
@@ -3124,46 +3141,82 @@ async function viewReport(reportId) {
         const reportData = localStorage.getItem(fileName);
         
         if (!reportData) {
+            // Try to get from Supabase
+            if (supabase && navigator.onLine) {
+                const { data, error } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .eq('fileName', reportId)
+                    .single();
+                    
+                if (!error && data) {
+                    displayReportModal(data);
+                    return;
+                }
+            }
+            
             showAlert('Rapor bulunamadı', 'error');
             return;
         }
         
         const report = JSON.parse(reportData);
-        
-        // Create a modal to display report
-        const modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;';
-        modal.innerHTML = `
-            <div style="background:white; padding:2rem; border-radius:8px; max-width:800px; max-height:80vh; overflow:auto;">
-                <h3>${report.fileName || 'Rapor'}</h3>
-                <p>Tarih: ${new Date(report.date).toLocaleDateString('tr-TR')}</p>
-                <p>Paket Sayısı: ${report.packageCount || 0}</p>
-                <p>Toplam Adet: ${report.totalQuantity || 0}</p>
-                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Kapat</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
+        displayReportModal(report);
         
     } catch (error) {
         showAlert('Rapor görüntülenirken hata: ' + error.message, 'error');
     }
 }
 
-async function exportReport(reportId) {
+function displayReportModal(report) {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white; padding:2rem; border-radius:8px; max-width:800px; max-height:80vh; overflow:auto;">
+            <h3>${report.fileName || 'Rapor'}</h3>
+            <p><strong>Tarih:</strong> ${new Date(report.date || report.created_at).toLocaleDateString('tr-TR')}</p>
+            <p><strong>Paket Sayısı:</strong> ${report.packageCount || 0}</p>
+            <p><strong>Toplam Adet:</strong> ${report.totalQuantity || 0}</p>
+            ${report.type ? `<p><strong>Tür:</strong> ${report.type}</p>` : ''}
+            <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Kapat</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function downloadReport(reportId) {
     try {
+        let reportData = null;
+        
+        // First try localStorage
         const fileName = `report_${reportId}`;
-        const reportData = localStorage.getItem(fileName);
+        const localData = localStorage.getItem(fileName);
+        
+        if (localData) {
+            reportData = JSON.parse(localData);
+        } 
+        // Then try Supabase
+        else if (supabase && navigator.onLine) {
+            const { data, error } = await supabase
+                .from('reports')
+                .select('*')
+                .eq('fileName', reportId)
+                .single();
+                
+            if (!error && data) {
+                reportData = data;
+            }
+        }
         
         if (!reportData) {
             showAlert('Rapor bulunamadı', 'error');
             return;
         }
         
-        const blob = new Blob([reportData], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${fileName}.json`;
+        a.download = `${reportId}.json`;
         a.click();
         URL.revokeObjectURL(url);
         
@@ -3172,6 +3225,7 @@ async function exportReport(reportId) {
         showAlert('İndirme hatası: ' + error.message, 'error');
     }
 }
+
 // Delete report
 async function deleteReport(fileName) {
     if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) {
@@ -3198,7 +3252,6 @@ async function deleteReport(fileName) {
         showAlert('Rapor silinirken hata oluştu', 'error');
     }
 }
-
 
 // Add to ui.js - Fix select all functionality
 function toggleSelectAllPackages() {
@@ -3259,31 +3312,91 @@ function updateContainerSelection() {
     }
 }
 
+// ==================== REAL DATA COLLECTION FUNCTIONS ====================
 
-// ==================== SIMPLIFIED DATA COLLECTION ====================
-
-// ✅ FUNCTION: Get all packages (real data)
+// ✅ FUNCTION: Get all packages (real data only)
 async function getAllPackages() {
     try {
+        // Try multiple sources for REAL data
+        if (window.packages && Array.isArray(window.packages) && window.packages.length > 0) {
+            return window.packages;
+        }
+        
+        // Try to get from Excel data (real packages)
+        try {
+            const excelPackages = await ExcelJS.readFile();
+            if (excelPackages && excelPackages.length > 0) {
+                return excelPackages;
+            }
+        } catch (excelError) {
+            console.log('No Excel packages found:', excelError);
+        }
+        
+        // Try localStorage
+        const localData = localStorage.getItem('proclean_packages') || 
+                         localStorage.getItem('packages') ||
+                         localStorage.getItem('excelData');
+        
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
+        }
+        
+        // Try Supabase if available
         if (supabase && !isUsingExcel) {
             const { data, error } = await supabase
                 .from('packages')
                 .select('*')
                 .order('created_at', { ascending: false });
                 
-            if (!error) return data || [];
+            if (!error && data && data.length > 0) {
+                return data;
+            }
         }
         
-        // Fallback to Excel data
-        return await ExcelJS.readFile();
+        console.log('❌ No real packages found, returning empty array');
+        return []; // Return empty instead of sample data
+        
     } catch (error) {
-        console.error('Error getting packages:', error);
-        return await ExcelJS.readFile(); // Final fallback
+        console.error('Error in getAllPackages:', error);
+        return []; // Return empty instead of sample data
     }
 }
+
+// ✅ FUNCTION: Get all stock (real data only)
 async function getAllStock() {
     try {
-        // Try to get from table
+        // Try to get REAL stock data first
+        if (window.stockData && Array.isArray(window.stockData) && window.stockData.length > 0) {
+            return window.stockData;
+        }
+        
+        // Try localStorage for real stock
+        const localData = localStorage.getItem('proclean_stock') || 
+                         localStorage.getItem('stockData');
+        
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
+        }
+        
+        // Try Supabase if available
+        if (supabase && !isUsingExcel) {
+            const { data, error } = await supabase
+                .from('stock')
+                .select('*')
+                .order('name');
+                
+            if (!error && data && data.length > 0) {
+                return data;
+            }
+        }
+        
+        // Try to get from table as fallback
         const stockTable = document.getElementById('stockTableBody');
         if (stockTable) {
             const rows = stockTable.querySelectorAll('tr');
@@ -3292,72 +3405,83 @@ async function getAllStock() {
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 if (cells.length >= 3) {
-                    stockData.push({
-                        code: cells[0]?.textContent || 'STK-001',
-                        name: cells[1]?.textContent || 'Test Ürün',
-                        quantity: parseInt(cells[2]?.textContent) || 0,
-                        unit: cells[3]?.textContent || 'adet',
-                        status: cells[4]?.textContent || 'Stokta'
-                    });
+                    const code = cells[0]?.textContent?.trim();
+                    const name = cells[1]?.textContent?.trim();
+                    const quantity = parseInt(cells[2]?.textContent) || 0;
+                    
+                    // Only add if we have real data
+                    if (code && name) {
+                        stockData.push({
+                            code: code,
+                            name: name,
+                            quantity: quantity,
+                            unit: cells[3]?.textContent?.trim() || 'adet',
+                            status: cells[4]?.textContent?.trim() || 'Stokta'
+                        });
+                    }
                 }
             });
             
-            return stockData; // ← REMOVED: .slice(0, 5)
+            if (stockData.length > 0) {
+                return stockData;
+            }
         }
         
-        // Sample data
-     return [
-    { code: 'STK-001', name: 'Büyük Çarşaf', quantity: 50, unit: 'adet', status: 'Stokta' },
-    { code: 'STK-002', name: 'Havlu', quantity: 25, unit: 'adet', status: 'Az Stok' },
-    { code: 'STK-003', name: 'Yastık', quantity: 100, unit: 'adet', status: 'Stokta' },
-    { code: 'STK-004', name: 'Nevresim', quantity: 30, unit: 'adet', status: 'Stokta' },
-    { code: 'STK-005', name: 'Battaniye', quantity: 15, unit: 'adet', status: 'Az Stok' },
-    { code: 'STK-006', name: 'Pike', quantity: 40, unit: 'adet', status: 'Stokta' },
-    { code: 'STK-007', name: 'Alez', quantity: 8, unit: 'adet', status: 'Kritik' },
-    { code: 'STK-008', name: 'Peştemal', quantity: 60, unit: 'adet', status: 'Stokta' },
-    { code: 'STK-009', name: 'Paspas Havlu', quantity: 20, unit: 'adet', status: 'Az Stok' },
-    { code: 'STK-010', name: 'Yastık Kılıfı', quantity: 35, unit: 'adet', status: 'Stokta' }
-];
+        console.log('❌ No real stock data found');
+        return []; // Return empty instead of sample data
+        
     } catch (error) {
         console.error('Error in getAllStock:', error);
-        return [];
+        return []; // Return empty instead of sample data
     }
 }
 
+// ✅ FUNCTION: Get all shipping data (real data only)
 async function getAllShippingData() {
     try {
-        // Try to get actual shipping data instead of just one sample
-        if (window.shippingData && Array.isArray(window.shippingData)) {
+        // Try to get REAL shipping data
+        if (window.shippingData && Array.isArray(window.shippingData) && window.shippingData.length > 0) {
             return window.shippingData;
         }
         
+        // Try localStorage
         const localData = localStorage.getItem('proclean_shipping') || 
                          localStorage.getItem('shippingData') ||
                          localStorage.getItem('containerData');
         
         if (localData) {
             const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : [];
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
         }
         
-        // Return multiple sample data instead of just one
-        return [
-            { container_no: 'CONT-001', customer: 'Test Firma', package_count: 5, status: 'sevk-edildi' },
-            { container_no: 'CONT-002', customer: 'Demo Şirket', package_count: 3, status: 'beklemede' },
-            { container_no: 'CONT-003', customer: 'Örnek Hotel', package_count: 8, status: 'sevk-edildi' },
-            { container_no: 'CONT-004', customer: 'Test Restoran', package_count: 2, status: 'beklemede' },
-            { container_no: 'CONT-005', customer: 'Demo Hastane', package_count: 12, status: 'sevk-edildi' }
-        ];
+        // Try Supabase if available
+        if (supabase && !isUsingExcel) {
+            const { data, error } = await supabase
+                .from('shipping')
+                .select('*')
+                .order('created_at', { ascending: false });
+                
+            if (!error && data && data.length > 0) {
+                return data;
+            }
+        }
+        
+        console.log('❌ No real shipping data found');
+        return []; // Return empty instead of sample data
+        
     } catch (error) {
         console.error('Error in getAllShippingData:', error);
-        return [];
+        return []; // Return empty instead of sample data
     }
 }
 
+// ✅ FUNCTION: Get all reports (real data only)
 async function getAllReports() {
     try {
         // Try to get actual reports data
-        if (window.reportsData && Array.isArray(window.reportsData)) {
+        if (window.reportsData && Array.isArray(window.reportsData) && window.reportsData.length > 0) {
             return window.reportsData;
         }
         
@@ -3366,53 +3490,39 @@ async function getAllReports() {
         
         if (localData) {
             const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : [];
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
         }
         
-        // Return multiple sample reports instead of just one
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const lastWeek = new Date(today);
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        
-        return [
-            { 
-                fileName: 'Rapor_' + today.toISOString().split('T')[0], 
-                packageCount: 15, 
-                totalQuantity: 67, 
-                date: today.toISOString(),
-                type: 'Günlük Rapor'
-            },
-            { 
-                fileName: 'Rapor_' + yesterday.toISOString().split('T')[0], 
-                packageCount: 12, 
-                totalQuantity: 54, 
-                date: yesterday.toISOString(),
-                type: 'Günlük Rapor'
-            },
-            { 
-                fileName: 'Haftalık_Rapor_' + lastWeek.toISOString().split('T')[0], 
-                packageCount: 89, 
-                totalQuantity: 345, 
-                date: lastWeek.toISOString(),
-                type: 'Haftalık Rapor'
-            },
-            { 
-                fileName: 'Aylık_Rapor_' + today.getFullYear() + '_' + (today.getMonth() + 1), 
-                packageCount: 245, 
-                totalQuantity: 1123, 
-                date: new Date(today.getFullYear(), today.getMonth(), 1).toISOString(),
-                type: 'Aylık Rapor'
+        // Try to get reports from localStorage backup
+        const reportKeys = Object.keys(localStorage).filter(key => key.startsWith('report_'));
+        if (reportKeys.length > 0) {
+            const reports = reportKeys.map(key => {
+                try {
+                    return JSON.parse(localStorage.getItem(key));
+                } catch (e) {
+                    return null;
+                }
+            }).filter(Boolean);
+            
+            if (reports.length > 0) {
+                return reports;
             }
-        ];
+        }
+        
+        console.log('❌ No real reports data found');
+        return []; // Return empty instead of sample data
+        
     } catch (error) {
         console.error('Error in getAllReports:', error);
-        return [];
+        return []; // Return empty instead of sample data
     }
 }
+
+// ✅ FUNCTION: Get all customers (real data only)
 async function getAllCustomers() {
-     try {
+    try {
         console.log('📋 Fetching real customers data...');
         
         // Try to get customers from Supabase first
@@ -3428,14 +3538,7 @@ async function getAllCustomers() {
             }
         }
         
-        // Fallback: Get customers from Excel/local storage
-        const excelCustomers = await getCustomersFromExcel();
-        if (excelCustomers && excelCustomers.length > 0) {
-            console.log(`✅ Found ${excelCustomers.length} customers from Excel`);
-            return excelCustomers;
-        }
-        
-        // Final fallback: Check if there are any customers in current packages
+        // Fallback: Get customers from packages data
         const packages = await getAllPackages();
         const uniqueCustomers = [...new Set(packages.map(pkg => pkg.customer_name).filter(Boolean))];
         
@@ -3454,34 +3557,30 @@ async function getAllCustomers() {
         return [];
         
     } catch (error) {
-        console.error('Error fetching real customers:', error);
+        console.error('Error fetching customers:', error);
         return [];
     }
 }
 
-
-// ✅ FUNCTION: Get customers from Excel data
-async function getCustomersFromExcel() {
-    try {
-        const packages = await ExcelJS.readFile();
-        const uniqueCustomers = [...new Set(packages.map(pkg => pkg.customer_name).filter(Boolean))];
-        
-        return uniqueCustomers.map((name, index) => ({
-            customer_code: `CUST-${String(index + 1).padStart(3, '0')}`,
-            customer_name: name,
-            phone: '',
-            email: ''
-        }));
-    } catch (error) {
-        console.error('Error getting customers from Excel:', error);
-        return [];
+// ✅ FUNCTION: Get product type for display
+function getProductType(package) {
+    if (!package) return 'N/A';
+    
+    // Handle different package item structures
+    if (package.items && typeof package.items === 'object') {
+        if (Array.isArray(package.items)) {
+            // Array of items
+            return package.items.map(item => item.name || 'Ürün').join(', ');
+        } else {
+            // Object with product:quantity pairs
+            return Object.keys(package.items).join(', ');
+        }
     }
+    
+    return package.product || package.product_name || 'N/A';
 }
 
-
-
-
-// Excel Preview Function
+// Excel Preview Function (Updated to only show real data)
 function previewExcelData() {
     console.log('📊 Excel Preview triggered');
     
@@ -3528,10 +3627,6 @@ function previewExcelData() {
                         <button class="tab-button" onclick="switchPreviewTab('customers')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
                             Müşteriler
-                        </button>
-                        <button class="tab-button" onclick="switchPreviewTab('shipping')" 
-                                style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            Sevkiyat
                         </button>
                     </div>
                     
@@ -3607,13 +3702,12 @@ function getTabTitle(tabName) {
     const titles = {
         'packages': 'Paketler',
         'stock': 'Stok Öğeleri',
-        'customers': 'Müşteriler',
-        'shipping': 'Sevkiyat Verileri'
+        'customers': 'Müşteriler'
     };
     return titles[tabName] || 'Veriler';
 }
 
-// Load content for each tab
+// Load content for each tab (Only real data)
 async function loadPreviewTabContent(tabName) {
     const previewContent = document.getElementById('previewContent');
     if (!previewContent) return;
@@ -3634,13 +3728,8 @@ async function loadPreviewTabContent(tabName) {
                 break;
                 
             case 'customers':
-                data = await getAllCustomers(); // ✅ CHANGED: Use real customers
+                data = await getAllCustomers();
                 columns = ['Müşteri Kodu', 'Müşteri Adı', 'Telefon', 'E-posta'];
-                break;
-                
-            case 'shipping':
-                data = await getAllShippingData();
-                columns = ['Konteyner No', 'Müşteri', 'Paket Sayısı', 'Durum'];
                 break;
         }
         
@@ -3648,13 +3737,14 @@ async function loadPreviewTabContent(tabName) {
             previewContent.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: #666;">
                     <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                    <p>Bu kategoride veri bulunamadı</p>
+                    <p>Bu kategoride henüz veri bulunamadı</p>
+                    <p style="font-size: 0.9rem; margin-top: 1rem;">Veri ekledikten sonra burada görünecektir.</p>
                 </div>
             `;
             return;
         }
         
-        // Create table
+        // Create table with real data
         let tableHTML = `
             <div style="overflow: auto; max-height: 400px;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
@@ -3705,27 +3795,11 @@ async function loadPreviewTabContent(tabName) {
                     break;
                     
                 case 'customers':
-                    // ✅ FIXED: Show real customer data
                     tableHTML += `
                         <td style="padding: 10px;">${item.customer_code || item.code || 'N/A'}</td>
                         <td style="padding: 10px;">${item.customer_name || item.name || 'N/A'}</td>
                         <td style="padding: 10px;">${item.phone || item.telephone || 'N/A'}</td>
                         <td style="padding: 10px;">${item.email || 'N/A'}</td>
-                    `;
-                    break;
-                    
-                case 'shipping':
-                    tableHTML += `
-                        <td style="padding: 10px;">${item.container_no || 'N/A'}</td>
-                        <td style="padding: 10px;">${item.customer || 'N/A'}</td>
-                        <td style="padding: 10px; text-align: center;">${item.package_count || 0}</td>
-                        <td style="padding: 10px;">
-                            <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
-                                background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'};
-                                color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
-                            </span>
-                        </td>
                     `;
                     break;
             }
@@ -3778,5 +3852,11 @@ window.previewExcelData = previewExcelData;
 window.switchPreviewTab = switchPreviewTab;
 window.exportDataFromPreview = exportDataFromPreview;
 window.loadPreviewTabContent = loadPreviewTabContent;
+window.getAllPackages = getAllPackages;
+window.getAllStock = getAllStock;
+window.getAllCustomers = getAllCustomers;
+window.getAllShippingData = getAllShippingData;
+window.getAllReports = getAllReports;
+window.getProductType = getProductType;
 
-console.log('✅ Excel Preview functions loaded');
+console.log('✅ Fixed data collection functions loaded - No fake data');
