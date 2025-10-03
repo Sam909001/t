@@ -3040,14 +3040,12 @@ async function completePackage() {
         // Refresh packages table
         await safePopulatePackagesTable();
 
-        // ✅ NEW: Refresh preview data immediately
-        await refreshPreviewData();
-
     } catch (error) {
         console.error('Error completing package:', error);
         showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
+
 
 
 // Reports tab functionality fixes
@@ -3265,39 +3263,33 @@ function updateContainerSelection() {
 // ==================== SIMPLIFIED DATA COLLECTION ====================
 
 // Simple mock functions that will work even if your real functions are missing
-// Updated getAllPackages to always get fresh data
 async function getAllPackages() {
     try {
-        // Always try to get fresh data first
-        if (window.excelPackages && Array.isArray(window.excelPackages)) {
-            return window.excelPackages;
+        // Try multiple sources
+        if (window.packages && Array.isArray(window.packages)) {
+            return window.packages.slice(0, 10); // Limit for preview
         }
         
-        // Try localStorage with timestamp check
-        const localData = localStorage.getItem('proclean_packages');
+        const localData = localStorage.getItem('proclean_packages') || 
+                         localStorage.getItem('packages') ||
+                         localStorage.getItem('excelData');
+        
         if (localData) {
             const parsed = JSON.parse(localData);
-            if (Array.isArray(parsed)) {
-                // Sort by date to show newest first
-                return parsed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            }
+            return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
         }
         
-        // Fallback to any other data sources
-        if (window.packages && Array.isArray(window.packages)) {
-            return window.packages;
-        }
-        
-        // Final fallback
+        // Return sample data for testing
         return [
-            { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede', created_at: new Date().toISOString() },
-            { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi', created_at: new Date(Date.now() - 86400000).toISOString() }
+            { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede' },
+            { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi' }
         ];
     } catch (error) {
         console.error('Error in getAllPackages:', error);
         return [];
     }
 }
+
 async function getAllStock() {
     try {
         // Try to get from table
@@ -3319,7 +3311,7 @@ async function getAllStock() {
                 }
             });
             
-            return stockData; // ← REMOVED: .slice(0, 5)
+            return stockData.slice(0, 5);
         }
         
         // Sample data
@@ -3340,87 +3332,31 @@ async function getAllShippingData() {
 }
 
 async function getAllReports() {
-    try {
-        // Try to get actual reports data
-        if (window.reportsData && Array.isArray(window.reportsData)) {
-            return window.reportsData;
-        }
-        
-        const localData = localStorage.getItem('proclean_reports') || 
-                         localStorage.getItem('reportsData');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : [];
-        }
-        
-        // Return multiple sample reports instead of just one
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const lastWeek = new Date(today);
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        
-        return [
-            { 
-                fileName: 'Rapor_' + today.toISOString().split('T')[0], 
-                packageCount: 15, 
-                totalQuantity: 67, 
-                date: today.toISOString(),
-                type: 'Günlük Rapor'
-            },
-            { 
-                fileName: 'Rapor_' + yesterday.toISOString().split('T')[0], 
-                packageCount: 12, 
-                totalQuantity: 54, 
-                date: yesterday.toISOString(),
-                type: 'Günlük Rapor'
-            },
-            { 
-                fileName: 'Haftalık_Rapor_' + lastWeek.toISOString().split('T')[0], 
-                packageCount: 89, 
-                totalQuantity: 345, 
-                date: lastWeek.toISOString(),
-                type: 'Haftalık Rapor'
-            },
-            { 
-                fileName: 'Aylık_Rapor_' + today.getFullYear() + '_' + (today.getMonth() + 1), 
-                packageCount: 245, 
-                totalQuantity: 1123, 
-                date: new Date(today.getFullYear(), today.getMonth(), 1).toISOString(),
-                type: 'Aylık Rapor'
-            }
-        ];
-    } catch (error) {
-        console.error('Error in getAllReports:', error);
-        return [];
-    }
+    return [
+        { fileName: 'Rapor_2024', packageCount: 10, totalQuantity: 45, date: new Date().toISOString() }
+    ];
 }
 
 async function getAllCustomers() {
     try {
-        // Remove any .slice(0, X) limits
-        if (window.customers && Array.isArray(window.customers)) {
-            return window.customers; // No slice limit
+        const customerSelect = document.getElementById('customerSelect');
+        if (customerSelect) {
+            const customers = [];
+            for (let option of customerSelect.options) {
+                if (option.value && option.value !== '') {
+                    customers.push({
+                        id: option.value,
+                        name: option.textContent.split(' (')[0],
+                        code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                    });
+                }
+            }
+            return customers.slice(0, 5);
         }
         
-        const localData = localStorage.getItem('proclean_customers') || 
-                         localStorage.getItem('customers');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : []; // No slice limit
-        }
-        
-        // Return multiple sample customers
         return [
-            { code: 'CUST-001', name: 'Test Müşteri' },
-            { code: 'CUST-002', name: 'Demo Şirket' },
-            { code: 'CUST-003', name: 'Örnek Hotel' },
-            { code: 'CUST-004', name: 'Sample Restoran' },
-            { code: 'CUST-005', name: 'Test Hastane' },
-            { code: 'CUST-006', name: 'Demo Spa' },
-            { code: 'CUST-007', name: 'Örnek Resort' }
+            { id: '1', name: 'Test Müşteri', code: 'CUST001' },
+            { id: '2', name: 'Demo Firma', code: 'CUST002' }
         ];
     } catch (error) {
         console.error('Error in getAllCustomers:', error);
@@ -3436,7 +3372,7 @@ function previewExcelData() {
     console.log('📊 Excel Preview triggered');
     
     try {
-        showAlert(t('alert.excel.preparing', 'Excel verileri hazırlanıyor...'), 'info');
+        showAlert('Excel verileri hazırlanıyor...', 'info');
         
         // Create preview modal
         const modal = document.createElement('div');
@@ -3459,7 +3395,7 @@ function previewExcelData() {
             <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 95%; max-height: 90%; width: 900px; overflow: hidden; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #217346; padding-bottom: 1rem;">
                     <h3 style="color: #217346; margin: 0;">
-                        <i class="fas fa-file-excel" style="margin-right: 10px;"></i>${t('excel.preview.title', 'Excel Veri Önizleme')}
+                        <i class="fas fa-file-excel" style="margin-right: 10px;"></i>Excel Veri Önizleme
                     </h3>
                     <button onclick="document.getElementById('excelPreviewModal').remove()" 
                             style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
@@ -3469,26 +3405,26 @@ function previewExcelData() {
                     <div class="preview-tabs" style="display: flex; border-bottom: 1px solid #ddd; margin-bottom: 1rem;">
                         <button class="tab-button active" onclick="switchPreviewTab('packages')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #217346;">
-                            ${t('tabs.packaging', 'Paketler')}
+                            Paketler
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('stock')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            ${t('tabs.stock', 'Stok')}
+                            Stok
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('customers')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            ${t('customer.management', 'Müşteriler')}
+                            Müşteriler
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('shipping')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            ${t('tabs.shipping', 'Sevkiyat')}
+                            Sevkiyat
                         </button>
                     </div>
                     
                     <div id="previewContent" style="min-height: 300px;">
                         <div style="text-align: center; padding: 3rem; color: #666;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                            <p>${t('general.loading', 'Veriler yükleniyor...')}</p>
+                            <p>Veriler yükleniyor...</p>
                         </div>
                     </div>
                 </div>
@@ -3497,11 +3433,11 @@ function previewExcelData() {
                     <button onclick="exportDataFromPreview()" 
                             class="btn btn-success" 
                             style="background-color: #217346; border-color: #217346;">
-                        <i class="fas fa-download"></i> ${t('export.excel.download', 'Excel Olarak İndir')}
+                        <i class="fas fa-download"></i> Excel Olarak İndir
                     </button>
                     <button onclick="document.getElementById('excelPreviewModal').remove()" 
                             class="btn btn-secondary">
-                        ${t('general.close', 'Kapat')}
+                        Kapat
                     </button>
                 </div>
             </div>
@@ -3516,7 +3452,7 @@ function previewExcelData() {
         
     } catch (error) {
         console.error('Excel preview error:', error);
-        showAlert(t('alert.excel.preview.error', 'Excel önizleme oluşturulurken hata oluştu: {error}', { error: error.message }), 'error');
+        showAlert('Excel önizleme oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
 
@@ -3543,7 +3479,7 @@ function switchPreviewTab(tabName) {
     previewContent.innerHTML = `
         <div style="text-align: center; padding: 2rem; color: #666;">
             <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-            <p>${getTabTitle(tabName)} ${t('general.loading', 'yükleniyor...')}</p>
+            <p>${getTabTitle(tabName)} yükleniyor...</p>
         </div>
     `;
     
@@ -3555,12 +3491,12 @@ function switchPreviewTab(tabName) {
 
 function getTabTitle(tabName) {
     const titles = {
-        'packages': t('tabs.packaging', 'Paketler'),
-        'stock': t('preview.stock.items', 'Stok Öğeleri'),
-        'customers': t('customer.management', 'Müşteriler'),
-        'shipping': t('preview.shipping.data', 'Sevkiyat Verileri')
+        'packages': 'Paketler',
+        'stock': 'Stok Öğeleri',
+        'customers': 'Müşteriler',
+        'shipping': 'Sevkiyat Verileri'
     };
-    return titles[tabName] || t('preview.data', 'Veriler');
+    return titles[tabName] || 'Veriler';
 }
 
 // Load content for each tab
@@ -3575,44 +3511,22 @@ async function loadPreviewTabContent(tabName) {
         switch (tabName) {
             case 'packages':
                 data = await getAllPackages();
-                columns = [
-                    t('packaging.package.no', 'Paket No'),
-                    t('packaging.customer', 'Müşteri'),
-                    t('preview.products', 'Ürünler'),
-                    t('reports.total.quantity', 'Toplam Adet'),
-                    t('packaging.status', 'Durum'),
-                    t('packaging.personnel', 'Paketleyen'),
-                    t('packaging.date', 'Tarih')
-                ];
+                columns = ['Paket No', 'Müşteri', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Tarih'];
                 break;
                 
             case 'stock':
                 data = await getAllStock();
-                columns = [
-                    t('stock.code', 'Stok Kodu'),
-                    t('stock.name', 'Ürün Adı'),
-                    t('stock.quantity', 'Miktar'),
-                    t('stock.unit', 'Birim'),
-                    t('stock.status', 'Durum')
-                ];
+                columns = ['Stok Kodu', 'Ürün Adı', 'Miktar', 'Birim', 'Durum'];
                 break;
                 
             case 'customers':
                 data = await getAllCustomers();
-                columns = [
-                    t('customer.code', 'Müşteri Kodu'),
-                    t('customer.name', 'Müşteri Adı')
-                ];
+                columns = ['Müşteri Kodu', 'Müşteri Adı'];
                 break;
                 
             case 'shipping':
                 data = await getAllShippingData();
-                columns = [
-                    t('shipping.container.no', 'Konteyner No'),
-                    t('packaging.customer', 'Müşteri'),
-                    t('reports.package.count', 'Paket Sayısı'),
-                    t('packaging.status', 'Durum')
-                ];
+                columns = ['Konteyner No', 'Müşteri', 'Paket Sayısı', 'Durum'];
                 break;
         }
         
@@ -3620,7 +3534,7 @@ async function loadPreviewTabContent(tabName) {
             previewContent.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: #666;">
                     <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                    <p>${t('preview.no.data', 'Bu kategoride veri bulunamadı')}</p>
+                    <p>Bu kategoride veri bulunamadı</p>
                 </div>
             `;
             return;
@@ -3652,7 +3566,7 @@ async function loadPreviewTabContent(tabName) {
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; 
                                 background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'}; 
                                 color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? t('status.shipped', 'Sevk Edildi') : t('status.pending', 'Beklemede')}
+                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
                             </span>
                         </td>
                         <td style="padding: 10px;">${item.packer || 'N/A'}</td>
@@ -3665,12 +3579,12 @@ async function loadPreviewTabContent(tabName) {
                         <td style="padding: 10px;">${item.code || 'N/A'}</td>
                         <td style="padding: 10px;">${item.name || 'N/A'}</td>
                         <td style="padding: 10px; text-align: center;">${item.quantity || 0}</td>
-                        <td style="padding: 10px;">${item.unit || t('stock.unit', 'adet')}</td>
+                        <td style="padding: 10px;">${item.unit || 'adet'}</td>
                         <td style="padding: 10px;">
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
                                 background: ${item.quantity > 10 ? '#d4edda' : item.quantity > 0 ? '#fff3cd' : '#f8d7da'};
                                 color: ${item.quantity > 10 ? '#155724' : item.quantity > 0 ? '#856404' : '#721c24'};">
-                                ${item.quantity > 10 ? t('status.in.stock', 'Stokta') : item.quantity > 0 ? t('status.low.stock', 'Az Stok') : t('status.out.of.stock', 'Tükendi')}
+                                ${item.quantity > 10 ? 'Stokta' : item.quantity > 0 ? 'Az Stok' : 'Tükendi'}
                             </span>
                         </td>
                     `;
@@ -3692,7 +3606,7 @@ async function loadPreviewTabContent(tabName) {
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
                                 background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'};
                                 color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? t('status.shipped', 'Sevk Edildi') : t('status.pending', 'Beklemede')}
+                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
                             </span>
                         </td>
                     `;
@@ -3707,7 +3621,7 @@ async function loadPreviewTabContent(tabName) {
                 </table>
             </div>
             <div style="margin-top: 1rem; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                <strong>${t('preview.total.records', 'Toplam: {count} kayıt', { count: data.length })}</strong>
+                <strong>Toplam: ${data.length} kayıt</strong>
             </div>
         `;
         
@@ -3718,7 +3632,7 @@ async function loadPreviewTabContent(tabName) {
         previewContent.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: #dc3545;">
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                <p>${t('preview.load.error', 'Veriler yüklenirken hata oluştu: {error}', { error: error.message })}</p>
+                <p>Veriler yüklenirken hata oluştu: ${error.message}</p>
             </div>
         `;
     }
@@ -3726,13 +3640,13 @@ async function loadPreviewTabContent(tabName) {
 
 // Export data from preview
 function exportDataFromPreview() {
-    showAlert(t('alert.excel.downloading', 'Excel dosyası indiriliyor...'), 'info');
+    showAlert('Excel dosyası indiriliyor...', 'info');
     
     // Use the existing export function
     if (typeof exportData === 'function') {
         exportData('excel');
     } else {
-        showAlert(t('alert.excel.export.unavailable', 'Excel export özelliği şu anda kullanılamıyor'), 'error');
+        showAlert('Excel export özelliği şu anda kullanılamıyor', 'error');
     }
     
     // Close the modal after a delay
