@@ -176,11 +176,16 @@ function deleteContainerWithAuth() {
     );
 }
 
-function deleteCustomerWithAuth(customerId) {
+function deleteCustomerWithAuth(customerId, customerName) {
     passwordGuard.askPasswordAndRun(
-        () => deleteCustomer(customerId), 
+        () => {
+            // First confirm the deletion
+            if (confirm(`"${customerName}" müşterisini silmek istediğinizden emin misiniz?`)) {
+                deleteCustomer(customerId);
+            }
+        }, 
         'manage', 
-        'müşteri silmek'
+        `"${customerName}" müşterisini silmek`
     );
 }
 
