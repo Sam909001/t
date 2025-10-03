@@ -3363,3 +3363,29 @@ async function getAllCustomers() {
         return [];
     }
 }
+
+
+
+// ==================== GLOBAL EXPORT - ADD THIS AT THE VERY BOTTOM ====================
+
+// Make all functions globally available
+window.previewExcelData = previewExcelData;
+window.switchPreviewTab = switchPreviewTab;
+window.closeExcelPreviewModal = closeExcelPreviewModal;
+window.exportDataFromPreview = exportDataFromPreview;
+
+// Also export the data collection functions
+window.getAllPackages = getAllPackages;
+window.getAllStock = getAllStock;
+window.getAllShippingData = getAllShippingData;
+window.getAllReports = getAllReports;
+window.getAllCustomers = getAllCustomers;
+
+// Export the modal creation function
+window.createExcelPreviewModal = createExcelPreviewModal;
+
+// Test if functions are available
+console.log('✅ Excel Preview Functions Loaded:');
+console.log('previewExcelData:', typeof previewExcelData);
+console.log('getAllPackages:', typeof getAllPackages);
+console.log('createExcelPreviewModal:', typeof createExcelPreviewModal);
