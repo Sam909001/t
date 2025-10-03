@@ -3436,7 +3436,7 @@ function previewExcelData() {
     console.log('📊 Excel Preview triggered');
     
     try {
-        showAlert('Excel verileri hazırlanıyor...', 'info');
+        showAlert(t('alert.excel.preparing', 'Excel verileri hazırlanıyor...'), 'info');
         
         // Create preview modal
         const modal = document.createElement('div');
@@ -3455,52 +3455,40 @@ function previewExcelData() {
             font-family: Arial, sans-serif;
         `;
         
-    modal.innerHTML = `
-    <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 95%; max-height: 90%; width: 900px; overflow: hidden; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #217346; padding-bottom: 1rem;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <h3 style="color: #217346; margin: 0;">
-                    <i class="fas fa-file-excel" style="margin-right: 10px;"></i>Excel Veri Önizleme
-                </h3>
-                <span id="autoRefreshStatus" style="font-size: 0.8rem; color: #28a745; display: flex; align-items: center; gap: 5px;">
-                    <i class="fas fa-sync-alt fa-spin"></i> Otomatik yenileme aktif
-                </span>
-            </div>
-            <div>
-                <button onclick="manualRefreshPreview()" 
-                        class="btn btn-warning" 
-                        style="margin-right: 10px; padding: 5px 10px; font-size: 0.9rem;">
-                    <i class="fas fa-sync-alt"></i> Şimdi Yenile
-                </button>
-                <button onclick="document.getElementById('excelPreviewModal').remove()" 
-                        style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
-            </div>
-        </div>
+        modal.innerHTML = `
+            <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 95%; max-height: 90%; width: 900px; overflow: hidden; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #217346; padding-bottom: 1rem;">
+                    <h3 style="color: #217346; margin: 0;">
+                        <i class="fas fa-file-excel" style="margin-right: 10px;"></i>${t('excel.preview.title', 'Excel Veri Önizleme')}
+                    </h3>
+                    <button onclick="document.getElementById('excelPreviewModal').remove()" 
+                            style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+                </div>
                 
                 <div style="flex: 1; overflow: auto; margin-bottom: 1rem;">
                     <div class="preview-tabs" style="display: flex; border-bottom: 1px solid #ddd; margin-bottom: 1rem;">
                         <button class="tab-button active" onclick="switchPreviewTab('packages')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #217346;">
-                            Paketler
+                            ${t('tabs.packaging', 'Paketler')}
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('stock')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            Stok
+                            ${t('tabs.stock', 'Stok')}
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('customers')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            Müşteriler
+                            ${t('customer.management', 'Müşteriler')}
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('shipping')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            Sevkiyat
+                            ${t('tabs.shipping', 'Sevkiyat')}
                         </button>
                     </div>
                     
                     <div id="previewContent" style="min-height: 300px;">
                         <div style="text-align: center; padding: 3rem; color: #666;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                            <p>Veriler yükleniyor...</p>
+                            <p>${t('general.loading', 'Veriler yükleniyor...')}</p>
                         </div>
                     </div>
                 </div>
@@ -3509,11 +3497,11 @@ function previewExcelData() {
                     <button onclick="exportDataFromPreview()" 
                             class="btn btn-success" 
                             style="background-color: #217346; border-color: #217346;">
-                        <i class="fas fa-download"></i> Excel Olarak İndir
+                        <i class="fas fa-download"></i> ${t('export.excel.download', 'Excel Olarak İndir')}
                     </button>
                     <button onclick="document.getElementById('excelPreviewModal').remove()" 
                             class="btn btn-secondary">
-                        Kapat
+                        ${t('general.close', 'Kapat')}
                     </button>
                 </div>
             </div>
@@ -3528,7 +3516,7 @@ function previewExcelData() {
         
     } catch (error) {
         console.error('Excel preview error:', error);
-        showAlert('Excel önizleme oluşturulurken hata oluştu: ' + error.message, 'error');
+        showAlert(t('alert.excel.preview.error', 'Excel önizleme oluşturulurken hata oluştu: {error}', { error: error.message }), 'error');
     }
 }
 
@@ -3555,7 +3543,7 @@ function switchPreviewTab(tabName) {
     previewContent.innerHTML = `
         <div style="text-align: center; padding: 2rem; color: #666;">
             <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-            <p>${getTabTitle(tabName)} yükleniyor...</p>
+            <p>${getTabTitle(tabName)} ${t('general.loading', 'yükleniyor...')}</p>
         </div>
     `;
     
@@ -3567,12 +3555,12 @@ function switchPreviewTab(tabName) {
 
 function getTabTitle(tabName) {
     const titles = {
-        'packages': 'Paketler',
-        'stock': 'Stok Öğeleri',
-        'customers': 'Müşteriler',
-        'shipping': 'Sevkiyat Verileri'
+        'packages': t('tabs.packaging', 'Paketler'),
+        'stock': t('preview.stock.items', 'Stok Öğeleri'),
+        'customers': t('customer.management', 'Müşteriler'),
+        'shipping': t('preview.shipping.data', 'Sevkiyat Verileri')
     };
-    return titles[tabName] || 'Veriler';
+    return titles[tabName] || t('preview.data', 'Veriler');
 }
 
 // Load content for each tab
@@ -3587,22 +3575,44 @@ async function loadPreviewTabContent(tabName) {
         switch (tabName) {
             case 'packages':
                 data = await getAllPackages();
-                columns = ['Paket No', 'Müşteri', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Tarih'];
+                columns = [
+                    t('packaging.package.no', 'Paket No'),
+                    t('packaging.customer', 'Müşteri'),
+                    t('preview.products', 'Ürünler'),
+                    t('reports.total.quantity', 'Toplam Adet'),
+                    t('packaging.status', 'Durum'),
+                    t('packaging.personnel', 'Paketleyen'),
+                    t('packaging.date', 'Tarih')
+                ];
                 break;
                 
             case 'stock':
                 data = await getAllStock();
-                columns = ['Stok Kodu', 'Ürün Adı', 'Miktar', 'Birim', 'Durum'];
+                columns = [
+                    t('stock.code', 'Stok Kodu'),
+                    t('stock.name', 'Ürün Adı'),
+                    t('stock.quantity', 'Miktar'),
+                    t('stock.unit', 'Birim'),
+                    t('stock.status', 'Durum')
+                ];
                 break;
                 
             case 'customers':
                 data = await getAllCustomers();
-                columns = ['Müşteri Kodu', 'Müşteri Adı'];
+                columns = [
+                    t('customer.code', 'Müşteri Kodu'),
+                    t('customer.name', 'Müşteri Adı')
+                ];
                 break;
                 
             case 'shipping':
                 data = await getAllShippingData();
-                columns = ['Konteyner No', 'Müşteri', 'Paket Sayısı', 'Durum'];
+                columns = [
+                    t('shipping.container.no', 'Konteyner No'),
+                    t('packaging.customer', 'Müşteri'),
+                    t('reports.package.count', 'Paket Sayısı'),
+                    t('packaging.status', 'Durum')
+                ];
                 break;
         }
         
@@ -3610,7 +3620,7 @@ async function loadPreviewTabContent(tabName) {
             previewContent.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: #666;">
                     <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                    <p>Bu kategoride veri bulunamadı</p>
+                    <p>${t('preview.no.data', 'Bu kategoride veri bulunamadı')}</p>
                 </div>
             `;
             return;
@@ -3642,7 +3652,7 @@ async function loadPreviewTabContent(tabName) {
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; 
                                 background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'}; 
                                 color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                                ${item.status === 'sevk-edildi' ? t('status.shipped', 'Sevk Edildi') : t('status.pending', 'Beklemede')}
                             </span>
                         </td>
                         <td style="padding: 10px;">${item.packer || 'N/A'}</td>
@@ -3655,12 +3665,12 @@ async function loadPreviewTabContent(tabName) {
                         <td style="padding: 10px;">${item.code || 'N/A'}</td>
                         <td style="padding: 10px;">${item.name || 'N/A'}</td>
                         <td style="padding: 10px; text-align: center;">${item.quantity || 0}</td>
-                        <td style="padding: 10px;">${item.unit || 'adet'}</td>
+                        <td style="padding: 10px;">${item.unit || t('stock.unit', 'adet')}</td>
                         <td style="padding: 10px;">
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
                                 background: ${item.quantity > 10 ? '#d4edda' : item.quantity > 0 ? '#fff3cd' : '#f8d7da'};
                                 color: ${item.quantity > 10 ? '#155724' : item.quantity > 0 ? '#856404' : '#721c24'};">
-                                ${item.quantity > 10 ? 'Stokta' : item.quantity > 0 ? 'Az Stok' : 'Tükendi'}
+                                ${item.quantity > 10 ? t('status.in.stock', 'Stokta') : item.quantity > 0 ? t('status.low.stock', 'Az Stok') : t('status.out.of.stock', 'Tükendi')}
                             </span>
                         </td>
                     `;
@@ -3682,7 +3692,7 @@ async function loadPreviewTabContent(tabName) {
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
                                 background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'};
                                 color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                                ${item.status === 'sevk-edildi' ? t('status.shipped', 'Sevk Edildi') : t('status.pending', 'Beklemede')}
                             </span>
                         </td>
                     `;
@@ -3697,7 +3707,7 @@ async function loadPreviewTabContent(tabName) {
                 </table>
             </div>
             <div style="margin-top: 1rem; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                <strong>Toplam: ${data.length} kayıt</strong>
+                <strong>${t('preview.total.records', 'Toplam: {count} kayıt', { count: data.length })}</strong>
             </div>
         `;
         
@@ -3708,7 +3718,7 @@ async function loadPreviewTabContent(tabName) {
         previewContent.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: #dc3545;">
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                <p>Veriler yüklenirken hata oluştu: ${error.message}</p>
+                <p>${t('preview.load.error', 'Veriler yüklenirken hata oluştu: {error}', { error: error.message })}</p>
             </div>
         `;
     }
@@ -3716,13 +3726,13 @@ async function loadPreviewTabContent(tabName) {
 
 // Export data from preview
 function exportDataFromPreview() {
-    showAlert('Excel dosyası indiriliyor...', 'info');
+    showAlert(t('alert.excel.downloading', 'Excel dosyası indiriliyor...'), 'info');
     
     // Use the existing export function
     if (typeof exportData === 'function') {
         exportData('excel');
     } else {
-        showAlert('Excel export özelliği şu anda kullanılamıyor', 'error');
+        showAlert(t('alert.excel.export.unavailable', 'Excel export özelliği şu anda kullanılamıyor'), 'error');
     }
     
     // Close the modal after a delay
@@ -3739,41 +3749,3 @@ window.exportDataFromPreview = exportDataFromPreview;
 window.loadPreviewTabContent = loadPreviewTabContent;
 
 console.log('✅ Excel Preview functions loaded');
-
-
-
-// Function to refresh all preview data
-async function refreshPreviewData() {
-    console.log('🔄 Refreshing preview data...');
-    
-    try {
-        // Clear cached data
-        if (window.packages) delete window.packages;
-        if (window.excelPackages) {
-            // Reload Excel data
-            window.excelPackages = await loadExcelData(true); // Force reload
-        }
-        
-        // Refresh localStorage data
-        const packagesData = localStorage.getItem('proclean_packages');
-        if (packagesData) {
-            const parsed = JSON.parse(packagesData);
-            window.packages = Array.isArray(parsed) ? parsed : [];
-        }
-        
-        // If preview modal is open, refresh the current tab
-        const previewModal = document.getElementById('excelPreviewModal');
-        if (previewModal && previewModal.style.display !== 'none') {
-            const activeTab = document.querySelector('.tab-button[style*="border-bottom: 3px solid #217346"]');
-            if (activeTab) {
-                const tabName = activeTab.getAttribute('onclick').match(/'([^']+)'/)[1];
-                console.log('🔄 Refreshing preview tab:', tabName);
-                await loadPreviewTabContent(tabName);
-            }
-        }
-        
-        console.log('✅ Preview data refreshed');
-    } catch (error) {
-        console.error('Error refreshing preview data:', error);
-    }
-}
