@@ -1620,8 +1620,9 @@ window.deleteReport = async function(fileName) {
 
 
 function printSinglePackage(packageId) {
-    console.log('🖨️ Printing single package:', packageId);
+    console.log('Printing single package:', packageId);
     
+    // Find and check only this package's checkbox
     const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
     
     if (!checkbox) {
@@ -1629,43 +1630,20 @@ function printSinglePackage(packageId) {
         return;
     }
     
-    const packageData = checkbox.getAttribute('data-package');
-    if (!packageData) {
-        showAlert('Paket verisi bulunamadı!', 'error');
-        return;
-    }
-    
-    let pkg;
-    try {
-        pkg = JSON.parse(packageData.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
-    } catch (e) {
-        console.error('Package parse error:', e);
-        showAlert('Paket verisi okunamadı!', 'error');
-        return;
-    }
-    
-    console.log('Package to print:', pkg);
-    
-    // Temporarily select only this package's checkbox
+    // Uncheck all packages first
     const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const previouslyChecked = Array.from(allCheckboxes).filter(cb => cb.checked);
-    
-    // Uncheck all
     allCheckboxes.forEach(cb => cb.checked = false);
     
     // Check only this package
     checkbox.checked = true;
     
-    // Call the Electron print function
-    if (typeof window.printSelectedElectron === 'function') {
-        window.printSelectedElectron();
+    // Click the main print button
+    const mainPrintBtn = document.getElementById('printBarcodeBtn');
+    if (mainPrintBtn) {
+        console.log('Clicking main print button');
+        mainPrintBtn.click();
     } else {
-        showAlert('Yazıcı fonksiyonu bulunamadı!', 'error');
+        console.error('Print button #printBarcodeBtn not found');
+        showAlert('Yazdırma butonu bulunamadı!', 'error');
     }
-    
-    // Restore previous selection after a short delay
-    setTimeout(() => {
-        allCheckboxes.forEach(cb => cb.checked = false);
-        previouslyChecked.forEach(cb => cb.checked = true);
-    }, 500);
 }
