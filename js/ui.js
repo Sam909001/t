@@ -3280,9 +3280,17 @@ async function getAllPackages() {
         
         // Return sample data for testing
         return [
-            { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede' },
-            { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi' }
-        ];
+    { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede', created_at: new Date().toISOString() },
+    { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi', created_at: new Date(Date.now() - 86400000).toISOString() },
+    { package_no: 'PKG-003', customer_name: 'Örnek Hotel', total_quantity: 8, status: 'beklemede', created_at: new Date(Date.now() - 172800000).toISOString() },
+    { package_no: 'PKG-004', customer_name: 'Test Restoran', total_quantity: 2, status: 'sevk-edildi', created_at: new Date(Date.now() - 259200000).toISOString() },
+    { package_no: 'PKG-005', customer_name: 'Demo Hastane', total_quantity: 12, status: 'beklemede', created_at: new Date(Date.now() - 345600000).toISOString() },
+    { package_no: 'PKG-006', customer_name: 'Örnek Spa', total_quantity: 6, status: 'sevk-edildi', created_at: new Date(Date.now() - 432000000).toISOString() },
+    { package_no: 'PKG-007', customer_name: 'Test Okulu', total_quantity: 4, status: 'beklemede', created_at: new Date(Date.now() - 518400000).toISOString() },
+    { package_no: 'PKG-008', customer_name: 'Demo Üniversite', total_quantity: 9, status: 'sevk-edildi', created_at: new Date(Date.now() - 604800000).toISOString() },
+    { package_no: 'PKG-009', customer_name: 'Örnek Ofis', total_quantity: 7, status: 'beklemede', created_at: new Date(Date.now() - 691200000).toISOString() },
+    { package_no: 'PKG-010', customer_name: 'Test Fabrika', total_quantity: 15, status: 'sevk-edildi', created_at: new Date(Date.now() - 777600000).toISOString() }
+];
     } catch (error) {
         console.error('Error in getAllPackages:', error);
         return [];
@@ -3313,10 +3321,18 @@ async function getAllStock() {
         }
         
         // Sample data
-        return [
-            { code: 'STK-001', name: 'Büyük Çarşaf', quantity: 50, unit: 'adet', status: 'Stokta' },
-            { code: 'STK-002', name: 'Havlu', quantity: 25, unit: 'adet', status: 'Az Stok' }
-        ];
+     return [
+    { code: 'STK-001', name: 'Büyük Çarşaf', quantity: 50, unit: 'adet', status: 'Stokta' },
+    { code: 'STK-002', name: 'Havlu', quantity: 25, unit: 'adet', status: 'Az Stok' },
+    { code: 'STK-003', name: 'Yastık', quantity: 100, unit: 'adet', status: 'Stokta' },
+    { code: 'STK-004', name: 'Nevresim', quantity: 30, unit: 'adet', status: 'Stokta' },
+    { code: 'STK-005', name: 'Battaniye', quantity: 15, unit: 'adet', status: 'Az Stok' },
+    { code: 'STK-006', name: 'Pike', quantity: 40, unit: 'adet', status: 'Stokta' },
+    { code: 'STK-007', name: 'Alez', quantity: 8, unit: 'adet', status: 'Kritik' },
+    { code: 'STK-008', name: 'Peştemal', quantity: 60, unit: 'adet', status: 'Stokta' },
+    { code: 'STK-009', name: 'Paspas Havlu', quantity: 20, unit: 'adet', status: 'Az Stok' },
+    { code: 'STK-010', name: 'Yastık Kılıfı', quantity: 35, unit: 'adet', status: 'Stokta' }
+];
     } catch (error) {
         console.error('Error in getAllStock:', error);
         return [];
