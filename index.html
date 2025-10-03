@@ -757,17 +757,6 @@ function getCustomEventListeners(element) {
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
-
-    <script>
-function askPassword(actionCallback) {
-    const pwd = prompt("Bu işlemi yapmak için şifre giriniz:");
-    if (pwd === "8823") {
-        actionCallback();
-    } else {
-        alert("❌ Yanlış şifre. İşlem iptal edildi.");
-    }
-}
-</script>
 <script>
    function askPasswordAndRun(action, codeType) {
     let requiredCode = null;
@@ -789,4 +778,4 @@ function askPassword(actionCallback) {
 }
 </script>
 </body>
-</html> please replace all html needed to work with translation without affecting the buttons function
+</html>
