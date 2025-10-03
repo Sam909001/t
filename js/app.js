@@ -1619,10 +1619,9 @@ window.deleteReport = async function(fileName) {
 
 
 
-function printSinglePackage(packageId) {
-    console.log('Printing single package:', packageId);
+async function printSinglePackage(packageId) {
+    console.log('Printing package:', packageId);
     
-    // Find and check only this package's checkbox
     const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
     
     if (!checkbox) {
@@ -1630,20 +1629,27 @@ function printSinglePackage(packageId) {
         return;
     }
     
-    // Uncheck all packages first
-    const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    allCheckboxes.forEach(cb => cb.checked = false);
+    const packageData = checkbox.getAttribute('data-package');
+    if (!packageData) {
+        showAlert('Paket verisi bulunamadı!', 'error');
+        return;
+    }
     
-    // Check only this package
-    checkbox.checked = true;
+    let pkg;
+    try {
+        pkg = JSON.parse(packageData.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+    } catch (e) {
+        console.error('Package parse error:', e);
+        showAlert('Paket verisi okunamadı!', 'error');
+        return;
+    }
     
-    // Click the main print button
-    const mainPrintBtn = document.getElementById('printBarcodeBtn');
-    if (mainPrintBtn) {
-        console.log('Clicking main print button');
-        mainPrintBtn.click();
+    // Call printAllLabels with single package
+    if (window.printerService && typeof window.printerService.printAllLabels === 'function') {
+        await window.printerService.printAllLabels([pkg]);
+    } else if (typeof printAllLabels === 'function') {
+        await printAllLabels([pkg]);
     } else {
-        console.error('Print button #printBarcodeBtn not found');
-        showAlert('Yazdırma butonu bulunamadı!', 'error');
+        showAlert('Yazıcı servisi bulunamadı!', 'error');
     }
 }
