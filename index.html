@@ -649,7 +649,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <div class="settings-option">
                 <label>Verileri Temizle</label>
-                <button class="btn btn-danger" onclick="clearFrontendData()">Yerel Verileri Temizle</button>
+                <button class="btn btn-danger" onclick="confirmClearFrontendData()">Yerel Verileri Temizle</button>
             </div>
         </div>
 
@@ -768,10 +768,21 @@ function askPassword(actionCallback) {
     }
 }
 </script>
-<script>function confirmApiKeyChange() {
-    const pwd = prompt("API anahtarını değiştirmek için şifreyi giriniz:");
-    if (pwd === "7142") {
-        showApiKeyModal();
+<script>
+   function askPasswordAndRun(action, codeType) {
+    let requiredCode = null;
+
+    if (codeType === "manage") {
+        // For add/delete package, container, customer
+        requiredCode = "8823";
+    } else if (codeType === "admin") {
+        // For API key change + clear frontend data
+        requiredCode = "7142";
+    }
+
+    const pwd = prompt("Şifreyi giriniz:");
+    if (pwd === requiredCode) {
+        action();
     } else if (pwd !== null) {
         alert("Yanlış şifre!");
     }
