@@ -3314,60 +3314,138 @@ async function getAllStock() {
                 if (cells.length >= 3) {
                     stockData.push({
                         code: cells[0]?.textContent || 'STK-001',
-                        name: cells[1]?.textContent || t('sample.product', 'Test Ürün'),
+                        name: cells[1]?.textContent || 'Test Ürün',
                         quantity: parseInt(cells[2]?.textContent) || 0,
-                        unit: cells[3]?.textContent || t('stock.unit', 'adet'),
-                        status: cells[4]?.textContent || t('status.in.stock', 'Stokta')
+                        unit: cells[3]?.textContent || 'adet',
+                        status: cells[4]?.textContent || 'Stokta'
                     });
                 }
             });
             
-            return stockData.slice(0, 5);
+            return stockData; // ← REMOVED: .slice(0, 5)
         }
         
         // Sample data
         return [
-            { code: 'STK-001', name: t('products.large.sheet', 'Büyük Çarşaf'), quantity: 50, unit: t('stock.unit', 'adet'), status: t('status.in.stock', 'Stokta') },
-            { code: 'STK-002', name: t('products.towel', 'Havlu'), quantity: 25, unit: t('stock.unit', 'adet'), status: t('status.low.stock', 'Az Stok') }
+            { code: 'STK-001', name: 'Büyük Çarşaf', quantity: 50, unit: 'adet', status: 'Stokta' },
+            { code: 'STK-002', name: 'Havlu', quantity: 25, unit: 'adet', status: 'Az Stok' }
         ];
     } catch (error) {
         console.error('Error in getAllStock:', error);
         return [];
     }
 }
-
 async function getAllShippingData() {
-    return [
-        { container_no: 'CONT-001', customer: t('sample.company', 'Test Firma'), package_count: 5, status: 'sevk-edildi' }
-    ];
+    try {
+        // Try to get actual shipping data instead of just one sample
+        if (window.shippingData && Array.isArray(window.shippingData)) {
+            return window.shippingData;
+        }
+        
+        const localData = localStorage.getItem('proclean_shipping') || 
+                         localStorage.getItem('shippingData') ||
+                         localStorage.getItem('containerData');
+        
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            return Array.isArray(parsed) ? parsed : [];
+        }
+        
+        // Return multiple sample data instead of just one
+        return [
+            { container_no: 'CONT-001', customer: 'Test Firma', package_count: 5, status: 'sevk-edildi' },
+            { container_no: 'CONT-002', customer: 'Demo Şirket', package_count: 3, status: 'beklemede' },
+            { container_no: 'CONT-003', customer: 'Örnek Hotel', package_count: 8, status: 'sevk-edildi' },
+            { container_no: 'CONT-004', customer: 'Test Restoran', package_count: 2, status: 'beklemede' },
+            { container_no: 'CONT-005', customer: 'Demo Hastane', package_count: 12, status: 'sevk-edildi' }
+        ];
+    } catch (error) {
+        console.error('Error in getAllShippingData:', error);
+        return [];
+    }
 }
-
 async function getAllReports() {
-    return [
-        { fileName: 'Rapor_2024', packageCount: 10, totalQuantity: 45, date: new Date().toISOString() }
-    ];
+    try {
+        // Try to get actual reports data
+        if (window.reportsData && Array.isArray(window.reportsData)) {
+            return window.reportsData;
+        }
+        
+        const localData = localStorage.getItem('proclean_reports') || 
+                         localStorage.getItem('reportsData');
+        
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            return Array.isArray(parsed) ? parsed : [];
+        }
+        
+        // Return multiple sample reports instead of just one
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const lastWeek = new Date(today);
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        
+        return [
+            { 
+                fileName: 'Rapor_' + today.toISOString().split('T')[0], 
+                packageCount: 15, 
+                totalQuantity: 67, 
+                date: today.toISOString(),
+                type: 'Günlük Rapor'
+            },
+            { 
+                fileName: 'Rapor_' + yesterday.toISOString().split('T')[0], 
+                packageCount: 12, 
+                totalQuantity: 54, 
+                date: yesterday.toISOString(),
+                type: 'Günlük Rapor'
+            },
+            { 
+                fileName: 'Haftalık_Rapor_' + lastWeek.toISOString().split('T')[0], 
+                packageCount: 89, 
+                totalQuantity: 345, 
+                date: lastWeek.toISOString(),
+                type: 'Haftalık Rapor'
+            },
+            { 
+                fileName: 'Aylık_Rapor_' + today.getFullYear() + '_' + (today.getMonth() + 1), 
+                packageCount: 245, 
+                totalQuantity: 1123, 
+                date: new Date(today.getFullYear(), today.getMonth(), 1).toISOString(),
+                type: 'Aylık Rapor'
+            }
+        ];
+    } catch (error) {
+        console.error('Error in getAllReports:', error);
+        return [];
+    }
 }
 
 async function getAllCustomers() {
     try {
-        const customerSelect = document.getElementById('customerSelect');
-        if (customerSelect) {
-            const customers = [];
-            for (let option of customerSelect.options) {
-                if (option.value && option.value !== '') {
-                    customers.push({
-                        id: option.value,
-                        name: option.textContent.split(' (')[0],
-                        code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                    });
-                }
-            }
-            return customers.slice(0, 5);
+        // Remove any .slice(0, X) limits
+        if (window.customers && Array.isArray(window.customers)) {
+            return window.customers; // No slice limit
         }
         
+        const localData = localStorage.getItem('proclean_customers') || 
+                         localStorage.getItem('customers');
+        
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            return Array.isArray(parsed) ? parsed : []; // No slice limit
+        }
+        
+        // Return multiple sample customers
         return [
-            { id: '1', name: t('sample.customer', 'Test Müşteri'), code: 'CUST001' },
-            { id: '2', name: t('sample.company', 'Demo Firma'), code: 'CUST002' }
+            { code: 'CUST-001', name: 'Test Müşteri' },
+            { code: 'CUST-002', name: 'Demo Şirket' },
+            { code: 'CUST-003', name: 'Örnek Hotel' },
+            { code: 'CUST-004', name: 'Sample Restoran' },
+            { code: 'CUST-005', name: 'Test Hastane' },
+            { code: 'CUST-006', name: 'Demo Spa' },
+            { code: 'CUST-007', name: 'Örnek Resort' }
         ];
     } catch (error) {
         console.error('Error in getAllCustomers:', error);
