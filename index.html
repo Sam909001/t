@@ -1,9 +1,8 @@
-<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title data-i18n="app.title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</title>
+    <title>ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -40,14 +39,14 @@ document.addEventListener("DOMContentLoaded", function() {
     <!-- API Key Giriş Modalı -->
     <div class="api-key-modal" id="apiKeyModal">
         <div class="api-key-content">
-            <h2 data-i18n="api.title">Supabase API Anahtarı Gerekli</h2>
-            <p data-i18n="api.description">Uygulamayı kullanabilmek için geçerli bir Supabase API anahtarı girmeniz gerekiyor.</p>
-            <input type="text" id="apiKeyInput" class="api-key-input" data-i18n-placeholder="api.placeholder" placeholder="Supabase API Anahtarınızı girin">
+            <h2>Supabase API Anahtarı Gerekli</h2>
+            <p>Uygulamayı kullanabilmek için geçerli bir Supabase API anahtarı girmeniz gerekiyor.</p>
+            <input type="text" id="apiKeyInput" class="api-key-input" placeholder="Supabase API Anahtarınızı girin">
             <div class="quantity-buttons">
-                <button type="button" class="btn btn-primary" onclick="saveApiKey()" data-i18n="general.save">Kaydet</button>
-                <button type="button" class="btn btn-secondary" onclick="showApiKeyHelp()" data-i18n="api.help">Yardım</button>
+                <button type="button" class="btn btn-primary" onclick="saveApiKey()">Kaydet</button>
+                <button type="button" class="btn btn-secondary" onclick="showApiKeyHelp()">Yardım</button>
             </div>
-            <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;" data-i18n="api.help.description">
+            <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
                 API anahtarını nasıl alacağınızı bilmiyorsanız "Yardım" butonuna tıklayın.
             </p>
         </div>
@@ -55,27 +54,27 @@ document.addEventListener("DOMContentLoaded", function() {
 
     <div class="login-container" id="loginScreen">
         <div class="login-form">
-            <h1 data-i18n="login.title">ProClean - Oturum Aç</h1>
+            <h1>ProClean - Oturum Aç</h1>
             <div class="form-group">
-                <label for="email" data-i18n="login.email">E-posta</label>
-                <input type="email" id="email" data-i18n-placeholder="login.placeholder.email" placeholder="E-posta adresinizi girin" required>
-                <div class="validation-error" id="emailError" data-i18n="login.error.email">Geçerli bir e-posta adresi girin</div>
+                <label for="email">E-posta</label>
+                <input type="email" id="email" placeholder="E-posta adresinizi girin" required>
+                <div class="validation-error" id="emailError">Geçerli bir e-posta adresi girin</div>
             </div>
             <div class="form-group">
-                <label for="password" data-i18n="login.password">Şifre</label>
-                <input type="password" id="password" data-i18n-placeholder="login.placeholder.password" placeholder="Şifrenizi girin" required>
-                <div class="validation-error" id="passwordError" data-i18n="login.error.password">Şifre gereklidir</div>
+                <label for="password">Şifre</label>
+                <input type="password" id="password" placeholder="Şifrenizi girin" required>
+                <div class="validation-error" id="passwordError">Şifre gereklidir</div>
             </div>
-            <button type="button" class="btn btn-primary" id="loginBtn" data-i18n="login.button">Giriş Yap</button>
+            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
             <div style="margin-top: 1rem; text-align: center;">
-                <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;" data-i18n="login.apiKey">API Anahtarını Yönet</a>
+                <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
             </div>
         </div>
     </div>
 
     <div class="app-container" id="appContainer" aria-hidden="true">
         <div class="app-header">
-            <div class="app-title" data-i18n="app.title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
+            <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
             <div class="user-info">
                 <span id="userRole">Operatör: Yükleniyor...</span>
 
@@ -94,18 +93,18 @@ document.addEventListener("DOMContentLoaded", function() {
         color: light-dark(#212529, #f1f1f1);
      ">
     <i class="fas fa-print"></i>
-    <span data-i18n="general.loading">Yazıcı Yükleniyor...</span>
+    <span>Yazıcı Yükleniyor...</span>
 </div>
 
             
    <button id="settingsBtn" class="btn btn-secondary" onclick="showSettingsModal()">
     <i class="fas fa-cog"></i>
-    <span data-i18n="settings.title">Ayarlar</span>
+    <span>Ayarlar</span>
 </button>
 
                 
                 <button onclick="logoutWithConfirmation()" class="btn btn-secondary">
-    <i class="fas fa-sign-out-alt"></i> <span data-i18n="general.logout">Çıkış Yap</span>
+    <i class="fas fa-sign-out-alt"></i> Çıkış Yap
 </button>
             </div>
         </div>
@@ -119,10 +118,10 @@ document.addEventListener("DOMContentLoaded", function() {
 </div>
 
         <div class="tabs" role="tablist" aria-label="Ana Sekmeler">
-            <div class="tab active" data-tab="packaging" role="tab" data-i18n="tabs.packaging">Paketleme</div>
-            <div class="tab" data-tab="shipping" role="tab" data-i18n="tabs.shipping">Sevkiyat</div>
-            <div class="tab" data-tab="stock" role="tab" data-i18n="tabs.stock">Stok Sorgu</div>
-            <div class="tab admin-only" data-tab="reports" role="tab" data-i18n="tabs.reports">Raporlar</div>
+            <div class="tab active" data-tab="packaging" role="tab">Paketleme</div>
+            <div class="tab" data-tab="shipping" role="tab">Sevkiyat</div>
+            <div class="tab" data-tab="stock" role="tab">Stok Sorgu</div>
+            <div class="tab admin-only" data-tab="reports" role="tab">Raporlar</div>
         </div>
 
         <div class="tab-content">
@@ -130,28 +129,28 @@ document.addEventListener("DOMContentLoaded", function() {
                 <div class="packaging-header">
                     <div class="customer-info">
                         <div class="info-group">
-                            <label for="customerSelect" data-i18n="packaging.customer.select">Müşteri Seçimi</label>
+                            <label for="customerSelect">Müşteri Seçimi</label>
                             <select id="customerSelect" required>
-                                <option value="" data-i18n="packaging.customer.placeholder">Müşteri seçin...</option>
+                                <option value="">Müşteri seçin...</option>
                             </select>
-                            <div class="validation-error" id="customerError" data-i18n="customer.error.required">Müşteri seçimi zorunludur</div>
+                            <div class="validation-error" id="customerError">Müşteri seçimi zorunludur</div>
                         </div>
                         <div class="info-group">
-                            <label for="personnelSelect" data-i18n="packaging.personnel">Personel</label>
+                            <label for="personnelSelect">Personel</label>
                             <select id="personnelSelect" required>
-                                <option value="" data-i18n="packaging.personnel.placeholder">Personel seçin...</option>
+                                <option value="">Personel seçin...</option>
                             </select>
-                            <div class="validation-error" id="personnelError" data-i18n="personnel.error.required">Personel seçimi zorunludur</div>
+                            <div class="validation-error" id="personnelError">Personel seçimi zorunludur</div>
                         </div>
                         <div class="info-group">
-                            <label data-i18n="packaging.date">Tarih</label>
+                            <label>Tarih</label>
                             <span id="currentDate">-</span>
                         </div>
                     </div>
                     <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" onclick="showAllCustomers()" data-i18n="packaging.customer.management">Müşteri Yönetimi</button>
-                        <button type="button" class="btn btn-warning" onclick="generateDailyReport()" data-i18n="packaging.daily.report">İş Sonu Raporu</button>
-                        <button type="button" class="btn btn-success" onclick="sendToRamp()" data-i18n="packaging.add.to.container">Konteynere Ekle</button>
+                        <button type="button" class="btn btn-primary" onclick="showAllCustomers()">Müşteri Yönetimi</button>
+                        <button type="button" class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
+                        <button type="button" class="btn btn-success" onclick="sendToRamp()">Konteynere Ekle</button>
                     </div>
                 </div>
 
@@ -160,71 +159,71 @@ document.addEventListener("DOMContentLoaded", function() {
     <div class="barcode-section">
         <div class="quick-buttons">
             <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
-                <span data-i18n="products.large.sheet">Büyük çarşaf</span>
+                <span>Büyük çarşaf</span>
                 <div class="quantity-badge" id="Büyük Çarşaf-quantity">0</div>
             </div>
             <div class="quick-btn" onclick="openQuantityModal('Çarşaf')" data-product="Çarşaf">
-                <span data-i18n="products.sheet">Çarşaf</span>
+                <span>Çarşaf</span>
                 <div class="quantity-badge" id="Çarşaf-quantity">0</div>
             </div>
             <div class="quick-btn" onclick="openQuantityModal('Büyük Nevresim')" data-product="Büyük Nevresim">
-                <span data-i18n="products.large.quilt">Büyük Nevresim</span>
+                <span>Büyük Nevresim</span>
                 <div class="quantity-badge" id="Büyük Nevresim-quantity">0</div>
             </div>
             <div class="quick-btn" onclick="openQuantityModal('Nevresim')" data-product="Nevresim">
-                <span data-i18n="products.quilt">Nevresim</span>
+                <span>Nevresim</span>
                 <div class="quantity-badge" id="Nevresim-quantity">0</div>
             </div>
             <div class="quick-btn" onclick="openQuantityModal('Büyük Havlu')" data-product="Büyük Havlu">
-                <span data-i18n="products.large.towel">Büyük Havlu</span>
+                <span>Büyük Havlu</span>
                 <div class="quantity-badge" id="Büyük Havlu-quantity">0</div>
             </div>
             <div class="quick-btn" onclick="openQuantityModal('Havlu')" data-product="Havlu">
-                <span data-i18n="products.towel">Havlu</span>
+                <span>Havlu</span>
                 <div class="quantity-badge" id="Havlu-quantity">0</div>
             </div>
             <div class="quick-btn" onclick="openQuantityModal('Yastık')" data-product="Yastık">
-                <span data-i18n="products.pillow">Yastık</span>
+                <span>Yastık</span>
                 <div class="quantity-badge" id="Yastık-quantity">0</div>
             </div>
             <div class="quick-btn" onclick="openQuantityModal('Yastık Kılıfı')" data-product="Yastık Kılıfı">
-                <span data-i18n="products.pillowcase">Yastık Kılıfı</span>
+                <span>Yastık Kılıfı</span>
                 <div class="quantity-badge" id="Yastık Kılıfı-quantity">0</div>
             </div>
             <div class="quick-btn" onclick="openQuantityModal('Alez')" data-product="Alez">
-                <span data-i18n="products.alez">Alez</span>
+                <span>Alez</span>
                 <div class="quantity-badge" id="Alez-quantity">0</div>
             </div>
         </div>
         
         <div style="display: flex; gap: 10px; margin-top: 1rem;">
-            <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="flex: 1;" data-i18n="products.manual.entry">Manuel Giriş</button>
-            <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;" data-i18n="products.extra">Extra</button>
+            <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="flex: 1;">Manuel Giriş</button>
+            <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;">Extra</button>
         </div>
 
         <div class="status-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-            <div class="quick-btn status-btn" id="Lekeli" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli" data-i18n="status.stained">Lekeli</div>
-            <div class="quick-btn status-btn" id="Yırtık" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık" data-i18n="status.torn">Yırtık</div>
-            <div class="quick-btn status-btn" id="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan" data-i18n="status.not.removed">Çıkmayan</div>
-            <div class="quick-btn status-btn" id="Discard" onclick="openStatusQuantityModal('Discard')" data-status="Discard" data-i18n="status.discard">Discard</div>
+            <div class="quick-btn status-btn" id="Lekeli" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli">Lekeli</div>
+            <div class="quick-btn status-btn" id="Yırtık" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık">Yırtık</div>
+            <div class="quick-btn status-btn" id="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan">Çıkmayan</div>
+            <div class="quick-btn status-btn" id="Discard" onclick="openStatusQuantityModal('Discard')" data-status="Discard">Discard</div>
         </div>
     </div>
 
     <!-- MIDDLE COLUMN: Bekleyen Paketler Table -->
     <div class="pending-packages">
-        <h3 data-i18n="packaging.pending.packages">Bekleyen Paketler</h3>
+        <h3>Bekleyen Paketler</h3>
         <table class="package-table">
             <thead>
                 <tr>
                     <th>
                         <input type="checkbox" id="selectAllPackages" onchange="toggleSelectAll()">
                     </th>
-                    <th data-i18n="packaging.package.no">Paket No</th>
-                    <th data-i18n="packaging.customer">Müşteri</th>
-                    <th data-i18n="packaging.product">Ürün</th>
-                    <th data-i18n="packaging.quantity">Adet</th>
-                    <th data-i18n="packaging.date">Tarih</th>
-                    <th data-i18n="packaging.status">Durum</th>
+                    <th>Paket No</th>
+                    <th>Müşteri</th>
+                    <th>Ürün</th>
+                    <th>Adet</th>
+                    <th>Tarih</th>
+                    <th>Durum</th>
                 </tr>
             </thead>
             <tbody id="packagesTableBody">
@@ -236,9 +235,9 @@ document.addEventListener("DOMContentLoaded", function() {
     <!-- RIGHT COLUMN: Barcode + Package Details + Scanner Button -->
     <div class="package-details">
         <!-- Barcode Section at Top -->
-        <h3 data-i18n="packaging.barcode.reading">Barkod Okuma</h3>
+        <h3>Barkod Okuma</h3>
         <div class="barcode-input">
-            <input type="text" id="barcodeInput" data-i18n-placeholder="packaging.barcode.placeholder" placeholder="Barkod okutun veya girin" autofocus>
+            <input type="text" id="barcodeInput" placeholder="Barkod okutun veya girin" autofocus>
             <button type="button" onclick="processBarcode()"><i class="fas fa-search"></i></button>
         </div>
         <div id="barcodeResult">
@@ -246,22 +245,20 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
 
         <!-- Package Details Section -->
-        <h3 style="margin-top: 1.5rem;" data-i18n="packaging.package.details">Paket Detayları</h3>
+        <h3 style="margin-top: 1.5rem;">Paket Detayları</h3>
         <div id="packageDetailContent">
-            <p style="text-align:center; color:#666; margin:2rem 0;" data-i18n="packaging.select.package">Paket seçin</p>
+            <p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>
         </div>
         
         <div class="package-actions">
-            <button type="button" class="btn btn-success" onclick="completePackage()" data-i18n="packaging.complete.package">Paketle</button>
-            <button type="button" class="btn btn-warning" id="printBarcodeBtn" data-i18n="packaging.print.label">Etiket Yazdır</button>
-            <button type="button" class="btn btn-danger" 
-        onclick="askPassword(() => deleteSelectedPackages())" 
-        data-i18n="general.delete">Sil</button>
+            <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
+            <button type="button" class="btn btn-warning" id="printBarcodeBtn">Etiket Yazdır</button>
+            <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()">Sil</button>
         </div>
 
         <!-- Scanner Button at Bottom -->
         <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:1rem;" id="scannerToggle">
-            <i class="fas fa-camera"></i> <span data-i18n="packaging.open.scanner">Barkod Tarayıcıyı Aç</span>
+            <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
         </button>
     </div>
 </div>
@@ -302,25 +299,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="packaging-header">
                     <div class="customer-info">
                         <div class="info-group">
-                            <label for="shippingFilter" data-i18n="shipping.status.filter">Durum Filtresi</label>
+                            <label for="shippingFilter">Durum Filtresi</label>
                             <select id="shippingFilter" onchange="filterShipping()">
-                                <option value="all" data-i18n="shipping.filter.all">Tümü</option>
-                                <option value="beklemede" data-i18n="shipping.filter.pending">Beklemede</option>
-                                <option value="sevk-edildi" data-i18n="shipping.filter.shipped">Sevk Edildi</option>
+                                <option value="all">Tümü</option>
+                                <option value="beklemede">Beklemede</option>
+                                <option value="sevk-edildi">Sevk Edildi</option>
                             </select>
                         </div>
                         <div class="info-group">
-                            <label for="containerSearch" data-i18n="shipping.container.search">Konteyner Ara</label>
-                            <input type="text" id="containerSearch" data-i18n-placeholder="shipping.container.placeholder" placeholder="Konteyner no..." oninput="searchContainers()">
+                            <label for="containerSearch">Konteyner Ara</label>
+                            <input type="text" id="containerSearch" placeholder="Konteyner no..." oninput="searchContainers()">
                         </div>
                     </div>
                     <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" onclick="createNewContainer()" data-i18n="shipping.new.container">Yeni Konteyner</button>
-                        <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()" data-i18n="shipping.current.container">Mevcut Konteyner</button>
-                        <button type="button" class="btn btn-danger" 
-        onclick="askPassword(() => deleteContainer())" 
-        data-i18n="shipping.delete.container">Konteyner Sil</button>
-
+                        <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
+                        <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()">Mevcut Konteyner</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteContainer()">Konteyner Sil</button>
                     </div>
                 </div>
 
@@ -332,29 +326,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <td>
     <div class="edit-buttons" style="display: none;">
-        <button onclick="saveStockFromRow(this, 'STK001')" data-i18n="general.save">Kaydet</button>
-        <button onclick="cancelStockFromRow(this, 'STK001')" data-i18n="general.cancel">İptal</button>
+        <button onclick="saveStockFromRow(this, 'STK001')">Kaydet</button>
+        <button onclick="cancelStockFromRow(this, 'STK001')">İptal</button>
     </div>
 </td>
             
 
           <div class="tab-pane" id="stockTab">
                 <div class="stock-search">
-                    <input type="text" id="stockSearch" data-i18n-placeholder="stock.search" placeholder="Stok ara..." oninput="searchStock()">
-                    <button type="button" class="btn btn-primary" onclick="clearStockSearch()" data-i18n="stock.clear">Temizle</button>
-                    <button type="button" class="btn btn-success" onclick="exportStock()" data-i18n="stock.export">Stokları Dışa Aktar</button>
+                    <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
+                    <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
+                    <button type="button" class="btn btn-success" onclick="exportStock()">Stokları Dışa Aktar</button>
                 </div>
 
                 <table class="stock-table">
                     <thead>
                         <tr>
-                            <th data-i18n="stock.code">Stok Kodu</th>
-                            <th data-i18n="stock.name">Ürün Adı</th>
-                            <th data-i18n="stock.quantity">Mevcut Adet</th>
-                            <th data-i18n="stock.unit">Birim</th>
-                            <th data-i18n="stock.status">Durum</th>
-                            <th data-i18n="stock.last.update">Son Güncelleme</th>
-                            <th data-i18n="stock.actions">İşlemler</th>
+                            <th>Stok Kodu</th>
+                            <th>Ürün Adı</th>
+                            <th>Mevcut Adet</th>
+                            <th>Birim</th>
+                            <th>Durum</th>
+                            <th>Son Güncelleme</th>
+                            <th>İşlemler</th>
                         </tr>
                     </thead>
                     <tbody id="stockTableBody">
@@ -365,63 +359,63 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
                 <div class="file-upload">
-                    <h3 data-i18n="stock.upload.file">Stok Dosyası Yükle</h3>
-                    <p data-i18n="stock.upload.description">Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
+                    <h3>Stok Dosyası Yükle</h3>
+                    <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
                     <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
                     <div>
                         <span id="selectedFileName"></span>
                         <div class="validation-error" id="fileError"></div>
                     </div>
                     <button type="button" class="upload-button" onclick="uploadStockFile()">
-                        <i class="fas fa-upload"></i> <span data-i18n="stock.upload.button">Dosya Yükle</span>
+                        <i class="fas fa-upload"></i> Dosya Yükle
                     </button>
                     <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
-                        <i class="fas fa-download"></i> <span data-i18n="stock.download.template">Şablon İndir</span>
+                        <i class="fas fa-download"></i> Şablon İndir
                     </button>
                 </div>
             </div>
 
             <div class="tab-pane admin-only" id="reportsTab">
                 <div class="packaging-header">
-                    <h3 data-i18n="reports.title">Raporlar</h3>
+                    <h3>Raporlar</h3>
                     <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" onclick="generateCustomReport()" data-i18n="reports.custom">Özel Rapor</button>
-                        <button type="button" class="btn btn-warning" onclick="exportReports()" data-i18n="reports.export">Raporları Dışa Aktar</button>
+                        <button type="button" class="btn btn-primary" onclick="generateCustomReport()">Özel Rapor</button>
+                        <button type="button" class="btn btn-warning" onclick="exportReports()">Raporları Dışa Aktar</button>
                     </div>
                 </div>
 
                 <div class="report-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                     <div class="info-group">
-                        <label for="reportType" data-i18n="reports.type">Rapor Türü</label>
+                        <label for="reportType">Rapor Türü</label>
                         <select id="reportType">
-                            <option value="daily" data-i18n="reports.daily">Günlük Rapor</option>
-                            <option value="weekly" data-i18n="reports.weekly">Haftalık Rapor</option>
-                            <option value="monthly" data-i18n="reports.monthly">Aylık Rapor</option>
-                            <option value="custom" data-i18n="reports.custom">Özel Rapor</option>
+                            <option value="daily">Günlük Rapor</option>
+                            <option value="weekly">Haftalık Rapor</option>
+                            <option value="monthly">Aylık Rapor</option>
+                            <option value="custom">Özel Rapor</option>
                         </select>
                     </div>
                     <div class="info-group">
-                        <label for="startDate" data-i18n="reports.start.date">Başlangıç Tarihi</label>
+                        <label for="startDate">Başlangıç Tarihi</label>
                         <input type="date" id="startDate">
                     </div>
                     <div class="info-group">
-                        <label for="endDate" data-i18n="reports.end.date">Bitiş Tarihi</label>
+                        <label for="endDate">Bitiş Tarihi</label>
                         <input type="date" id="endDate">
                     </div>
                     <div class="info-group" style="align-self: flex-end;">
-                        <button type="button" class="btn btn-primary" onclick="loadReports()" data-i18n="reports.load">Raporları Yükle</button>
+                        <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
                     </div>
                 </div>
 
                 <table class="stock-table">
                     <thead>
                         <tr>
-                            <th data-i18n="reports.date">Rapor Tarihi</th>
-                            <th data-i18n="reports.type">Rapor Türü</th>
-                            <th data-i18n="reports.package.count">Paket Sayısı</th>
-                            <th data-i18n="reports.total.quantity">Toplam Adet</th>
-                            <th data-i18n="reports.creator">Oluşturan</th>
-                            <th data-i18n="stock.actions">İşlemler</th>
+                            <th>Rapor Tarihi</th>
+                            <th>Rapor Türü</th>
+                            <th>Paket Sayısı</th>
+                            <th>Toplam Adet</th>
+                            <th>Oluşturan</th>
+                            <th>İşlemler</th>
                         </tr>
                     </thead>
                     <tbody id="reportsTableBody">
@@ -433,13 +427,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <div class="app-footer">
             <div class="container-info">
-                <span data-i18n="footer.active.container">Aktif Konteyner: <strong id="containerNumber">Yok</strong></span>
+                <span>Aktif Konteyner: <strong id="containerNumber">Yok</strong></span>
                 <span>|</span>
-                <span data-i18n="footer.total.packages">Toplam Paket: <strong id="totalPackages">0</strong></span>
+                <span>Toplam Paket: <strong id="totalPackages">0</strong></span>
                 <span>|</span>
-                <span data-i18n="footer.copyright">ProClean © 2025</span>
+                <span>ProClean © 2025</span>
             </div>
-            <div id="connectionStatus" data-i18n="general.online">Çevrimiçi</div>
+            <div id="connectionStatus">Çevrimiçi</div>
         </div>
     </div>
 
@@ -450,14 +444,14 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="modal" id="customerModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 data-i18n="customer.select">Müşteri Seç</h3>
+                <h3>Müşteri Seç</h3>
                 <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
             </div>
             <div class="customer-list" id="customerList">
                 <!-- Customers will be populated here -->
             </div>
             <div class="modal-buttons">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()" data-i18n="general.cancel">İptal</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">İptal</button>
             </div>
         </div>
     </div>
@@ -466,30 +460,28 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="modal" id="allCustomersModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 data-i18n="customer.management">Müşteri Yönetimi</h3>
+                <h3>Müşteri Yönetimi</h3>
                 <button type="button" class="modal-close" onclick="closeAllCustomersModal()">&times;</button>
             </div>
             <div class="form-group">
-                <label for="newCustomerCode" data-i18n="customer.code">Müşteri Kodu</label>
-                <input type="text" id="newCustomerCode" data-i18n-placeholder="customer.placeholder.code" placeholder="Örn: P0005" required>
-                <div class="validation-error" id="customerCodeError" data-i18n="customer.error.code">Müşteri kodu gereklidir</div>
+                <label for="newCustomerCode">Müşteri Kodu</label>
+                <input type="text" id="newCustomerCode" placeholder="Örn: P0005" required>
+                <div class="validation-error" id="customerCodeError">Müşteri kodu gereklidir</div>
             </div>
             <div class="form-group">
-                <label for="newCustomerName" data-i18n="customer.name">Müşteri Adı</label>
-                <input type="text" id="newCustomerName" data-i18n-placeholder="customer.placeholder.name" placeholder="Müşteri adını girin" required>
-                <div class="validation-error" id="customerNameError" data-i18n="customer.error.name">Müşteri adı gereklidir</div>
+                <label for="newCustomerName">Müşteri Adı</label>
+                <input type="text" id="newCustomerName" placeholder="Müşteri adını girin" required>
+                <div class="validation-error" id="customerNameError">Müşteri adı gereklidir</div>
             </div>
             <div class="form-group">
-                <label for="newCustomerEmail" data-i18n="customer.email">E-posta (İsteğe bağlı)</label>
-                <input type="email" id="newCustomerEmail" data-i18n-placeholder="customer.placeholder.email" placeholder="E-posta adresini girin">
-                <div class="validation-error" id="customerEmailError" data-i18n="customer.error.email">Geçerli bir e-posta adresi girin</div>
+                <label for="newCustomerEmail">E-posta (İsteğe bağlı)</label>
+                <input type="email" id="newCustomerEmail" placeholder="E-posta adresini girin">
+                <div class="validation-error" id="customerEmailError">Geçerli bir e-posta adresi girin</div>
             </div>
-            <button type="button" class="btn btn-primary" 
-        onclick="askPassword(() => addNewCustomer())" 
-        data-i18n="customer.add">Müşteri Ekle</button>
+            <button type="button" class="btn btn-primary" onclick="addNewCustomer()">Müşteri Ekle</button>
             
             <hr style="margin: 1.5rem 0;">
-            <h4 data-i18n="customer.existing">Mevcut Müşteriler</h4>
+            <h4>Mevcut Müşteriler</h4>
             <div class="customer-list" id="allCustomersList">
                 <!-- All customers will be populated here -->
             </div>
@@ -500,18 +492,18 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="modal" id="emailModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 data-i18n="email.report">İş Sonu Raporu Gönder</h3>
+                <h3>İş Sonu Raporu Gönder</h3>
                 <button type="button" class="modal-close" onclick="closeEmailModal()">&times;</button>
             </div>
             <div class="form-group">
-                <label for="reportEmail" data-i18n="email.placeholder">E-posta Adresi</label>
-                <input type="email" id="reportEmail" data-i18n-placeholder="email.placeholder" placeholder="Rapor gönderilecek e-posta" required>
-                <div class="validation-error" id="reportEmailError" data-i18n="email.error">Geçerli bir e-posta adresi girin</div>
+                <label for="reportEmail">E-posta Adresi</label>
+                <input type="email" id="reportEmail" placeholder="Rapor gönderilecek e-posta" required>
+                <div class="validation-error" id="reportEmailError">Geçerli bir e-posta adresi girin</div>
             </div>
             <div class="modal-buttons">
-                <button type="button" class="btn btn-primary" onclick="sendDailyReport()" data-i18n="email.send">Rapor Gönder</button>
-                <button type="button" class="btn btn-warning" onclick="previewReport()" data-i18n="email.preview">Önizleme</button>
-                <button type="button" class="btn btn-secondary" onclick="closeEmailModal()" data-i18n="general.cancel">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="sendDailyReport()">Rapor Gönder</button>
+                <button type="button" class="btn btn-warning" onclick="previewReport()">Önizleme</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEmailModal()">İptal</button>
             </div>
         </div>
     </div>
@@ -519,12 +511,12 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- Quantity Modal -->
     <div class="quantity-modal" id="quantityModal">
         <div class="quantity-content">
-            <h3 id="quantityModalTitle" data-i18n="quantity.title">Adet Girin</h3>
-            <input type="number" id="quantityInput" class="quantity-input" min="1" data-i18n-placeholder="quantity.placeholder" placeholder="Adet" required>
-            <div class="validation-error" id="quantityError" data-i18n="quantity.error">Geçerli bir adet girin</div>
+            <h3 id="quantityModalTitle">Adet Girin</h3>
+            <input type="number" id="quantityInput" class="quantity-input" min="1" placeholder="Adet" required>
+            <div class="validation-error" id="quantityError">Geçerli bir adet girin</div>
             <div class="quantity-buttons">
-                <button type="button" class="btn btn-primary" onclick="confirmQuantity()" data-i18n="general.confirm">Onayla</button>
-                <button type="button" class="btn btn-secondary" onclick="closeQuantityModal()" data-i18n="general.cancel">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="confirmQuantity()">Onayla</button>
+                <button type="button" class="btn btn-secondary" onclick="closeQuantityModal()">İptal</button>
             </div>
         </div>
     </div>
@@ -533,22 +525,22 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="modal" id="manualModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 data-i18n="manual.title">Manuel Ürün Girişi</h3>
+                <h3>Manuel Ürün Girişi</h3>
                 <button type="button" class="modal-close" onclick="closeManualModal()">&times;</button>
             </div>
             <div class="form-group">
-                <label for="manualProduct" data-i18n="manual.product">Ürün Adı</label>
-                <input type="text" id="manualProduct" data-i18n-placeholder="manual.placeholder.product" placeholder="Ürün adını girin" required>
-                <div class="validation-error" id="manualProductError" data-i18n="manual.error.product">Ürün adı gereklidir</div>
+                <label for="manualProduct">Ürün Adı</label>
+                <input type="text" id="manualProduct" placeholder="Ürün adını girin" required>
+                <div class="validation-error" id="manualProductError">Ürün adı gereklidir</div>
             </div>
             <div class="form-group">
-                <label for="manualQuantity" data-i18n="manual.quantity">Adet</label>
-                <input type="number" id="manualQuantity" min="1" data-i18n-placeholder="manual.placeholder.quantity" placeholder="Adet girin" required>
-                <div class="validation-error" id="manualQuantityError" data-i18n="manual.error.quantity">Geçerli bir adet girin</div>
+                <label for="manualQuantity">Adet</label>
+                <input type="number" id="manualQuantity" min="1" placeholder="Adet girin" required>
+                <div class="validation-error" id="manualQuantityError">Geçerli bir adet girin</div>
             </div>
             <div class="modal-buttons">
-                <button type="button" class="btn btn-primary" onclick="addManualProduct()" data-i18n="manual.add">Ekle</button>
-                <button type="button" class="btn btn-secondary" onclick="closeManualModal()" data-i18n="general.cancel">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="addManualProduct()">Ekle</button>
+                <button type="button" class="btn btn-secondary" onclick="closeManualModal()">İptal</button>
             </div>
         </div>
     </div>
@@ -558,21 +550,21 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal" id="extraModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 data-i18n="extra.title">Extra Ürünler</h3>
+            <h3>Extra Ürünler</h3>
             <button type="button" class="modal-close" onclick="closeExtraModal()">&times;</button>
         </div>
 
         <div class="quick-buttons">
-            <div class="quick-btn" onclick="openQuantityModal('Paspas Havlu')" data-i18n="extra.mat.towel">Paspas Havlu</div>
-            <div class="quick-btn" onclick="openQuantityModal('Minik Havlu')" data-i18n="extra.small.towel">Minik Havlu</div>
-            <div class="quick-btn" onclick="openQuantityModal('Peştemal')" data-i18n="extra.pestemal">Peştemal</div>
-            <div class="quick-btn" onclick="openQuantityModal('Pornoz')" data-i18n="extra.bathrobe">Pornoz</div>
-            <div class="quick-btn" onclick="openQuantityModal('Pike')" data-i18n="extra.pique">Pike</div>
-            <div class="quick-btn" onclick="openQuantityModal('Battaniye')" data-i18n="extra.blanket">Battaniye</div>
-            <div class="quick-btn" onclick="openQuantityModal('Yatak Örtüsü')" data-i18n="extra.bedspread">Yatak Örtüsü</div>
-            <div class="quick-btn" onclick="openQuantityModal('Tül Perde')" data-i18n="extra.sheer.curtain">Tül Perde</div>
-            <div class="quick-btn" onclick="openQuantityModal('Kumaş Perde')" data-i18n="extra.fabric.curtain">Kumaş Perde</div>
-            <div class="quick-btn" onclick="openQuantityModal('Saten Perde')" data-i18n="extra.satin.curtain">Saten Perde</div>
+            <div class="quick-btn" onclick="openQuantityModal('Paspas Havlu')">Paspas Havlu</div>
+            <div class="quick-btn" onclick="openQuantityModal('Minik Havlu')">Minik Havlu</div>
+            <div class="quick-btn" onclick="openQuantityModal('Peştemal')">Peştemal</div>
+            <div class="quick-btn" onclick="openQuantityModal('Pornoz')">Pornoz</div>
+            <div class="quick-btn" onclick="openQuantityModal('Pike')">Pike</div>
+            <div class="quick-btn" onclick="openQuantityModal('Battaniye')">Battaniye</div>
+            <div class="quick-btn" onclick="openQuantityModal('Yatak Örtüsü')">Yatak Örtüsü</div>
+            <div class="quick-btn" onclick="openQuantityModal('Tül Perde')">Tül Perde</div>
+            <div class="quick-btn" onclick="openQuantityModal('Kumaş Perde')">Kumaş Perde</div>
+            <div class="quick-btn" onclick="openQuantityModal('Saten Perde')">Saten Perde</div>
         </div>
     </div>
 </div>
@@ -583,15 +575,15 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="modal" id="containerDetailModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="containerDetailTitle" data-i18n="shipping.container.details">Konteyner Detayları</h3>
+                <h3 id="containerDetailTitle">Konteyner Detayları</h3>
                 <button type="button" class="modal-close" onclick="closeContainerDetailModal()">&times;</button>
             </div>
             <div id="containerDetailContent">
                 <!-- Container details will be populated here -->
             </div>
             <div class="modal-buttons" style="margin-top: 20px;">
-                <button type="button" class="btn btn-success" onclick="shipContainerFromModal()" data-i18n="shipping.ship.container">Sevk Et</button>
-                <button type="button" class="btn btn-secondary" onclick="closeContainerDetailModal()" data-i18n="general.close">Kapat</button>
+                <button type="button" class="btn btn-success" onclick="shipContainerFromModal()">Sevk Et</button>
+                <button type="button" class="btn btn-secondary" onclick="closeContainerDetailModal()">Kapat</button>
             </div>
         </div>
     </div>
@@ -600,25 +592,25 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal" id="settingsModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 data-i18n="settings.title">Ayarlar</h2>
+            <h2>Ayarlar</h2>
             <button type="button" class="modal-close" id="closeSettingsModalBtn">&times;</button>
         </div>
         
         <!-- Genel Ayarlar -->
         <div class="settings-section">
-            <h3 data-i18n="settings.general">Genel Ayarlar</h3>
+            <h3>Genel Ayarlar</h3>
             
             <div class="settings-option">
-                <label for="themeToggle" data-i18n="settings.theme">Tema Modu</label>
+                <label for="themeToggle">Tema Modu</label>
                 <div class="toggle-switch">
                     <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
                     <label for="themeToggle" class="toggle-slider"></label>
-                    <span id="themeStatus" data-i18n="settings.theme.light">Açık</span>
+                    <span id="themeStatus">Açık</span>
                 </div>
             </div>
             
             <div class="settings-option">
-                <label for="languageSelect" data-i18n="settings.language">Dil</label>
+                <label for="languageSelect">Dil</label>
                 <select id="languageSelect" onchange="changeLanguage()">
                     <option value="tr">Türkçe</option>
                     <option value="en">English</option>
@@ -626,7 +618,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             
             <div class="settings-option">
-                <label for="autoSaveToggle" data-i18n="settings.auto.save">Otomatik Kaydet</label>
+                <label for="autoSaveToggle">Otomatik Kaydet</label>
                 <div class="toggle-switch">
                     <input type="checkbox" id="autoSaveToggle" checked onchange="toggleAutoSave()">
                     <label for="autoSaveToggle" class="toggle-slider"></label>
@@ -637,7 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
  <!-- Yazıcı Ayarları -->
 <div class="settings-section">
-    <h3 data-i18n="settings.printer">Yazıcı Ayarları</h3>
+    <h3>Yazıcı Ayarları</h3>
 
     <label for="labelHeader">Label Header:</label>
 <input type="text" id="labelHeader" placeholder="Yeditepe" />
@@ -645,7 +637,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Etiket Boyutu / Scaling -->
     <div class="settings-option">
-        <label for="printerScaling" data-i18n="settings.printer.scaling">Etiket Boyutu</label>
+        <label for="printerScaling">Etiket Boyutu</label>
         <select id="printerScaling">
             <option value="100%">Küçük (100%)</option>
             <option value="150%">Orta (150%)</option>
@@ -657,13 +649,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Kopya Sayısı -->
     <div class="settings-option">
-        <label for="copiesNumber" data-i18n="settings.printer.copies">Kopya Sayısı</label>
+        <label for="copiesNumber">Kopya Sayısı</label>
         <input type="number" id="copiesNumber" min="1" max="10" value="1" style="width: 60px;">
     </div>
 
     <!-- Font Family -->
     <div class="settings-option">
-        <label for="fontName" data-i18n="settings.printer.font">Font</label>
+        <label for="fontName">Font</label>
         <select id="fontName">
             <option value="Arial">Arial</option>
             <option value="Times New Roman">Times New Roman</option>
@@ -674,33 +666,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Font Size -->
     <div class="settings-option">
-        <label for="fontSize" data-i18n="settings.printer.font.size">Font Boyutu</label>
+        <label for="fontSize">Font Boyutu</label>
         <input type="number" id="fontSize" min="6" max="20" value="10" style="width: 60px;">
     </div>
 
     <!-- Orientation -->
     <div class="settings-option">
-        <label for="orientation" data-i18n="settings.printer.orientation">Yönlendirme</label>
+        <label for="orientation">Yönlendirme</label>
         <select id="orientation">
-            <option value="portrait" data-i18n="settings.printer.portrait">Dikey (Portrait)</option>
-            <option value="landscape" data-i18n="settings.printer.landscape">Yatay (Landscape)</option>
+            <option value="portrait">Dikey (Portrait)</option>
+            <option value="landscape">Yatay (Landscape)</option>
         </select>
     </div>
 
     <!-- Margins -->
     <div class="settings-option">
-        <label for="marginTop" data-i18n="settings.printer.margin.top">Üst Margin (mm)</label>
+        <label for="marginTop">Üst Margin (mm)</label>
         <input type="number" id="marginTop" min="0" max="50" value="5" style="width: 60px;">
     </div>
     <div class="settings-option">
-        <label for="marginBottom" data-i18n="settings.printer.margin.bottom">Alt Margin (mm)</label>
+        <label for="marginBottom">Alt Margin (mm)</label>
         <input type="number" id="marginBottom" min="0" max="50" value="5" style="width: 60px;">
     </div>
 
     <!-- Test Print -->
     <div class="settings-option">
-        <label data-i18n="settings.printer.test">Yazıcı Testi</label>
-        <button class="btn btn-primary" id="test-printer-yazdir" data-i18n="settings.printer.test">Test Yazdır</button>
+        <label>Yazıcı Testi</label>
+        <button class="btn btn-primary" id="test-printer-yazdir">Test Yazdır</button>
     </div>
 </div>
 
@@ -708,61 +700,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <!-- Veri Yönetimi -->
         <div class="settings-section">
-            <h3 data-i18n="settings.data.management">Veri Yönetimi</h3>
+            <h3>Veri Yönetimi</h3>
             
             <div class="settings-option">
-                <label data-i18n="settings.change.api">Supabase API Anahtarı</label>
-                <button class="btn btn-warning" onclick="showApiKeyModal()" data-i18n="settings.change.api">API Anahtarını Değiştir</button>
+                <label>Supabase API Anahtarı</label>
+                <button class="btn btn-warning" onclick="showApiKeyModal()">API Anahtarını Değiştir</button>
             </div>
             
             <div class="settings-option">
-                <label data-i18n="settings.data.backup">Veri Yedekleme</label>
+                <label>Veri Yedekleme</label>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-primary" onclick="exportData('json')" data-i18n="settings.export.json">JSON İndir</button>
-                    <button class="btn btn-primary" onclick="exportData('excel')" data-i18n="settings.export.excel">Excel İndir</button>
-                    <button class="btn btn-primary" id="excelPreviewBtn" onclick="previewExcelData()" style="background-color: #217346; border-color: #217346; color: white;" data-i18n="settings.preview.excel">
+                    <button class="btn btn-primary" onclick="exportData('json')">JSON İndir</button>
+                    <button class="btn btn-primary" onclick="exportData('excel')">Excel İndir</button>
+                    <button class="btn btn-primary" id="excelPreviewBtn" onclick="previewExcelData()" style="background-color: #217346; border-color: #217346; color: white;">
     <i class="fas fa-file-excel"></i> Excel Önizleme
 </button>
                 </div>
             </div>
             
             <div class="settings-option">
-                <label data-i18n="settings.clear.data">Verileri Temizle</label>
-                <button class="btn btn-danger" onclick="clearFrontendData()" data-i18n="settings.clear.data">Yerel Verileri Temizle</button>
+                <label>Verileri Temizle</label>
+                <button class="btn btn-danger" onclick="clearFrontendData()">Yerel Verileri Temizle</button>
             </div>
         </div>
 
         <!-- Sistem Bilgileri -->
         <div class="settings-section">
-            <h3 data-i18n="settings.system.info">Sistem Bilgileri</h3>
+            <h3>Sistem Bilgileri</h3>
             
             <div class="settings-option">
-                <label data-i18n="settings.app.version">Uygulama Versiyonu</label>
+                <label>Uygulama Versiyonu</label>
                 <span class="system-info">v2.0.0</span>
             </div>
             
             <div class="settings-option">
-                <label data-i18n="settings.last.update">Son Güncelleme</label>
+                <label>Son Güncelleme</label>
                 <span class="system-info" id="lastUpdateDate">-</span>
             </div>
             
             <div class="settings-option">
-                <label data-i18n="settings.db.connection">Veritabanı Bağlantısı</label>
-                <span id="dbConnectionStatus" class="status-indicator" data-i18n="general.loading">Kontrol ediliyor...</span>
+                <label>Veritabanı Bağlantısı</label>
+                <span id="dbConnectionStatus" class="status-indicator">Kontrol ediliyor...</span>
             </div>
             
             <div class="settings-option">
-                <label data-i18n="settings.printer.connection">Yazıcı Durumu</label>
-                <span id="printerConnectionStatus" class="status-indicator" data-i18n="general.loading">Kontrol ediliyor...</span>
+                <label>Yazıcı Durumu</label>
+                <span id="printerConnectionStatus" class="status-indicator">Kontrol ediliyor...</span>
             </div>
         </div>
 
         <!-- Geliştirici Seçenekleri (Admin only) -->
         <div class="settings-section admin-only">
-            <h3 data-i18n="settings.developer.options">Geliştirici Seçenekleri</h3>
+            <h3>Geliştirici Seçenekleri</h3>
             
             <div class="settings-option">
-                <label data-i18n="settings.debug.mode">Hata Ayıklama Modu</label>
+                <label>Hata Ayıklama Modu</label>
                 <div class="toggle-switch">
                     <input type="checkbox" id="debugModeToggle" onchange="toggleDebugMode()">
                     <label for="debugModeToggle" class="toggle-slider"></label>
@@ -770,19 +762,19 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             
             <div class="settings-option">
-                <label data-i18n="settings.console.logs">Konsol Logları</label>
-                <button class="btn btn-secondary" onclick="showConsoleLogs()" data-i18n="settings.console.logs">Logları Görüntüle</button>
+                <label>Konsol Logları</label>
+                <button class="btn btn-secondary" onclick="showConsoleLogs()">Logları Görüntüle</button>
             </div>
             
             <div class="settings-option">
-                <label data-i18n="settings.performance.test">Performans Testi</label>
-                <button class="btn btn-secondary" onclick="runPerformanceTest()" data-i18n="settings.performance.test">Test Çalıştır</button>
+                <label>Performans Testi</label>
+                <button class="btn btn-secondary" onclick="runPerformanceTest()">Test Çalıştır</button>
             </div>
         </div>
 
         <div class="modal-buttons" style="margin-top: 20px;">
-            <button type="button" class="btn btn-success" onclick="saveAllSettings()" data-i18n="settings.save.all">Tüm Ayarları Kaydet</button>
-            <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()" data-i18n="general.close">Kapat</button>
+            <button type="button" class="btn btn-success" onclick="saveAllSettings()">Tüm Ayarları Kaydet</button>
+            <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">Kapat</button>
         </div>
     </div>
 </div>
@@ -794,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <div class="offline-indicator" id="offlineIndicator" data-i18n="general.offline">Çevrimdışı Mod</div>
+    <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
 <!-- 1. External libraries and database connection first -->
 <script src="js/supabase.js"></script>
@@ -837,4 +829,4 @@ window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
 </body>
-</html>
+</html> please replace all html needed to work with translation without affecting the buttons function
