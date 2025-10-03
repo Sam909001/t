@@ -1,5 +1,6 @@
-const ExcelJS = require('exceljs'); // Node/Electron
-const fs = require('fs');           // Needed to write files to Main PC
+const { Workbook } = require('exceljs');  
+const fs = require('fs');
+
 
 // FIXED: Kullanıcı girişi
 let connectionTested = false; // Flag to prevent duplicate connection tests
