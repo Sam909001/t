@@ -1,14 +1,9 @@
-// ==================== PASSWORD GUARD - SIMPLIFIED SCRIPT ====================
+// ==================== PASSWORD GUARD - SIMPLIFIED (NO ATTEMPT LIMITS) ====================
 // Works in both Web and Electron environments
 
 class PasswordGuard {
     constructor() {
-        this.maxAttempts = 3;
-        this.attempts = 0;
-        this.lockoutTime = 5 * 60 * 1000; // 5 minutes lockout
-        this.lockoutUntil = 0;
-        
-        // Define passwords for different actions
+        // No attempt limits - suitable for business applications
         this.passwords = {
             'clearData': '7142',
             'changeApiKey': '7142',
@@ -17,13 +12,6 @@ class PasswordGuard {
     }
 
     async askPasswordAndRun(action, actionName = 'bu işlem', actionType = 'default') {
-        // Check if user is locked out
-        if (this.isLockedOut()) {
-            const remainingTime = Math.ceil((this.lockoutUntil - Date.now()) / 1000 / 60);
-            showAlert(`Çok fazla hatalı giriş. Lütfen ${remainingTime} dakika sonra tekrar deneyin.`, 'error');
-            throw new Error('Account locked out');
-        }
-
         // Get the correct password for this action
         const correctPassword = this.passwords[actionType] || this.passwords.default;
 
@@ -44,8 +32,6 @@ class PasswordGuard {
                 justify-content: center;
                 font-family: Arial, sans-serif;
             `;
-
-            const remainingAttempts = this.maxAttempts - this.attempts;
             
             modal.innerHTML = `
                 <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
@@ -57,15 +43,9 @@ class PasswordGuard {
                     <p style="margin-bottom: 0.5rem;"><strong>${actionName}</strong> işlemi için şifre gerekiyor.</p>
                     
                     <div style="background: #f8f9fa; padding: 0.8rem; border-radius: 4px; margin: 1rem 0; font-size: 0.9rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
+                        <div style="display: flex; justify-content: space-between;">
                             <span>Gerekli şifre:</span>
                             <strong>${this.getPasswordHint(actionType)}</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Kalan deneme:</span>
-                            <strong style="color: ${remainingAttempts === 1 ? '#dc3545' : remainingAttempts === 2 ? '#ffc107' : '#28a745'}">
-                                ${remainingAttempts}
-                            </strong>
                         </div>
                     </div>
                     
@@ -112,8 +92,7 @@ class PasswordGuard {
                 const password = passwordInput.value.trim();
 
                 if (password === correctPassword) {
-                    // Success - reset attempts and execute action
-                    this.attempts = 0;
+                    // Success - execute action
                     cleanup();
                     
                     try {
@@ -125,8 +104,7 @@ class PasswordGuard {
                     }
                     
                 } else {
-                    // Wrong password
-                    this.attempts++;
+                    // Wrong password - show error but allow retry
                     errorDiv.style.display = 'block';
                     passwordInput.value = '';
                     passwordInput.focus();
@@ -137,14 +115,6 @@ class PasswordGuard {
                     setTimeout(() => {
                         passwordInput.style.animation = '';
                     }, 500);
-
-                    if (this.attempts >= this.maxAttempts) {
-                        // Lockout user
-                        this.lockoutUntil = Date.now() + this.lockoutTime;
-                        showAlert(`Çok fazla hatalı giriş. Hesabınız 5 dakika boyunca kilitlendi.`, 'error');
-                        cleanup();
-                        reject(new Error('Max attempts exceeded - account locked'));
-                    }
                 }
             };
 
@@ -195,20 +165,6 @@ class PasswordGuard {
                 return '8823 (Operatör Şifresi)';
         }
     }
-
-    isLockedOut() {
-        return Date.now() < this.lockoutUntil;
-    }
-
-    getRemainingLockoutTime() {
-        if (!this.isLockedOut()) return 0;
-        return Math.ceil((this.lockoutUntil - Date.now()) / 1000 / 60);
-    }
-
-    reset() {
-        this.attempts = 0;
-        this.lockoutUntil = 0;
-    }
 }
 
 // ==================== ESSENTIAL AUTHENTICATION WRAPPER FUNCTIONS ====================
@@ -227,8 +183,8 @@ async function deletePackageWithAuth() {
             }
         }, 'paket silme', 'default');
     } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('Delete package cancelled or failed:', error.message);
+        if (error.message !== 'User cancelled') {
+            console.log('Delete package cancelled:', error.message);
         }
     }
 }
@@ -247,8 +203,8 @@ async function changeApiKeyWithAuth() {
             }
         }, 'API anahtarı değiştirme', 'changeApiKey');
     } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('API key change cancelled or failed:', error.message);
+        if (error.message !== 'User cancelled') {
+            console.log('API key change cancelled:', error.message);
         }
     }
 }
@@ -267,8 +223,8 @@ async function clearDataWithAuth() {
             }
         }, 'veri temizleme', 'clearData');
     } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('Clear data cancelled or failed:', error.message);
+        if (error.message !== 'User cancelled') {
+            console.log('Clear data cancelled:', error.message);
         }
     }
 }
@@ -287,8 +243,8 @@ async function deleteCustomerWithAuth() {
             }
         }, 'müşteri silme', 'default');
     } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('Delete customer cancelled or failed:', error.message);
+        if (error.message !== 'User cancelled') {
+            console.log('Delete customer cancelled:', error.message);
         }
     }
 }
@@ -307,8 +263,8 @@ async function addCustomerWithAuth() {
             }
         }, 'müşteri ekleme', 'default');
     } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('Add customer cancelled or failed:', error.message);
+        if (error.message !== 'User cancelled') {
+            console.log('Add customer cancelled:', error.message);
         }
     }
 }
@@ -345,8 +301,8 @@ if (!document.getElementById('passwordGuardStyles')) {
     document.head.appendChild(style);
 }
 
-console.log('✅ Simplified PasswordGuard script loaded');
-console.log('🔐 Essential Functions:');
+console.log('✅ Simplified PasswordGuard loaded (No attempt limits)');
+console.log('🔐 Business-friendly security:');
 console.log('   - Delete Package: 8823');
 console.log('   - Add Customer: 8823');
 console.log('   - Delete Customer: 8823');
