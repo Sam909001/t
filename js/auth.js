@@ -953,27 +953,20 @@ WorkspaceManager.prototype.canPerformAction = async function(action) {
 
 // ==================== ELECTRON STORAGE FOR PERSISTENT LOGIN ====================
 
+// ==================== ELECTRON STORAGE FOR PERSISTENT LOGIN ====================
+
 // Electron storage helper for persistent login sessions
 const ElectronStorage = {
     // Check if running in Electron
     isElectron: () => {
-        return window && window.process && window.process.type;
+        return window && window.electronAPI;
     },
 
     // Get value from storage
     get: async (key) => {
         if (ElectronStorage.isElectron()) {
             try {
-                // Try electron-store first
-                if (window.electronStore) {
-                    return window.electronStore.get(key);
-                }
-                // Try require method
-                if (window.require) {
-                    const Store = window.require('electron-store');
-                    const store = new Store();
-                    return store.get(key);
-                }
+                return await window.electronAPI.store.get(key);
             } catch (error) {
                 console.warn('Electron storage error, falling back to localStorage:', error);
             }
@@ -986,16 +979,8 @@ const ElectronStorage = {
     set: async (key, value) => {
         if (ElectronStorage.isElectron()) {
             try {
-                if (window.electronStore) {
-                    window.electronStore.set(key, value);
-                    return;
-                }
-                if (window.require) {
-                    const Store = window.require('electron-store');
-                    const store = new Store();
-                    store.set(key, value);
-                    return;
-                }
+                await window.electronAPI.store.set(key, value);
+                return;
             } catch (error) {
                 console.warn('Electron storage error, falling back to localStorage:', error);
             }
@@ -1007,16 +992,8 @@ const ElectronStorage = {
     remove: async (key) => {
         if (ElectronStorage.isElectron()) {
             try {
-                if (window.electronStore) {
-                    window.electronStore.delete(key);
-                    return;
-                }
-                if (window.require) {
-                    const Store = window.require('electron-store');
-                    const store = new Store();
-                    store.delete(key);
-                    return;
-                }
+                await window.electronAPI.store.delete(key);
+                return;
             } catch (error) {
                 console.warn('Electron storage error, falling back to localStorage:', error);
             }
@@ -1025,6 +1002,7 @@ const ElectronStorage = {
     }
 };
 
+// The rest of your existing code remains the same...
 // Initialize app with session check
 async function initializeAppWithSession() {
     try {
