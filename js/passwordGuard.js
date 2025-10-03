@@ -1,238 +1,129 @@
-/**
- * Password Guard System for ProClean App
- * Protects sensitive operations with password verification
- */
+// passwordGuard-simple.js - Works in both web and Electron
 
 class PasswordGuard {
     constructor() {
-        this.passwords = {
-            // For package, container, customer operations
-            manage: '8823',
-            // For admin operations (API key, clear data)
-            admin: '7142'
-        };
-        
-        this.attempts = new Map();
         this.maxAttempts = 3;
-        this.lockoutTime = 300000; // 5 minutes in milliseconds
-        
-        console.log('🔒 Password Guard initialized');
+        this.attempts = 0;
     }
 
-    /**
-     * Verify password for a specific operation type
-     * @param {string} password - The entered password
-     * @param {string} type - Operation type: 'manage' or 'admin'
-     * @returns {boolean} - True if password is correct
-     */
-    verifyPassword(password, type) {
-        // Check if user is locked out
-        if (this.isLockedOut()) {
-            this.showLockoutMessage();
-            return false;
-        }
-
-        const correctPassword = this.passwords[type];
-        
-        if (password === correctPassword) {
-            // Reset attempts on successful login
-            this.attempts.delete('global');
-            console.log(`✅ Password verified for ${type} operation`);
-            return true;
-        } else {
-            this.recordFailedAttempt();
-            return false;
-        }
-    }
-
-    /**
-     * Record a failed password attempt
-     */
-    recordFailedAttempt() {
-        const now = Date.now();
-        const attempts = this.attempts.get('global') || { count: 0, lastAttempt: 0 };
-        
-        // Reset count if last attempt was more than lockout time ago
-        if (now - attempts.lastAttempt > this.lockoutTime) {
-            attempts.count = 0;
-        }
-        
-        attempts.count++;
-        attempts.lastAttempt = now;
-        this.attempts.set('global', attempts);
-        
-        const remainingAttempts = this.maxAttempts - attempts.count;
-        
-        if (remainingAttempts > 0) {
-            showAlert(`❌ Yanlış şifre! Kalan deneme hakkı: ${remainingAttempts}`, 'error');
-        } else {
-            this.showLockoutMessage();
-        }
-    }
-
-    /**
-     * Check if user is currently locked out
-     * @returns {boolean} - True if locked out
-     */
-    isLockedOut() {
-        const attempts = this.attempts.get('global');
-        if (!attempts) return false;
-        
-        const now = Date.now();
-        const timeSinceLastAttempt = now - attempts.lastAttempt;
-        
-        if (attempts.count >= this.maxAttempts && timeSinceLastAttempt < this.lockoutTime) {
-            return true;
-        }
-        
-        // Reset attempts if lockout time has passed
-        if (timeSinceLastAttempt >= this.lockoutTime) {
-            this.attempts.delete('global');
-            return false;
-        }
-        
-        return false;
-    }
-
-    /**
-     * Show lockout message with countdown
-     */
-    showLockoutMessage() {
-        const attempts = this.attempts.get('global');
-        if (!attempts) return;
-        
-        const now = Date.now();
-        const timeSinceLastAttempt = now - attempts.lastAttempt;
-        const timeLeft = Math.ceil((this.lockoutTime - timeSinceLastAttempt) / 1000);
-        const minutesLeft = Math.ceil(timeLeft / 60);
-        
-        showAlert(`🔒 Çok fazla hatalı deneme! ${minutesLeft} dakika sonra tekrar deneyin.`, 'error');
-    }
-
-    /**
-     * Prompt for password and execute action if correct
-     * @param {Function} action - The function to execute if password is correct
-     * @param {string} type - Operation type: 'manage' or 'admin'
-     * @param {string} operationName - Name of the operation for the prompt
-     */
-    async askPasswordAndRun(action, type, operationName = 'bu işlemi') {
-        // Check lockout first
-        if (this.isLockedOut()) {
-            this.showLockoutMessage();
-            return;
-        }
-
-        const password = prompt(`🔒 ${operationName} yapmak için şifreyi giriniz:`);
-        
-        if (password === null) {
-            console.log('❌ Password prompt cancelled');
-            return; // User cancelled
-        }
-
-        if (this.verifyPassword(password, type)) {
-            await action();
-        } else if (password !== '') {
-            // Error message is already shown by verifyPassword
-            console.log(`❌ Password verification failed for ${type} operation`);
-        }
-    }
-
-    /**
-     * Get operation name for prompt message
-     * @param {string} actionType - The action type
-     * @returns {string} - Formatted operation name
-     */
-    getOperationName(actionType) {
-        const names = {
-            'deletePackage': 'paket silmek',
-            'deleteContainer': 'konteyner silmek', 
-            'deleteCustomer': 'müşteri silmek',
-            'addCustomer': 'müşteri eklemek',
-            'clearData': 'verileri temizlemek',
-            'changeApiKey': 'API anahtarını değiştirmek'
-        };
-        
-        return names[actionType] || 'bu işlemi';
-    }
-}
-
-// Create global instance
-const passwordGuard = new PasswordGuard();
-
-// Protected operation functions
-function deletePackageWithAuth() {
-    passwordGuard.askPasswordAndRun(
-        deleteSelectedPackages, 
-        'manage', 
-        'paket silmek'
-    );
-}
-
-function deleteContainerWithAuth() {
-    passwordGuard.askPasswordAndRun(
-        deleteContainer, 
-        'manage', 
-        'konteyner silmek'
-    );
-}
-
-function deleteCustomerWithAuth(customerId, customerName) {
-    passwordGuard.askPasswordAndRun(
-        () => {
-            // First confirm the deletion
-            if (confirm(`"${customerName}" müşterisini silmek istediğinizden emin misiniz?`)) {
-                deleteCustomer(customerId);
+    async askPasswordAndRun(action, actionName = 'bu işlem') {
+        return new Promise((resolve, reject) => {
+            if (this.attempts >= this.maxAttempts) {
+                showAlert('Çok fazla hatalı giriş. Lütfen daha sonra tekrar deneyin.', 'error');
+                reject(new Error('Max attempts exceeded'));
+                return;
             }
-        }, 
-        'manage', 
-        `"${customerName}" müşterisini silmek`
-    );
+
+            // Always use custom modal - works everywhere
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.8);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: Arial, sans-serif;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 400px; width: 90%;">
+                    <h3 style="color: #217346; margin-top: 0;">
+                        <i class="fas fa-lock"></i> Şifre Doğrulama
+                    </h3>
+                    <p><strong>${actionName}</strong> için şifre girin:</p>
+                    <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0;">
+                        Varsayılan şifre: <strong>8823</strong><br>
+                        (${this.maxAttempts - this.attempts} deneme hakkınız kaldı)
+                    </p>
+                    <input type="password" id="passwordInput" 
+                           style="width: 100%; padding: 10px; margin: 1rem 0; border: 1px solid #ddd; border-radius: 4px;"
+                           placeholder="Şifre girin...">
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="cancelBtn" class="btn btn-secondary">İptal</button>
+                        <button id="confirmBtn" class="btn btn-primary">Tamam</button>
+                    </div>
+                    <div id="passwordError" style="color: red; margin-top: 0.5rem; display: none;">
+                        Hatalı şifre!
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const passwordInput = document.getElementById('passwordInput');
+            const confirmBtn = document.getElementById('confirmBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const errorDiv = document.getElementById('passwordError');
+
+            // Focus input
+            setTimeout(() => passwordInput.focus(), 100);
+
+            const cleanup = () => {
+                document.body.removeChild(modal);
+            };
+
+            const confirmHandler = () => {
+                const password = passwordInput.value.trim();
+
+                if (password === '8823') {
+                    this.attempts = 0;
+                    cleanup();
+                    const result = action();
+                    resolve(result);
+                } else {
+                    this.attempts++;
+                    errorDiv.style.display = 'block';
+                    passwordInput.value = '';
+                    passwordInput.focus();
+
+                    if (this.attempts >= this.maxAttempts) {
+                        showAlert('Çok fazla hatalı giriş. Lütfen daha sonra tekrar deneyin.', 'error');
+                        cleanup();
+                        reject(new Error('Max attempts exceeded'));
+                    }
+                }
+            };
+
+            const cancelHandler = () => {
+                cleanup();
+                reject(new Error('User cancelled'));
+            };
+
+            confirmBtn.addEventListener('click', confirmHandler);
+            cancelBtn.addEventListener('click', cancelHandler);
+            
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    confirmHandler();
+                }
+            });
+
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    cancelHandler();
+                }
+            });
+        });
+    }
 }
 
-function addCustomerWithAuth() {
-    passwordGuard.askPasswordAndRun(
-        addNewCustomer, 
-        'manage', 
-        'müşteri eklemek'
-    );
+// Replace your existing function calls
+async function addCustomerWithAuth() {
+    const passwordGuard = new PasswordGuard();
+    
+    try {
+        await passwordGuard.askPasswordAndRun(() => {
+            addCustomer();
+        }, 'müşteri ekleme');
+    } catch (error) {
+        if (error.message !== 'User cancelled') {
+            showAlert('İşlem iptal edildi veya şifre hatalı', 'error');
+        }
+    }
 }
-
-function clearDataWithAuth() {
-    passwordGuard.askPasswordAndRun(
-        clearFrontendData, 
-        'admin', 
-        'tüm verileri temizlemek'
-    );
-}
-
-function changeApiKeyWithAuth() {
-    passwordGuard.askPasswordAndRun(
-        () => {
-            // Call the actual function from ui.js
-            if (typeof showApiKeyModal === 'function') {
-                showApiKeyModal();
-            } else {
-                console.error('❌ showApiKeyModal function not found');
-                showAlert('API anahtarı modalı açılamadı', 'error');
-            }
-        }, 
-        'admin', 
-        'API anahtarını değiştirmek'
-    );
-}
-// Override the existing askPassword function to use the new system
-function askPassword(actionCallback, operationType = 'manage') {
-    passwordGuard.askPasswordAndRun(actionCallback, operationType, 'bu işlemi');
-}
-
-// Make functions globally available
-window.passwordGuard = passwordGuard;
-window.deletePackageWithAuth = deletePackageWithAuth;
-window.deleteContainerWithAuth = deleteContainerWithAuth;
-window.deleteCustomerWithAuth = deleteCustomerWithAuth;
-window.addCustomerWithAuth = addCustomerWithAuth;
-window.clearDataWithAuth = clearDataWithAuth;
-window.changeApiKeyWithAuth = changeApiKeyWithAuth;
-window.askPassword = askPassword;
-
-console.log('✅ Password Guard system loaded');
