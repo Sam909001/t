@@ -713,7 +713,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div style="display: flex; gap: 10px;">
                     <button class="btn btn-primary" onclick="exportData('json')">JSON İndir</button>
                     <button class="btn btn-primary" onclick="exportData('excel')">Excel İndir</button>
-                    <button class="btn btn-info" id="excelPreviewBtn">Excel Önizleme</button>
+                    <button class="btn btn-primary" id="excelPreviewBtn" onclick="previewExcelData()" style="background-color: #217346; border-color: #217346; color: white;">
+    <i class="fas fa-file-excel"></i> Excel Önizleme
+</button>
                 </div>
             </div>
             
