@@ -1469,29 +1469,26 @@ toExcelFormat: function(packages) {
 
 
 
-// ==================== PROFESSIONAL EXCEL EXPORT ====================
+// ==================== PROFESSIONAL EXCEL EXPORT - SIMPLIFIED ====================
 const ProfessionalExcelExport = {
-    // Convert packages to Excel-friendly format with proper headers
+    // Convert packages to Excel-friendly format with simplified headers
     convertToProfessionalExcel: function(packages) {
         if (!packages || packages.length === 0) {
             return [];
         }
 
-        // Define professional headers
+        // Define simplified professional headers
         const excelData = packages.map(pkg => {
-            // Extract items information professionally - FIXED VERSION
+            // Extract items information professionally - SIMPLIFIED VERSION
             let itemsInfo = 'Ürün bilgisi yok';
-            let itemTypes = 'Bilinmiyor';
             let totalQuantity = pkg.total_quantity || 0;
             
-            // FIXED: Better product extraction
+            // FIXED: Better product extraction - KEEP ONLY PRODUCT NAMES
             if (pkg.items) {
                 if (Array.isArray(pkg.items)) {
                     // Array format: [{name: "Product", qty: 5}]
-                    itemsInfo = pkg.items.map(item => 
-                        `${item.name || 'Ürün'}: ${item.qty || 0} adet`
-                    ).join('; ');
-                    itemTypes = pkg.items.map(item => item.name || 'Ürün').join('; ');
+                    // KEEP ONLY PRODUCT NAMES, remove quantities from display
+                    itemsInfo = pkg.items.map(item => item.name || 'Ürün').join(', ');
                     
                     // Calculate total quantity from items array
                     if (pkg.items.length > 0 && !totalQuantity) {
@@ -1499,60 +1496,53 @@ const ProfessionalExcelExport = {
                     }
                 } else if (typeof pkg.items === 'object') {
                     // Object format: {"Product1": 5, "Product2": 3}
-                    const itemsArray = Object.entries(pkg.items);
-                    itemsInfo = itemsArray.map(([product, quantity]) => 
-                        `${product}: ${quantity} adet`
-                    ).join('; ');
-                    itemTypes = itemsArray.map(([product]) => product).join('; ');
+                    // KEEP ONLY PRODUCT NAMES, remove quantities from display
+                    itemsInfo = Object.keys(pkg.items).join(', ');
                     
                     // Calculate total quantity from items object
+                    const itemsArray = Object.entries(pkg.items);
                     if (itemsArray.length > 0 && !totalQuantity) {
                         totalQuantity = itemsArray.reduce((sum, [_, quantity]) => sum + quantity, 0);
                     }
                 }
             } else if (pkg.items_display) {
-                // Fallback to items_display
-                itemsInfo = pkg.items_display;
-                // Extract just product names from items_display
-                const productMatches = pkg.items_display.match(/([^:]+):/g);
+                // Fallback to items_display but extract only product names
+                const productMatches = pkg.items_display.match(/([^:,]+)(?=:)/g);
                 if (productMatches) {
-                    itemTypes = productMatches.map(match => match.replace(':', '').trim()).join('; ');
+                    itemsInfo = productMatches.map(match => match.trim()).join(', ');
+                } else {
+                    itemsInfo = pkg.items_display;
                 }
             } else if (pkg.product) {
                 // Fallback to single product field
-                itemsInfo = `${pkg.product}: ${totalQuantity} adet`;
-                itemTypes = pkg.product;
+                itemsInfo = pkg.product;
             }
 
-            // Get customer information
+            // Get customer information - KEEP ONLY CUSTOMER NAME, REMOVE ID
             const customerName = pkg.customer_name || pkg.customers?.name || 'Bilinmeyen Müşteri';
-            const customerCode = pkg.customer_code || pkg.customers?.code || '';
             
             // Format dates properly
             const createdDate = pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A';
             const updatedDate = pkg.updated_at ? new Date(pkg.updated_at).toLocaleDateString('tr-TR') : 'N/A';
 
+            // SIMPLIFIED COLUMNS - Only essential fields
             return {
                 'PAKET NO': pkg.package_no || 'N/A',
-                'MÜŞTERİ ADI': customerName,
-                'MÜŞTERİ KODU': customerCode,
-                'ÜRÜN TİPLERİ': itemTypes,
-                'ÜRÜN DETAYLARI': itemsInfo,
+                'MÜŞTERİ': customerName, // ONLY CUSTOMER NAME, NO ID
+                'ÜRÜNLER': itemsInfo, // ONLY PRODUCT NAMES, NO DETAILS
                 'TOPLAM ADET': totalQuantity,
                 'DURUM': pkg.status === 'sevk-edildi' ? 'SEVK EDİLDİ' : 'BEKLEMEDE',
-                'KONTEYNER': pkg.container_id || 'Yok',
                 'PAKETLEYEN': pkg.packer || 'Bilinmiyor',
                 'OLUŞTURULMA TARİHİ': createdDate,
                 'GÜNCELLENME TARİHİ': updatedDate,
-                'İSTASYON': pkg.station_name || pkg.workspace_id || 'Default',
-                'BARCODE': pkg.barcode || ''
+                'İSTASYON': pkg.station_name || pkg.workspace_id || 'Default'
             };
         });
 
         return excelData;
     },
 
-    // Create professional Excel file with proper styling
+    // Create professional Excel file with WIDER columns and proper styling
     exportToProfessionalExcel: function(packages, filename = null) {
         try {
             if (!packages || packages.length === 0) {
@@ -1573,21 +1563,17 @@ const ProfessionalExcelExport = {
             // Convert data to worksheet
             const ws = XLSX.utils.json_to_sheet(excelData);
             
-            // Set column widths for better readability - WIDER COLUMNS
+            // SET WIDER COLUMN WIDTHS FOR BETTER VISIBILITY
             const colWidths = [
-                { wch: 18 }, // PAKET NO
-                { wch: 25 }, // MÜŞTERİ ADI
-                { wch: 15 }, // MÜŞTERİ KODU
-                { wch: 25 }, // ÜRÜN TİPLERİ
-                { wch: 35 }, // ÜRÜN DETAYLARI
-                { wch: 12 }, // TOPLAM ADET
-                { wch: 12 }, // DURUM
-                { wch: 15 }, // KONTEYNER
-                { wch: 18 }, // PAKETLEYEN
-                { wch: 15 }, // OLUŞTURULMA TARİHİ
-                { wch: 15 }, // GÜNCELLENME TARİHİ
-                { wch: 12 }, // İSTASYON
-                { wch: 15 }  // BARCODE
+                { wch: 25 }, // PAKET NO - WIDER
+                { wch: 35 }, // MÜŞTERİ - WIDER
+                { wch: 50 }, // ÜRÜNLER - MUCH WIDER for product names
+                { wch: 15 }, // TOPLAM ADET
+                { wch: 15 }, // DURUM
+                { wch: 20 }, // PAKETLEYEN - WIDER
+                { wch: 18 }, // OLUŞTURULMA TARİHİ
+                { wch: 18 }, // GÜNCELLENME TARİHİ
+                { wch: 15 }  // İSTASYON
             ];
             ws['!cols'] = colWidths;
 
@@ -1612,7 +1598,7 @@ const ProfessionalExcelExport = {
                         font: { 
                             bold: true, 
                             color: { rgb: "FFFFFF" },
-                            sz: 11
+                            sz: 12 // Slightly larger font
                         },
                         fill: { 
                             fgColor: { rgb: "2F75B5" } 
@@ -1641,6 +1627,12 @@ const ProfessionalExcelExport = {
                         if (!ws[cell_ref].s) {
                             ws[cell_ref].s = {};
                         }
+                        
+                        // Set text wrapping for better visibility
+                        ws[cell_ref].s.alignment = {
+                            wrapText: true,
+                            vertical: "top"
+                        };
                         
                         // Alternate row coloring for better readability
                         if (R % 2 === 0) {
@@ -1679,7 +1671,7 @@ const ProfessionalExcelExport = {
         }
     },
 
-    // Enhanced CSV export with proper formatting
+    // Enhanced CSV export with simplified columns and better formatting
     exportToProfessionalCSV: function(packages, filename = null) {
         try {
             if (!packages || packages.length === 0) {
@@ -1734,37 +1726,68 @@ const ProfessionalExcelExport = {
     }
 };
 
-// Replace the existing ExcelStorage export functions with professional versions
-ExcelStorage.exportDailyFile = function(dateString) {
+// Also update the upload function to use simplified columns
+async function uploadExcelToSupabase(packages) {
+    if (!supabase || !navigator.onLine) {
+        console.log("Supabase not available, skipping upload");
+        return false;
+    }
+
     try {
-        const fileName = `packages_${dateString}.json`;
-        const fileData = localStorage.getItem(fileName);
+        // Use the SIMPLIFIED ProfessionalExcelExport functionality
+        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
         
-        if (!fileData) {
-            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
-            return;
-        }
-        
-        const packages = JSON.parse(fileData);
-        
-        if (packages.length === 0) {
-            showAlert(`${dateString} tarihli dosyada paket bulunmamaktadır`, 'info');
-            return;
+        if (!excelData || excelData.length === 0) {
+            console.log("No data to upload");
+            return false;
         }
 
-        // Use professional Excel export
-        const filename = `ProClean_Paketler_${dateString}.xlsx`;
-        ProfessionalExcelExport.exportToProfessionalExcel(packages, filename);
+        // Create CSV content with simplified columns
+        const headers = Object.keys(excelData[0]);
+        const csvContent = [
+            headers.join(','),
+            ...excelData.map(row => 
+                headers.map(header => {
+                    const value = row[header];
+                    // Escape commas and quotes
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value;
+                }).join(',')
+            )
+        ].join('\n');
+
+        // Create blob with BOM for Excel compatibility
+        const blob = new Blob(['\uFEFF' + csvContent], { 
+            type: 'text/csv;charset=utf-8;' 
+        });
+
+        // File name
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `backup_${timestamp}.csv`;
+
+        // Upload to Supabase storage
+        const { data, error } = await supabase.storage
+            .from('reports')
+            .upload(fileName, blob);
+
+        if (error) {
+            console.error("Supabase storage upload error:", error);
+            
+            // Fallback: Try to insert as records in a table
+            await uploadAsDatabaseRecords(packages, timestamp);
+            return false;
+        }
+
+        console.log("Excel backup uploaded to Supabase storage:", fileName);
+        return true;
         
     } catch (error) {
-        console.error('Enhanced export error:', error);
-        showAlert('Dosya dışa aktarılırken hata oluştu', 'error');
+        console.error("Supabase upload error:", error);
+        return false;
     }
-};
-
-// Enhanced ExcelJS export functions
-ExcelJS.exportToExcel = ProfessionalExcelExport.exportToProfessionalExcel;
-ExcelJS.exportToCSV = ProfessionalExcelExport.exportToProfessionalCSV;
+}
 
 
 
