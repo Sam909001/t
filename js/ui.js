@@ -3265,33 +3265,39 @@ function updateContainerSelection() {
 // ==================== SIMPLIFIED DATA COLLECTION ====================
 
 // Simple mock functions that will work even if your real functions are missing
+// Updated getAllPackages to always get fresh data
 async function getAllPackages() {
     try {
-        // Try multiple sources
-        if (window.packages && Array.isArray(window.packages)) {
-            return window.packages; // REMOVED: .slice(0, 10)
+        // Always try to get fresh data first
+        if (window.excelPackages && Array.isArray(window.excelPackages)) {
+            return window.excelPackages;
         }
         
-        const localData = localStorage.getItem('proclean_packages') || 
-                         localStorage.getItem('packages') ||
-                         localStorage.getItem('excelData');
-        
+        // Try localStorage with timestamp check
+        const localData = localStorage.getItem('proclean_packages');
         if (localData) {
             const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : []; // REMOVED: .slice(0, 10)
+            if (Array.isArray(parsed)) {
+                // Sort by date to show newest first
+                return parsed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            }
         }
         
-        // Return sample data for testing
+        // Fallback to any other data sources
+        if (window.packages && Array.isArray(window.packages)) {
+            return window.packages;
+        }
+        
+        // Final fallback
         return [
-            { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede' },
-            { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi' }
+            { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede', created_at: new Date().toISOString() },
+            { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi', created_at: new Date(Date.now() - 86400000).toISOString() }
         ];
     } catch (error) {
         console.error('Error in getAllPackages:', error);
         return [];
     }
 }
-
 async function getAllStock() {
     try {
         // Try to get from table
@@ -3721,3 +3727,41 @@ window.exportDataFromPreview = exportDataFromPreview;
 window.loadPreviewTabContent = loadPreviewTabContent;
 
 console.log('✅ Excel Preview functions loaded');
+
+
+
+// Function to refresh all preview data
+async function refreshPreviewData() {
+    console.log('🔄 Refreshing preview data...');
+    
+    try {
+        // Clear cached data
+        if (window.packages) delete window.packages;
+        if (window.excelPackages) {
+            // Reload Excel data
+            window.excelPackages = await loadExcelData(true); // Force reload
+        }
+        
+        // Refresh localStorage data
+        const packagesData = localStorage.getItem('proclean_packages');
+        if (packagesData) {
+            const parsed = JSON.parse(packagesData);
+            window.packages = Array.isArray(parsed) ? parsed : [];
+        }
+        
+        // If preview modal is open, refresh the current tab
+        const previewModal = document.getElementById('excelPreviewModal');
+        if (previewModal && previewModal.style.display !== 'none') {
+            const activeTab = document.querySelector('.tab-button[style*="border-bottom: 3px solid #217346"]');
+            if (activeTab) {
+                const tabName = activeTab.getAttribute('onclick').match(/'([^']+)'/)[1];
+                console.log('🔄 Refreshing preview tab:', tabName);
+                await loadPreviewTabContent(tabName);
+            }
+        }
+        
+        console.log('✅ Preview data refreshed');
+    } catch (error) {
+        console.error('Error refreshing preview data:', error);
+    }
+}
