@@ -3272,13 +3272,11 @@ function updateContainerSelection() {
 
 
 // ==================== SIMPLIFIED DATA COLLECTION ====================
-
-// Simple mock functions that will work even if your real functions are missing
 async function getAllPackages() {
     try {
         // Try multiple sources
         if (window.packages && Array.isArray(window.packages)) {
-            return window.packages;
+            return window.packages; // REMOVED: .slice(0, 10)
         }
         
         const localData = localStorage.getItem('proclean_packages') || 
@@ -3287,13 +3285,13 @@ async function getAllPackages() {
         
         if (localData) {
             const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+            return Array.isArray(parsed) ? parsed : []; // REMOVED: .slice(0, 10)
         }
         
         // Return sample data for testing
         return [
-            { package_no: 'PKG-001', customer_name: t('sample.customer', 'Test Müşteri'), total_quantity: 5, status: 'beklemede' },
-            { package_no: 'PKG-002', customer_name: t('sample.company', 'Demo Firma'), total_quantity: 3, status: 'sevk-edildi' }
+            { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede' },
+            { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi' }
         ];
     } catch (error) {
         console.error('Error in getAllPackages:', error);
