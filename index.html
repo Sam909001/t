@@ -253,10 +253,9 @@ document.addEventListener("DOMContentLoaded", function() {
         <div class="package-actions">
             <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
             <button type="button" class="btn btn-warning" id="printBarcodeBtn">Etiket Yazdır</button>
-            <button type="button" class="btn btn-danger" 
-        onclick="askPassword(() => deleteSelectedPackages())" 
+       <button type="button" class="btn btn-danger" 
+        onclick="deletePackageWithAuth()" 
         data-i18n="general.delete">Sil</button>
-        </div>
 
         <!-- Scanner Button at Bottom -->
         <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:1rem;" id="scannerToggle">
@@ -316,9 +315,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="action-buttons">
                         <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
                         <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()">Mevcut Konteyner</button>
-                        <button type="button" class="btn btn-danger" 
-        onclick="askPassword(() => deleteContainer())" 
-        data-i18n="shipping.delete.container">Konteyner Sil</button>
+                       <button type="button" class="btn btn-danger" 
+                      onclick="deleteContainerWithAuth()" 
+                      data-i18n="shipping.delete.container">Konteyner Sil</button>
                     </div>
                 </div>
 
@@ -482,8 +481,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="email" id="newCustomerEmail" placeholder="E-posta adresini girin">
                 <div class="validation-error" id="customerEmailError">Geçerli bir e-posta adresi girin</div>
             </div>
-            <button type="button" class="btn btn-primary" 
-        onclick="askPassword(() => addNewCustomer())" 
+           <button type="button" class="btn btn-primary" 
+        onclick="addCustomerWithAuth()" 
         data-i18n="customer.add">Müşteri Ekle</button>
             
             <hr style="margin: 1.5rem 0;">
