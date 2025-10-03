@@ -208,14 +208,18 @@ function clearDataWithAuth() {
 function changeApiKeyWithAuth() {
     passwordGuard.askPasswordAndRun(
         () => {
-            // This is the function that will execute after password verification
-            showApiKeyModal();
+            // Call the actual function from ui.js
+            if (typeof showApiKeyModal === 'function') {
+                showApiKeyModal();
+            } else {
+                console.error('❌ showApiKeyModal function not found');
+                showAlert('API anahtarı modalı açılamadı', 'error');
+            }
         }, 
         'admin', 
         'API anahtarını değiştirmek'
     );
 }
-
 // Override the existing askPassword function to use the new system
 function askPassword(actionCallback, operationType = 'manage') {
     passwordGuard.askPasswordAndRun(actionCallback, operationType, 'bu işlemi');
