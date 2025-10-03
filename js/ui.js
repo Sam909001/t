@@ -3366,300 +3366,51 @@ async function getAllCustomers() {
 
 
 
+// ==================== GLOBAL EXPORT - ADD THIS AT THE VERY BOTTOM ====================
 
-// Excel Preview Function
-function previewExcelData() {
-    console.log('📊 Excel Preview triggered');
-    
-    try {
-        showAlert('Excel verileri hazırlanıyor...', 'info');
-        
-        // Create preview modal
-        const modal = document.createElement('div');
-        modal.id = 'excelPreviewModal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: Arial, sans-serif;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 95%; max-height: 90%; width: 900px; overflow: hidden; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #217346; padding-bottom: 1rem;">
-                    <h3 style="color: #217346; margin: 0;">
-                        <i class="fas fa-file-excel" style="margin-right: 10px;"></i>Excel Veri Önizleme
-                    </h3>
-                    <button onclick="document.getElementById('excelPreviewModal').remove()" 
-                            style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
-                </div>
-                
-                <div style="flex: 1; overflow: auto; margin-bottom: 1rem;">
-                    <div class="preview-tabs" style="display: flex; border-bottom: 1px solid #ddd; margin-bottom: 1rem;">
-                        <button class="tab-button active" onclick="switchPreviewTab('packages')" 
-                                style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #217346;">
-                            Paketler
-                        </button>
-                        <button class="tab-button" onclick="switchPreviewTab('stock')" 
-                                style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            Stok
-                        </button>
-                        <button class="tab-button" onclick="switchPreviewTab('customers')" 
-                                style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            Müşteriler
-                        </button>
-                        <button class="tab-button" onclick="switchPreviewTab('shipping')" 
-                                style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            Sevkiyat
-                        </button>
-                    </div>
-                    
-                    <div id="previewContent" style="min-height: 300px;">
-                        <div style="text-align: center; padding: 3rem; color: #666;">
-                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                            <p>Veriler yükleniyor...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #ddd; padding-top: 1rem;">
-                    <button onclick="exportDataFromPreview()" 
-                            class="btn btn-success" 
-                            style="background-color: #217346; border-color: #217346;">
-                        <i class="fas fa-download"></i> Excel Olarak İndir
-                    </button>
-                    <button onclick="document.getElementById('excelPreviewModal').remove()" 
-                            class="btn btn-secondary">
-                        Kapat
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Load initial data
-        setTimeout(() => {
-            switchPreviewTab('packages');
-        }, 100);
-        
-    } catch (error) {
-        console.error('Excel preview error:', error);
-        showAlert('Excel önizleme oluşturulurken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-// Switch between preview tabs
-function switchPreviewTab(tabName) {
-    console.log('Switching to tab:', tabName);
-    
-    // Update tab buttons
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.style.borderBottom = '3px solid transparent';
-        btn.style.color = '#666';
-    });
-    
-    const activeBtn = document.querySelector(`.tab-button[onclick*="${tabName}"]`);
-    if (activeBtn) {
-        activeBtn.style.borderBottom = '3px solid #217346';
-        activeBtn.style.color = '#217346';
-    }
-    
-    // Show loading
-    const previewContent = document.getElementById('previewContent');
-    if (!previewContent) return;
-    
-    previewContent.innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: #666;">
-            <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-            <p>${getTabTitle(tabName)} yükleniyor...</p>
-        </div>
-    `;
-    
-    // Load tab content
-    setTimeout(() => {
-        loadPreviewTabContent(tabName);
-    }, 500);
-}
-
-function getTabTitle(tabName) {
-    const titles = {
-        'packages': 'Paketler',
-        'stock': 'Stok Öğeleri',
-        'customers': 'Müşteriler',
-        'shipping': 'Sevkiyat Verileri'
-    };
-    return titles[tabName] || 'Veriler';
-}
-
-// Load content for each tab
-async function loadPreviewTabContent(tabName) {
-    const previewContent = document.getElementById('previewContent');
-    if (!previewContent) return;
-    
-    try {
-        let data = [];
-        let columns = [];
-        
-        switch (tabName) {
-            case 'packages':
-                data = await getAllPackages();
-                columns = ['Paket No', 'Müşteri', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Tarih'];
-                break;
-                
-            case 'stock':
-                data = await getAllStock();
-                columns = ['Stok Kodu', 'Ürün Adı', 'Miktar', 'Birim', 'Durum'];
-                break;
-                
-            case 'customers':
-                data = await getAllCustomers();
-                columns = ['Müşteri Kodu', 'Müşteri Adı'];
-                break;
-                
-            case 'shipping':
-                data = await getAllShippingData();
-                columns = ['Konteyner No', 'Müşteri', 'Paket Sayısı', 'Durum'];
-                break;
-        }
-        
-        if (data.length === 0) {
-            previewContent.innerHTML = `
-                <div style="text-align: center; padding: 3rem; color: #666;">
-                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                    <p>Bu kategoride veri bulunamadı</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Create table
-        let tableHTML = `
-            <div style="overflow: auto; max-height: 400px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                    <thead style="background: #f8f9fa; position: sticky; top: 0;">
-                        <tr>
-                            ${columns.map(col => `<th style="padding: 12px; text-align: left; border-bottom: 2px solid #217346; color: #217346;">${col}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        data.forEach((item, index) => {
-            tableHTML += '<tr style="border-bottom: 1px solid #eee;">';
-            
-            switch (tabName) {
-                case 'packages':
-                    tableHTML += `
-                        <td style="padding: 10px;">${item.package_no || 'N/A'}</td>
-                        <td style="padding: 10px;">${item.customer_name || 'N/A'}</td>
-                        <td style="padding: 10px;">${getProductType(item) || 'N/A'}</td>
-                        <td style="padding: 10px; text-align: center;">${item.total_quantity || 0}</td>
-                        <td style="padding: 10px;">
-                            <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; 
-                                background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'}; 
-                                color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
-                            </span>
-                        </td>
-                        <td style="padding: 10px;">${item.packer || 'N/A'}</td>
-                        <td style="padding: 10px;">${item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                    `;
-                    break;
-                    
-                case 'stock':
-                    tableHTML += `
-                        <td style="padding: 10px;">${item.code || 'N/A'}</td>
-                        <td style="padding: 10px;">${item.name || 'N/A'}</td>
-                        <td style="padding: 10px; text-align: center;">${item.quantity || 0}</td>
-                        <td style="padding: 10px;">${item.unit || 'adet'}</td>
-                        <td style="padding: 10px;">
-                            <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
-                                background: ${item.quantity > 10 ? '#d4edda' : item.quantity > 0 ? '#fff3cd' : '#f8d7da'};
-                                color: ${item.quantity > 10 ? '#155724' : item.quantity > 0 ? '#856404' : '#721c24'};">
-                                ${item.quantity > 10 ? 'Stokta' : item.quantity > 0 ? 'Az Stok' : 'Tükendi'}
-                            </span>
-                        </td>
-                    `;
-                    break;
-                    
-                case 'customers':
-                    tableHTML += `
-                        <td style="padding: 10px;">${item.code || 'N/A'}</td>
-                        <td style="padding: 10px;">${item.name || 'N/A'}</td>
-                    `;
-                    break;
-                    
-                case 'shipping':
-                    tableHTML += `
-                        <td style="padding: 10px;">${item.container_no || 'N/A'}</td>
-                        <td style="padding: 10px;">${item.customer || 'N/A'}</td>
-                        <td style="padding: 10px; text-align: center;">${item.package_count || 0}</td>
-                        <td style="padding: 10px;">
-                            <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
-                                background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'};
-                                color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
-                            </span>
-                        </td>
-                    `;
-                    break;
-            }
-            
-            tableHTML += '</tr>';
-        });
-        
-        tableHTML += `
-                    </tbody>
-                </table>
-            </div>
-            <div style="margin-top: 1rem; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                <strong>Toplam: ${data.length} kayıt</strong>
-            </div>
-        `;
-        
-        previewContent.innerHTML = tableHTML;
-        
-    } catch (error) {
-        console.error('Error loading preview tab:', error);
-        previewContent.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: #dc3545;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                <p>Veriler yüklenirken hata oluştu: ${error.message}</p>
-            </div>
-        `;
-    }
-}
-
-// Export data from preview
-function exportDataFromPreview() {
-    showAlert('Excel dosyası indiriliyor...', 'info');
-    
-    // Use the existing export function
-    if (typeof exportData === 'function') {
-        exportData('excel');
-    } else {
-        showAlert('Excel export özelliği şu anda kullanılamıyor', 'error');
-    }
-    
-    // Close the modal after a delay
-    setTimeout(() => {
-        const modal = document.getElementById('excelPreviewModal');
-        if (modal) modal.remove();
-    }, 1000);
-}
-
-// Make functions globally available
+// Make all functions globally available
 window.previewExcelData = previewExcelData;
 window.switchPreviewTab = switchPreviewTab;
+window.closeExcelPreviewModal = closeExcelPreviewModal;
 window.exportDataFromPreview = exportDataFromPreview;
-window.loadPreviewTabContent = loadPreviewTabContent;
 
-console.log('✅ Excel Preview functions loaded');
+// Also export the data collection functions
+window.getAllPackages = getAllPackages;
+window.getAllStock = getAllStock;
+window.getAllShippingData = getAllShippingData;
+window.getAllReports = getAllReports;
+window.getAllCustomers = getAllCustomers;
+
+// Export the modal creation function
+window.createExcelPreviewModal = createExcelPreviewModal;
+
+// Test if functions are available
+console.log('✅ Excel Preview Functions Loaded:');
+console.log('previewExcelData:', typeof previewExcelData);
+console.log('getAllPackages:', typeof getAllPackages);
+console.log('createExcelPreviewModal:', typeof createExcelPreviewModal);
+
+
+
+// ==================== EVENT LISTENER FOR EXCEL PREVIEW ====================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait a bit for everything to load
+    setTimeout(function() {
+        const excelPreviewBtn = document.getElementById('excelPreviewBtn');
+        if (excelPreviewBtn) {
+            console.log('✅ Excel preview button found, adding event listener');
+            excelPreviewBtn.addEventListener('click', function() {
+                console.log('🎯 Excel preview button clicked via event listener');
+                if (typeof previewExcelData === 'function') {
+                    previewExcelData();
+                } else {
+                    console.error('❌ previewExcelData is not a function');
+                    showAlert('Excel önizleme fonksiyonu yüklenemedi', 'error');
+                }
+            });
+        } else {
+            console.error('❌ Excel preview button not found');
+        }
+    }, 1000);
+});
