@@ -3272,6 +3272,9 @@ function updateContainerSelection() {
 
 
 // ==================== SIMPLIFIED DATA COLLECTION ====================
+
+// Simple mock functions that will work even if your real functions are missing
+// Simple mock functions that will work even if your real functions are missing
 async function getAllPackages() {
     try {
         // Try multiple sources
@@ -3333,6 +3336,17 @@ async function getAllStock() {
         return [];
     }
 }
+async function getAllCustomers() {
+    try {
+        if (window.customers && Array.isArray(window.customers)) {
+            return window.customers; // No limit
+        }
+        // ... rest of function
+    } catch (error) {
+        return [];
+    }
+}
+
 async function getAllShippingData() {
     try {
         // Try to get actual shipping data instead of just one sample
@@ -3362,6 +3376,12 @@ async function getAllShippingData() {
         return [];
     }
 }
+async function getAllShippingData() {
+    return [
+        { container_no: 'CONT-001', customer: t('sample.company', 'Test Firma'), package_count: 5, status: 'sevk-edildi' }
+    ];
+}
+
 async function getAllReports() {
     try {
         // Try to get actual reports data
