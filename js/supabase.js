@@ -1,35 +1,3 @@
-
-// Print single package function
-window.printSinglePackage = async function(packageId) {
-    console.log('🖨️ Printing package:', packageId);
-    
-    const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
-    
-    if (!checkbox) {
-        alert('Paket bulunamadı!');
-        return;
-    }
-    
-    // Uncheck all other checkboxes
-    const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    allCheckboxes.forEach(cb => cb.checked = false);
-    
-    // Check only this package
-    checkbox.checked = true;
-    
-    // Wait a moment for the checkbox to update
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Call the main print function
-    if (typeof window.printSelectedElectron === 'function') {
-        await window.printSelectedElectron();
-    } else {
-        alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
-    }
-};
-
-
-
 /// Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
@@ -5641,3 +5609,36 @@ window.supabase = createSecureSupabaseClient();
 
 
 window.workspaceManager = new EnhancedWorkspaceManager();
+
+
+
+
+
+// Print single package function
+window.printSinglePackage = async function(packageId) {
+    console.log('🖨️ Printing package:', packageId);
+    
+    const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
+    
+    if (!checkbox) {
+        alert('Paket bulunamadı!');
+        return;
+    }
+    
+    // Uncheck all other checkboxes
+    const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    allCheckboxes.forEach(cb => cb.checked = false);
+    
+    // Check only this package
+    checkbox.checked = true;
+    
+    // Wait a moment for the checkbox to update
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Call the main print function
+    if (typeof window.printSelectedElectron === 'function') {
+        await window.printSelectedElectron();
+    } else {
+        alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
+    }
+};
