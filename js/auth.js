@@ -1,3 +1,6 @@
+const ExcelJS = require('exceljs'); // Node/Electron
+const fs = require('fs');           // Needed to write files to Main PC
+
 // FIXED: Kullanıcı girişi
 let connectionTested = false; // Flag to prevent duplicate connection tests
 
@@ -191,7 +194,6 @@ async function logoutWithConfirmation() {
 }
 
 
-// Upload Excel data to Supabase storage as XLSX
 async function uploadExcelToSupabase(packages) {
     if (!supabase || !navigator.onLine) {
         console.log("Supabase not available, skipping upload");
@@ -199,11 +201,10 @@ async function uploadExcelToSupabase(packages) {
     }
 
     try {
-        // Create a new workbook
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet("Rapor");
 
-        // Add header
+        // Header row
         sheet.addRow(["Ürün", "Miktar", "Tarih"]);
 
         // Add package rows
@@ -215,20 +216,21 @@ async function uploadExcelToSupabase(packages) {
             ]);
         });
 
-        // Convert workbook to Blob
+        // Write workbook to buffer
         const buffer = await workbook.xlsx.writeBuffer();
+
+        // Create Blob for Supabase
         const fileBlob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
-        // File name
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const fileName = `backup_${timestamp}.xlsx`;
 
-        // Upload
         const { data, error } = await supabase.storage
             .from('reports')
             .upload(fileName, fileBlob);
 
         if (error) throw error;
+
         console.log("Excel backup uploaded to Supabase:", fileName);
         return true;
     } catch (error) {
@@ -238,12 +240,8 @@ async function uploadExcelToSupabase(packages) {
 }
 
 
-// Save Excel file to Main PC shared folder
 async function sendExcelToMainPC(packages) {
     try {
-        // Define the shared folder path (you must configure access in Windows first)
-        const sharedPath = "\\\\MAIN-PC\\SharedReports";  // Example: adjust to your real network name
-
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet("Rapor");
 
@@ -256,20 +254,25 @@ async function sendExcelToMainPC(packages) {
             ]);
         });
 
+        // Convert to buffer
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        // Define network path (must be shared folder)
+        const sharedPath = "\\\\MAIN-PC\\SharedReports"; // Replace MAIN-PC with your actual PC name or IP
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filePath = `${sharedPath}\\rapor_${timestamp}.xlsx`;
 
-        // Node.js fs write
-        const buffer = await workbook.xlsx.writeBuffer();
-        require("fs").writeFileSync(filePath, Buffer.from(buffer));
+        // Write file using fs
+        fs.writeFileSync(filePath, Buffer.from(buffer));
 
-        console.log("Excel file sent to main PC:", filePath);
+        console.log("Excel file sent to Main PC:", filePath);
         return true;
     } catch (err) {
         console.error("Main PC transfer error:", err);
         return false;
     }
 }
+
 
 
 // Perform actual logout
