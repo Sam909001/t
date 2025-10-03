@@ -183,78 +183,15 @@ async function logoutWithConfirmation() {
             showAlert("Excel dosyası başarıyla yedeklendi ve raporlara taşındı", "success");
         }
 
-        // Simplified and more reliable performLogout
-async function performLogout() {
-    console.log('🔧 performLogout called');
-    
-    try {
-        // Step 1: Try to sync any pending changes
-        if (supabase && navigator.onLine && excelSyncQueue.length > 0) {
-            console.log('🔄 Syncing pending changes...');
-            showAlert("Bekleyen değişiklikler senkronize ediliyor...", "info");
-            await syncExcelWithSupabase();
-        }
+        // Perform logout
+        await performLogout();
 
-        // Step 2: Clear authentication
-        console.log('🔒 Signing out from Supabase...');
-        if (supabase) {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                console.error("❌ Sign out error:", error);
-            } else {
-                console.log('✅ Signed out from Supabase');
-            }
-        }
-
-        // Step 3: Reset global variables
-        console.log('🔄 Resetting global variables...');
-        selectedCustomer = null;
-        currentPackage = {};
-        currentContainer = null;
-        selectedProduct = null;
-        currentUser = null;
-        scannedBarcodes = [];
-        excelPackages = [];
-        excelSyncQueue = [];
-        connectionTested = false;
-        
-        // Step 4: Clear sensitive data from localStorage (keep only essential)
-        console.log('🗑️ Clearing localStorage...');
-        const keysToKeep = ['proclean_workspaces', 'workspace_printer_configs', 'procleanSettings'];
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-            const key = localStorage.key(i);
-            if (key && !keysToKeep.includes(key) && !key.startsWith('report_')) {
-                localStorage.removeItem(key);
-            }
-        }
-
-        // Step 5: Switch to login screen
-        console.log('🔄 Switching to login screen...');
-        document.getElementById('loginScreen').style.display = "flex";
-        document.getElementById('appContainer').style.display = "none";
-        
-        // Step 6: Clear any intervals or timeouts
-        console.log('🔄 Cleaning up intervals...');
-        if (window.autoRefreshManager) {
-            window.autoRefreshManager.stop();
-        }
-        
-        // Step 7: Reset form fields
-        console.log('🔄 Resetting form fields...');
-        document.getElementById('email').value = '';
-        document.getElementById('password').value = '';
-        
-        console.log('✅ Logout completed successfully');
-        showAlert("Başarıyla çıkış yapıldı", "success");
-        
     } catch (error) {
-        console.error("❌ performLogout error:", error);
-        // Force logout even if there are errors
-        document.getElementById('loginScreen').style.display = "flex";
-        document.getElementById('appContainer').style.display = "none";
-        showAlert("Çıkış yapıldı", "info");
+        console.error("Logout error:", error);
+        showAlert("Logout işlemi sırasında hata oluştu: " + error.message, "error");
     }
-}
+} // FIXED: Added missing closing brace
+
 // Fixed: Upload Excel data to Supabase storage
 async function uploadExcelToSupabase(packages) {
     if (!supabase || !navigator.onLine) {
@@ -532,103 +469,31 @@ async function downloadExcelForManualTransfer() {
     }
 }
 
-// Enhanced logout function with better network sharing
-async function logoutWithConfirmation() {
-    const confirmation = confirm(
-        "Çıkış yapmak üzeresiniz. Excel dosyası ana bilgisayara gönderilecek, " +
-        "raporlara taşınacak ve mevcut veriler temizlenecek. " +
-        "Devam etmek istiyor musunuz?"
-    );
-    
-    if (!confirmation) return;
-
-    try {
-        showAlert("Excel dosyası ana bilgisayara gönderiliyor...", "info");
-        
-        // Get current Excel data
-        const currentPackages = await ExcelJS.readFile();
-        
-        if (currentPackages.length > 0) {
-            // Upload to Supabase
-            await uploadExcelToSupabase(currentPackages);
-
-            // Send to Main PC via network share
-            const networkSuccess = await sendExcelToMainPC(currentPackages);
-            
-            if (!networkSuccess) {
-                // If automatic transfer fails, download for manual transfer
-                showAlert("Otomatik gönderim başarısız. Manuel transfer için dosya indirilecek.", "warning");
-                await downloadExcelForManualTransfer();
-            }
-            
-            // LocalStorage backup
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const reportData = {
-                fileName: `rapor_${timestamp}.json`,
-                date: new Date().toISOString(),
-                packages: currentPackages,
-                packageCount: currentPackages.length,
-                totalQuantity: currentPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
-            };
-            
-            localStorage.setItem(`report_${timestamp}`, JSON.stringify(reportData));
-
-            // Clear local Excel
-            await ExcelJS.writeFile([]);
-            excelPackages = [];
-
-            showAlert("Excel dosyası işlemleri tamamlandı", "success");
-        }
-
-        // Perform logout
-        await performLogout();
-
-    } catch (error) {
-        console.error("Logout error:", error);
-        showAlert("Logout işlemi sırasında hata oluştu: " + error.message, "error");
-    }
-}
-// Optional: Network drive sharing (requires backend API)
-async function shareToNetworkDrive(packages) {
-    // This would require a backend service due to browser security restrictions
-    console.log("Network drive sharing requires backend implementation");
-    return false;
-    
-    /* Example backend implementation would look like:
-    try {
-        const response = await fetch('/api/upload-to-network', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ packages })
-        });
-        
-        return response.ok;
-    } catch (error) {
-        console.error('Network upload error:', error);
-        return false;
-    }
-    */
-}
-
-// Enhanced performLogout with better cleanup
+// Simplified and more reliable performLogout
 async function performLogout() {
+    console.log('🔧 performLogout called');
+    
     try {
-        // Sync any pending changes before logout
+        // Step 1: Try to sync any pending changes
         if (supabase && navigator.onLine && excelSyncQueue.length > 0) {
+            console.log('🔄 Syncing pending changes...');
             showAlert("Bekleyen değişiklikler senkronize ediliyor...", "info");
             await syncExcelWithSupabase();
         }
 
-        // Clear app state
-        clearAppState();
-        
-        // Clear authentication
+        // Step 2: Clear authentication
+        console.log('🔒 Signing out from Supabase...');
         if (supabase) {
             const { error } = await supabase.auth.signOut();
-            if (error) console.error("Sign out error:", error);
+            if (error) {
+                console.error("❌ Sign out error:", error);
+            } else {
+                console.log('✅ Signed out from Supabase');
+            }
         }
-        
-        // Reset global variables
+
+        // Step 3: Reset global variables
+        console.log('🔄 Resetting global variables...');
         selectedCustomer = null;
         currentPackage = {};
         currentContainer = null;
@@ -637,9 +502,11 @@ async function performLogout() {
         scannedBarcodes = [];
         excelPackages = [];
         excelSyncQueue = [];
+        connectionTested = false;
         
-        // Clear sensitive data from localStorage
-        const keysToKeep = ['proclean_workspaces', 'workspace_printer_configs'];
+        // Step 4: Clear sensitive data from localStorage (keep only essential)
+        console.log('🗑️ Clearing localStorage...');
+        const keysToKeep = ['proclean_workspaces', 'workspace_printer_configs', 'procleanSettings'];
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const key = localStorage.key(i);
             if (key && !keysToKeep.includes(key) && !key.startsWith('report_')) {
@@ -647,17 +514,34 @@ async function performLogout() {
             }
         }
 
-        // Show login screen
+        // Step 5: Switch to login screen
+        console.log('🔄 Switching to login screen...');
         document.getElementById('loginScreen').style.display = "flex";
         document.getElementById('appContainer').style.display = "none";
         
+        // Step 6: Clear any intervals or timeouts
+        console.log('🔄 Cleaning up intervals...');
+        if (window.autoRefreshManager) {
+            window.autoRefreshManager.stop();
+        }
+        
+        // Step 7: Reset form fields
+        console.log('🔄 Resetting form fields...');
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        
+        console.log('✅ Logout completed successfully');
         showAlert("Başarıyla çıkış yapıldı", "success");
         
     } catch (error) {
-        console.error("Logout error:", error);
-        showAlert("Çıkış yapılırken hata oluştu", "error");
+        console.error("❌ performLogout error:", error);
+        // Force logout even if there are errors
+        document.getElementById('loginScreen').style.display = "flex";
+        document.getElementById('appContainer').style.display = "none";
+        showAlert("Çıkış yapıldı", "info");
     }
 }
+
 // Replace existing logout functionality
 function setupEnhancedLogout() {
     // Find and replace any existing logout buttons
@@ -711,8 +595,33 @@ function validateForm(fields) {
     return valid;
 }
 
+// Missing function stubs - add these if they don't exist
+function clearAppState() {
+    // Clear any app-specific state if needed
+    console.log('🧹 Clearing app state...');
+}
 
+// Simple AuditLogger stub
+const AuditLogger = {
+    log: (event, data) => {
+        console.log(`🔍 Audit: ${event}`, data);
+    }
+};
 
+// Simple ErrorHandler stub  
+const ErrorHandler = {
+    handle: (error, context) => {
+        console.error(`❌ Error in ${context}:`, error);
+        showAlert(`${context} sırasında hata oluştu: ${error.message}`, 'error');
+    }
+};
+
+// Simple UXEnhancements stub
+const UXEnhancements = {
+    showConfirmation: (message) => {
+        return Promise.resolve(confirm(message));
+    }
+};
 
 // Enhanced user management system
 class UserManager {
