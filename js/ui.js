@@ -71,11 +71,8 @@ function initializeElementsObject() {
 let alertQueue = new Set(); // Track active alerts
 
 function showAlert(message, type = 'info', duration = 5000) {
-    // Use translation system if available
-    const translatedMessage = window.languageManager ? window.languageManager.translateAlert(message) : message;
-    
     // Prevent duplicate alerts
-    const alertKey = `${translatedMessage}-${type}`;
+    const alertKey = `${message}-${type}`;
     if (alertQueue.has(alertKey)) {
         return; // Already showing this alert
     }
@@ -84,7 +81,7 @@ function showAlert(message, type = 'info', duration = 5000) {
     
     if (!elements.alertContainer) {
         console.error('Alert container not found, using console instead');
-        console.log(`${type.toUpperCase()}: ${translatedMessage}`);
+        console.log(`${type.toUpperCase()}: ${message}`);
         alertQueue.delete(alertKey);
         return;
     }
@@ -93,7 +90,7 @@ function showAlert(message, type = 'info', duration = 5000) {
     alert.className = `alert alert-${type}`;
     
     const span = document.createElement('span');
-    span.textContent = translatedMessage;
+    span.textContent = message;
     
     const button = document.createElement('button');
     button.className = 'alert-close';
@@ -135,9 +132,8 @@ function showAlert(message, type = 'info', duration = 5000) {
 
 // Yardımcı fonksiyonlar
 function showToast(message, type = 'info') {
-    const translatedMessage = window.languageManager ? window.languageManager.translateAlert(message) : message;
     const toast = document.getElementById('toast');
-    toast.textContent = translatedMessage;
+    toast.textContent = message;
     toast.className = `toast ${type} show`;
     
     setTimeout(() => {
@@ -177,7 +173,7 @@ function showApiKeyHelp() {
     helpWindow.document.write(`
         <html>
         <head>
-            <title>${t('api.help.title', 'Supabase API Anahtarı Alma Rehberi')}</title>
+            <title>Supabase API Anahtarı Alma Rehberi</title>
             <style>
                 body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
                 h1 { color: #2c3e50; }
@@ -185,27 +181,27 @@ function showApiKeyHelp() {
             </style>
         </head>
         <body>
-            <h1>${t('api.help.title', 'Supabase API Anahtarı Nasıl Alınır?')}</h1>
+            <h1>Supabase API Anahtarı Nasıl Alınır?</h1>
             <div class="step">
-                <h3>${t('api.help.step1', '1. Supabase hesabınıza giriş yapın')}</h3>
+                <h3>1. Supabase hesabınıza giriş yapın</h3>
                 <p><a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></p>
             </div>
             <div class="step">
-                <h3>${t('api.help.step2', '2. Projenizi seçin veya yeni proje oluşturun')}</h3>
+                <h3>2. Projenizi seçin veya yeni proje oluşturun</h3>
             </div>
             <div class="step">
-                <h3>${t('api.help.step3', '3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın')}</h3>
+                <h3>3. Sol menüden Settings (Ayarlar) seçeneğine tıklayın</h3>
             </div>
             <div class="step">
-                <h3>${t('api.help.step4', '4. API sekmesine gidin')}</h3>
+                <h3>4. API sekmesine gidin</h3>
             </div>
             <div class="step">
-                <h3>${t('api.help.step5', '5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın')}</h3>
-                <p>${t('api.help.step5_desc', 'Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.')}</p>
+                <h3>5. "Project API Keys" bölümündeki "anon" veya "public" anahtarını kopyalayın</h3>
+                <p>Bu anahtarı uygulamadaki API anahtarı alanına yapıştırın.</p>
             </div>
             <div class="step">
-                <h3>${t('api.help.important', 'Önemli Not:')}</h3>
-                <p>${t('api.help.important_desc', 'API anahtarınızı asla paylaşmayın ve gizli tutun.')}</p>
+                <h3>Önemli Not:</h3>
+                <p>API anahtarınızı asla paylaşmayın ve gizli tutun.</p>
             </div>
         </body>
         </html>
@@ -218,13 +214,13 @@ function toggleScannerMode() {
     
     if (scannerMode) {
         elements.barcodeInput.classList.add('scanner-active');
-        elements.scannerToggle.innerHTML = `<i class="fas fa-camera"></i> ${t('packaging.close.scanner')}`;
+        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Kapat';
         elements.barcodeInput.focus();
-        showAlert(t('packaging.scanner.active'), 'info');
+        showAlert('Barkod tarayıcı modu aktif. Barkodu okutun.', 'info');
     } else {
         elements.barcodeInput.classList.remove('scanner-active');
-        elements.scannerToggle.innerHTML = `<i class="fas fa-camera"></i> ${t('packaging.open.scanner')}`;
-        showAlert(t('packaging.scanner.inactive'), 'info');
+        elements.scannerToggle.innerHTML = '<i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç';
+        showAlert('Barkod tarayıcı modu kapatıldı.', 'info');
     }
 }
 
@@ -299,7 +295,7 @@ function editStockItem(code) {
     }
     
     if (!targetRow) {
-        showAlert(t('alert.stock.not_found', 'Stok öğesi bulunamadı: ') + code, 'error');
+        showAlert('Stok öğesi bulunamadı: ' + code, 'error');
         return;
     }
     
@@ -311,7 +307,7 @@ function editStockItem(code) {
     
     const currentQuantity = parseInt(quantityCell.textContent) || 0;
     
-    const newQuantity = prompt(`${code} ${t('quantity.title', 'için yeni miktarı girin:')}`, currentQuantity);
+    const newQuantity = prompt(`${code} için yeni miktarı girin:`, currentQuantity);
     
     if (newQuantity === null) {
         return; // User cancelled
@@ -320,7 +316,7 @@ function editStockItem(code) {
     const quantity = parseInt(newQuantity);
     
     if (isNaN(quantity) || quantity < 0) {
-        showAlert(t('quantity.error', 'Geçerli bir miktar girin (0 veya üzeri)'), 'error');
+        showAlert('Geçerli bir miktar girin (0 veya üzeri)', 'error');
         return;
     }
     
@@ -330,7 +326,7 @@ function editStockItem(code) {
 
 async function updateStockItem(code, newQuantity, row) {
     try {
-        showAlert(t('alert.stock.updating', 'Stok güncelleniyor...'), 'info', 1000);
+        showAlert('Stok güncelleniyor...', 'info', 1000);
         
         const quantityCell = row.querySelector('td:nth-child(3)');
         const statusCell = row.querySelector('td:nth-child(5)');
@@ -345,16 +341,16 @@ async function updateStockItem(code, newQuantity, row) {
             let statusClass, statusText;
             if (newQuantity === 0) {
                 statusClass = 'status-kritik';
-                statusText = t('status.out.of.stock', 'Tükendi');
+                statusText = 'Tükendi';
             } else if (newQuantity < 10) {
                 statusClass = 'status-az-stok';
-                statusText = t('status.low.stock', 'Az Stok');
+                statusText = 'Az Stok';
             } else if (newQuantity < 50) {
                 statusClass = 'status-uyari';
-                statusText = t('status.low.stock', 'Düşük');
+                statusText = 'Düşük';
             } else {
                 statusClass = 'status-stokta';
-                statusText = t('status.in.stock', 'Stokta');
+                statusText = 'Stokta';
             }
             
             statusCell.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
@@ -375,7 +371,7 @@ async function updateStockItem(code, newQuantity, row) {
                 throw error;
             }
             
-            showAlert(t('alert.stock.updated', '✅ Stok güncellendi: {code} - {quantity} adet', { code, quantity: newQuantity }), 'success');
+            showAlert(`✅ Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
         } else {
             // Save to localStorage for offline mode
             const stockUpdates = JSON.parse(localStorage.getItem('stockUpdates') || '[]');
@@ -386,12 +382,12 @@ async function updateStockItem(code, newQuantity, row) {
             });
             localStorage.setItem('stockUpdates', JSON.stringify(stockUpdates));
             
-            showAlert(t('alert.stock.updated.offline', '✅ Stok güncellendi (offline): {code} - {quantity} adet', { code, quantity: newQuantity }), 'success');
+            showAlert(`✅ Stok güncellendi (offline): ${code} - ${newQuantity} adet`, 'success');
         }
         
     } catch (error) {
         console.error('Stock update error:', error);
-        showAlert(t('alert.stock.update.error', 'Stok güncellenirken hata oluştu: ') + error.message, 'error');
+        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
         
         // Reload table on error
         if (typeof populateStockTable === 'function') {
@@ -411,7 +407,7 @@ async function saveStockItem(code, input) {
     const newQuantity = parseInt(input.value);
     
     if (isNaN(newQuantity) || newQuantity < 0) {
-        showAlert(t('quantity.error', 'Geçerli bir sayı girin (0 veya üzeri)'), 'error');
+        showAlert('Geçerli bir sayı girin (0 veya üzeri)', 'error');
         input.focus();
         return;
     }
@@ -427,7 +423,7 @@ async function saveStockItem(code, input) {
         input.disabled = true;
         
         // Only show one loading message
-        const loadingAlert = showAlert(t('general.updating', 'Güncelleniyor...'), 'info', 1000);
+        const loadingAlert = showAlert('Güncelleniyor...', 'info', 1000);
         
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -443,11 +439,11 @@ async function saveStockItem(code, input) {
         
         if (statusCell) {
             if (newQuantity === 0) {
-                statusCell.innerHTML = `<span class="status-badge out-of-stock">${t('status.out.of.stock', 'Tükendi')}</span>`;
+                statusCell.innerHTML = '<span class="status-badge out-of-stock">Tükendi</span>';
             } else if (newQuantity <= 5) {
-                statusCell.innerHTML = `<span class="status-badge low-stock">${t('status.low.stock', 'Düşük')}</span>`;
+                statusCell.innerHTML = '<span class="status-badge low-stock">Düşük</span>';
             } else {
-                statusCell.innerHTML = `<span class="status-badge in-stock">${t('status.in.stock', 'Mevcut')}</span>`;
+                statusCell.innerHTML = '<span class="status-badge in-stock">Mevcut</span>';
             }
         }
         
@@ -459,11 +455,11 @@ async function saveStockItem(code, input) {
         editingStockItem = null;
         currentEditingRow = null;
         
-        showAlert(t('alert.stock.updated', 'Stok güncellendi: {code} - {quantity} adet', { code, quantity: newQuantity }), 'success');
+        showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
         
     } catch (error) {
         console.error('Stok güncelleme hatası:', error);
-        showAlert(t('alert.stock.update.error', 'Stok güncellenirken hata oluştu: ') + error.message, 'error');
+        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
         input.disabled = false;
         input.focus();
     }
@@ -488,7 +484,7 @@ function cancelEditStockItem(code, originalQuantity) {
 
 function checkOnlineStatus() {
     if (!navigator.onLine) {
-        showAlert(t('alert.offline.mode', "Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak"), "error");
+        showAlert("Çevrimdışı Mod: İnternet yok, bazı işlemler çalışmayacak", "error");
         return false;
     }
     return true;
@@ -513,7 +509,7 @@ function displayScannedBarcodes() {
     container.innerHTML = '';
     
     if (scannedBarcodes.length === 0) {
-        container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">' + t('packaging.no.barcodes', 'Henüz barkod taranmadı') + '</p>';
+        container.innerHTML = '<p style="color:#666; text-align:center; font-size:0.8rem;">Henüz barkod taranmadı</p>';
         return;
     }
     
@@ -526,7 +522,7 @@ function displayScannedBarcodes() {
         item.innerHTML = `
             <span>${barcode.barcode}</span>
             <span style="color: ${barcode.processed ? 'green' : 'orange'}">
-                ${barcode.processed ? t('general.processed', 'İşlendi') : t('status.pending', 'Beklemede')}
+                ${barcode.processed ? 'İşlendi' : 'Beklemede'}
             </span>
         `;
         list.appendChild(item);
@@ -539,13 +535,13 @@ function selectCustomerFromModal(customer) {
     selectedCustomer = customer;
     elements.customerSelect.value = customer.id;
     closeModal();
-    showAlert(t('alert.customer.selected', 'Müşteri seçildi: {customer}', { customer: customer.name }), 'success');
+    showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
 }
         
 // Package operations
 function openQuantityModal(product) {
     selectedProduct = product;
-    elements.quantityModalTitle.textContent = `${product} - ${t('quantity.title')}`;
+    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
     elements.quantityInput.value = '';
     document.getElementById('quantityError').style.display = 'none';
     elements.quantityModal.style.display = 'flex';
@@ -555,7 +551,7 @@ function openQuantityModal(product) {
 
 function openStatusQuantityModal(status) {
     selectedProduct = status; // 👈 reuse the same global
-    elements.quantityModalTitle.textContent = `${status} - ${t('quantity.title')}`;
+    elements.quantityModalTitle.textContent = `${status} - Adet Girin`;
     elements.quantityInput.value = '';
     document.getElementById('quantityError').style.display = 'none';
     elements.quantityModal.style.display = 'flex';
@@ -584,7 +580,7 @@ function confirmQuantity() {
     if (!currentPackage.items) currentPackage.items = {};
     currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
 
-    showAlert(t('alert.product.added', '{product}: {quantity} adet eklendi', { product: selectedProduct, quantity }), 'success');
+    showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
     closeQuantityModal();
 }
         
@@ -609,7 +605,7 @@ function addManualProduct() {
     if (!currentPackage.items) currentPackage.items = {};
     currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
 
-    showAlert(t('alert.product.added', '{product}: {quantity} adet eklendi', { product, quantity }), 'success');
+    showAlert(`${product}: ${quantity} adet eklendi`, 'success');
     
     // Clear form
     document.getElementById('manualProduct').value = '';
@@ -712,14 +708,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const originalText = testBtn.textContent;
             testBtn.disabled = true;
-            testBtn.textContent = t('general.testing', 'Test Ediliyor...');
+            testBtn.textContent = 'Test Ediliyor...';
 
             try {
                 // Use labelHeader for test print
                 await printerInstance.testPrint(settings, settings.labelHeader);
             } catch (error) {
                 console.error('Test print error:', error);
-                showAlert(t('alert.printer.test.failed', 'Test yazdırma başarısız: ') + error.message, 'error');
+                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
             } finally {
                 testBtn.disabled = false;
                 testBtn.textContent = originalText;
@@ -741,24 +737,20 @@ async function printPackageWithSettings(packageData) {
         return await printerInstance.printBarcode(barcode, labelText, packageData, settings, header);
     } catch (error) {
         console.error('Print with settings error:', error);
-        showAlert(t('alert.print.error', 'Yazdırma hatası: ') + error.message, 'error');
+        showAlert('Yazdırma hatası: ' + error.message, 'error');
         return false;
     }
 }
 
 // Language - SIMULATION MODE to prevent errors
 function changeLanguage(lang) {
-    if (window.languageManager) {
-        window.languageManager.setLanguage(lang);
-    } else {
-        // SIMULATION MODE - just log the change without actual implementation
-        console.log('Language change simulated:', lang);
-        showAlert(t('alert.language.changed', 'Dil değiştirildi (simülasyon): {lang}', { lang }), 'info');
-        
-        // Update HTML lang attribute (safe operation)
-        if (document.documentElement) {
-            document.documentElement.lang = lang || 'tr';
-        }
+    // SIMULATION MODE - just log the change without actual implementation
+    console.log('Language change simulated:', lang);
+    showAlert(`Dil değiştirildi (simülasyon): ${lang}`, 'info');
+    
+    // Update HTML lang attribute (safe operation)
+    if (document.documentElement) {
+        document.documentElement.lang = lang || 'tr';
     }
 }
 
@@ -837,7 +829,7 @@ function toggleAutoSave() {
         autoSaveToggle.checked = settings.autoSave;
     }
     
-    showAlert(t('alert.auto.save', 'Otomatik kaydetme {status}', { status: settings.autoSave ? t('general.enabled', 'açıldı') : t('general.disabled', 'kapatıldı') }), 'info');
+    showAlert(`Otomatik kaydetme ${settings.autoSave ? 'açıldı' : 'kapatıldı'}`, 'info');
     
     if (settings.autoSave) {
         setupAutoSave();
@@ -881,18 +873,18 @@ function toggleDebugMode() {
         console.log('Debug mode enabled');
         window.DEBUG_MODE = true;
         document.body.classList.add('debug-mode');
-        showAlert(t('alert.debug.enabled', 'Debug modu açıldı - Konsol logları aktif'), 'info');
+        showAlert('Debug modu açıldı - Konsol logları aktif', 'info');
     } else {
         console.log('Debug mode disabled');
         window.DEBUG_MODE = false;
         document.body.classList.remove('debug-mode');
-        showAlert(t('alert.debug.disabled', 'Debug modu kapatıldı'), 'info');
+        showAlert('Debug modu kapatıldı', 'info');
     }
 }
 
 // FIX #1: runPerformanceTest function
 function runPerformanceTest() {
-    showAlert(t('alert.performance.test.starting', 'Performans testi başlatılıyor...'), 'info');
+    showAlert('Performans testi başlatılıyor...', 'info');
     
     const startTime = performance.now();
     const results = {
@@ -949,7 +941,7 @@ function runPerformanceTest() {
     resultsWindow.document.write(`
         <html>
         <head>
-            <title>${t('performance.test.results', 'Performance Test Results')}</title>
+            <title>Performance Test Results</title>
             <style>
                 body { font-family: Arial, sans-serif; padding: 20px; }
                 .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }
@@ -959,36 +951,36 @@ function runPerformanceTest() {
             </style>
         </head>
         <body>
-            <h2>${t('performance.test.results', 'Performance Test Results')}</h2>
+            <h2>Performance Test Results</h2>
             <div class="result ${results.domOperations < 100 ? 'good' : results.domOperations < 200 ? 'warning' : 'poor'}">
-                <strong>${t('performance.dom.operations', 'DOM Operations')}:</strong> ${results.domOperations.toFixed(2)}ms
+                <strong>DOM Operations:</strong> ${results.domOperations.toFixed(2)}ms
             </div>
             <div class="result ${results.calculations < 50 ? 'good' : results.calculations < 100 ? 'warning' : 'poor'}">
-                <strong>${t('performance.calculations', 'Mathematical Calculations')}:</strong> ${results.calculations.toFixed(2)}ms
+                <strong>Mathematical Calculations:</strong> ${results.calculations.toFixed(2)}ms
             </div>
             <div class="result ${results.localStorage < 200 ? 'good' : results.localStorage < 400 ? 'warning' : 'poor'}">
-                <strong>${t('performance.localstorage', 'LocalStorage Operations')}:</strong> ${results.localStorage.toFixed(2)}ms
+                <strong>LocalStorage Operations:</strong> ${results.localStorage.toFixed(2)}ms
             </div>
             <div class="result ${results.rendering < 100 ? 'good' : results.rendering < 200 ? 'warning' : 'poor'}">
-                <strong>${t('performance.rendering', 'Rendering Operations')}:</strong> ${results.rendering.toFixed(2)}ms
+                <strong>Rendering Operations:</strong> ${results.rendering.toFixed(2)}ms
             </div>
             <div class="result">
-                <strong>${t('performance.total.time', 'Total Test Time')}:</strong> ${totalTime.toFixed(2)}ms
+                <strong>Total Test Time:</strong> ${totalTime.toFixed(2)}ms
             </div>
             <div class="result">
-                <strong>${t('performance.browser', 'Browser')}:</strong> ${navigator.userAgent}
+                <strong>Browser:</strong> ${navigator.userAgent}
             </div>
             <div class="result">
-                <strong>${t('performance.memory', 'Memory Usage')}:</strong> ${performance.memory ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB` : 'Not available'}
+                <strong>Memory Usage:</strong> ${performance.memory ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB` : 'Not available'}
             </div>
             <div class="result">
-                <strong>${t('performance.test.date', 'Test Date')}:</strong> ${new Date().toLocaleString()}
+                <strong>Test Date:</strong> ${new Date().toLocaleString()}
             </div>
         </body>
         </html>
     `);
     
-    showAlert(t('alert.performance.test.completed', 'Performans testi tamamlandı! Toplam süre: {time}ms', { time: totalTime.toFixed(2) }), 'success');
+    showAlert(`Performans testi tamamlandı! Toplam süre: ${totalTime.toFixed(2)}ms`, 'success');
     console.log('Performance test results:', results);
 }
 
@@ -1005,7 +997,7 @@ function showConsoleLogs() {
     logsWindow.document.write(`
         <html>
         <head>
-            <title>${t('console.logs.title', 'Console Logs - ProClean')}</title>
+            <title>Console Logs - ProClean</title>
             <style>
                 body { font-family: 'Courier New', monospace; padding: 10px; background: #1e1e1e; color: #fff; margin: 0; }
                 .log-entry { margin: 2px 0; padding: 5px; border-radius: 3px; word-wrap: break-word; }
@@ -1021,9 +1013,9 @@ function showConsoleLogs() {
         </head>
         <body>
             <div id="controls">
-                <button onclick="clearLogs()">${t('general.clear', 'Clear Logs')}</button>
-                <button onclick="window.close()">${t('general.close', 'Close')}</button>
-                <button onclick="exportLogs()">${t('general.export', 'Export')}</button>
+                <button onclick="clearLogs()">Clear Logs</button>
+                <button onclick="window.close()">Close</button>
+                <button onclick="exportLogs()">Export</button>
             </div>
             <div id="logs"></div>
             <script>
@@ -1092,13 +1084,13 @@ function showConsoleLogs() {
         console.info = originalInfo;
     });
     
-    showAlert(t('alert.console.logs.opened', 'Console logs penceresi açıldı'), 'success');
+    showAlert('Console logs penceresi açıldı', 'success');
     console.log('Console logs monitoring started');
 }
 
 // Reset settings to defaults
 function resetSettings() {
-    if (confirm(t('confirm.reset.settings', 'Tüm ayarlar varsayılan değerlere sıfırlanacak. Emin misiniz?'))) {
+    if (confirm('Tüm ayarlar varsayılan değerlere sıfırlanacak. Emin misiniz?')) {
         const defaultSettings = {
             theme: 'light',
             printerScaling: '100',
@@ -1124,7 +1116,7 @@ function resetSettings() {
         applySettings(defaultSettings);
         loadSettings();
         
-        showAlert(t('alert.settings.reset', 'Ayarlar varsayılan değerlere sıfırlandı'), 'success');
+        showAlert('Ayarlar varsayılan değerlere sıfırlandı', 'success');
     }
 }
 
@@ -1140,9 +1132,9 @@ function importSettings(event) {
             localStorage.setItem('procleanSettings', JSON.stringify(settings));
             applySettings(settings);
             loadSettings();
-            showAlert(t('alert.settings.imported', 'Ayarlar başarıyla içe aktarıldı'), 'success');
+            showAlert('Ayarlar başarıyla içe aktarıldı', 'success');
         } catch (error) {
-            showAlert(t('alert.settings.invalid', 'Ayar dosyası geçersiz'), 'error');
+            showAlert('Ayar dosyası geçersiz', 'error');
         }
     };
     reader.readAsText(file);
@@ -1183,7 +1175,7 @@ function saveAllSettings() {
     
     localStorage.setItem('procleanSettings', JSON.stringify(settings));
     applySettings(settings);
-    showAlert(t('alert.settings.saved', 'Ayarlar kaydedildi'), 'success');
+    showAlert('Ayarlar kaydedildi', 'success');
     
     // Update printer settings in real-time
     updatePrinterSettings(settings);
@@ -1246,7 +1238,7 @@ function toggleTheme() {
     document.body.classList.toggle('dark-mode', isDark);
     const themeStatus = document.getElementById('themeStatus');
     if (themeStatus) {
-        themeStatus.textContent = isDark ? t('settings.theme.dark', 'Koyu') : t('settings.theme.light', 'Açık');
+        themeStatus.textContent = isDark ? 'Koyu' : 'Açık';
     }
 }
 
@@ -1255,10 +1247,10 @@ function checkSystemStatus() {
     const dbStatus = document.getElementById('dbConnectionStatus');
     if (dbStatus) {
         if (window.supabase) {
-            dbStatus.textContent = t('general.connected', 'Bağlı');
+            dbStatus.textContent = 'Bağlı';
             dbStatus.className = 'status-indicator connected';
         } else {
-            dbStatus.textContent = t('general.disconnected', 'Bağlantı Yok');
+            dbStatus.textContent = 'Bağlantı Yok';
             dbStatus.className = 'status-indicator disconnected';
         }
     }
@@ -1269,10 +1261,10 @@ function checkSystemStatus() {
         const printerInstance = typeof getPrinterElectron === 'function' ? getPrinterElectron() : null;
 
         if (printerInstance && printerInstance.isConnected) {
-            printerStatus.textContent = t('general.connected', 'Bağlı');
+            printerStatus.textContent = 'Bağlı';
             printerStatus.className = 'status-indicator connected';
         } else {
-            printerStatus.textContent = t('general.disconnected', 'Bağlantı Yok');
+            printerStatus.textContent = 'Bağlantı Yok';
             printerStatus.className = 'status-indicator disconnected';
         }
     }
@@ -1280,20 +1272,20 @@ function checkSystemStatus() {
 
 async function exportData(format) {
     if (!format) {
-        showAlert(t('alert.export.no.format', '⚠️ Format belirtilmedi!'), 'error');
+        showAlert('⚠️ Format belirtilmedi!', 'error');
         return;
     }
 
     format = format.toLowerCase().trim();
 
     try {
-        showAlert(t('alert.export.collecting', '📊 Veriler toplanıyor...'), 'info');
+        showAlert('📊 Veriler toplanıyor...', 'info');
 
         // Collect all data from the app
         const allData = await collectAllAppData();
 
         if (Object.keys(allData).length === 0) {
-            showAlert(t('alert.export.no.data', '⚠️ Dışa aktarılacak veri bulunamadı!'), 'info');
+            showAlert('⚠️ Dışa aktarılacak veri bulunamadı!', 'info');
             return;
         }
 
@@ -1305,12 +1297,12 @@ async function exportData(format) {
         } else if (format === 'excel') {
             await exportToExcel(allData, filename);
         } else {
-            showAlert(t('alert.export.invalid.format', '⚠️ Geçersiz format seçildi! Sadece JSON veya Excel desteklenir.'), 'error');
+            showAlert('⚠️ Geçersiz format seçildi! Sadece JSON veya Excel desteklenir.', 'error');
         }
 
     } catch (error) {
         console.error('Export error:', error);
-        showAlert(t('alert.export.error', '❌ Dışa aktarma hatası: {error}', { error: error.message }), 'error');
+        showAlert(`❌ Dışa aktarma hatası: ${error.message}`, 'error');
     }
 }
 
@@ -1484,7 +1476,7 @@ async function collectAllAppData() {
 
     } catch (error) {
         console.error('Data collection error:', error);
-        throw new Error(t('error.data.collection', 'Veri toplama hatası: {error}', { error: error.message }));
+        throw new Error(`Veri toplama hatası: ${error.message}`);
     }
 }
 
@@ -1508,7 +1500,7 @@ async function exportToJSON(data, filename) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        showAlert(t('alert.export.json.success', '✅ Tüm veriler JSON formatında dışa aktarıldı! ({records} kayıt)', { records: data.metadata.totalRecords }), 'success');
+        showAlert(`✅ Tüm veriler JSON formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt)`, 'success');
         
         // Optional: Log export summary
         console.log('📊 Export Summary:', {
@@ -1520,14 +1512,14 @@ async function exportToJSON(data, filename) {
         });
 
     } catch (error) {
-        throw new Error(t('error.export.json', 'JSON export failed: {error}', { error: error.message }));
+        throw new Error(`JSON export failed: ${error.message}`);
     }
 }
 
 // Export to Excel function
 async function exportToExcel(data, filename) {
     if (typeof XLSX === 'undefined') {
-        throw new Error(t('error.xlsx.library', 'XLSX kütüphanesi bulunamadı! Lütfen SheetJS kütüphanesini yükleyin.'));
+        throw new Error('XLSX kütüphanesi bulunamadı! Lütfen SheetJS kütüphanesini yükleyin.');
     }
 
     try {
@@ -1559,20 +1551,17 @@ async function exportToExcel(data, filename) {
         // Export to Excel file
         XLSX.writeFile(wb, `${filename}.xlsx`);
         
-        showAlert(t('alert.export.excel.success', '✅ Tüm veriler Excel formatında dışa aktarıldı! ({records} kayıt, {sheets} sayfa)', { 
-            records: data.metadata.totalRecords, 
-            sheets: sheets.filter(s => s.data.length > 0).length 
-        }), 'success');
+        showAlert(`✅ Tüm veriler Excel formatında dışa aktarıldı! (${data.metadata.totalRecords} kayıt, ${sheets.filter(s => s.data.length > 0).length} sayfa)`, 'success');
 
     } catch (error) {
-        throw new Error(t('error.export.excel', 'Excel export failed: {error}', { error: error.message }));
+        throw new Error(`Excel export failed: ${error.message}`);
     }
 }
 
 // Quick export functions for specific data types
 async function exportPackages(format) {
     if (!window.packages || window.packages.length === 0) {
-        showAlert(t('alert.export.no.packages', '⚠️ Dışa aktarılacak paket bulunamadı!'), 'info');
+        showAlert('⚠️ Dışa aktarılacak paket bulunamadı!', 'info');
         return;
     }
 
@@ -1605,13 +1594,13 @@ async function exportPackages(format) {
         a.download = `proclean_packages_${timestamp}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        showAlert(t('alert.export.packages.json', '✅ Paketler dışa aktarıldı! ({count} paket)', { count: data.packages.length }), 'success');
+        showAlert(`✅ Paketler dışa aktarıldı! (${data.packages.length} paket)`, 'success');
     } else if (format === 'excel') {
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(data.packages);
         XLSX.utils.book_append_sheet(wb, ws, 'Paketler');
         XLSX.writeFile(wb, `proclean_packages_${timestamp}.xlsx`);
-        showAlert(t('alert.export.packages.excel', '✅ Paketler Excel formatında dışa aktarıldı!'), 'success');
+        showAlert(`✅ Paketler Excel formatında dışa aktarıldı!`, 'success');
     }
 }
 
@@ -1633,13 +1622,13 @@ function addExportButtons() {
     }
 
     exportContainer.innerHTML = `
-        <h4>${t('export.title', '📊 Veri Dışa Aktarma')}</h4>
-        <button onclick="exportData('json')" class="btn btn-success">${t('export.json.all', '📁 Tüm Veriyi JSON Olarak İndir')}</button>
-        <button onclick="exportData('excel')" class="btn btn-primary">${t('export.excel.all', '📊 Tüm Veriyi Excel Olarak İndir')}</button>
-        <button onclick="exportPackages('json')" class="btn btn-outline-success">${t('export.json.packages', '📦 Sadece Paketleri JSON İndir')}</button>
-        <button onclick="exportPackages('excel')" class="btn btn-outline-primary">${t('export.excel.packages', '📦 Sadece Paketleri Excel İndir')}</button>
+        <h4>📊 Veri Dışa Aktarma</h4>
+        <button onclick="exportData('json')" class="btn btn-success">📁 Tüm Veriyi JSON Olarak İndir</button>
+        <button onclick="exportData('excel')" class="btn btn-primary">📊 Tüm Veriyi Excel Olarak İndir</button>
+        <button onclick="exportPackages('json')" class="btn btn-outline-success">📦 Sadece Paketleri JSON İndir</button>
+        <button onclick="exportPackages('excel')" class="btn btn-outline-primary">📦 Sadece Paketleri Excel İndir</button>
         <p style="font-size:12px; color:#666; margin-top:5px;">
-            ${t('export.description', 'Tüm veri: Paketler, konteynerler, stok, müşteriler, personel, ayarlar ve daha fazlası')}
+            Tüm veri: Paketler, konteynerler, stok, müşteriler, personel, ayarlar ve daha fazlası
         </p>
     `;
 }
@@ -1650,10 +1639,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function clearFrontendData() {
-    const password = prompt(t('confirm.clear.data', 'Tüm frontend veriler silinecek. Lütfen şifreyi girin:'));
+    const password = prompt('Tüm frontend veriler silinecek. Lütfen şifreyi girin:');
 
     if (password !== '8823') {
-        alert(t('alert.wrong.password', '⚠️ Şifre yanlış! İşlem iptal edildi.'));
+        alert('⚠️ Şifre yanlış! İşlem iptal edildi.');
         return;
     }
 
@@ -1690,7 +1679,7 @@ function clearFrontendData() {
     const toggles = document.querySelectorAll('input[type="radio"]');
     toggles.forEach(toggle => toggle.checked = false);
 
-    showAlert(t('alert.data.cleared', 'Tüm frontend veriler temizlendi'), 'success');
+    showAlert('Tüm frontend veriler temizlendi', 'success');
 }
 
 function initializeSettings() {
@@ -1709,7 +1698,7 @@ function selectPackage(pkg) {
         // Validate input
         if (!pkg || !pkg.id) {
             console.error('Invalid package data:', pkg);
-            showAlert(t('alert.invalid.package', 'Geçersiz paket verisi'), 'error');
+            showAlert('Geçersiz paket verisi', 'error');
             return;
         }
         
@@ -1736,7 +1725,7 @@ function selectPackage(pkg) {
         
     } catch (error) {
         console.error('Error in selectPackage:', error);
-        showAlert(t('alert.package.select.error', 'Paket seçilirken hata oluştu'), 'error');
+        showAlert('Paket seçilirken hata oluştu', 'error');
     }
 }
 
@@ -1746,21 +1735,21 @@ function updatePackageDetails(pkg, container) {
     if (pkg.created_at) {
         try {
             const date = new Date(pkg.created_at);
-            dateStr = isNaN(date.getTime()) ? t('general.invalid.date', 'Geçersiz tarih') : date.toLocaleDateString('tr-TR');
+            dateStr = isNaN(date.getTime()) ? 'Geçersiz tarih' : date.toLocaleDateString('tr-TR');
         } catch (e) {
-            dateStr = t('general.invalid.date', 'Geçersiz tarih');
+            dateStr = 'Geçersiz tarih';
         }
     }
 
     container.innerHTML = `
-        <h4>${t('packaging.package.no', 'Paket')}: ${pkg.package_no || 'N/A'}</h4>
-        <p><strong>${t('packaging.customer', 'Müşteri')}:</strong> ${pkg.customers?.name || 'N/A'}</p>
-        <p><strong>${t('packaging.date', 'Tarih')}:</strong> ${dateStr}</p>
-        <p><strong>${t('packaging.status', 'Durum')}:</strong> ${pkg.status === 'beklemede' ? t('status.pending', 'Beklemede') : t('status.shipped', 'Sevk Edildi')}</p>
+        <h4>Paket: ${pkg.package_no || 'N/A'}</h4>
+        <p><strong>Müşteri:</strong> ${pkg.customers?.name || 'N/A'}</p>
+        <p><strong>Tarih:</strong> ${dateStr}</p>
+        <p><strong>Durum:</strong> ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</p>
         <div class="items-section">
             <div style="display:flex; justify-content:space-between; font-weight:bold; border-bottom:2px solid #000; padding-bottom:0.3rem;">
-                <span>${t('packaging.product', 'Ürün')}</span>
-                <span>${t('packaging.quantity', 'Adet')}</span>
+                <span>Ürün</span>
+                <span>Adet</span>
             </div>
         </div>
     `;
@@ -1774,7 +1763,7 @@ function updatePackageDetails(pkg, container) {
             itemDiv.style.padding = '0.2rem 0';
             itemDiv.textContent = ''; // We'll use spans
             const nameSpan = document.createElement('span');
-            nameSpan.textContent = item.name || t('products.unknown', 'Bilinmeyen Ürün');
+            nameSpan.textContent = item.name || 'Bilinmeyen Ürün';
             const qtySpan = document.createElement('span');
             qtySpan.textContent = item.qty != null ? item.qty : 1;
             itemDiv.appendChild(nameSpan);
@@ -1896,8 +1885,8 @@ function addWorkspaceSwitchHandler() {
     const indicator = document.getElementById('workspaceIndicator');
     if (indicator) {
         indicator.style.cursor = 'pointer';
-        indicator.title = t('workspace.switch.tooltip', 'İstasyonu değiştirmek için tıklayın');
-        indicator.onclick = () => window.workspaceManager?.showWorkspaceSelection();
+        indicator.title = 'İstasyonu değiştirmek için tıklayın';
+        indicator.onclick = () => window.workspaceManager.showWorkspaceSelection();
     }
 }
 
@@ -1964,7 +1953,7 @@ function setupWorkspaceAwareUI() {
  */
 function getProductType(packageData) {
     if (!packageData || !packageData.items) {
-        return t('products.none', 'Ürün Yok');
+        return 'Ürün Yok';
     }
 
     // 1. CRITICAL: Handle the structure where items is an OBJECT (most common for scanned inventory)
@@ -1984,7 +1973,7 @@ function getProductType(packageData) {
         return packageData.product;
     }
     
-    return t('products.none', 'Ürün Yok');
+    return 'Ürün Yok';
 }
 
 
@@ -2008,14 +1997,14 @@ function setupKeyboardShortcuts() {
             if (selectedPackage && typeof printPackageWithSettings === 'function') {
                 printPackageWithSettings(selectedPackage);
             } else {
-                showAlert(t('alert.select.package.first', 'Önce bir paket seçin'), 'warning');
+                showAlert('Önce bir paket seçin', 'warning');
             }
         }
         
         // F8 - Sil (Delete)
         if (e.key === 'F8') {
             e.preventDefault();
-            if (confirm(t('confirm.delete.selected', 'Seçili öğeleri silmek istediğinize emin misiniz?'))) {
+            if (confirm('Seçili öğeleri silmek istediğinize emin misiniz?')) {
                 if (typeof deleteSelectedPackages === 'function') {
                     deleteSelectedPackages();
                 }
@@ -2105,7 +2094,7 @@ class EventListenerManager {
                     name: selectedOption.textContent.split(' (')[0],
                     code: selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || ''
                 };
-                showAlert(t('alert.customer.selected', 'Müşteri seçildi: {customer}', { customer: selectedCustomer.name }), 'success');
+                showAlert(`Müşteri seçildi: ${selectedCustomer.name}`, 'success');
             } else {
                 selectedCustomer = null;
             }
@@ -2162,9 +2151,9 @@ class EventListenerManager {
     handleOnlineStatus() {
         document.getElementById('offlineIndicator').style.display = 'none';
         if (elements.connectionStatus) {
-            elements.connectionStatus.textContent = t('general.online', 'Çevrimiçi');
+            elements.connectionStatus.textContent = 'Çevrimiçi';
         }
-        showAlert(t('alert.online.mode', 'Çevrimiçi moda geçildi. Veriler senkronize ediliyor...'), 'success');
+        showAlert('Çevrimiçi moda geçildi. Veriler senkronize ediliyor...', 'success');
         
         // Trigger sync after coming online
         setTimeout(() => {
@@ -2178,9 +2167,9 @@ class EventListenerManager {
     handleOfflineStatus() {
         document.getElementById('offlineIndicator').style.display = 'block';
         if (elements.connectionStatus) {
-            elements.connectionStatus.textContent = t('general.offline', 'Çevrimdışı');
+            elements.connectionStatus.textContent = 'Çevrimdışı';
         }
-        showAlert(t('alert.offline.mode.extended', 'Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.'), 'warning');
+        showAlert('Çevrimdışı moda geçildi. Değişiklikler internet bağlantısı sağlandığında senkronize edilecek.', 'warning');
     }
 
     // Fixed barcode scanner setup
@@ -2575,9 +2564,9 @@ class UXEnhancer {
         }
         
         const states = {
-            saving: { text: t('general.saving', 'Kaydediliyor...'), className: 'saving' },
-            saved: { text: t('general.saved', 'Kaydedildi'), className: 'saved' },
-            error: { text: t('general.save.failed', 'Kaydedilemedi'), className: 'error' }
+            saving: { text: 'Kaydediliyor...', className: 'saving' },
+            saved: { text: 'Kaydedildi', className: 'saved' },
+            error: { text: 'Kaydedilemedi', className: 'error' }
         };
         
         const currentState = states[state] || states.saving;
@@ -2634,9 +2623,9 @@ class UXEnhancer {
         if (existingToolbar) existingToolbar.remove();
         
         const defaultActions = [
-            { id: 'delete', label: t('general.delete', 'Sil'), action: () => this.bulkDelete(tableId) },
-            { id: 'export', label: t('general.export', 'Dışa Aktar'), action: () => this.bulkExport(tableId) },
-            { id: 'status', label: t('bulk.change.status', 'Durumu Değiştir'), action: () => this.bulkStatusChange(tableId) }
+            { id: 'delete', label: 'Sil', action: () => this.bulkDelete(tableId) },
+            { id: 'export', label: 'Dışa Aktar', action: () => this.bulkExport(tableId) },
+            { id: 'status', label: 'Durumu Değiştir', action: () => this.bulkStatusChange(tableId) }
         ];
         
         const toolbarActions = actions.length > 0 ? actions : defaultActions;
@@ -2647,7 +2636,7 @@ class UXEnhancer {
         toolbar.style.display = 'none';
         toolbar.innerHTML = `
             <div class="bulk-selection-count">
-                <span id="selectedCount-${tableId}">0</span> ${t('bulk.items.selected', 'öğe seçildi')}
+                <span id="selectedCount-${tableId}">0</span> öğe seçildi
             </div>
             <div class="bulk-action-buttons">
                 ${toolbarActions.map(action => `
@@ -2658,7 +2647,7 @@ class UXEnhancer {
                 `).join('')}
                 <button type="button" class="btn btn-outline-secondary btn-sm"
                         onclick="clearSelection('${tableId}')">
-                    ${t('general.clear', 'Temizle')}
+                    Temizle
                 </button>
             </div>
         `;
@@ -2808,7 +2797,7 @@ function clearSelection(tableId) {
 async function syncWithProgress() {
     const progress = uxEnhancer.showProgress(
         'sync', 
-        t('sync.in.progress', 'Veriler senkronize ediliyor...'), 
+        'Veriler senkronize ediliyor...', 
         excelSyncQueue.length
     );
     
@@ -2822,11 +2811,11 @@ async function syncWithProgress() {
         }
         
         progress.complete();
-        showAlert(t('alert.sync.completed', 'Senkronizasyon başarıyla tamamlandı!'), 'success');
+        showAlert('Senkronizasyon başarıyla tamamlandı!', 'success');
         
     } catch (error) {
-        progress.error(t('sync.error', 'Senkronizasyon sırasında hata oluştu'));
-        showAlert(t('alert.sync.failed', 'Senkronizasyon tamamlanamadı'), 'error');
+        progress.error('Senkronizasyon sırasında hata oluştu');
+        showAlert('Senkronizasyon tamamlanamadı', 'error');
     }
 }
 
@@ -2844,34 +2833,34 @@ class DataValidator {
         const errors = [];
         
         // Required fields
-        if (!packageData.id) errors.push(t('error.package.id.required', 'Package ID is required'));
-        if (!packageData.package_no) errors.push(t('error.package.number.required', 'Package number is required'));
-        if (!packageData.customer_id) errors.push(t('error.customer.required', 'Customer is required'));
-        if (!packageData.workspace_id) errors.push(t('error.workspace.required', 'Workspace is required'));
+        if (!packageData.id) errors.push('Package ID is required');
+        if (!packageData.package_no) errors.push('Package number is required');
+        if (!packageData.customer_id) errors.push('Customer is required');
+        if (!packageData.workspace_id) errors.push('Workspace is required');
         
         // Items validation
         if (!packageData.items || Object.keys(packageData.items).length === 0) {
-            errors.push(t('error.package.items.required', 'Package must contain at least one item'));
+            errors.push('Package must contain at least one item');
         } else {
             for (const [product, quantity] of Object.entries(packageData.items)) {
                 if (typeof quantity !== 'number' || quantity < 1) {
-                    errors.push(t('error.invalid.quantity', 'Invalid quantity for {product}: {quantity}', { product, quantity }));
+                    errors.push(`Invalid quantity for ${product}: ${quantity}`);
                 }
             }
         }
         
         // Quantity validation
         if (typeof packageData.total_quantity !== 'number' || packageData.total_quantity < 1) {
-            errors.push(t('error.invalid.total.quantity', 'Invalid total quantity: {quantity}', { quantity: packageData.total_quantity }));
+            errors.push(`Invalid total quantity: ${packageData.total_quantity}`);
         }
         
         // Date validation
         if (!packageData.created_at || isNaN(new Date(packageData.created_at).getTime())) {
-            errors.push(t('error.invalid.date', 'Invalid creation date'));
+            errors.push('Invalid creation date');
         }
         
         if (errors.length > 0) {
-            throw new Error(t('error.package.validation', 'Package validation failed: {errors}', { errors: errors.join(', ') }));
+            throw new Error(`Package validation failed: ${errors.join(', ')}`);
         }
         
         return true;
@@ -2928,19 +2917,19 @@ class DataValidator {
             // Required field validation
             if (inputConfig.required && !value) {
                 inputValid = false;
-                errorMessage = t('error.field.required', 'Bu alan zorunludur');
+                errorMessage = 'Bu alan zorunludur';
             }
             // Email validation
             else if (inputConfig.type === 'email' && value && !this.isValidEmail(value)) {
                 inputValid = false;
-                errorMessage = t('error.invalid.email', 'Geçerli bir e-posta adresi girin');
+                errorMessage = 'Geçerli bir e-posta adresi girin';
             }
             // Number validation
             else if (inputConfig.type === 'number' && value) {
                 const numValue = Number(value);
                 if (isNaN(numValue) || numValue < 0) {
                     inputValid = false;
-                    errorMessage = t('error.invalid.number', 'Geçerli bir sayı girin');
+                    errorMessage = 'Geçerli bir sayı girin';
                 }
             }
             
@@ -2968,18 +2957,18 @@ class DataValidator {
 // Enhanced completePackage with validation
 async function completePackage() {
     if (!selectedCustomer) {
-        showAlert(t('alert.select.customer.first', 'Önce müşteri seçin'), 'error');
+        showAlert('Önce müşteri seçin', 'error');
         return;
     }
 
     if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert(t('alert.add.products.first', 'Pakete ürün ekleyin'), 'error');
+        showAlert('Pakete ürün ekleyin', 'error');
         return;
     }
 
     // Check workspace permissions
     if (!window.workspaceManager?.canPerformAction('create_package')) {
-        showAlert(t('alert.no.package.permission', 'Bu istasyon paket oluşturamaz'), 'error');
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
@@ -3046,14 +3035,14 @@ async function completePackage() {
 
         // Reset form
         resetPackageForm();
-        showAlert(t('alert.package.completed', 'Paket başarıyla oluşturuldu!'), 'success');
+        showAlert('Paket başarıyla oluşturuldu!', 'success');
 
         // Refresh packages table
         await safePopulatePackagesTable();
 
     } catch (error) {
         console.error('Error completing package:', error);
-        showAlert(t('alert.package.create.failed', 'Paket oluşturulamadı: {error}', { error: error.message }), 'error');
+        showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
 
@@ -3069,7 +3058,7 @@ async function populateReportsTable() {
     }
     
     try {
-        showAlert(t('alert.reports.loading', 'Raporlar yükleniyor...'), 'info', 1000);
+        showAlert('Raporlar yükleniyor...', 'info', 1000);
         
         let reports = [];
         
@@ -3106,26 +3095,26 @@ async function populateReportsTable() {
         reportsTableBody.innerHTML = reports.map(report => `
             <tr>
                 <td>${new Date(report.date || report.created_at).toLocaleDateString('tr-TR')}</td>
-                <td>${report.fileName || t('reports.default.name', 'Rapor')}</td>
+                <td>${report.fileName || 'Rapor'}</td>
                 <td>${report.packageCount || 0}</td>
                 <td>${report.totalQuantity || 0}</td>
                 <td>
                     <button onclick="viewReport('${report.fileName}')" class="btn btn-sm btn-primary">
-                        <i class="fas fa-eye"></i> ${t('general.view', 'Görüntüle')}
+                        <i class="fas fa-eye"></i> Görüntüle
                     </button>
                     <button onclick="downloadReport('${report.fileName}')" class="btn btn-sm btn-success">
-                        <i class="fas fa-download"></i> ${t('general.download', 'İndir')}
+                        <i class="fas fa-download"></i> İndir
                     </button>
                     <button onclick="deleteReport('${report.fileName}')" class="btn btn-sm btn-danger">
-                        <i class="fas fa-trash"></i> ${t('general.delete', 'Sil')}
+                        <i class="fas fa-trash"></i> Sil
                     </button>
                 </td>
             </tr>
-        `).join('') || `<tr><td colspan="5" style="text-align:center;">${t('reports.no.reports', 'Henüz rapor yok')}</td></tr>`;
+        `).join('') || '<tr><td colspan="5" style="text-align:center;">Henüz rapor yok</td></tr>';
         
     } catch (error) {
         console.error('Error loading reports:', error);
-        showAlert(t('alert.reports.load.error', 'Raporlar yüklenirken hata oluştu'), 'error');
+        showAlert('Raporlar yüklenirken hata oluştu', 'error');
     }
 }
 
@@ -3135,7 +3124,7 @@ async function viewReport(reportId) {
         const reportData = localStorage.getItem(fileName);
         
         if (!reportData) {
-            showAlert(t('alert.report.not.found', 'Rapor bulunamadı'), 'error');
+            showAlert('Rapor bulunamadı', 'error');
             return;
         }
         
@@ -3146,17 +3135,17 @@ async function viewReport(reportId) {
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;';
         modal.innerHTML = `
             <div style="background:white; padding:2rem; border-radius:8px; max-width:800px; max-height:80vh; overflow:auto;">
-                <h3>${report.fileName || t('reports.default.name', 'Rapor')}</h3>
-                <p>${t('reports.date', 'Tarih')}: ${new Date(report.date).toLocaleDateString('tr-TR')}</p>
-                <p>${t('reports.package.count', 'Paket Sayısı')}: ${report.packageCount || 0}</p>
-                <p>${t('reports.total.quantity', 'Toplam Adet')}: ${report.totalQuantity || 0}</p>
-                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">${t('general.close', 'Kapat')}</button>
+                <h3>${report.fileName || 'Rapor'}</h3>
+                <p>Tarih: ${new Date(report.date).toLocaleDateString('tr-TR')}</p>
+                <p>Paket Sayısı: ${report.packageCount || 0}</p>
+                <p>Toplam Adet: ${report.totalQuantity || 0}</p>
+                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Kapat</button>
             </div>
         `;
         document.body.appendChild(modal);
         
     } catch (error) {
-        showAlert(t('alert.report.view.error', 'Rapor görüntülenirken hata: {error}', { error: error.message }), 'error');
+        showAlert('Rapor görüntülenirken hata: ' + error.message, 'error');
     }
 }
 
@@ -3166,7 +3155,7 @@ async function exportReport(reportId) {
         const reportData = localStorage.getItem(fileName);
         
         if (!reportData) {
-            showAlert(t('alert.report.not.found', 'Rapor bulunamadı'), 'error');
+            showAlert('Rapor bulunamadı', 'error');
             return;
         }
         
@@ -3178,14 +3167,14 @@ async function exportReport(reportId) {
         a.click();
         URL.revokeObjectURL(url);
         
-        showAlert(t('alert.report.downloaded', 'Rapor indirildi'), 'success');
+        showAlert('Rapor indirildi', 'success');
     } catch (error) {
-        showAlert(t('alert.download.error', 'İndirme hatası: {error}', { error: error.message }), 'error');
+        showAlert('İndirme hatası: ' + error.message, 'error');
     }
 }
 // Delete report
 async function deleteReport(fileName) {
-    if (!confirm(t('confirm.delete.report', 'Bu raporu silmek istediğinize emin misiniz?'))) {
+    if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) {
         return;
     }
     
@@ -3201,12 +3190,12 @@ async function deleteReport(fileName) {
                 .eq('fileName', fileName);
         }
         
-        showAlert(t('alert.report.deleted', 'Rapor silindi'), 'success');
+        showAlert('Rapor silindi', 'success');
         await populateReportsTable();
         
     } catch (error) {
         console.error('Error deleting report:', error);
-        showAlert(t('alert.report.delete.error', 'Rapor silinirken hata oluştu'), 'error');
+        showAlert('Rapor silinirken hata oluştu', 'error');
     }
 }
 
@@ -3274,12 +3263,11 @@ function updateContainerSelection() {
 // ==================== SIMPLIFIED DATA COLLECTION ====================
 
 // Simple mock functions that will work even if your real functions are missing
-// Simple mock functions that will work even if your real functions are missing
 async function getAllPackages() {
     try {
         // Try multiple sources
         if (window.packages && Array.isArray(window.packages)) {
-            return window.packages; // REMOVED: .slice(0, 10)
+            return window.packages.slice(0, 10); // Limit for preview
         }
         
         const localData = localStorage.getItem('proclean_packages') || 
@@ -3288,7 +3276,7 @@ async function getAllPackages() {
         
         if (localData) {
             const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : []; // REMOVED: .slice(0, 10)
+            return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
         }
         
         // Return sample data for testing
@@ -3323,7 +3311,7 @@ async function getAllStock() {
                 }
             });
             
-            return stockData; // ← REMOVED: .slice(0, 5)
+            return stockData.slice(0, 5);
         }
         
         // Sample data
@@ -3336,134 +3324,39 @@ async function getAllStock() {
         return [];
     }
 }
-async function getAllCustomers() {
-    try {
-        if (window.customers && Array.isArray(window.customers)) {
-            return window.customers; // No limit
-        }
-        // ... rest of function
-    } catch (error) {
-        return [];
-    }
-}
 
 async function getAllShippingData() {
-    try {
-        // Try to get actual shipping data instead of just one sample
-        if (window.shippingData && Array.isArray(window.shippingData)) {
-            return window.shippingData;
-        }
-        
-        const localData = localStorage.getItem('proclean_shipping') || 
-                         localStorage.getItem('shippingData') ||
-                         localStorage.getItem('containerData');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : [];
-        }
-        
-        // Return multiple sample data instead of just one
-        return [
-            { container_no: 'CONT-001', customer: 'Test Firma', package_count: 5, status: 'sevk-edildi' },
-            { container_no: 'CONT-002', customer: 'Demo Şirket', package_count: 3, status: 'beklemede' },
-            { container_no: 'CONT-003', customer: 'Örnek Hotel', package_count: 8, status: 'sevk-edildi' },
-            { container_no: 'CONT-004', customer: 'Test Restoran', package_count: 2, status: 'beklemede' },
-            { container_no: 'CONT-005', customer: 'Demo Hastane', package_count: 12, status: 'sevk-edildi' }
-        ];
-    } catch (error) {
-        console.error('Error in getAllShippingData:', error);
-        return [];
-    }
-}
-async function getAllShippingData() {
     return [
-        { container_no: 'CONT-001', customer: t('sample.company', 'Test Firma'), package_count: 5, status: 'sevk-edildi' }
+        { container_no: 'CONT-001', customer: 'Test Firma', package_count: 5, status: 'sevk-edildi' }
     ];
 }
 
 async function getAllReports() {
-    try {
-        // Try to get actual reports data
-        if (window.reportsData && Array.isArray(window.reportsData)) {
-            return window.reportsData;
-        }
-        
-        const localData = localStorage.getItem('proclean_reports') || 
-                         localStorage.getItem('reportsData');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : [];
-        }
-        
-        // Return multiple sample reports instead of just one
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const lastWeek = new Date(today);
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        
-        return [
-            { 
-                fileName: 'Rapor_' + today.toISOString().split('T')[0], 
-                packageCount: 15, 
-                totalQuantity: 67, 
-                date: today.toISOString(),
-                type: 'Günlük Rapor'
-            },
-            { 
-                fileName: 'Rapor_' + yesterday.toISOString().split('T')[0], 
-                packageCount: 12, 
-                totalQuantity: 54, 
-                date: yesterday.toISOString(),
-                type: 'Günlük Rapor'
-            },
-            { 
-                fileName: 'Haftalık_Rapor_' + lastWeek.toISOString().split('T')[0], 
-                packageCount: 89, 
-                totalQuantity: 345, 
-                date: lastWeek.toISOString(),
-                type: 'Haftalık Rapor'
-            },
-            { 
-                fileName: 'Aylık_Rapor_' + today.getFullYear() + '_' + (today.getMonth() + 1), 
-                packageCount: 245, 
-                totalQuantity: 1123, 
-                date: new Date(today.getFullYear(), today.getMonth(), 1).toISOString(),
-                type: 'Aylık Rapor'
-            }
-        ];
-    } catch (error) {
-        console.error('Error in getAllReports:', error);
-        return [];
-    }
+    return [
+        { fileName: 'Rapor_2024', packageCount: 10, totalQuantity: 45, date: new Date().toISOString() }
+    ];
 }
 
 async function getAllCustomers() {
     try {
-        // Remove any .slice(0, X) limits
-        if (window.customers && Array.isArray(window.customers)) {
-            return window.customers; // No slice limit
+        const customerSelect = document.getElementById('customerSelect');
+        if (customerSelect) {
+            const customers = [];
+            for (let option of customerSelect.options) {
+                if (option.value && option.value !== '') {
+                    customers.push({
+                        id: option.value,
+                        name: option.textContent.split(' (')[0],
+                        code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                    });
+                }
+            }
+            return customers.slice(0, 5);
         }
         
-        const localData = localStorage.getItem('proclean_customers') || 
-                         localStorage.getItem('customers');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : []; // No slice limit
-        }
-        
-        // Return multiple sample customers
         return [
-            { code: 'CUST-001', name: 'Test Müşteri' },
-            { code: 'CUST-002', name: 'Demo Şirket' },
-            { code: 'CUST-003', name: 'Örnek Hotel' },
-            { code: 'CUST-004', name: 'Sample Restoran' },
-            { code: 'CUST-005', name: 'Test Hastane' },
-            { code: 'CUST-006', name: 'Demo Spa' },
-            { code: 'CUST-007', name: 'Örnek Resort' }
+            { id: '1', name: 'Test Müşteri', code: 'CUST001' },
+            { id: '2', name: 'Demo Firma', code: 'CUST002' }
         ];
     } catch (error) {
         console.error('Error in getAllCustomers:', error);
@@ -3479,7 +3372,7 @@ function previewExcelData() {
     console.log('📊 Excel Preview triggered');
     
     try {
-        showAlert(t('alert.excel.preparing', 'Excel verileri hazırlanıyor...'), 'info');
+        showAlert('Excel verileri hazırlanıyor...', 'info');
         
         // Create preview modal
         const modal = document.createElement('div');
@@ -3502,7 +3395,7 @@ function previewExcelData() {
             <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 95%; max-height: 90%; width: 900px; overflow: hidden; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #217346; padding-bottom: 1rem;">
                     <h3 style="color: #217346; margin: 0;">
-                        <i class="fas fa-file-excel" style="margin-right: 10px;"></i>${t('excel.preview.title', 'Excel Veri Önizleme')}
+                        <i class="fas fa-file-excel" style="margin-right: 10px;"></i>Excel Veri Önizleme
                     </h3>
                     <button onclick="document.getElementById('excelPreviewModal').remove()" 
                             style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
@@ -3512,26 +3405,26 @@ function previewExcelData() {
                     <div class="preview-tabs" style="display: flex; border-bottom: 1px solid #ddd; margin-bottom: 1rem;">
                         <button class="tab-button active" onclick="switchPreviewTab('packages')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #217346;">
-                            ${t('tabs.packaging', 'Paketler')}
+                            Paketler
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('stock')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            ${t('tabs.stock', 'Stok')}
+                            Stok
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('customers')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            ${t('customer.management', 'Müşteriler')}
+                            Müşteriler
                         </button>
                         <button class="tab-button" onclick="switchPreviewTab('shipping')" 
                                 style="padding: 10px 20px; border: none; background: none; cursor: pointer;">
-                            ${t('tabs.shipping', 'Sevkiyat')}
+                            Sevkiyat
                         </button>
                     </div>
                     
                     <div id="previewContent" style="min-height: 300px;">
                         <div style="text-align: center; padding: 3rem; color: #666;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                            <p>${t('general.loading', 'Veriler yükleniyor...')}</p>
+                            <p>Veriler yükleniyor...</p>
                         </div>
                     </div>
                 </div>
@@ -3540,11 +3433,11 @@ function previewExcelData() {
                     <button onclick="exportDataFromPreview()" 
                             class="btn btn-success" 
                             style="background-color: #217346; border-color: #217346;">
-                        <i class="fas fa-download"></i> ${t('export.excel.download', 'Excel Olarak İndir')}
+                        <i class="fas fa-download"></i> Excel Olarak İndir
                     </button>
                     <button onclick="document.getElementById('excelPreviewModal').remove()" 
                             class="btn btn-secondary">
-                        ${t('general.close', 'Kapat')}
+                        Kapat
                     </button>
                 </div>
             </div>
@@ -3559,7 +3452,7 @@ function previewExcelData() {
         
     } catch (error) {
         console.error('Excel preview error:', error);
-        showAlert(t('alert.excel.preview.error', 'Excel önizleme oluşturulurken hata oluştu: {error}', { error: error.message }), 'error');
+        showAlert('Excel önizleme oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
 
@@ -3586,7 +3479,7 @@ function switchPreviewTab(tabName) {
     previewContent.innerHTML = `
         <div style="text-align: center; padding: 2rem; color: #666;">
             <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-            <p>${getTabTitle(tabName)} ${t('general.loading', 'yükleniyor...')}</p>
+            <p>${getTabTitle(tabName)} yükleniyor...</p>
         </div>
     `;
     
@@ -3598,12 +3491,12 @@ function switchPreviewTab(tabName) {
 
 function getTabTitle(tabName) {
     const titles = {
-        'packages': t('tabs.packaging', 'Paketler'),
-        'stock': t('preview.stock.items', 'Stok Öğeleri'),
-        'customers': t('customer.management', 'Müşteriler'),
-        'shipping': t('preview.shipping.data', 'Sevkiyat Verileri')
+        'packages': 'Paketler',
+        'stock': 'Stok Öğeleri',
+        'customers': 'Müşteriler',
+        'shipping': 'Sevkiyat Verileri'
     };
-    return titles[tabName] || t('preview.data', 'Veriler');
+    return titles[tabName] || 'Veriler';
 }
 
 // Load content for each tab
@@ -3618,44 +3511,22 @@ async function loadPreviewTabContent(tabName) {
         switch (tabName) {
             case 'packages':
                 data = await getAllPackages();
-                columns = [
-                    t('packaging.package.no', 'Paket No'),
-                    t('packaging.customer', 'Müşteri'),
-                    t('preview.products', 'Ürünler'),
-                    t('reports.total.quantity', 'Toplam Adet'),
-                    t('packaging.status', 'Durum'),
-                    t('packaging.personnel', 'Paketleyen'),
-                    t('packaging.date', 'Tarih')
-                ];
+                columns = ['Paket No', 'Müşteri', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Tarih'];
                 break;
                 
             case 'stock':
                 data = await getAllStock();
-                columns = [
-                    t('stock.code', 'Stok Kodu'),
-                    t('stock.name', 'Ürün Adı'),
-                    t('stock.quantity', 'Miktar'),
-                    t('stock.unit', 'Birim'),
-                    t('stock.status', 'Durum')
-                ];
+                columns = ['Stok Kodu', 'Ürün Adı', 'Miktar', 'Birim', 'Durum'];
                 break;
                 
             case 'customers':
                 data = await getAllCustomers();
-                columns = [
-                    t('customer.code', 'Müşteri Kodu'),
-                    t('customer.name', 'Müşteri Adı')
-                ];
+                columns = ['Müşteri Kodu', 'Müşteri Adı'];
                 break;
                 
             case 'shipping':
                 data = await getAllShippingData();
-                columns = [
-                    t('shipping.container.no', 'Konteyner No'),
-                    t('packaging.customer', 'Müşteri'),
-                    t('reports.package.count', 'Paket Sayısı'),
-                    t('packaging.status', 'Durum')
-                ];
+                columns = ['Konteyner No', 'Müşteri', 'Paket Sayısı', 'Durum'];
                 break;
         }
         
@@ -3663,7 +3534,7 @@ async function loadPreviewTabContent(tabName) {
             previewContent.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: #666;">
                     <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                    <p>${t('preview.no.data', 'Bu kategoride veri bulunamadı')}</p>
+                    <p>Bu kategoride veri bulunamadı</p>
                 </div>
             `;
             return;
@@ -3695,7 +3566,7 @@ async function loadPreviewTabContent(tabName) {
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; 
                                 background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'}; 
                                 color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? t('status.shipped', 'Sevk Edildi') : t('status.pending', 'Beklemede')}
+                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
                             </span>
                         </td>
                         <td style="padding: 10px;">${item.packer || 'N/A'}</td>
@@ -3708,12 +3579,12 @@ async function loadPreviewTabContent(tabName) {
                         <td style="padding: 10px;">${item.code || 'N/A'}</td>
                         <td style="padding: 10px;">${item.name || 'N/A'}</td>
                         <td style="padding: 10px; text-align: center;">${item.quantity || 0}</td>
-                        <td style="padding: 10px;">${item.unit || t('stock.unit', 'adet')}</td>
+                        <td style="padding: 10px;">${item.unit || 'adet'}</td>
                         <td style="padding: 10px;">
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
                                 background: ${item.quantity > 10 ? '#d4edda' : item.quantity > 0 ? '#fff3cd' : '#f8d7da'};
                                 color: ${item.quantity > 10 ? '#155724' : item.quantity > 0 ? '#856404' : '#721c24'};">
-                                ${item.quantity > 10 ? t('status.in.stock', 'Stokta') : item.quantity > 0 ? t('status.low.stock', 'Az Stok') : t('status.out.of.stock', 'Tükendi')}
+                                ${item.quantity > 10 ? 'Stokta' : item.quantity > 0 ? 'Az Stok' : 'Tükendi'}
                             </span>
                         </td>
                     `;
@@ -3735,7 +3606,7 @@ async function loadPreviewTabContent(tabName) {
                             <span style="padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;
                                 background: ${item.status === 'sevk-edildi' ? '#d4edda' : '#fff3cd'};
                                 color: ${item.status === 'sevk-edildi' ? '#155724' : '#856404'};">
-                                ${item.status === 'sevk-edildi' ? t('status.shipped', 'Sevk Edildi') : t('status.pending', 'Beklemede')}
+                                ${item.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
                             </span>
                         </td>
                     `;
@@ -3750,7 +3621,7 @@ async function loadPreviewTabContent(tabName) {
                 </table>
             </div>
             <div style="margin-top: 1rem; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                <strong>${t('preview.total.records', 'Toplam: {count} kayıt', { count: data.length })}</strong>
+                <strong>Toplam: ${data.length} kayıt</strong>
             </div>
         `;
         
@@ -3761,7 +3632,7 @@ async function loadPreviewTabContent(tabName) {
         previewContent.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: #dc3545;">
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                <p>${t('preview.load.error', 'Veriler yüklenirken hata oluştu: {error}', { error: error.message })}</p>
+                <p>Veriler yüklenirken hata oluştu: ${error.message}</p>
             </div>
         `;
     }
@@ -3769,13 +3640,13 @@ async function loadPreviewTabContent(tabName) {
 
 // Export data from preview
 function exportDataFromPreview() {
-    showAlert(t('alert.excel.downloading', 'Excel dosyası indiriliyor...'), 'info');
+    showAlert('Excel dosyası indiriliyor...', 'info');
     
     // Use the existing export function
     if (typeof exportData === 'function') {
         exportData('excel');
     } else {
-        showAlert(t('alert.excel.export.unavailable', 'Excel export özelliği şu anda kullanılamıyor'), 'error');
+        showAlert('Excel export özelliği şu anda kullanılamıyor', 'error');
     }
     
     // Close the modal after a delay
