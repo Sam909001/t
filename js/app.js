@@ -1620,37 +1620,43 @@ window.deleteReport = async function(fileName) {
 
 
 window.printSinglePackage = async function(packageId) {
-    console.log('Printing single package:', packageId);
+    console.log('=== DEBUG: printSinglePackage called ===');
+    console.log('Package ID:', packageId);
+    console.log('window.printSelectedElectron exists?', typeof window.printSelectedElectron);
+    console.log('showAlert exists?', typeof showAlert);
     
-    // Find the checkbox for this package
     const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
+    console.log('Checkbox found?', checkbox);
     
     if (!checkbox) {
-        showAlert('Paket bulunamadı!', 'error');
+        alert('Paket bulunamadı!');
         return;
     }
     
-    // Store currently checked boxes
     const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const previouslyChecked = Array.from(allCheckboxes).filter(cb => cb.checked);
+    console.log('Total checkboxes:', allCheckboxes.length);
     
     // Uncheck all
     allCheckboxes.forEach(cb => cb.checked = false);
     
-    // Check only this package
+    // Check only this one
     checkbox.checked = true;
+    console.log('Checkbox checked:', checkbox.checked);
     
-    // Call the existing print function
-    try {
-        await window.printSelectedElectron();
-    } catch (error) {
-        console.error('Print error:', error);
-        showAlert('Yazdırma hatası: ' + error.message, 'error');
+    // Call print
+    if (typeof window.printSelectedElectron === 'function') {
+        console.log('Calling window.printSelectedElectron...');
+        try {
+            await window.printSelectedElectron();
+            console.log('Print completed');
+        } catch (error) {
+            console.error('Print error:', error);
+            alert('Yazdırma hatası: ' + error.message);
+        }
+    } else {
+        console.error('window.printSelectedElectron NOT FOUND');
+        alert('Yazici servisi bulunamadi - function does not exist');
     }
-    
-    // Restore previous selection after printing
-    setTimeout(() => {
-        allCheckboxes.forEach(cb => cb.checked = false);
-        previouslyChecked.forEach(cb => cb.checked = true);
-    }, 500);
 };
+
+console.log('✅ printSinglePackage function loaded');
