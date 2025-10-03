@@ -2128,20 +2128,3 @@ body.modal-open {
         color: #f1f1f1;
     }
 }
-
-
-
-.small-print-btn {
-    background: #3498db;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    padding: 2px 6px;
-    margin-left: 5px;
-    cursor: pointer;
-    font-size: 0.7em;
-}
-
-.small-print-btn:hover {
-    background: #2980b9;
-}
