@@ -632,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <div class="settings-option">
                 <label>Supabase API Anahtarı</label>
-                <button class="btn btn-warning" onclick="confirmApiKeyChange()">API Anahtarını Değiştir</button>
+                <button class="btn btn-warning" onclick="changeApiKeyWithAuth()">API Anahtarını Değiştir</button>
             </div>
             
             <div class="settings-option">
@@ -648,7 +648,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <div class="settings-option">
                 <label>Verileri Temizle</label>
-                <button class="btn btn-danger" onclick="confirmClearFrontendData()">Yerel Verileri Temizle</button>
+                <button class="btn btn-danger" onclick="clearDataWithAuth()">Yerel Verileri Temizle</button>
             </div>
         </div>
 
@@ -729,7 +729,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="js/app.js"></script>
 <!-- 6. Feature modules (depend on core functionality) -->
 <script src="js/stock.js"></script>
-<script src="js/darkMode.js"></script>
+<script src="js/darkMode.js"></script> 
+            
+<script src="js/passwordGuard.js"></script>
     <script>
 function getCustomEventListeners(element) {
     if (!element || typeof element.addEventListener !== 'function') {
