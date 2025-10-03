@@ -3389,3 +3389,28 @@ console.log('✅ Excel Preview Functions Loaded:');
 console.log('previewExcelData:', typeof previewExcelData);
 console.log('getAllPackages:', typeof getAllPackages);
 console.log('createExcelPreviewModal:', typeof createExcelPreviewModal);
+
+
+
+// ==================== EVENT LISTENER FOR EXCEL PREVIEW ====================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait a bit for everything to load
+    setTimeout(function() {
+        const excelPreviewBtn = document.getElementById('excelPreviewBtn');
+        if (excelPreviewBtn) {
+            console.log('✅ Excel preview button found, adding event listener');
+            excelPreviewBtn.addEventListener('click', function() {
+                console.log('🎯 Excel preview button clicked via event listener');
+                if (typeof previewExcelData === 'function') {
+                    previewExcelData();
+                } else {
+                    console.error('❌ previewExcelData is not a function');
+                    showAlert('Excel önizleme fonksiyonu yüklenemedi', 'error');
+                }
+            });
+        } else {
+            console.error('❌ Excel preview button not found');
+        }
+    }, 1000);
+});
