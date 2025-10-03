@@ -2896,7 +2896,7 @@ async function populatePackagesTable() {
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-           row.innerHTML = `
+row.innerHTML = `
     <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
     <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
     <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
@@ -2909,6 +2909,11 @@ async function populatePackagesTable() {
     <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
     <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
     <td style="text-align: center;">${sourceIcon}</td>
+    <td>
+        <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+            <i class="fas fa-print"></i>
+        </button>
+    </td>
 `;
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
