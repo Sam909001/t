@@ -947,3 +947,159 @@ WorkspaceManager.prototype.canPerformAction = async function(action) {
     // Then check user permissions
     return await UserManager.hasPermission(action);
 };
+
+
+
+
+// ==================== ELECTRON STORAGE FOR PERSISTENT LOGIN ====================
+
+// Electron storage helper for persistent login sessions
+const ElectronStorage = {
+    // Check if running in Electron
+    isElectron: () => {
+        return window && window.process && window.process.type;
+    },
+
+    // Get value from storage
+    get: async (key) => {
+        if (ElectronStorage.isElectron()) {
+            try {
+                // Try electron-store first
+                if (window.electronStore) {
+                    return window.electronStore.get(key);
+                }
+                // Try require method
+                if (window.require) {
+                    const Store = window.require('electron-store');
+                    const store = new Store();
+                    return store.get(key);
+                }
+            } catch (error) {
+                console.warn('Electron storage error, falling back to localStorage:', error);
+            }
+        }
+        // Fallback to localStorage
+        return localStorage.getItem(key);
+    },
+
+    // Set value in storage
+    set: async (key, value) => {
+        if (ElectronStorage.isElectron()) {
+            try {
+                if (window.electronStore) {
+                    window.electronStore.set(key, value);
+                    return;
+                }
+                if (window.require) {
+                    const Store = window.require('electron-store');
+                    const store = new Store();
+                    store.set(key, value);
+                    return;
+                }
+            } catch (error) {
+                console.warn('Electron storage error, falling back to localStorage:', error);
+            }
+        }
+        localStorage.setItem(key, value);
+    },
+
+    // Remove value
+    remove: async (key) => {
+        if (ElectronStorage.isElectron()) {
+            try {
+                if (window.electronStore) {
+                    window.electronStore.delete(key);
+                    return;
+                }
+                if (window.require) {
+                    const Store = window.require('electron-store');
+                    const store = new Store();
+                    store.delete(key);
+                    return;
+                }
+            } catch (error) {
+                console.warn('Electron storage error, falling back to localStorage:', error);
+            }
+        }
+        localStorage.removeItem(key);
+    }
+};
+
+// Initialize app with session check
+async function initializeAppWithSession() {
+    try {
+        console.log('🔍 Checking for existing sessions...');
+        
+        // Check Supabase session first
+        if (supabase) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                console.log('✅ Found existing Supabase session');
+                await handleExistingSession(session.user);
+                return;
+            }
+        }
+        
+        // Check for fast login users
+        console.log('🔍 Checking for fast login users...');
+        await populateFastLoginSection();
+        
+    } catch (error) {
+        console.error('App initialization error:', error);
+    }
+}
+
+// Handle existing session
+async function handleExistingSession(user) {
+    try {
+        const { data: userData } = await supabase
+            .from('personnel')
+            .select('role, name')
+            .eq('email', user.email)
+            .single();
+
+        currentUser = {
+            email: user.email,
+            uid: user.id,
+            name: userData?.name || user.email.split('@')[0],
+            role: userData?.role || 'operator'
+        };
+
+        // Update UI
+        const userRoleElement = document.getElementById('userRole');
+        if (userRoleElement) {
+            userRoleElement.textContent = 
+                `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+        }
+
+        // Apply permissions
+        if (typeof applyRoleBasedPermissions === 'function') {
+            applyRoleBasedPermissions(currentUser.role);
+        }
+
+        // Show app, hide login
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'flex';
+        
+        // Load data
+        await populatePackagesTable();
+        await populateShippingTable();
+        
+        console.log('✅ Auto-login successful');
+        
+    } catch (error) {
+        console.error('Auto-login error:', error);
+        showAlert('Otomatik giriş sırasında hata oluştu', 'error');
+    }
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 App starting...');
+    setTimeout(initializeAppWithSession, 1000);
+});
+
+// Make functions globally available
+window.ElectronStorage = ElectronStorage;
+window.initializeAppWithSession = initializeAppWithSession;
+window.handleExistingSession = handleExistingSession;
