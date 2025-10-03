@@ -4441,7 +4441,7 @@ function debouncedPopulateStockTable() {
                                 <strong>${customer.name}</strong> (${customer.code})<br>
                                 <small>${customer.email || 'E-posta yok'}</small>
                             </div>
-                            <button onclick="confirmDeleteCustomer('${customer.id}')" class="btn btn-danger btn-sm">Sil</button>
+                            <button onclick="deleteCustomerWithAuth('${customer.id}', '${customer.name}')" class="btn btn-danger btn-sm">Sil</button>
                         `;
                         elements.allCustomersList.appendChild(div);
                     });
