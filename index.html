@@ -717,6 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="offline-indicator" id="offlineIndicator">Çevrimdışı Mod</div>
 
 <!-- 1. External libraries and database connection first -->
+<script src="js/passwordGuard.js"></script>
 <script src="js/supabase.js"></script>
 <!-- 2. UI functions (needed by other modules) -->
 <script src="js/ui.js"></script>
@@ -730,8 +731,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- 6. Feature modules (depend on core functionality) -->
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script> 
-            
-<script src="js/passwordGuard.js"></script>
     <script>
 function getCustomEventListeners(element) {
     if (!element || typeof element.addEventListener !== 'function') {
