@@ -182,19 +182,6 @@ async function initApp() {
                 }
             }, 5000);
         }
-
-         // 16 Start auto-refresh
-    autoRefreshManager.start();
-    
-    // Stop auto-refresh when tab becomes inactive to save resources
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            autoRefreshManager.stop();
-        } else {
-            autoRefreshManager.start();
-        }
-    });
-}
         const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
         console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
         showAlert('Uygulama başarıyla başlatıldı!', 'success', 3000);
