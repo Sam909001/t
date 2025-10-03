@@ -1616,3 +1616,26 @@ window.deleteReport = async function(fileName) {
         showAlert('Silme hatası', 'error');
     }
 }
+
+
+
+
+function printSinglePackage(packageId) {
+    console.log('🖨️ Printing single package:', packageId);
+    
+    // Find the package in your packages array
+    const package = pendingPackages.find(p => p.id === packageId) || 
+                   excelPackages.find(p => p.id === packageId);
+    
+    if (!package) {
+        showAlert('Paket bulunamadı!', 'error');
+        return;
+    }
+    
+    // Call your existing print function
+    if (typeof printSelectedPackages === 'function') {
+        printSelectedPackages([package]);
+    } else {
+        showAlert('Yazdırma fonksiyonu bulunamadı!', 'error');
+    }
+}
