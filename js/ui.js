@@ -3455,15 +3455,27 @@ function previewExcelData() {
             font-family: Arial, sans-serif;
         `;
         
-        modal.innerHTML = `
-            <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 95%; max-height: 90%; width: 900px; overflow: hidden; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #217346; padding-bottom: 1rem;">
-                    <h3 style="color: #217346; margin: 0;">
-                        <i class="fas fa-file-excel" style="margin-right: 10px;"></i>Excel Veri Önizleme
-                    </h3>
-                    <button onclick="document.getElementById('excelPreviewModal').remove()" 
-                            style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
-                </div>
+    modal.innerHTML = `
+    <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 95%; max-height: 90%; width: 900px; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #217346; padding-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h3 style="color: #217346; margin: 0;">
+                    <i class="fas fa-file-excel" style="margin-right: 10px;"></i>Excel Veri Önizleme
+                </h3>
+                <span id="autoRefreshStatus" style="font-size: 0.8rem; color: #28a745; display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-sync-alt fa-spin"></i> Otomatik yenileme aktif
+                </span>
+            </div>
+            <div>
+                <button onclick="manualRefreshPreview()" 
+                        class="btn btn-warning" 
+                        style="margin-right: 10px; padding: 5px 10px; font-size: 0.9rem;">
+                    <i class="fas fa-sync-alt"></i> Şimdi Yenile
+                </button>
+                <button onclick="document.getElementById('excelPreviewModal').remove()" 
+                        style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+            </div>
+        </div>
                 
                 <div style="flex: 1; overflow: auto; margin-bottom: 1rem;">
                     <div class="preview-tabs" style="display: flex; border-bottom: 1px solid #ddd; margin-bottom: 1rem;">
