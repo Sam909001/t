@@ -1565,15 +1565,15 @@ const ProfessionalExcelExport = {
             
             // SET WIDER COLUMN WIDTHS FOR BETTER VISIBILITY
             const colWidths = [
-                { wch: 50 }, // PAKET NO - WIDER
-                { wch: 50 }, // MÜŞTERİ - WIDER
-                { wch: 50 }, // ÜRÜNLER - MUCH WIDER for product names
-                { wch: 15 }, // TOPLAM ADET
-                { wch: 35 }, // DURUM
-                { wch: 25 }, // PAKETLEYEN - WIDER
-                { wch: 35 }, // OLUŞTURULMA TARİHİ
-                { wch: 25 }, // GÜNCELLENME TARİHİ
-                { wch: 35 }  // İSTASYON
+                { wch: 100 }, // PAKET NO - WIDER
+                { wch: 75 }, // MÜŞTERİ - WIDER
+                { wch: 100 }, // ÜRÜNLER - MUCH WIDER for product names
+                { wch: 10 }, // TOPLAM ADET
+                { wch: 50 }, // DURUM
+                { wch: 50 }, // PAKETLEYEN - WIDER
+                { wch: 50 }, // OLUŞTURULMA TARİHİ
+                { wch: 50 }, // GÜNCELLENME TARİHİ
+                { wch: 50 }  // İSTASYON
             ];
             ws['!cols'] = colWidths;
 
