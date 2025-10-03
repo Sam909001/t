@@ -3267,7 +3267,7 @@ async function getAllPackages() {
     try {
         // Try multiple sources
         if (window.packages && Array.isArray(window.packages)) {
-            return window.packages.slice(0, 10); // Limit for preview
+            return window.packages; // REMOVED: .slice(0, 10)
         }
         
         const localData = localStorage.getItem('proclean_packages') || 
@@ -3276,7 +3276,7 @@ async function getAllPackages() {
         
         if (localData) {
             const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+            return Array.isArray(parsed) ? parsed : []; // REMOVED: .slice(0, 10)
         }
         
         // Return sample data for testing
