@@ -1,9 +1,9 @@
-// ==================== PASSWORD GUARD - SIMPLIFIED (NO ATTEMPT LIMITS) ====================
+// ==================== PASSWORD GUARD - CLEAN VERSION (NO ATTEMPT REFERENCES) ====================
 // Works in both Web and Electron environments
 
 class PasswordGuard {
     constructor() {
-        // No attempt limits - suitable for business applications
+        // Simple password protection - no attempt limits
         this.passwords = {
             'clearData': '7142',
             'changeApiKey': '7142',
@@ -40,11 +40,11 @@ class PasswordGuard {
                         <h3 style="color: #217346; margin: 0;">Şifre Doğrulama</h3>
                     </div>
                     
-                    <p style="margin-bottom: 0.5rem;"><strong>${actionName}</strong> işlemi için şifre gerekiyor.</p>
+                    <p style="margin-bottom: 1rem;"><strong>${actionName}</strong> işlemi için şifre gerekiyor.</p>
                     
                     <div style="background: #f8f9fa; padding: 0.8rem; border-radius: 4px; margin: 1rem 0; font-size: 0.9rem;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Gerekli şifre:</span>
+                        <div style="text-align: center;">
+                            <span>Gerekli şifre: </span>
                             <strong>${this.getPasswordHint(actionType)}</strong>
                         </div>
                     </div>
@@ -301,10 +301,10 @@ if (!document.getElementById('passwordGuardStyles')) {
     document.head.appendChild(style);
 }
 
-console.log('✅ Simplified PasswordGuard loaded (No attempt limits)');
-console.log('🔐 Business-friendly security:');
+console.log('✅ Clean PasswordGuard loaded (No attempt references)');
+console.log('🔐 Simple password protection:');
 console.log('   - Delete Package: 8823');
-console.log('   - Add Customer: 8823');
+console.log('   - Add Customer: 8823'); 
 console.log('   - Delete Customer: 8823');
 console.log('   - Clear Data: 7142');
 console.log('   - Change API Key: 7142');
