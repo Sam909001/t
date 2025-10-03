@@ -2897,38 +2897,19 @@ async function populatePackagesTable() {
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
            row.innerHTML = `
-<td>
-    ${escapeHtml(pkg.package_no || 'N/A')}
-    <button 
-        style="
-            display: inline-block;
-            margin-left: 5px;
-            padding: 2px 6px;
-            font-size: 12px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        " 
-        onclick="printSinglePackage('${pkg.id}')"
-        title="Bu paketi yazdır"
-    >
-        Yazdır
-    </button>
-</td>
-<td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-<td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-</td>
-<td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-</td>
-<td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-<td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-<td style="text-align: center;">${sourceIcon}</td>
+    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
+    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+    </td>
+    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+    </td>
+    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+    <td style="text-align: center;">${sourceIcon}</td>
 `;
-
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
             });
@@ -2949,6 +2930,7 @@ async function populatePackagesTable() {
         packagesTableLoading = false;
     }
 }
+
 
 
 
