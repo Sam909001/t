@@ -3262,38 +3262,23 @@ function updateContainerSelection() {
 
 // ==================== SIMPLIFIED DATA COLLECTION ====================
 
+// ✅ FUNCTION: Get all packages (real data)
 async function getAllPackages() {
     try {
-        // Try multiple sources
-        if (window.packages && Array.isArray(window.packages)) {
-            return window.packages; // REMOVED: .slice(0, 10)
+        if (supabase && !isUsingExcel) {
+            const { data, error } = await supabase
+                .from('packages')
+                .select('*')
+                .order('created_at', { ascending: false });
+                
+            if (!error) return data || [];
         }
         
-        const localData = localStorage.getItem('proclean_packages') || 
-                         localStorage.getItem('packages') ||
-                         localStorage.getItem('excelData');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : []; // REMOVED: .slice(0, 10)
-        }
-        
-        // Return sample data for testing
-        return [
-    { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede', created_at: new Date().toISOString() },
-    { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi', created_at: new Date(Date.now() - 86400000).toISOString() },
-    { package_no: 'PKG-003', customer_name: 'Örnek Hotel', total_quantity: 8, status: 'beklemede', created_at: new Date(Date.now() - 172800000).toISOString() },
-    { package_no: 'PKG-004', customer_name: 'Test Restoran', total_quantity: 2, status: 'sevk-edildi', created_at: new Date(Date.now() - 259200000).toISOString() },
-    { package_no: 'PKG-005', customer_name: 'Demo Hastane', total_quantity: 12, status: 'beklemede', created_at: new Date(Date.now() - 345600000).toISOString() },
-    { package_no: 'PKG-006', customer_name: 'Örnek Spa', total_quantity: 6, status: 'sevk-edildi', created_at: new Date(Date.now() - 432000000).toISOString() },
-    { package_no: 'PKG-007', customer_name: 'Test Okulu', total_quantity: 4, status: 'beklemede', created_at: new Date(Date.now() - 518400000).toISOString() },
-    { package_no: 'PKG-008', customer_name: 'Demo Üniversite', total_quantity: 9, status: 'sevk-edildi', created_at: new Date(Date.now() - 604800000).toISOString() },
-    { package_no: 'PKG-009', customer_name: 'Örnek Ofis', total_quantity: 7, status: 'beklemede', created_at: new Date(Date.now() - 691200000).toISOString() },
-    { package_no: 'PKG-010', customer_name: 'Test Fabrika', total_quantity: 15, status: 'sevk-edildi', created_at: new Date(Date.now() - 777600000).toISOString() }
-];
+        // Fallback to Excel data
+        return await ExcelJS.readFile();
     } catch (error) {
-        console.error('Error in getAllPackages:', error);
-        return [];
+        console.error('Error getting packages:', error);
+        return await ExcelJS.readFile(); // Final fallback
     }
 }
 async function getAllStock() {
@@ -3427,32 +3412,68 @@ async function getAllReports() {
     }
 }
 async function getAllCustomers() {
-    try {
-        // Remove any .slice(0, X) limits
-        if (window.customers && Array.isArray(window.customers)) {
-            return window.customers; // No slice limit
+     try {
+        console.log('📋 Fetching real customers data...');
+        
+        // Try to get customers from Supabase first
+        if (supabase && !isUsingExcel) {
+            const { data, error } = await supabase
+                .from('customers')
+                .select('*')
+                .order('name');
+                
+            if (!error && data && data.length > 0) {
+                console.log(`✅ Found ${data.length} real customers from Supabase`);
+                return data;
+            }
         }
         
-        const localData = localStorage.getItem('proclean_customers') || 
-                         localStorage.getItem('customers');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed : []; // No slice limit
+        // Fallback: Get customers from Excel/local storage
+        const excelCustomers = await getCustomersFromExcel();
+        if (excelCustomers && excelCustomers.length > 0) {
+            console.log(`✅ Found ${excelCustomers.length} customers from Excel`);
+            return excelCustomers;
         }
         
-        // Return multiple sample customers
-        return [
-            { code: 'CUST-001', name: 'Test Müşteri' },
-            { code: 'CUST-002', name: 'Demo Şirket' },
-            { code: 'CUST-003', name: 'Örnek Hotel' },
-            { code: 'CUST-004', name: 'Sample Restoran' },
-            { code: 'CUST-005', name: 'Test Hastane' },
-            { code: 'CUST-006', name: 'Demo Spa' },
-            { code: 'CUST-007', name: 'Örnek Resort' }
-        ];
+        // Final fallback: Check if there are any customers in current packages
+        const packages = await getAllPackages();
+        const uniqueCustomers = [...new Set(packages.map(pkg => pkg.customer_name).filter(Boolean))];
+        
+        if (uniqueCustomers.length > 0) {
+            const customerList = uniqueCustomers.map((name, index) => ({
+                customer_code: `CUST-${String(index + 1).padStart(3, '0')}`,
+                customer_name: name,
+                phone: '',
+                email: ''
+            }));
+            console.log(`✅ Found ${customerList.length} customers from packages`);
+            return customerList;
+        }
+        
+        console.log('❌ No real customers found');
+        return [];
+        
     } catch (error) {
-        console.error('Error in getAllCustomers:', error);
+        console.error('Error fetching real customers:', error);
+        return [];
+    }
+}
+
+
+// ✅ FUNCTION: Get customers from Excel data
+async function getCustomersFromExcel() {
+    try {
+        const packages = await ExcelJS.readFile();
+        const uniqueCustomers = [...new Set(packages.map(pkg => pkg.customer_name).filter(Boolean))];
+        
+        return uniqueCustomers.map((name, index) => ({
+            customer_code: `CUST-${String(index + 1).padStart(3, '0')}`,
+            customer_name: name,
+            phone: '',
+            email: ''
+        }));
+    } catch (error) {
+        console.error('Error getting customers from Excel:', error);
         return [];
     }
 }
@@ -3613,8 +3634,8 @@ async function loadPreviewTabContent(tabName) {
                 break;
                 
             case 'customers':
-                data = await getAllCustomers();
-                columns = ['Müşteri Kodu', 'Müşteri Adı'];
+                data = await getRealCustomers(); // ✅ CHANGED: Use real customers
+                columns = ['Müşteri Kodu', 'Müşteri Adı', 'Telefon', 'E-posta'];
                 break;
                 
             case 'shipping':
@@ -3684,9 +3705,12 @@ async function loadPreviewTabContent(tabName) {
                     break;
                     
                 case 'customers':
+                    // ✅ FIXED: Show real customer data
                     tableHTML += `
-                        <td style="padding: 10px;">${item.code || 'N/A'}</td>
-                        <td style="padding: 10px;">${item.name || 'N/A'}</td>
+                        <td style="padding: 10px;">${item.customer_code || item.code || 'N/A'}</td>
+                        <td style="padding: 10px;">${item.customer_name || item.name || 'N/A'}</td>
+                        <td style="padding: 10px;">${item.phone || item.telephone || 'N/A'}</td>
+                        <td style="padding: 10px;">${item.email || 'N/A'}</td>
                     `;
                     break;
                     
