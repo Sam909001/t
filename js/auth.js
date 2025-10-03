@@ -283,6 +283,7 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
 }
 
 // Fixed: Send Excel file to Main PC via Electron network share
+// Fixed: Send Excel file to Main PC via Electron network share
 async function sendExcelToMainPC(packages) {
     try {
         // Create the Excel data
@@ -297,9 +298,9 @@ async function sendExcelToMainPC(packages) {
         const fileName = `ProClean_Rapor_${timestamp}.xlsx`;
 
         // Try Electron network save first
-        if (window.ipcRenderer) {
+        if (window.electronAPI) {
             console.log('🔄 Attempting network save via Electron...');
-            const result = await window.ipcRenderer.invoke('save-excel-to-network', excelData, fileName);
+            const result = await window.electronAPI.saveExcelToNetwork(excelData, fileName);
             
             if (result.success) {
                 console.log('✅ Excel file sent to network share via Electron');
@@ -309,7 +310,7 @@ async function sendExcelToMainPC(packages) {
                 console.log('❌ Network save failed, trying local save...');
                 
                 // Fallback: Save locally and show instructions
-                const localResult = await window.ipcRenderer.invoke('save-excel-local', excelData, fileName);
+                const localResult = await window.electronAPI.saveExcelLocal(excelData, fileName);
                 if (localResult.success) {
                     showAlert(`Excel dosyası kaydedildi: ${localResult.path}`, 'info');
                     showNetworkShareInstructions(localResult.path);
@@ -328,6 +329,7 @@ async function sendExcelToMainPC(packages) {
         
     } catch (err) {
         console.error("Main PC transfer error:", err);
+        showAlert("Ağ paylaşımı hatası: " + err.message, 'error');
         showNetworkShareInstructions();
         return false;
     }
