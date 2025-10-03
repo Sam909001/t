@@ -1644,9 +1644,28 @@ function printSinglePackage(packageId) {
         return;
     }
     
-    if (typeof printSelectedPackages === 'function') {
-        printSelectedPackages([pkg]);
+    console.log('Package to print:', pkg);
+    
+    // Temporarily select only this package's checkbox
+    const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const previouslyChecked = Array.from(allCheckboxes).filter(cb => cb.checked);
+    
+    // Uncheck all
+    allCheckboxes.forEach(cb => cb.checked = false);
+    
+    // Check only this package
+    checkbox.checked = true;
+    
+    // Call the Electron print function
+    if (typeof window.printSelectedElectron === 'function') {
+        window.printSelectedElectron();
     } else {
-        showAlert('Yazdırma fonksiyonu bulunamadı!', 'error');
+        showAlert('Yazıcı fonksiyonu bulunamadı!', 'error');
     }
+    
+    // Restore previous selection after a short delay
+    setTimeout(() => {
+        allCheckboxes.forEach(cb => cb.checked = false);
+        previouslyChecked.forEach(cb => cb.checked = true);
+    }, 500);
 }
