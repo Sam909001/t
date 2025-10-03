@@ -757,25 +757,5 @@ function getCustomEventListeners(element) {
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
-<script>
-   function askPasswordAndRun(action, codeType) {
-    let requiredCode = null;
-
-    if (codeType === "manage") {
-        // For add/delete package, container, customer
-        requiredCode = "8823";
-    } else if (codeType === "admin") {
-        // For API key change + clear frontend data
-        requiredCode = "7142";
-    }
-
-    const pwd = prompt("Şifreyi giriniz:");
-    if (pwd === requiredCode) {
-        action();
-    } else if (pwd !== null) {
-        alert("Yanlış şifre!");
-    }
-}
-</script>
 </body>
 </html>
