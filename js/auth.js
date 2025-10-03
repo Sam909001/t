@@ -282,10 +282,10 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
     }
 }
 
-// Fixed: Send Excel file to Main PC via network share
+// Fixed: Send Excel file to Main PC via Electron network share
 async function sendExcelToMainPC(packages) {
     try {
-        // Create the Excel file first
+        // Create the Excel data
         const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
         
         if (!excelData || excelData.length === 0) {
@@ -293,17 +293,38 @@ async function sendExcelToMainPC(packages) {
             return false;
         }
 
-        // Method 1: Try WebDAV approach (works with Windows shares)
-        const webdavSuccess = await sendViaWebDAV(excelData, packages);
-        if (webdavSuccess) return true;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `ProClean_Rapor_${timestamp}.xlsx`;
 
-        // Method 2: Try fetch API to network share (requires CORS)
-        const fetchSuccess = await sendViaFetch(excelData, packages);
-        if (fetchSuccess) return true;
-
-        // Method 3: Fallback - show instructions for manual copy
-        showNetworkShareInstructions();
-        return false;
+        // Try Electron network save first
+        if (window.ipcRenderer) {
+            console.log('🔄 Attempting network save via Electron...');
+            const result = await window.ipcRenderer.invoke('save-excel-to-network', excelData, fileName);
+            
+            if (result.success) {
+                console.log('✅ Excel file sent to network share via Electron');
+                showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
+                return true;
+            } else {
+                console.log('❌ Network save failed, trying local save...');
+                
+                // Fallback: Save locally and show instructions
+                const localResult = await window.ipcRenderer.invoke('save-excel-local', excelData, fileName);
+                if (localResult.success) {
+                    showAlert(`Excel dosyası kaydedildi: ${localResult.path}`, 'info');
+                    showNetworkShareInstructions(localResult.path);
+                } else {
+                    showNetworkShareInstructions();
+                }
+                return false;
+            }
+        } else {
+            // Not in Electron - use browser download
+            console.log('🌐 Not in Electron, using browser download');
+            ProfessionalExcelExport.exportToProfessionalExcel(packages, fileName);
+            showNetworkShareInstructions();
+            return false;
+        }
         
     } catch (err) {
         console.error("Main PC transfer error:", err);
@@ -311,7 +332,6 @@ async function sendExcelToMainPC(packages) {
         return false;
     }
 }
-
 // Method 1: WebDAV approach for Windows shares
 async function sendViaWebDAV(excelData, packages) {
     try {
@@ -410,26 +430,27 @@ async function sendViaFetch(excelData, packages) {
 }
 
 // Method 3: Show instructions for manual network share setup
-function showNetworkShareInstructions() {
-    const instructions = `
+// Enhanced network instructions
+function showNetworkShareInstructions(filePath = null) {
+    const instructions = filePath ? `
+        AĞ PAYLAŞIMINA MANUEL TAŞIMA GEREKİYOR
+
+        DOSYA KONUMU: ${filePath}
+
+        AŞAĞIDAKİ ADIMLARI İZLEYİN:
+        1. Yukarıdaki dosya konumunu açın
+        2. Dosyayı kopyalayın
+        3. Ağ paylaşımına yapıştırın: \\\\MAIN-PC\\SharedReports
+
+        OTOMATİK GÖNDERİM: Ağ bağlantısı kurulamadı
+    ` : `
         OTOMATİK GÖNDERİLEMEDİ - MANUEL KOPYALAMA GEREKİYOR
 
         AŞAĞIDAKİ ADIMLARI İZLEYİN:
-
         1. Excel dosyası bilgisayarınıza indirildi
         2. Dosya konumunu açın
         3. Dosyayı kopyalayın
         4. Ağ paylaşımına yapıştırın: \\\\MAIN-PC\\SharedReports
-
-        ALTERNATİF YÖNTEM:
-        - Dosyayı e-posta ile gönderin
-        - USB bellek ile taşıyın
-        - Ağ sürücüsüne manuel kopyalayın
-
-        TEKNİK AYARLAR İÇİN:
-        - Ağ paylaşımının açık olduğundan emin olun
-        - Ana bilgisayarın IP adresini kontrol edin
-        - Güvenlik duvarı ayarlarını kontrol edin
     `;
 
     // Show detailed instructions to user
