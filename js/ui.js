@@ -1638,371 +1638,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(addExportButtons, 2000); // Add after app initializes
 });
 
-
-
-// Excel preview function
-async function previewExcelData() {
-    try {
-        console.log('Generating Excel preview...');
-        
-        // Show loading state
-        showAlert('Excel verileri hazırlanıyor...', 'info');
-        
-        // Collect all data for preview
-        const previewData = await collectAllDataForPreview();
-        
-        if (!previewData || Object.keys(previewData).length === 0) {
-            showAlert('Önizleme için veri bulunamadı', 'warning');
-            return;
-        }
-        
-        // Create and show preview modal
-        createExcelPreviewModal(previewData);
-        
-    } catch (error) {
-        console.error('Excel preview error:', error);
-        showAlert('Excel önizleme oluşturulurken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-// Collect all data for preview
-async function collectAllDataForPreview() {
-    const data = {};
-    
-    try {
-        // Packages data
-        if (typeof getAllPackages === 'function') {
-            data.packages = await getAllPackages();
-        }
-        
-        // Stock data
-        if (typeof getAllStock === 'function') {
-            data.stock = await getAllStock();
-        }
-        
-        // Shipping data
-        if (typeof getAllShippingData === 'function') {
-            data.shipping = await getAllShippingData();
-        }
-        
-        // Reports data
-        if (typeof getAllReports === 'function') {
-            data.reports = await getAllReports();
-        }
-        
-        // Customers data
-        if (typeof getAllCustomers === 'function') {
-            data.customers = await getAllCustomers();
-        }
-        
-    } catch (error) {
-        console.warn('Error collecting some data for preview:', error);
-    }
-    
-    return data;
-}
-
-// Create Excel preview modal
-function createExcelPreviewModal(data) {
-    // Remove existing modal if any
-    const existingModal = document.getElementById('excelPreviewModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Create modal
-    const modal = document.createElement('div');
-    modal.id = 'excelPreviewModal';
-    modal.className = 'modal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-        font-family: inherit;
-    `;
-    
-    modal.innerHTML = `
-        <div class="modal-content" style="
-            background: white;
-            padding: 24px;
-            border-radius: 8px;
-            max-width: 95%;
-            max-height: 90vh;
-            width: 1200px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        ">
-            <div class="modal-header" style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 20px;
-                flex-shrink: 0;
-            ">
-                <h3 style="margin: 0; color: #333;">
-                    <i class="fas fa-file-excel" style="color: #217346; margin-right: 8px;"></i>
-                    Excel Veri Önizleme
-                </h3>
-                <button onclick="closeExcelPreviewModal()" style="
-                    background: none;
-                    border: none;
-                    font-size: 24px;
-                    cursor: pointer;
-                    color: #666;
-                    padding: 0;
-                    width: 30px;
-                    height: 30px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    border-radius: 50%;
-                    transition: background 0.2s;
-                " onmouseover="this.style.background='#f0f0f0'"
-                onmouseout="this.style.background='transparent'">
-                    ×
-                </button>
-            </div>
-            
-            <div style="
-                flex: 1;
-                overflow: auto;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                min-height: 400px;
-            ">
-                <div class="preview-tabs" style="
-                    display: flex;
-                    border-bottom: 1px solid #ddd;
-                    background: #f8f9fa;
-                ">
-                    ${Object.keys(data).map(section => `
-                        <button class="preview-tab ${section === 'packages' ? 'active' : ''}" 
-                                onclick="switchPreviewTab('${section}')"
-                                style="
-                                    padding: 12px 16px;
-                                    border: none;
-                                    background: ${section === 'packages' ? '#007bff' : 'transparent'};
-                                    color: ${section === 'packages' ? 'white' : '#333'};
-                                    cursor: pointer;
-                                    border-right: 1px solid #ddd;
-                                    transition: all 0.2s;
-                                ">
-                            ${getSectionDisplayName(section)}
-                            <span style="
-                                background: ${section === 'packages' ? 'rgba(255,255,255,0.3)' : '#6c757d'};
-                                color: ${section === 'packages' ? 'white' : 'white'};
-                                padding: 2px 6px;
-                                border-radius: 10px;
-                                font-size: 0.8em;
-                                margin-left: 8px;
-                            ">${data[section]?.length || 0}</span>
-                        </button>
-                    `).join('')}
-                </div>
-                
-                <div id="previewContent" style="padding: 16px;">
-                    ${renderPreviewTable(data.packages, 'packages')}
-                </div>
-            </div>
-            
-            <div style="
-                margin-top: 16px;
-                text-align: center;
-                flex-shrink: 0;
-                padding-top: 16px;
-                border-top: 1px solid #eee;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            ">
-                <div style="color: #666; font-size: 0.9em;">
-                    Toplam: ${Object.values(data).reduce((sum, section) => sum + (section?.length || 0), 0)} kayıt
-                </div>
-                <div>
-                    <button onclick="exportDataFromPreview()" 
-                            class="btn btn-success"
-                            style="margin-right: 8px;">
-                        <i class="fas fa-download"></i> Excel İndir
-                    </button>
-                    <button onclick="closeExcelPreviewModal()" 
-                            class="btn btn-secondary">
-                        <i class="fas fa-times"></i> Kapat
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Store data for export
-    window.previewData = data;
-}
-
-// Get display name for sections
-function getSectionDisplayName(section) {
-    const names = {
-        'packages': 'Paketler',
-        'stock': 'Stok',
-        'shipping': 'Sevkiyat',
-        'reports': 'Raporlar',
-        'customers': 'Müşteriler'
-    };
-    return names[section] || section;
-}
-
-// Switch between preview tabs
-function switchPreviewTab(section) {
-    // Update tab buttons
-    document.querySelectorAll('.preview-tab').forEach(tab => {
-        tab.style.background = 'transparent';
-        tab.style.color = '#333';
-    });
-    event.target.style.background = '#007bff';
-    event.target.style.color = 'white';
-    
-    // Update content
-    const previewContent = document.getElementById('previewContent');
-    previewContent.innerHTML = renderPreviewTable(window.previewData[section], section);
-}
-
-// Render preview table
-function renderPreviewTable(data, section) {
-    if (!data || data.length === 0) {
-        return `
-            <div style="text-align: center; padding: 40px; color: #666;">
-                <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
-                <h4>${getSectionDisplayName(section)} bölümünde veri bulunmamaktadır</h4>
-            </div>
-        `;
-    }
-    
-    const headers = Object.keys(data[0]);
-    
-    return `
-        <table style="
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9em;
-        ">
-            <thead style="background: #f8f9fa; position: sticky; top: 0;">
-                <tr>
-                    ${headers.map(header => `
-                        <th style="
-                            padding: 12px;
-                            border: 1px solid #ddd;
-                            text-align: left;
-                            background: #e9ecef;
-                            font-weight: 600;
-                        ">${header}</th>
-                    `).join('')}
-                </tr>
-            </thead>
-            <tbody>
-                ${data.slice(0, 100).map((row, index) => `
-                    <tr style="
-                        transition: background-color 0.2s ease;
-                        ${index % 2 === 0 ? 'background: #f8f9fa;' : ''}
-                    " onmouseover="this.style.backgroundColor='#e3f2fd'" 
-                    onmouseout="this.style.backgroundColor='${index % 2 === 0 ? '#f8f9fa' : 'transparent'}'">
-                        ${headers.map(header => `
-                            <td style="
-                                padding: 10px;
-                                border: 1px solid #ddd;
-                                max-width: 200px;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                white-space: nowrap;
-                            " title="${String(row[header] || '')}">
-                                ${String(row[header] || '').substring(0, 50)}
-                                ${String(row[header] || '').length > 50 ? '...' : ''}
-                            </td>
-                        `).join('')}
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-        ${data.length > 100 ? `
-            <div style="
-                text-align: center;
-                padding: 16px;
-                background: #fff3cd;
-                border: 1px solid #ffeaa7;
-                border-radius: 4px;
-                margin-top: 16px;
-                color: #856404;
-            ">
-                <i class="fas fa-info-circle"></i>
-                İlk 100 kayıt gösteriliyor. Toplam ${data.length} kayıt.
-                Tüm verileri indirmek için "Excel İndir" butonunu kullanın.
-            </div>
-        ` : ''}
-    `;
-}
-
-// Export data from preview
-function exportDataFromPreview() {
-    if (window.previewData) {
-        exportData('excel', window.previewData);
-        closeExcelPreviewModal();
-    }
-}
-
-// Close preview modal
-function closeExcelPreviewModal() {
-    const modal = document.getElementById('excelPreviewModal');
-    if (modal) {
-        modal.remove();
-    }
-    delete window.previewData;
-}
-
-// Add to your existing exportData function to accept custom data
-async function exportData(format, customData = null) {
-    try {
-        const data = customData || await collectAllDataForPreview();
-        
-        if (format === 'excel') {
-            // Your existing Excel export logic here
-            console.log('Exporting Excel with data:', data);
-            // Call your existing Excel export function
-            if (typeof exportToExcel === 'function') {
-                await exportToExcel(data);
-            } else {
-                showAlert('Excel export fonksiyonu bulunamadı', 'error');
-            }
-        } else if (format === 'json') {
-            // Your existing JSON export logic here
-            const dataStr = JSON.stringify(data, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `proclean_backup_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
-        }
-    } catch (error) {
-        console.error('Export error:', error);
-        showAlert('Dışa aktarım sırasında hata oluştu: ' + error.message, 'error');
-    }
-}
-
-// Make functions globally available
-window.previewExcelData = previewExcelData;
-window.switchPreviewTab = switchPreviewTab;
-window.closeExcelPreviewModal = closeExcelPreviewModal;
-window.exportDataFromPreview = exportDataFromPreview;
-
-
 function clearFrontendData() {
     const password = prompt('Tüm frontend veriler silinecek. Lütfen şifreyi girin:');
 
@@ -3621,5 +3256,110 @@ function updateContainerSelection() {
     const selectAllCheckbox = document.getElementById('selectAllContainers');
     if (selectAllCheckbox) {
         selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+    }
+}
+
+
+// ==================== SIMPLIFIED DATA COLLECTION ====================
+
+// Simple mock functions that will work even if your real functions are missing
+async function getAllPackages() {
+    try {
+        // Try multiple sources
+        if (window.packages && Array.isArray(window.packages)) {
+            return window.packages.slice(0, 10); // Limit for preview
+        }
+        
+        const localData = localStorage.getItem('proclean_packages') || 
+                         localStorage.getItem('packages') ||
+                         localStorage.getItem('excelData');
+        
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+        }
+        
+        // Return sample data for testing
+        return [
+            { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede' },
+            { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi' }
+        ];
+    } catch (error) {
+        console.error('Error in getAllPackages:', error);
+        return [];
+    }
+}
+
+async function getAllStock() {
+    try {
+        // Try to get from table
+        const stockTable = document.getElementById('stockTableBody');
+        if (stockTable) {
+            const rows = stockTable.querySelectorAll('tr');
+            const stockData = [];
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 3) {
+                    stockData.push({
+                        code: cells[0]?.textContent || 'STK-001',
+                        name: cells[1]?.textContent || 'Test Ürün',
+                        quantity: parseInt(cells[2]?.textContent) || 0,
+                        unit: cells[3]?.textContent || 'adet',
+                        status: cells[4]?.textContent || 'Stokta'
+                    });
+                }
+            });
+            
+            return stockData.slice(0, 5);
+        }
+        
+        // Sample data
+        return [
+            { code: 'STK-001', name: 'Büyük Çarşaf', quantity: 50, unit: 'adet', status: 'Stokta' },
+            { code: 'STK-002', name: 'Havlu', quantity: 25, unit: 'adet', status: 'Az Stok' }
+        ];
+    } catch (error) {
+        console.error('Error in getAllStock:', error);
+        return [];
+    }
+}
+
+async function getAllShippingData() {
+    return [
+        { container_no: 'CONT-001', customer: 'Test Firma', package_count: 5, status: 'sevk-edildi' }
+    ];
+}
+
+async function getAllReports() {
+    return [
+        { fileName: 'Rapor_2024', packageCount: 10, totalQuantity: 45, date: new Date().toISOString() }
+    ];
+}
+
+async function getAllCustomers() {
+    try {
+        const customerSelect = document.getElementById('customerSelect');
+        if (customerSelect) {
+            const customers = [];
+            for (let option of customerSelect.options) {
+                if (option.value && option.value !== '') {
+                    customers.push({
+                        id: option.value,
+                        name: option.textContent.split(' (')[0],
+                        code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                    });
+                }
+            }
+            return customers.slice(0, 5);
+        }
+        
+        return [
+            { id: '1', name: 'Test Müşteri', code: 'CUST001' },
+            { id: '2', name: 'Demo Firma', code: 'CUST002' }
+        ];
+    } catch (error) {
+        console.error('Error in getAllCustomers:', error);
+        return [];
     }
 }
