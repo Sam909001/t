@@ -1619,9 +1619,10 @@ window.deleteReport = async function(fileName) {
 
 
 
-async function printSinglePackage(packageId) {
-    console.log('Printing package:', packageId);
+window.printSinglePackage = async function(packageId) {
+    console.log('Printing single package:', packageId);
     
+    // Find the checkbox for this package
     const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
     
     if (!checkbox) {
@@ -1629,27 +1630,27 @@ async function printSinglePackage(packageId) {
         return;
     }
     
-    const packageData = checkbox.getAttribute('data-package');
-    if (!packageData) {
-        showAlert('Paket verisi bulunamadı!', 'error');
-        return;
-    }
+    // Store currently checked boxes
+    const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const previouslyChecked = Array.from(allCheckboxes).filter(cb => cb.checked);
     
-    let pkg;
+    // Uncheck all
+    allCheckboxes.forEach(cb => cb.checked = false);
+    
+    // Check only this package
+    checkbox.checked = true;
+    
+    // Call the existing print function
     try {
-        pkg = JSON.parse(packageData.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
-    } catch (e) {
-        console.error('Package parse error:', e);
-        showAlert('Paket verisi okunamadı!', 'error');
-        return;
+        await window.printSelectedElectron();
+    } catch (error) {
+        console.error('Print error:', error);
+        showAlert('Yazdırma hatası: ' + error.message, 'error');
     }
     
-    // Call printAllLabels with single package
-    if (window.printerService && typeof window.printerService.printAllLabels === 'function') {
-        await window.printerService.printAllLabels([pkg]);
-    } else if (typeof printAllLabels === 'function') {
-        await printAllLabels([pkg]);
-    } else {
-        showAlert('Yazıcı servisi bulunamadı!', 'error');
-    }
-}
+    // Restore previous selection after printing
+    setTimeout(() => {
+        allCheckboxes.forEach(cb => cb.checked = false);
+        previouslyChecked.forEach(cb => cb.checked = true);
+    }, 500);
+};
