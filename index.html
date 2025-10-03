@@ -810,8 +810,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- 6. Feature modules (depend on core functionality) -->
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script>
-<!-- Language System -->
-<script src="js/language.js"></script>
     <script>
 function getCustomEventListeners(element) {
     if (!element || typeof element.addEventListener !== 'function') {
@@ -838,16 +836,5 @@ function getCustomEventListeners(element) {
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
-        <script>
-function askPassword(actionCallback) {
-    const pwd = prompt("Bu işlemi yapmak için şifre giriniz:");
-    if (pwd === "8823") {
-        actionCallback();
-    } else {
-        alert("❌ Yanlış şifre. İşlem iptal edildi.");
-    }
-}
-</script>
-
 </body>
 </html>
