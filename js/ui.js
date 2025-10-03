@@ -3634,7 +3634,7 @@ async function loadPreviewTabContent(tabName) {
                 break;
                 
             case 'customers':
-                data = await getRealCustomers(); // ✅ CHANGED: Use real customers
+                data = await getAllCustomers(); // ✅ CHANGED: Use real customers
                 columns = ['Müşteri Kodu', 'Müşteri Adı', 'Telefon', 'E-posta'];
                 break;
                 
