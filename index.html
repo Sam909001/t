@@ -254,7 +254,9 @@ document.addEventListener("DOMContentLoaded", function() {
         <div class="package-actions">
             <button type="button" class="btn btn-success" onclick="completePackage()" data-i18n="packaging.complete.package">Paketle</button>
             <button type="button" class="btn btn-warning" id="printBarcodeBtn" data-i18n="packaging.print.label">Etiket Yazdır</button>
-            <button type="button" class="btn btn-danger" onclick="deleteSelectedPackages()" data-i18n="general.delete">Sil</button>
+            <button type="button" class="btn btn-danger" 
+        onclick="askPassword(() => deleteSelectedPackages())" 
+        data-i18n="general.delete">Sil</button>
         </div>
 
         <!-- Scanner Button at Bottom -->
@@ -315,7 +317,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="action-buttons">
                         <button type="button" class="btn btn-primary" onclick="createNewContainer()" data-i18n="shipping.new.container">Yeni Konteyner</button>
                         <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()" data-i18n="shipping.current.container">Mevcut Konteyner</button>
-                        <button type="button" class="btn btn-danger" onclick="deleteContainer()" data-i18n="shipping.delete.container">Konteyner Sil</button>
+                        <button type="button" class="btn btn-danger" 
+        onclick="askPassword(() => deleteContainer())" 
+        data-i18n="shipping.delete.container">Konteyner Sil</button>
+
                     </div>
                 </div>
 
@@ -479,7 +484,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="email" id="newCustomerEmail" data-i18n-placeholder="customer.placeholder.email" placeholder="E-posta adresini girin">
                 <div class="validation-error" id="customerEmailError" data-i18n="customer.error.email">Geçerli bir e-posta adresi girin</div>
             </div>
-            <button type="button" class="btn btn-primary" onclick="addNewCustomer()" data-i18n="customer.add">Müşteri Ekle</button>
+            <button type="button" class="btn btn-primary" 
+        onclick="askPassword(() => addNewCustomer())" 
+        data-i18n="customer.add">Müşteri Ekle</button>
             
             <hr style="margin: 1.5rem 0;">
             <h4 data-i18n="customer.existing">Mevcut Müşteriler</h4>
@@ -831,5 +838,16 @@ function getCustomEventListeners(element) {
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
+        <script>
+function askPassword(actionCallback) {
+    const pwd = prompt("Bu işlemi yapmak için şifre giriniz:");
+    if (pwd === "8823") {
+        actionCallback();
+    } else {
+        alert("❌ Yanlış şifre. İşlem iptal edildi.");
+    }
+}
+</script>
+
 </body>
 </html>
