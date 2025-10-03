@@ -633,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <div class="settings-option">
                 <label>Supabase API Anahtarı</label>
-                <button class="btn btn-warning" onclick="showApiKeyModal()">API Anahtarını Değiştir</button>
+                <button class="btn btn-warning" onclick="confirmApiKeyChange()">API Anahtarını Değiştir</button>
             </div>
             
             <div class="settings-option">
@@ -768,6 +768,14 @@ function askPassword(actionCallback) {
     }
 }
 </script>
-
+<script>function confirmApiKeyChange() {
+    const pwd = prompt("API anahtarını değiştirmek için şifreyi giriniz:");
+    if (pwd === "7142") {
+        showApiKeyModal();
+    } else if (pwd !== null) {
+        alert("Yanlış şifre!");
+    }
+}
+</script>
 </body>
 </html> please replace all html needed to work with translation without affecting the buttons function
