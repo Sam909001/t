@@ -1,4 +1,4 @@
-// ==================== PASSWORD GUARD - COMPLETE SCRIPT ====================
+// ==================== PASSWORD GUARD - SIMPLIFIED SCRIPT ====================
 // Works in both Web and Electron environments
 
 class PasswordGuard {
@@ -211,7 +211,7 @@ class PasswordGuard {
     }
 }
 
-// ==================== AUTHENTICATION WRAPPER FUNCTIONS ====================
+// ==================== ESSENTIAL AUTHENTICATION WRAPPER FUNCTIONS ====================
 
 // ✅ 1. Delete Package with Authentication - Uses 8823
 async function deletePackageWithAuth() {
@@ -313,122 +313,15 @@ async function addCustomerWithAuth() {
     }
 }
 
-// ✅ 6. Export Data with Authentication - Uses 8823
-async function exportDataWithAuth() {
-    const passwordGuard = new PasswordGuard();
-    
-    try {
-        await passwordGuard.askPasswordAndRun(() => {
-            if (typeof exportData === 'function') {
-                exportData('excel');
-            } else {
-                showAlert('Veri aktarma fonksiyonu bulunamadı', 'error');
-                throw new Error('Function not found');
-            }
-        }, 'veri dışa aktarma', 'default');
-    } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('Export data cancelled or failed:', error.message);
-        }
-    }
-}
-
-// ✅ 7. Import Data with Authentication - Uses 8823
-async function importDataWithAuth() {
-    const passwordGuard = new PasswordGuard();
-    
-    try {
-        await passwordGuard.askPasswordAndRun(() => {
-            // Trigger file input for import
-            const fileInput = document.getElementById('importFileInput');
-            if (fileInput) {
-                fileInput.click();
-            } else {
-                showAlert('İçe aktarma özelliği henüz hazır değil', 'info');
-                throw new Error('Import not ready');
-            }
-        }, 'veri içe aktarma', 'default');
-    } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('Import data cancelled or failed:', error.message);
-        }
-    }
-}
-
-// ✅ 8. Reset Settings with Authentication - Uses 7142
-async function resetSettingsWithAuth() {
-    const passwordGuard = new PasswordGuard();
-    
-    try {
-        await passwordGuard.askPasswordAndRun(() => {
-            if (typeof resetSettings === 'function') {
-                resetSettings();
-            } else {
-                showAlert('Ayarları sıfırlama fonksiyonu bulunamadı', 'error');
-                throw new Error('Function not found');
-            }
-        }, 'ayarları sıfırlama', 'changeApiKey');
-    } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('Reset settings cancelled or failed:', error.message);
-        }
-    }
-}
-
-// ✅ 9. System Settings with Authentication - Uses 7142
-async function systemSettingsWithAuth() {
-    const passwordGuard = new PasswordGuard();
-    
-    try {
-        await passwordGuard.askPasswordAndRun(() => {
-            if (typeof showSettingsModal === 'function') {
-                showSettingsModal();
-            } else {
-                showAlert('Sistem ayarları fonksiyonu bulunamadı', 'error');
-                throw new Error('Function not found');
-            }
-        }, 'sistem ayarları', 'changeApiKey');
-    } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('System settings cancelled or failed:', error.message);
-        }
-    }
-}
-
-// ✅ 10. Advanced Settings with Authentication - Uses 7142
-async function advancedSettingsWithAuth() {
-    const passwordGuard = new PasswordGuard();
-    
-    try {
-        await passwordGuard.askPasswordAndRun(() => {
-            if (typeof showAdvancedSettings === 'function') {
-                showAdvancedSettings();
-            } else {
-                showAlert('Gelişmiş ayarlar fonksiyonu bulunamadı', 'error');
-                throw new Error('Function not found');
-            }
-        }, 'gelişmiş ayarlar', 'changeApiKey');
-    } catch (error) {
-        if (error.message !== 'User cancelled' && !error.message.includes('locked')) {
-            console.log('Advanced settings cancelled or failed:', error.message);
-        }
-    }
-}
-
 // ==================== GLOBAL AVAILABILITY ====================
 
-// Make all functions globally available
+// Make only essential functions globally available
 window.PasswordGuard = PasswordGuard;
 window.deletePackageWithAuth = deletePackageWithAuth;
 window.changeApiKeyWithAuth = changeApiKeyWithAuth;
 window.clearDataWithAuth = clearDataWithAuth;
 window.deleteCustomerWithAuth = deleteCustomerWithAuth;
 window.addCustomerWithAuth = addCustomerWithAuth;
-window.exportDataWithAuth = exportDataWithAuth;
-window.importDataWithAuth = importDataWithAuth;
-window.resetSettingsWithAuth = resetSettingsWithAuth;
-window.systemSettingsWithAuth = systemSettingsWithAuth;
-window.advancedSettingsWithAuth = advancedSettingsWithAuth;
 
 // ==================== CSS ANIMATIONS ====================
 
@@ -452,7 +345,10 @@ if (!document.getElementById('passwordGuardStyles')) {
     document.head.appendChild(style);
 }
 
-console.log('✅ PasswordGuard script fully loaded with different passwords for different actions');
-console.log('🔐 Password Map:');
-console.log('   - Clear Data & Change API Key: 7142 (Yönetici)');
-console.log('   - All other actions: 8823 (Operatör)');
+console.log('✅ Simplified PasswordGuard script loaded');
+console.log('🔐 Essential Functions:');
+console.log('   - Delete Package: 8823');
+console.log('   - Add Customer: 8823');
+console.log('   - Delete Customer: 8823');
+console.log('   - Clear Data: 7142');
+console.log('   - Change API Key: 7142');
