@@ -39,9 +39,6 @@ body.dark-mode {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
 }
 
-html, body { 
-    height: 100%; 
-}
 
 body { 
     background-color: var(--bg); 
@@ -1369,12 +1366,6 @@ html, body {
     overflow: hidden; /* block global scrolling */
 }
 
-/* Main wrapper takes full viewport */
-#app, .container, main {
-    height: 100%;
-    display: flex;
-    flex-direction: column; /* stack header, content, footer */
-}
 
 /* Header + footer fixed height */
 header, footer {
