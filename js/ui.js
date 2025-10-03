@@ -746,22 +746,7 @@ async function printPackageWithSettings(packageData) {
     }
 }
 
-// Language - SIMULATION MODE to prevent errors
 function changeLanguage(lang) {
-    if (window.languageManager) {
-        window.languageManager.setLanguage(lang);
-    } else {
-        // SIMULATION MODE - just log the change without actual implementation
-        console.log('Language change simulated:', lang);
-        showAlert(t('alert.language.changed', 'Dil değiştirildi (simülasyon): {lang}', { lang }), 'info');
-        
-        // Update HTML lang attribute (safe operation)
-        if (document.documentElement) {
-            document.documentElement.lang = lang || 'tr';
-        }
-    }
-}
-
 // Update font size throughout the application
 function updateFontSize(size) {
     const elements = document.querySelectorAll('body, button, input, select, textarea');
