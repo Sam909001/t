@@ -2898,7 +2898,12 @@ async function populatePackagesTable() {
 
            row.innerHTML = `
     <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+    <td>
+        ${escapeHtml(pkg.package_no || 'N/A')}
+        <button class="small-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Bu paketi yazdır">
+            <i class="fas fa-print"></i>
+        </button>
+    </td>
     <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
     <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
         ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
@@ -2930,7 +2935,6 @@ async function populatePackagesTable() {
         packagesTableLoading = false;
     }
 }
-
 
 
 
