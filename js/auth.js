@@ -183,15 +183,78 @@ async function logoutWithConfirmation() {
             showAlert("Excel dosyası başarıyla yedeklendi ve raporlara taşındı", "success");
         }
 
-        // Perform logout
-        await performLogout();
+        // Simplified and more reliable performLogout
+async function performLogout() {
+    console.log('🔧 performLogout called');
+    
+    try {
+        // Step 1: Try to sync any pending changes
+        if (supabase && navigator.onLine && excelSyncQueue.length > 0) {
+            console.log('🔄 Syncing pending changes...');
+            showAlert("Bekleyen değişiklikler senkronize ediliyor...", "info");
+            await syncExcelWithSupabase();
+        }
 
+        // Step 2: Clear authentication
+        console.log('🔒 Signing out from Supabase...');
+        if (supabase) {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error("❌ Sign out error:", error);
+            } else {
+                console.log('✅ Signed out from Supabase');
+            }
+        }
+
+        // Step 3: Reset global variables
+        console.log('🔄 Resetting global variables...');
+        selectedCustomer = null;
+        currentPackage = {};
+        currentContainer = null;
+        selectedProduct = null;
+        currentUser = null;
+        scannedBarcodes = [];
+        excelPackages = [];
+        excelSyncQueue = [];
+        connectionTested = false;
+        
+        // Step 4: Clear sensitive data from localStorage (keep only essential)
+        console.log('🗑️ Clearing localStorage...');
+        const keysToKeep = ['proclean_workspaces', 'workspace_printer_configs', 'procleanSettings'];
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && !keysToKeep.includes(key) && !key.startsWith('report_')) {
+                localStorage.removeItem(key);
+            }
+        }
+
+        // Step 5: Switch to login screen
+        console.log('🔄 Switching to login screen...');
+        document.getElementById('loginScreen').style.display = "flex";
+        document.getElementById('appContainer').style.display = "none";
+        
+        // Step 6: Clear any intervals or timeouts
+        console.log('🔄 Cleaning up intervals...');
+        if (window.autoRefreshManager) {
+            window.autoRefreshManager.stop();
+        }
+        
+        // Step 7: Reset form fields
+        console.log('🔄 Resetting form fields...');
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        
+        console.log('✅ Logout completed successfully');
+        showAlert("Başarıyla çıkış yapıldı", "success");
+        
     } catch (error) {
-        console.error("Logout error:", error);
-        showAlert("Logout işlemi sırasında hata oluştu: " + error.message, "error");
+        console.error("❌ performLogout error:", error);
+        // Force logout even if there are errors
+        document.getElementById('loginScreen').style.display = "flex";
+        document.getElementById('appContainer').style.display = "none";
+        showAlert("Çıkış yapıldı", "info");
     }
 }
-
 // Fixed: Upload Excel data to Supabase storage
 async function uploadExcelToSupabase(packages) {
     if (!supabase || !navigator.onLine) {
