@@ -2908,7 +2908,7 @@ row.innerHTML = `
     </td>
     <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
     <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-    <<td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+    <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
     ${sourceIcon}
     <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
         <i class="fas fa-print"></i>
