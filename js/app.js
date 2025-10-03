@@ -1622,20 +1622,37 @@ window.deleteReport = async function(fileName) {
 function printSinglePackage(packageId) {
     console.log('🖨️ Printing single package:', packageId);
     
-    // Find the package in your packages array
-    const package = pendingPackages.find(p => p.id === packageId) || 
-                   excelPackages.find(p => p.id === packageId);
+    // Get package from the table's data attribute
+    const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
     
-    if (!package) {
+    if (!checkbox) {
         showAlert('Paket bulunamadı!', 'error');
         return;
     }
     
-    // Call your existing print function
+    // Parse the package data from the checkbox's data-package attribute
+    const packageData = checkbox.getAttribute('data-package');
+    if (!packageData) {
+        showAlert('Paket verisi bulunamadı!', 'error');
+        return;
+    }
+    
+    let pkg;
+    try {
+        // Decode the escaped HTML entities
+        pkg = JSON.parse(packageData.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+    } catch (e) {
+        console.error('Package parse error:', e);
+        showAlert('Paket verisi okunamadı!', 'error');
+        return;
+    }
+    
+    console.log('Package to print:', pkg);
+    
+    // Call your existing print function with the package in an array
     if (typeof printSelectedPackages === 'function') {
-        printSelectedPackages([package]);
+        printSelectedPackages([pkg]);
     } else {
         showAlert('Yazdırma fonksiyonu bulunamadı!', 'error');
     }
 }
-
