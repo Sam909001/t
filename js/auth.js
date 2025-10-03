@@ -202,7 +202,7 @@ async function uploadExcelToSupabase(packages) {
     }
 
     try {
-        const workbook = new ExcelJS.Workbook();
+        const workbook = new Workbook();
         const sheet = workbook.addWorksheet("Rapor");
 
         // Header row
@@ -243,7 +243,7 @@ async function uploadExcelToSupabase(packages) {
 
 async function sendExcelToMainPC(packages) {
     try {
-        const workbook = new ExcelJS.Workbook();
+        const workbook = new Workbook();
         const sheet = workbook.addWorksheet("Rapor");
 
         sheet.addRow(["Ürün", "Miktar", "Tarih"]);
