@@ -3040,12 +3040,14 @@ async function completePackage() {
         // Refresh packages table
         await safePopulatePackagesTable();
 
+        // ✅ NEW: Refresh preview data immediately
+        await refreshPreviewData();
+
     } catch (error) {
         console.error('Error completing package:', error);
         showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
-
 
 
 // Reports tab functionality fixes
