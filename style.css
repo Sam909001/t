@@ -2223,7 +2223,7 @@ html, body {
 .packaging-content {
     flex: 1 1 auto;
     display: grid;
-    grid-template-columns: 280px 1fr 320px;
+    grid-template-columns: 260px 1fr 300px;  /* Made right column wider */
     gap: 15px;
     min-height: 0;
     overflow: hidden;
@@ -2477,4 +2477,35 @@ html, body {
     .package-details {
         max-height: 300px;
     }
+}
+
+
+
+/* Make sure package details section doesn't cut off content */
+.package-details {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 15px;
+    min-width: 300px;  /* Ensure minimum width */
+}
+
+/* Ensure package actions are fully visible */
+.package-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: auto;
+    width: 100%;  /* Full width of container */
+}
+
+.package-actions .btn {
+    padding: 16px 20px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    width: 100%;  /* Make buttons full width */
+    min-width: 200px;  /* Minimum width to show text */
+    border-radius: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;  /* Prevent text wrapping */
 }
