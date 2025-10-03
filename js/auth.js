@@ -282,40 +282,249 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
     }
 }
 
-// Fixed: Send Excel file to Main PC (browser download fallback)
+// Fixed: Send Excel file to Main PC via network share
 async function sendExcelToMainPC(packages) {
     try {
-        // Use professional export for better formatting
-        const date = new Date().toISOString().split('T')[0];
-        const filename = `ProClean_Rapor_${date}_${getCurrentWorkspaceName()}.xlsx`;
+        // Create the Excel file first
+        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
         
-        // This will trigger browser download
-        const success = ProfessionalExcelExport.exportToProfessionalExcel(packages, filename);
-        
-        if (success) {
-            console.log("Excel file prepared for download:", filename);
-            
-            // If you need actual network file sharing, you'll need:
-            // 1. A backend API endpoint
-            // 2. Proper CORS configuration
-            // 3. Network authentication
-            await shareToNetworkDrive(packages); // Optional: See below
+        if (!excelData || excelData.length === 0) {
+            console.log("No data to send to main PC");
+            return false;
         }
-        
-        return success;
+
+        // Method 1: Try WebDAV approach (works with Windows shares)
+        const webdavSuccess = await sendViaWebDAV(excelData, packages);
+        if (webdavSuccess) return true;
+
+        // Method 2: Try fetch API to network share (requires CORS)
+        const fetchSuccess = await sendViaFetch(excelData, packages);
+        if (fetchSuccess) return true;
+
+        // Method 3: Fallback - show instructions for manual copy
+        showNetworkShareInstructions();
+        return false;
         
     } catch (err) {
         console.error("Main PC transfer error:", err);
-        
-        // Fallback: Simple CSV download
-        const date = new Date().toISOString().split('T')[0];
-        const filename = `ProClean_Rapor_${date}.csv`;
-        ProfessionalExcelExport.exportToProfessionalCSV(packages, filename);
-        
+        showNetworkShareInstructions();
         return false;
     }
 }
 
+// Method 1: WebDAV approach for Windows shares
+async function sendViaWebDAV(excelData, packages) {
+    try {
+        // Convert to CSV for simpler transfer
+        const headers = Object.keys(excelData[0]);
+        const csvContent = [
+            headers.join(','),
+            ...excelData.map(row => 
+                headers.map(header => {
+                    const value = row[header];
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value;
+                }).join(',')
+            )
+        ].join('\n');
+
+        const blob = new Blob(['\uFEFF' + csvContent], { 
+            type: 'text/csv;charset=utf-8;' 
+        });
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `ProClean_Rapor_${timestamp}.csv`;
+        
+        // WebDAV URL format for Windows share
+        // Replace with your actual network path
+        const webdavUrls = [
+            `http://MAIN-PC/SharedReports/${fileName}`,
+            `http://192.168.1.100/SharedReports/${fileName}`, // Use actual IP
+            `file://///MAIN-PC/SharedReports/${fileName}`
+        ];
+
+        for (const url of webdavUrls) {
+            try {
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    body: blob,
+                    headers: {
+                        'Content-Type': 'text/csv'
+                    },
+                    mode: 'cors',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    console.log("File sent to main PC via WebDAV:", url);
+                    showAlert(`Dosya ana bilgisayara gönderildi: ${fileName}`, 'success');
+                    return true;
+                }
+            } catch (e) {
+                console.log(`WebDAV attempt failed for ${url}:`, e.message);
+            }
+        }
+        
+        return false;
+    } catch (error) {
+        console.error("WebDAV transfer error:", error);
+        return false;
+    }
+}
+
+// Method 2: Fetch API with authentication
+async function sendViaFetch(excelData, packages) {
+    try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `ProClean_Rapor_${timestamp}.csv`;
+
+        // You'll need a backend endpoint that can write to network shares
+        const response = await fetch('/api/save-to-network', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filename: fileName,
+                data: excelData,
+                packages: packages,
+                workspace: getCurrentWorkspaceName(),
+                timestamp: timestamp
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log("File sent via backend API:", result);
+            showAlert(`Dosya ana bilgisayara gönderildi: ${fileName}`, 'success');
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error("Fetch API transfer error:", error);
+        return false;
+    }
+}
+
+// Method 3: Show instructions for manual network share setup
+function showNetworkShareInstructions() {
+    const instructions = `
+        OTOMATİK GÖNDERİLEMEDİ - MANUEL KOPYALAMA GEREKİYOR
+
+        AŞAĞIDAKİ ADIMLARI İZLEYİN:
+
+        1. Excel dosyası bilgisayarınıza indirildi
+        2. Dosya konumunu açın
+        3. Dosyayı kopyalayın
+        4. Ağ paylaşımına yapıştırın: \\\\MAIN-PC\\SharedReports
+
+        ALTERNATİF YÖNTEM:
+        - Dosyayı e-posta ile gönderin
+        - USB bellek ile taşıyın
+        - Ağ sürücüsüne manuel kopyalayın
+
+        TEKNİK AYARLAR İÇİN:
+        - Ağ paylaşımının açık olduğundan emin olun
+        - Ana bilgisayarın IP adresini kontrol edin
+        - Güvenlik duvarı ayarlarını kontrol edin
+    `;
+
+    // Show detailed instructions to user
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+        align-items: center; z-index: 10000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h2 style="color: #d35400; margin-top: 0;">⚠️ Manuel Dosya Transferi Gerekli</h2>
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 1rem; border-radius: 5px; margin: 1rem 0;">
+                <pre style="white-space: pre-wrap; font-family: Arial; font-size: 14px; color: #856404;">${instructions}</pre>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                <button onclick="downloadExcelForManualTransfer()" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Excel'i İndir
+                </button>
+                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Kapat</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Download Excel for manual transfer
+async function downloadExcelForManualTransfer() {
+    const currentPackages = await ExcelJS.readFile();
+    if (currentPackages.length > 0) {
+        const date = new Date().toISOString().split('T')[0];
+        const filename = `ProClean_Rapor_${date}_${getCurrentWorkspaceName()}.xlsx`;
+        ProfessionalExcelExport.exportToProfessionalExcel(currentPackages, filename);
+    }
+}
+
+// Enhanced logout function with better network sharing
+async function logoutWithConfirmation() {
+    const confirmation = confirm(
+        "Çıkış yapmak üzeresiniz. Excel dosyası ana bilgisayara gönderilecek, " +
+        "raporlara taşınacak ve mevcut veriler temizlenecek. " +
+        "Devam etmek istiyor musunuz?"
+    );
+    
+    if (!confirmation) return;
+
+    try {
+        showAlert("Excel dosyası ana bilgisayara gönderiliyor...", "info");
+        
+        // Get current Excel data
+        const currentPackages = await ExcelJS.readFile();
+        
+        if (currentPackages.length > 0) {
+            // Upload to Supabase
+            await uploadExcelToSupabase(currentPackages);
+
+            // Send to Main PC via network share
+            const networkSuccess = await sendExcelToMainPC(currentPackages);
+            
+            if (!networkSuccess) {
+                // If automatic transfer fails, download for manual transfer
+                showAlert("Otomatik gönderim başarısız. Manuel transfer için dosya indirilecek.", "warning");
+                await downloadExcelForManualTransfer();
+            }
+            
+            // LocalStorage backup
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const reportData = {
+                fileName: `rapor_${timestamp}.json`,
+                date: new Date().toISOString(),
+                packages: currentPackages,
+                packageCount: currentPackages.length,
+                totalQuantity: currentPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
+            };
+            
+            localStorage.setItem(`report_${timestamp}`, JSON.stringify(reportData));
+
+            // Clear local Excel
+            await ExcelJS.writeFile([]);
+            excelPackages = [];
+
+            showAlert("Excel dosyası işlemleri tamamlandı", "success");
+        }
+
+        // Perform logout
+        await performLogout();
+
+    } catch (error) {
+        console.error("Logout error:", error);
+        showAlert("Logout işlemi sırasında hata oluştu: " + error.message, "error");
+    }
+}
 // Optional: Network drive sharing (requires backend API)
 async function shareToNetworkDrive(packages) {
     // This would require a backend service due to browser security restrictions
