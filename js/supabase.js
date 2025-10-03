@@ -3379,7 +3379,7 @@ async function viewContainerDetails(containerId) {
 let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// Enhanced populateReportsTable function
+// Enhanced populateReportsTable function with proper spacing
 async function populateReportsTable() {
     try {
         console.log('Populating reports table with daily Excel files...');
@@ -3392,7 +3392,7 @@ async function populateReportsTable() {
         
         // Show loading state
         reportsContainer.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #666;">
+            <div style="text-align: center; padding: 40px; color: #666; min-height: 400px;">
                 <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
                 <h4>Raporlar yükleniyor...</h4>
             </div>
@@ -3402,10 +3402,11 @@ async function populateReportsTable() {
         const dailyFiles = ExcelStorage.getAvailableDailyFiles();
         
         let reportsHTML = `
-            <div style="margin-bottom: 20px;">
+            <div style="margin-bottom: 20px; padding-bottom: 10px;">
                 <h3><i class="fas fa-file-excel"></i> Günlük Excel Dosyaları</h3>
                 <p style="color: #666; font-size: 0.9rem;">Son 7 güne ait paket kayıtları</p>
             </div>
+            <div id="reportsContent" style="min-height: 300px; margin-bottom: 80px;">
         `;
         
         if (dailyFiles.length === 0) {
@@ -3468,18 +3469,20 @@ async function populateReportsTable() {
                     </div>
                 `;
             });
-            
-            // Add cleanup button
-            reportsHTML += `
-                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
-                    <button onclick="cleanupOldFiles()" 
-                            class="btn btn-warning btn-sm">
-                        <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
-                    </button>
-                    <small style="color: #666; margin-left: 12px;">Sadece son 7 günün dosyaları saklanır</small>
-                </div>
-            `;
         }
+        
+        reportsHTML += `</div>`; // Close reportsContent div
+        
+        // Add cleanup button with proper spacing
+        reportsHTML += `
+            <div style="margin-top: 20px; padding: 16px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;">
+                <button onclick="cleanupOldFiles()" 
+                        class="btn btn-warning btn-sm">
+                    <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
+                </button>
+                <small style="color: #666; margin-left: 12px;">Sadece son 7 günün dosyaları saklanır</small>
+            </div>
+        `;
         
         reportsContainer.innerHTML = reportsHTML;
         console.log(`✅ Reports table populated with ${dailyFiles.length} daily files`);
@@ -3489,7 +3492,7 @@ async function populateReportsTable() {
         const reportsContainer = document.getElementById('reportsTab');
         if (reportsContainer) {
             reportsContainer.innerHTML = `
-                <div style="text-align: center; color: #d32f2f; padding: 40px;">
+                <div style="text-align: center; color: #d32f2f; padding: 40px; min-height: 400px;">
                     <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
                     <h4>Raporlar yüklenirken hata oluştu</h4>
                     <p>${error.message}</p>
@@ -3502,7 +3505,7 @@ async function populateReportsTable() {
     }
 }
 
-// Enhanced viewDailyFile function
+// Enhanced viewDailyFile function with better modal positioning
 async function viewDailyFile(dateString) {
     try {
         const fileName = `packages_${dateString}.json`;
@@ -3521,7 +3524,7 @@ async function viewDailyFile(dateString) {
             existingModal.remove();
         }
         
-        // Create a modal to show file details
+        // Create a modal to show file details with proper z-index and positioning
         const modal = document.createElement('div');
         modal.className = 'daily-file-modal';
         modal.style.cssText = `
@@ -3536,6 +3539,9 @@ async function viewDailyFile(dateString) {
             align-items: center; 
             z-index: 10000;
             font-family: inherit;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: auto;
         `;
         
         modal.innerHTML = `
@@ -3543,12 +3549,13 @@ async function viewDailyFile(dateString) {
                 background: white; 
                 padding: 24px; 
                 border-radius: 8px; 
-                max-width: 90%; 
-                max-height: 90%; 
-                width: 900px; 
+                max-width: 95%; 
+                max-height: 90vh; 
+                width: 1000px; 
                 overflow: hidden;
                 display: flex;
                 flex-direction: column;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             ">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0;">
                     <h3 style="margin: 0; color: #333;">
@@ -3568,7 +3575,11 @@ async function viewDailyFile(dateString) {
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
-                            ">
+                                border-radius: 50%;
+                                transition: background 0.2s;
+                            " 
+                            onmouseover="this.style.background='#f0f0f0'"
+                            onmouseout="this.style.background='transparent'">
                         ×
                     </button>
                 </div>
@@ -3590,12 +3601,13 @@ async function viewDailyFile(dateString) {
                     overflow: auto; 
                     border: 1px solid #ddd;
                     border-radius: 4px;
+                    min-height: 200px;
                 ">
                     <table style="
                         width: 100%; 
                         border-collapse: collapse; 
                         font-size: 0.9em;
-                        min-width: 600px;
+                        min-width: 800px;
                     ">
                         <thead style="background: #f0f0f0; position: sticky; top: 0;">
                             <tr>
@@ -3928,7 +3940,7 @@ function safeExcelStorageCall(method, ...args) {
     }
 }
 
-// Add CSS styles for better appearance
+// Add CSS styles for better appearance and layout fixes
 function addReportsStyles() {
     if (!document.getElementById('reports-styles')) {
         const styles = `
@@ -3959,6 +3971,17 @@ function addReportsStyles() {
             .btn:hover {
                 opacity: 0.9;
                 transform: translateY(-1px);
+            }
+            
+            /* Fix for reports tab layout */
+            #reportsTab {
+                padding-bottom: 100px !important;
+                min-height: calc(100vh - 200px);
+            }
+            
+            /* Ensure modal is above footer */
+            .daily-file-modal {
+                z-index: 10000 !important;
             }
         `;
         const styleSheet = document.createElement('style');
@@ -3991,7 +4014,6 @@ window.cleanupOldFiles = cleanupOldFiles;
 window.closeDailyFileModal = closeDailyFileModal;
 
 console.log('✅ Reports module loaded successfully');
-
 
 
 
