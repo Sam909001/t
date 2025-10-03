@@ -212,24 +212,25 @@ document.addEventListener("DOMContentLoaded", function() {
     <!-- MIDDLE COLUMN: Bekleyen Paketler Table -->
     <div class="pending-packages">
         <h3>Bekleyen Paketler</h3>
-        <table class="package-table">
-            <thead>
-                <tr>
-                    <th>
-                        <input type="checkbox" id="selectAllPackages" onchange="toggleSelectAll()">
-                    </th>
-                    <th>Paket No</th>
-                    <th>Müşteri</th>
-                    <th>Ürün</th>
-                    <th>Adet</th>
-                    <th>Tarih</th>
-                    <th>Durum</th>
-                </tr>
-            </thead>
-            <tbody id="packagesTableBody">
-                <!-- Data will be populated here -->
-            </tbody>
-        </table>
+    <table class="package-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="selectAllPackages" onchange="toggleSelectAll()">
+                            </th>
+                            <th>Paket No</th>
+                            <th>Müşteri</th>
+                            <th>Ürün</th>
+                            <th>Adet</th>
+                            <th>Tarih</th>
+                            <th>Durum</th>
+                            <th style="width: 50px;">Yazdır</th>
+                        </tr>
+                    </thead>
+                    <tbody id="packagesTableBody">
+                        <!-- Data will be populated here -->
+                    </tbody>
+                </table>
     </div>
 
     <!-- RIGHT COLUMN: Barcode + Package Details + Scanner Button -->
