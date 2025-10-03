@@ -270,91 +270,62 @@ function setupBarcodeScanner() {
 // Stok düzenleme fonksiyonları
 let currentEditingRow = null;
 
-
 // Enhanced stock editing functionality
 // Enhanced stock editing functionality
 function editStockItem(code) {
-    console.log('Editing stock item:', code);
+    if (!requirePassword('Stok öğesini düzenlemek üzeresiniz.')) return;
     
-    // Find the row
-    const stockTableBody = document.getElementById('stockTableBody');
-    if (!stockTableBody) {
-        console.error('Stock table body not found');
+    const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
+    if (!row) {
+        showAlert('Stok öğesi bulunamadı', 'error');
         return;
     }
     
-    const rows = stockTableBody.querySelectorAll('tr');
-    let targetRow = null;
+    const quantityCell = row.cells[2];
+    const currentQuantity = parseInt(quantityCell.textContent);
     
-    for (let row of rows) {
-        const codeCell = row.querySelector('td:first-child');
-        if (codeCell && codeCell.textContent.trim() === code) {
-            targetRow = row;
-            break;
-        }
-    }
+    const newQuantity = prompt(`Yeni miktarı girin (${code}):`, currentQuantity);
     
-    if (!targetRow) {
-        showAlert('Stok öğesi bulunamadı: ' + code, 'error');
-        return;
-    }
-    
-    const quantityCell = targetRow.querySelector('td:nth-child(3)'); // 3rd column is quantity
-    if (!quantityCell) {
-        console.error('Quantity cell not found');
-        return;
-    }
-    
-    const currentQuantity = parseInt(quantityCell.textContent) || 0;
-    
-    const newQuantity = prompt(`${code} için yeni miktarı girin:`, currentQuantity);
-    
-    if (newQuantity === null) {
-        return; // User cancelled
-    }
+    if (newQuantity === null) return; // User cancelled
     
     const quantity = parseInt(newQuantity);
-    
     if (isNaN(quantity) || quantity < 0) {
         showAlert('Geçerli bir miktar girin (0 veya üzeri)', 'error');
         return;
     }
     
-    // Update the stock
-    updateStockItem(code, quantity, targetRow);
+    updateStockItem(code, quantity, row);
 }
 
 async function updateStockItem(code, newQuantity, row) {
     try {
-        showAlert('Stok güncelleniyor...', 'info', 1000);
-        
-        const quantityCell = row.querySelector('td:nth-child(3)');
-        const statusCell = row.querySelector('td:nth-child(5)');
-        const dateCell = row.querySelector('td:nth-child(6)');
+        showAlert('Stok güncelleniyor...', 'info');
         
         // Update UI immediately
-        if (quantityCell) quantityCell.textContent = newQuantity;
-        if (dateCell) dateCell.textContent = new Date().toLocaleDateString('tr-TR');
+        const quantityCell = row.cells[2];
+        const statusCell = row.cells[4];
+        const dateCell = row.cells[5];
+        
+        quantityCell.textContent = newQuantity;
+        dateCell.textContent = new Date().toLocaleDateString('tr-TR');
         
         // Update status
-        if (statusCell) {
-            let statusClass, statusText;
-            if (newQuantity === 0) {
-                statusClass = 'status-kritik';
-                statusText = 'Tükendi';
-            } else if (newQuantity < 10) {
-                statusClass = 'status-az-stok';
-                statusText = 'Az Stok';
-            } else if (newQuantity < 50) {
-                statusClass = 'status-uyari';
-                statusText = 'Düşük';
-            } else {
-                statusClass = 'status-stokta';
-                statusText = 'Stokta';
-            }
-            
-            statusCell.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
+        let statusClass, statusText;
+        if (newQuantity === 0) {
+            statusClass = 'status-kritik';
+            statusText = 'Tükendi';
+        } else if (newQuantity < 10) {
+            statusClass = 'status-az-stok';
+            statusText = 'Az Stok';
+        } else if (newQuantity < 50) {
+            statusClass = 'status-uyari';
+            statusText = 'Düşük';
+        } else {
+            statusClass = 'status-stokta';
+            statusText = 'Stokta';
         }
+        
+        statusCell.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
         
         // Save to database if online
         if (supabase && navigator.onLine) {
@@ -366,35 +337,27 @@ async function updateStockItem(code, newQuantity, row) {
                 })
                 .eq('code', code);
                 
-            if (error) {
-                console.error('Supabase update error:', error);
-                throw error;
-            }
-            
-            showAlert(`✅ Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
+            if (error) throw error;
         } else {
-            // Save to localStorage for offline mode
-            const stockUpdates = JSON.parse(localStorage.getItem('stockUpdates') || '[]');
-            stockUpdates.push({
+            // Save to offline storage
+            saveOfflineData('stockUpdates', {
                 code: code,
                 quantity: newQuantity,
                 updated_at: new Date().toISOString()
             });
-            localStorage.setItem('stockUpdates', JSON.stringify(stockUpdates));
-            
-            showAlert(`✅ Stok güncellendi (offline): ${code} - ${newQuantity} adet`, 'success');
         }
+        
+        showAlert(`Stok güncellendi: ${code} - ${newQuantity} adet`, 'success');
         
     } catch (error) {
         console.error('Stock update error:', error);
-        showAlert('Stok güncellenirken hata oluştu: ' + error.message, 'error');
+        showAlert('Stok güncellenirken hata oluştu', 'error');
         
-        // Reload table on error
-        if (typeof populateStockTable === 'function') {
-            populateStockTable();
-        }
+        // Revert UI on error
+        populateStockTable();
     }
 }
+
 
 
 // Add missing saveStockItem function
@@ -1790,31 +1753,22 @@ function getSelectedPackage() {
     };
 }
 
-// FIXED: Select All for Packages
-function toggleSelectAll(source) {
+function toggleSelectAll() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const selectAll = document.getElementById('selectAllPackages').checked;
+    
     checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
-    });
-    updatePackageSelection();
-}
-
-// FIXED: Select All for Containers
-function toggleSelectAllContainers(source) {
-    const checkboxes = document.querySelectorAll('.container-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
+        checkbox.checked = selectAll;
     });
 }
 
-// FIXED: Select All for Customer Folders
-function toggleSelectAllCustomer(source) {
-    const folder = source.closest('.customer-folder');
-    const checkboxes = folder.querySelectorAll('.container-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
-    });
+function updatePackageSelection() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    
+    document.getElementById('selectAllPackages').checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
 }
+
 // Stock operations
 function searchStock() {
     if (!elements.stockSearch) {
@@ -2254,12 +2208,7 @@ window.addEventListener('beforeunload', () => {
     eventListenerManager.cleanupAllListeners();
 });
 
-// Add to initializeElementsObject() or setupEventListeners()
-const selectAllCheckbox = document.getElementById('selectAllPackages');
-if (selectAllCheckbox) {
-    selectAllCheckbox.addEventListener('change', toggleSelectAll);
-    console.log('✅ Select all checkbox listener attached');
-}
+
 // ==================== PERFORMANCE OPTIMIZATION ====================
 
 // Add this to ui.js
@@ -3048,369 +2997,4 @@ async function completePackage() {
 
 
 
-// Reports tab functionality fixes
-async function populateReportsTable() {
-    const reportsTableBody = document.getElementById('reportsTableBody');
-    
-    if (!reportsTableBody) {
-        console.error('Reports table body not found');
-        return;
-    }
-    
-    try {
-        showAlert('Raporlar yükleniyor...', 'info', 1000);
-        
-        let reports = [];
-        
-        // Get reports from localStorage
-        const localReports = Object.keys(localStorage)
-            .filter(key => key.startsWith('report_'))
-            .map(key => {
-                try {
-                    return JSON.parse(localStorage.getItem(key));
-                } catch (e) {
-                    return null;
-                }
-            })
-            .filter(report => report !== null);
-        
-        reports = localReports;
-        
-        // Also get from Supabase if available
-        if (supabase && navigator.onLine) {
-            const { data: supabaseReports, error } = await supabase
-                .from('reports')
-                .select('*')
-                .order('created_at', { ascending: false });
-            
-            if (!error && supabaseReports) {
-                reports = [...reports, ...supabaseReports];
-            }
-        }
-        
-        // Sort by date
-        reports.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
-        
-        // Populate table
-        reportsTableBody.innerHTML = reports.map(report => `
-            <tr>
-                <td>${new Date(report.date || report.created_at).toLocaleDateString('tr-TR')}</td>
-                <td>${report.fileName || 'Rapor'}</td>
-                <td>${report.packageCount || 0}</td>
-                <td>${report.totalQuantity || 0}</td>
-                <td>
-                    <button onclick="viewReport('${report.fileName}')" class="btn btn-sm btn-primary">
-                        <i class="fas fa-eye"></i> Görüntüle
-                    </button>
-                    <button onclick="downloadReport('${report.fileName}')" class="btn btn-sm btn-success">
-                        <i class="fas fa-download"></i> İndir
-                    </button>
-                    <button onclick="deleteReport('${report.fileName}')" class="btn btn-sm btn-danger">
-                        <i class="fas fa-trash"></i> Sil
-                    </button>
-                </td>
-            </tr>
-        `).join('') || '<tr><td colspan="5" style="text-align:center;">Henüz rapor yok</td></tr>';
-        
-    } catch (error) {
-        console.error('Error loading reports:', error);
-        showAlert('Raporlar yüklenirken hata oluştu', 'error');
-    }
-}
 
-async function viewReport(reportId) {
-    try {
-        const fileName = `report_${reportId}`;
-        const reportData = localStorage.getItem(fileName);
-        
-        if (!reportData) {
-            showAlert('Rapor bulunamadı', 'error');
-            return;
-        }
-        
-        const report = JSON.parse(reportData);
-        
-        // Create a modal to display report
-        const modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;';
-        modal.innerHTML = `
-            <div style="background:white; padding:2rem; border-radius:8px; max-width:800px; max-height:80vh; overflow:auto;">
-                <h3>${report.fileName || 'Rapor'}</h3>
-                <p>Tarih: ${new Date(report.date).toLocaleDateString('tr-TR')}</p>
-                <p>Paket Sayısı: ${report.packageCount || 0}</p>
-                <p>Toplam Adet: ${report.totalQuantity || 0}</p>
-                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Kapat</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-    } catch (error) {
-        showAlert('Rapor görüntülenirken hata: ' + error.message, 'error');
-    }
-}
-
-async function exportReport(reportId) {
-    try {
-        const fileName = `report_${reportId}`;
-        const reportData = localStorage.getItem(fileName);
-        
-        if (!reportData) {
-            showAlert('Rapor bulunamadı', 'error');
-            return;
-        }
-        
-        const blob = new Blob([reportData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${fileName}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        showAlert('Rapor indirildi', 'success');
-    } catch (error) {
-        showAlert('İndirme hatası: ' + error.message, 'error');
-    }
-}
-// Delete report
-async function deleteReport(fileName) {
-    if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) {
-        return;
-    }
-    
-    try {
-        const reportKey = `report_${fileName}`;
-        localStorage.removeItem(reportKey);
-        
-        // Also delete from Supabase if exists
-        if (supabase && navigator.onLine) {
-            await supabase
-                .from('reports')
-                .delete()
-                .eq('fileName', fileName);
-        }
-        
-        showAlert('Rapor silindi', 'success');
-        await populateReportsTable();
-        
-    } catch (error) {
-        console.error('Error deleting report:', error);
-        showAlert('Rapor silinirken hata oluştu', 'error');
-    }
-}
-
-
-// Add to ui.js - Fix select all functionality
-function toggleSelectAllPackages() {
-    const selectAllCheckbox = document.getElementById('selectAllPackages');
-    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    
-    if (!selectAllCheckbox) {
-        console.error('Select all packages checkbox not found');
-        return;
-    }
-    
-    const isChecked = selectAllCheckbox.checked;
-    
-    packageCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-    });
-    
-    console.log(`${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
-}
-
-function toggleSelectAllContainers() {
-    const selectAllCheckbox = document.getElementById('selectAllContainers');
-    const containerCheckboxes = document.querySelectorAll('.container-checkbox');
-    
-    if (!selectAllCheckbox) {
-        console.error('Select all containers checkbox not found');
-        return;
-    }
-    
-    const isChecked = selectAllCheckbox.checked;
-    
-    containerCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-    });
-    
-    console.log(`${isChecked ? 'Selected' : 'Deselected'} ${containerCheckboxes.length} containers`);
-}
-
-// Update package selection count
-function updatePackageSelection() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    
-    const selectAllCheckbox = document.getElementById('selectAllPackages');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-    }
-}
-
-// Update container selection count
-function updateContainerSelection() {
-    const checkboxes = document.querySelectorAll('.container-checkbox');
-    const checkedBoxes = document.querySelectorAll('.container-checkbox:checked');
-    
-    const selectAllCheckbox = document.getElementById('selectAllContainers');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-    }
-}
-
-
-// ==================== SIMPLIFIED DATA COLLECTION ====================
-
-// Simple mock functions that will work even if your real functions are missing
-async function getAllPackages() {
-    try {
-        // Try multiple sources
-        if (window.packages && Array.isArray(window.packages)) {
-            return window.packages.slice(0, 10); // Limit for preview
-        }
-        
-        const localData = localStorage.getItem('proclean_packages') || 
-                         localStorage.getItem('packages') ||
-                         localStorage.getItem('excelData');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
-        }
-        
-        // Return sample data for testing
-        return [
-            { package_no: 'PKG-001', customer_name: 'Test Müşteri', total_quantity: 5, status: 'beklemede' },
-            { package_no: 'PKG-002', customer_name: 'Demo Firma', total_quantity: 3, status: 'sevk-edildi' }
-        ];
-    } catch (error) {
-        console.error('Error in getAllPackages:', error);
-        return [];
-    }
-}
-
-async function getAllStock() {
-    try {
-        // Try to get from table
-        const stockTable = document.getElementById('stockTableBody');
-        if (stockTable) {
-            const rows = stockTable.querySelectorAll('tr');
-            const stockData = [];
-            
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 3) {
-                    stockData.push({
-                        code: cells[0]?.textContent || 'STK-001',
-                        name: cells[1]?.textContent || 'Test Ürün',
-                        quantity: parseInt(cells[2]?.textContent) || 0,
-                        unit: cells[3]?.textContent || 'adet',
-                        status: cells[4]?.textContent || 'Stokta'
-                    });
-                }
-            });
-            
-            return stockData.slice(0, 5);
-        }
-        
-        // Sample data
-        return [
-            { code: 'STK-001', name: 'Büyük Çarşaf', quantity: 50, unit: 'adet', status: 'Stokta' },
-            { code: 'STK-002', name: 'Havlu', quantity: 25, unit: 'adet', status: 'Az Stok' }
-        ];
-    } catch (error) {
-        console.error('Error in getAllStock:', error);
-        return [];
-    }
-}
-
-async function getAllShippingData() {
-    return [
-        { container_no: 'CONT-001', customer: 'Test Firma', package_count: 5, status: 'sevk-edildi' }
-    ];
-}
-
-async function getAllReports() {
-    return [
-        { fileName: 'Rapor_2024', packageCount: 10, totalQuantity: 45, date: new Date().toISOString() }
-    ];
-}
-
-async function getAllCustomers() {
-    try {
-        const customerSelect = document.getElementById('customerSelect');
-        if (customerSelect) {
-            const customers = [];
-            for (let option of customerSelect.options) {
-                if (option.value && option.value !== '') {
-                    customers.push({
-                        id: option.value,
-                        name: option.textContent.split(' (')[0],
-                        code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                    });
-                }
-            }
-            return customers.slice(0, 5);
-        }
-        
-        return [
-            { id: '1', name: 'Test Müşteri', code: 'CUST001' },
-            { id: '2', name: 'Demo Firma', code: 'CUST002' }
-        ];
-    } catch (error) {
-        console.error('Error in getAllCustomers:', error);
-        return [];
-    }
-}
-
-
-
-// ==================== GLOBAL EXPORT - ADD THIS AT THE VERY BOTTOM ====================
-
-// Make all functions globally available
-window.previewExcelData = previewExcelData;
-window.switchPreviewTab = switchPreviewTab;
-window.closeExcelPreviewModal = closeExcelPreviewModal;
-window.exportDataFromPreview = exportDataFromPreview;
-
-// Also export the data collection functions
-window.getAllPackages = getAllPackages;
-window.getAllStock = getAllStock;
-window.getAllShippingData = getAllShippingData;
-window.getAllReports = getAllReports;
-window.getAllCustomers = getAllCustomers;
-
-// Export the modal creation function
-window.createExcelPreviewModal = createExcelPreviewModal;
-
-// Test if functions are available
-console.log('✅ Excel Preview Functions Loaded:');
-console.log('previewExcelData:', typeof previewExcelData);
-console.log('getAllPackages:', typeof getAllPackages);
-console.log('createExcelPreviewModal:', typeof createExcelPreviewModal);
-
-
-
-// ==================== EVENT LISTENER FOR EXCEL PREVIEW ====================
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait a bit for everything to load
-    setTimeout(function() {
-        const excelPreviewBtn = document.getElementById('excelPreviewBtn');
-        if (excelPreviewBtn) {
-            console.log('✅ Excel preview button found, adding event listener');
-            excelPreviewBtn.addEventListener('click', function() {
-                console.log('🎯 Excel preview button clicked via event listener');
-                if (typeof previewExcelData === 'function') {
-                    previewExcelData();
-                } else {
-                    console.error('❌ previewExcelData is not a function');
-                    showAlert('Excel önizleme fonksiyonu yüklenemedi', 'error');
-                }
-            });
-        } else {
-            console.error('❌ Excel preview button not found');
-        }
-    }, 1000);
-});
