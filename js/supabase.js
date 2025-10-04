@@ -2979,13 +2979,11 @@ async function populateShippingTable(page = 0) {
     try {
         console.log('Populating shipping table...');
 
-       const shippingFolders = document.getElementById('shippingFolders');
-if (!shippingFolders) {
-    console.log('⏳ shippingFolders not found yet, waiting...');
-    // Try again in 500ms
-    setTimeout(populateShippingTable, 500);
-    return;
-}
+        const shippingFolders = document.getElementById('shippingFolders');
+        if (!shippingFolders) {
+            console.error('shippingFolders element not found!');
+            return;
+        }
 
         // Show loading state
         shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666; font-size:16px;">Sevkiyat verileri yükleniyor...</div>';
@@ -4017,11 +4015,10 @@ async function populateStockTable() {
         console.log('Populating stock table...');
         
         const stockTableBody = document.getElementById('stockTableBody');
-if (!stockTableBody) {
-    console.log('⏳ stockTableBody not found yet, waiting...');
-    setTimeout(populateStockTable, 500);
-    return;
-}
+        if (!stockTableBody) {
+            console.error('Stock table body not found');
+            return;
+        }
         
         stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
         
@@ -4119,11 +4116,10 @@ async function populateReportsTable() {
         console.log('Populating reports table...');
         
         const reportsTableBody = document.getElementById('reportsTableBody');
-if (!reportsTableBody) {
-    console.log('⏳ reportsTableBody not found yet, waiting...');
-    setTimeout(populateReportsTable, 500);
-    return;
-}
+        if (!reportsTableBody) {
+            console.error('Reports table body not found');
+            return;
+        }
         
         reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
         
@@ -5646,48 +5642,3 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
-
-
-
-// ==================== EVENT DELEGATION APPROACH ====================
-console.log('🎯 Setting up event delegation for tabs...');
-
-// Remove any existing click handlers from tabs
-document.querySelectorAll('[data-tab]').forEach(tab => {
-    tab.onclick = null;
-});
-
-// Add our own event delegation
-document.querySelector('.tabs').addEventListener('click', function(e) {
-    const tab = e.target.closest('[data-tab]');
-    if (tab) {
-        const tabName = tab.getAttribute('data-tab');
-        console.log(`🎯 Tab clicked via delegation: ${tabName}`);
-        
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Update active tab visually
-        document.querySelectorAll('[data-tab]').forEach(t => {
-            t.classList.remove('active');
-        });
-        tab.classList.add('active');
-        
-        // Show the corresponding tab content
-        const contentId = tabName + 'Tab';
-        document.querySelectorAll('.tab-pane').forEach(pane => {
-            pane.style.display = 'none';
-        });
-        const targetContent = document.getElementById(contentId);
-        if (targetContent) {
-            targetContent.style.display = 'block';
-        }
-        
-        // Load the tab data
-        setTimeout(() => {
-            loadTabData(tabName);
-        }, 200);
-    }
-});
-
-console.log('✅ Event delegation setup complete');
