@@ -5649,107 +5649,92 @@ window.printSinglePackage = async function(packageId) {
 
 
 
-// ==================== TAB INITIALIZATION ====================
-// Add this right before the end of your supabase.js file
+// ==================== INTEGRATE WITH EXISTING TAB SYSTEM ====================
+console.log('🔗 Integrating with existing tab system...');
 
-function initializeTabs() {
-    console.log('🚀 Initializing tabs...');
+// Store the original switchTab function
+const originalSwitchTab = window.switchTab;
+
+// Override switchTab to automatically load tab data
+window.switchTab = function(tabName) {
+    console.log(`🎯 switchTab called: ${tabName}`);
     
-    const tabHandlers = {
-        'shipping': populateShippingTable,
-        'stock': populateStockTable,
-        'reports': populateReportsTable
-    };
+    // Call the original function first
+    if (originalSwitchTab) {
+        originalSwitchTab(tabName);
+    }
     
-    // Add click handlers to all tabs
-    document.querySelectorAll('[data-tab]').forEach(tab => {
-        const tabName = tab.getAttribute('data-tab');
-        const handler = tabHandlers[tabName];
+    // Wait for tab content to be ready, then load data
+    setTimeout(() => {
+        console.log(`🔄 Loading data for ${tabName} tab...`);
+        loadTabData(tabName);
+    }, 300);
+};
+
+function loadTabData(tabName) {
+    console.log(`📦 Loading ${tabName} data...`);
+    
+    // Retry mechanism for dynamic content
+    function tryLoad(attempt = 0) {
+        const maxAttempts = 5;
         
-        if (handler) {
-            tab.addEventListener('click', function() {
-                console.log(`🎯 ${tabName} tab clicked, loading...`);
+        switch(tabName) {
+            case 'shipping':
+                const shippingFolders = document.getElementById('shippingFolders');
+                if (shippingFolders) {
+                    console.log('✅ shippingFolders found, loading data...');
+                    populateShippingTable();
+                } else if (attempt < maxAttempts) {
+                    console.log(`⏳ shippingFolders not found, retrying... (${attempt + 1}/${maxAttempts})`);
+                    setTimeout(() => tryLoad(attempt + 1), 200);
+                } else {
+                    console.log('❌ shippingFolders not found after retries');
+                }
+                break;
                 
-                // Call the tab function
-                setTimeout(() => {
-                    try {
-                        handler();
-                    } catch (error) {
-                        console.error(`❌ Error loading ${tabName} tab:`, error);
-                    }
-                }, 100);
-            });
-            
-            console.log(`✅ Added handler to ${tabName} tab`);
+            case 'stock':
+                const stockTableBody = document.getElementById('stockTableBody');
+                if (stockTableBody) {
+                    console.log('✅ stockTableBody found, loading data...');
+                    populateStockTable();
+                } else if (attempt < maxAttempts) {
+                    console.log(`⏳ stockTableBody not found, retrying... (${attempt + 1}/${maxAttempts})`);
+                    setTimeout(() => tryLoad(attempt + 1), 200);
+                } else {
+                    console.log('❌ stockTableBody not found after retries');
+                }
+                break;
+                
+            case 'reports':
+                const reportsTableBody = document.getElementById('reportsTableBody');
+                if (reportsTableBody) {
+                    console.log('✅ reportsTableBody found, loading data...');
+                    populateReportsTable();
+                } else if (attempt < maxAttempts) {
+                    console.log(`⏳ reportsTableBody not found, retrying... (${attempt + 1}/${maxAttempts})`);
+                    setTimeout(() => tryLoad(attempt + 1), 200);
+                } else {
+                    console.log('❌ reportsTableBody not found after retries');
+                }
+                break;
         }
-    });
+    }
+    
+    tryLoad();
 }
 
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(initializeTabs, 1000);
+// Also hook into the tab click events directly
+document.addEventListener('click', function(e) {
+    const tab = e.target.closest('[data-tab]');
+    if (tab) {
+        const tabName = tab.getAttribute('data-tab');
+        console.log(`🎯 Tab clicked: ${tabName}`);
+        
+        // Let the existing system handle the click, then load data
+        setTimeout(() => {
+            loadTabData(tabName);
+        }, 400);
+    }
 });
 
-// Also initialize when workspace is ready
-if (window.workspaceManager) {
-    window.workspaceManager.onWorkspaceChange = function() {
-        setTimeout(initializeTabs, 500);
-    };
-}
-
-
-
-// ==================== ULTIMATE TAB FIX ====================
-console.log('🎯 ULTIMATE TAB FIX - Starting execution');
-
-// Simple direct approach
-function ultimateTabFix() {
-    console.log('🔧 UltimateTabFix executing...');
-    
-    // Direct onclick assignments
-    const shippingTab = document.querySelector('[data-tab="shipping"]');
-    const stockTab = document.querySelector('[data-tab="stock"]');
-    const reportsTab = document.querySelector('[data-tab="reports"]');
-    
-    if (shippingTab) {
-        shippingTab.onclick = function() {
-            console.log('🚚 Shipping tab clicked - calling populateShippingTable');
-            populateShippingTable();
-        };
-        console.log('✅ Shipping tab handler set');
-    }
-    
-    if (stockTab) {
-        stockTab.onclick = function() {
-            console.log('📦 Stock tab clicked - calling populateStockTable');
-            populateStockTable();
-        };
-        console.log('✅ Stock tab handler set');
-    }
-    
-    if (reportsTab) {
-        reportsTab.onclick = function() {
-            console.log('📊 Reports tab clicked - calling populateReportsTable');
-            populateReportsTable();
-        };
-        console.log('✅ Reports tab handler set');
-    }
-}
-
-// Run with multiple fallbacks
-console.log('🔄 Setting up execution...');
-
-// Immediate execution
-setTimeout(ultimateTabFix, 100);
-
-// DOM ready execution
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ultimateTabFix);
-} else {
-    setTimeout(ultimateTabFix, 500);
-}
-
-// Window load execution
-window.addEventListener('load', ultimateTabFix);
-
-console.log('🎯 ULTIMATE TAB FIX - Setup complete');
+console.log('✅ Tab system integration complete');
