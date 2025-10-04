@@ -1604,10 +1604,17 @@ async function completePackageWithRecovery() {
 
 
 
-// Check printer status function
 function checkPrinterStatus() {
+    // ADD THIS CHECK AT THE BEGINNING
+    if (typeof printer === 'undefined') {
+        console.log('❌ Printer not initialized');
+        showAlert('Yazıcı bağlantısı kurulmadı. Lütfen yazıcı ayarlarını kontrol edin.', 'error');
+        return false;
+    }
+    
     console.log('🔍 Checking printer status...');
     
+    // Rest of your existing code...
     if (!printer) {
         console.log('❌ Printer not defined');
         showAlert('Yazıcı servisi başlatılmamış', 'error');
