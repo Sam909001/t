@@ -1,4 +1,4 @@
-/// Supabase initialization - Varsayılan değerler
+/// Supabase initialization - Default values
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
 let SUPABASE_ANON_KEY = null;
 let supabase = null;
@@ -52,7 +52,6 @@ if (typeof emailjs === 'undefined') {
     };
 }
 
-// Add this RIGHT AFTER the existing global variables (around line 25)
 // ==================== WORKSPACE MANAGEMENT ====================
 class WorkspaceManager {
     constructor() {
@@ -60,15 +59,26 @@ class WorkspaceManager {
         this.workspaceKey = 'proclean_current_workspace';
         this.availableWorkspaces = [];
         this.onWorkspaceChange = null;
+        this.initialized = false;
+        this.printerConfigs = new Map();
+        this.dataValidators = new Map();
+        this.setupDataValidators();
+        this.loadPrinterConfigurations();
     }
     
     // Initialize workspace system
     async initialize() {
+        if (this.initialized) {
+            return this.currentWorkspace;
+        }
+
         console.log('🔄 Initializing workspace system...');
         await this.loadWorkspaces();
-        await this.detectOrCreateWorkspace();
+        await this.restoreWorkspace();
         this.initializeWorkspaceStorage();
-        console.log('✅ Workspace system ready:', this.currentWorkspace);
+        
+        this.initialized = true;
+        console.log('✅ Workspace system ready:', this.currentWorkspace?.name);
         return this.currentWorkspace;
     }
     
@@ -98,11 +108,11 @@ class WorkspaceManager {
         }
     }
     
-    // Detect or create workspace for current monitor
-    async detectOrCreateWorkspace() {
-        console.log('🔍 Detecting workspace...');
+    // Restore workspace from storage or URL
+    async restoreWorkspace() {
+        console.log('🔍 Restoring workspace...');
         
-        // Try to get workspace from URL parameters
+        // Try URL parameters first
         const urlParams = new URLSearchParams(window.location.search);
         const workspaceId = urlParams.get('workspace');
         
@@ -115,381 +125,46 @@ class WorkspaceManager {
             }
         }
         
-        // Try to get from localStorage
-        const savedWorkspace = localStorage.getItem(this.workspaceKey);
-        if (savedWorkspace) {
-            const workspace = this.availableWorkspaces.find(ws => ws.id === savedWorkspace);
-            if (workspace) {
-                this.setCurrentWorkspace(workspace);
-                console.log('✅ Workspace from localStorage:', savedWorkspace);
-                return;
-            }
-        }
-        
-        // Show workspace selection modal
-        console.log('🔄 Showing workspace selection modal');
-        await this.showWorkspaceSelection();
-    }
-    
-    // Set current workspace
-    setCurrentWorkspace(workspace) {
-        this.currentWorkspace = workspace;
-        localStorage.setItem(this.workspaceKey, workspace.id);
-        
-        console.log('🎯 Current workspace set:', workspace.name);
-        
-        // Update UI to show current workspace
-        this.updateWorkspaceUI();
-        
-        // Initialize workspace-specific storage
-        this.initializeWorkspaceStorage();
-        
-        // Notify about workspace change
-        if (this.onWorkspaceChange) {
-            this.onWorkspaceChange();
-        }
-    }
-    
-    // Update UI to show current workspace
-   updateWorkspaceUI() {
-    const workspaceIndicator = document.getElementById('workspaceIndicator');
-    
-    if (workspaceIndicator && this.currentWorkspace) {
-        const typeLabel = this.getWorkspaceTypeLabel(this.currentWorkspace);
-        
-        workspaceIndicator.innerHTML = `
-            <i class="fas fa-desktop"></i> 
-            ${this.currentWorkspace.name}
-            <span class="workspace-type">${typeLabel}</span>
-        `;
-        workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
-        console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
-    } else {
-        console.warn('⚠️ Workspace indicator element not found or workspace is null');
-    }
-    
-    // Update document title
-    if (this.currentWorkspace) {
-        document.title = `ProClean - ${this.currentWorkspace.name}`;
-    }
-}
-
-
-    
-    
-  getWorkspaceTypeLabel(workspace) {
-    // FIXED: Handle null workspace
-    const ws = workspace || this.currentWorkspace;
-    
-    if (!ws || !ws.type) {
-        return 'Genel'; // Default fallback
-    }
-    
-    const types = {
-        'packaging': 'Paketleme',
-        'shipping': 'Sevkiyat',
-        'quality': 'Kalite Kontrol',
-        'admin': 'Yönetici'
-    };
-    
-    return types[ws.type] || ws.type || 'Genel';
-}
-    
-    // Initialize workspace-specific Excel storage
-    initializeWorkspaceStorage() {
-        if (!this.currentWorkspace) {
-            console.warn('⚠️ No current workspace for storage initialization');
-            return;
-        }
-        
-        console.log('💾 Initializing workspace storage for:', this.currentWorkspace.id);
-        
-        // Store original functions
-        if (!this.originalExcelRead) {
-            this.originalExcelRead = ExcelJS.readFile;
-            this.originalExcelWrite = ExcelJS.writeFile;
-        }
-        
-        // Override with workspace-specific versions
-        ExcelJS.readFile = async function() {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-                const packages = data ? JSON.parse(data) : [];
-                console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
-                return packages;
-            } catch (error) {
-                console.error('❌ Workspace Excel read error:', error);
-                return [];
-            }
-        };
-        
-        ExcelJS.writeFile = async function(data) {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
-                console.log(`💾 Saved ${data.length} packages to workspace: ${workspaceId}`);
-                return true;
-            } catch (error) {
-                console.error('❌ Workspace Excel write error:', error);
-                return false;
-            }
-        };
-        
-        // Initialize excelPackages for current workspace
-        this.loadWorkspaceData();
-    }
-    
-   
-  // Load workspace-specific data
-async loadWorkspaceData() {
-    try {
-        const workspaceId = this.currentWorkspace?.id || 'default';
-        const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-        const packages = data ? JSON.parse(data) : [];
-        
-        // Make sure excelPackages global variable is updated
-        excelPackages = packages;
-        
-        console.log(`📦 Workspace data loaded: ${excelPackages.length} packages for workspace: ${workspaceId}`);
-        return packages;
-    } catch (error) {
-        console.error('❌ Error loading workspace data:', error);
-        excelPackages = [];
-        return [];
-    }
-}
-  
-    
-    // Restore original Excel functions
-    restoreOriginalExcelFunctions() {
-        if (this.originalExcelRead) {
-            ExcelJS.readFile = this.originalExcelRead;
-            ExcelJS.writeFile = this.originalExcelWrite;
-        }
-    }
-    
-  async showWorkspaceSelection() {
-    return new Promise((resolve) => {
-        const modal = document.createElement('div');
-        modal.className = 'modal workspace-modal';
-        modal.style.cssText = `
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0,0,0,0.8); 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            z-index: 10000;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%;">
-                <h2>Çalışma İstasyonu Seçin</h2>
-                <p>Lütfen bu monitör için bir çalışma istasyonu seçin:</p>
-                <div id="workspaceOptions" style="margin: 1rem 0;"></div>
-                <button id="createNewWorkspaceBtn" 
-                        style="margin-top: 1rem; padding: 0.5rem 1rem; width: 100%; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
-                </button>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Populate workspace options
-        const optionsContainer = document.getElementById('workspaceOptions');
-        
-        if (this.availableWorkspaces.length === 0) {
-            optionsContainer.innerHTML = '<p style="color: #666; text-align: center;">Henüz istasyon yok. Yeni istasyon oluşturun.</p>';
-        } else {
-            this.availableWorkspaces.forEach(workspace => {
-                const button = document.createElement('button');
-                button.style.cssText = `
-                    display: block; 
-                    width: 100%; 
-                    padding: 1rem; 
-                    margin: 0.5rem 0; 
-                    text-align: left; 
-                    border: 1px solid #ddd; 
-                    border-radius: 5px;
-                    background: #f9f9f9; 
-                    cursor: pointer;
-                    transition: background 0.2s;
-                `;
-                
-                // FIXED: Pass workspace to getWorkspaceTypeLabel
-                const typeLabel = this.getWorkspaceTypeLabel(workspace);
-                
-                button.innerHTML = `
-                    <strong>${workspace.name}</strong><br>
-                    <small>Tip: ${typeLabel}</small>
-                `;
-                
-                button.onmouseover = () => button.style.background = '#e8e8e8';
-                button.onmouseout = () => button.style.background = '#f9f9f9';
-                
-                button.onclick = () => {
-                    this.setCurrentWorkspace(workspace);
-                    document.body.removeChild(modal);
-                    resolve();
-                };
-                
-                optionsContainer.appendChild(button);
-            });
-        }
-        
-        // Create new workspace button handler
-        const createBtn = document.getElementById('createNewWorkspaceBtn');
-        if (createBtn) {
-            createBtn.onclick = () => {
-                this.createNewWorkspace();
-                document.body.removeChild(modal);
-                resolve();
-            };
-        }
-    });
-}
-    
-    // Create new workspace
-   createNewWorkspace() {
-    const name = prompt('Yeni istasyon adını girin:');
-    if (!name || name.trim() === '') {
-        console.log('Workspace creation cancelled');
-        return;
-    }
-    
-    const newWorkspace = {
-        id: 'station-' + Date.now(),
-        name: name.trim(),
-        type: 'packaging', // Default type
-        created: new Date().toISOString()
-    };
-    
-    this.availableWorkspaces.push(newWorkspace);
-    this.saveWorkspaces();
-    this.setCurrentWorkspace(newWorkspace);
-    
-    console.log('New workspace created:', newWorkspace);
-    showAlert(`Yeni istasyon oluşturuldu: ${newWorkspace.name}`, 'success');
-}
-
-    
-    // Save workspaces to localStorage
-    saveWorkspaces() {
-        localStorage.setItem('proclean_workspaces', JSON.stringify(this.availableWorkspaces));
-    }
-    
-    // Check if current workspace can perform an action
-    canPerformAction(action) {
-        const permissions = {
-            'packaging': ['create_package', 'view_packages', 'edit_package'],
-            'shipping': ['view_packages', 'ship_packages', 'view_containers'],
-            'quality': ['view_packages', 'quality_check', 'view_reports'],
-            'admin': ['all']
-        };
-        
-        const workspacePermissions = permissions[this.currentWorkspace.type] || [];
-        return workspacePermissions.includes(action) || permissions.admin.includes('all');
-    }
-}
-
-
-// Add this to supabase.js after workspace manager initialization
-document.addEventListener('DOMContentLoaded', async function() {
-    // Force workspace selection if none is selected
-    setTimeout(async () => {
-        if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-            console.log('🔄 No workspace selected, forcing selection...');
-            await window.workspaceManager.showWorkspaceSelection();
-        }
-    }, 1000);
-});
-
-
-// ==================== FIXED WORKSPACE PERSISTENCE ====================
-
-class FixedWorkspaceManager extends EnhancedWorkspaceManager {
-    constructor() {
-        super();
-        this.initialized = false;
-    }
-
-    // Override initialize to fix persistence
-    async initialize() {
-        if (this.initialized) {
-            console.log('🔄 Workspace already initialized');
-            return this.currentWorkspace;
-        }
-
-        console.log('🔄 Initializing workspace system with persistence fix...');
-        
-        // Load workspaces first
-        await this.loadWorkspaces();
-        
-        // Try to restore workspace in this order:
-        // 1. From URL parameters
-        // 2. From localStorage
-        // 3. Show selection modal as last resort
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const workspaceId = urlParams.get('workspace');
-        
-        if (workspaceId) {
-            const workspace = this.availableWorkspaces.find(ws => ws.id === workspaceId);
-            if (workspace) {
-                this.setCurrentWorkspace(workspace);
-                console.log('✅ Workspace restored from URL:', workspaceId);
-                this.initialized = true;
-                return this.currentWorkspace;
-            }
-        }
-        
-        // Try localStorage with better error handling
+        // Try localStorage
         try {
             const savedWorkspaceId = localStorage.getItem(this.workspaceKey);
             if (savedWorkspaceId) {
                 const workspace = this.availableWorkspaces.find(ws => ws.id === savedWorkspaceId);
                 if (workspace) {
                     this.setCurrentWorkspace(workspace);
-                    console.log('✅ Workspace restored from localStorage:', savedWorkspaceId);
-                    this.initialized = true;
-                    return this.currentWorkspace;
-                } else {
-                    console.warn('⚠️ Saved workspace not found in available workspaces:', savedWorkspaceId);
-                    // Remove invalid saved workspace
-                    localStorage.removeItem(this.workspaceKey);
+                    console.log('✅ Workspace from localStorage:', savedWorkspaceId);
+                    return;
                 }
             }
         } catch (error) {
             console.error('❌ Error reading workspace from localStorage:', error);
         }
         
-        // If we get here, no workspace was restored - show selection
-        console.log('🔄 No workspace found, showing selection modal');
-        await this.showWorkspaceSelection();
+        // Auto-select station-1 as default
+        const station1 = this.availableWorkspaces.find(ws => ws.id === 'station-1');
+        if (station1) {
+            this.setCurrentWorkspace(station1);
+            console.log('✅ Auto-selected station-1 as default');
+            return;
+        }
         
-        this.initialized = true;
-        return this.currentWorkspace;
+        // Fallback: select first available workspace
+        if (this.availableWorkspaces.length > 0) {
+            this.setCurrentWorkspace(this.availableWorkspaces[0]);
+            console.log('✅ Selected first available workspace as fallback');
+            return;
+        }
+        
+        console.warn('⚠️ No workspaces available');
     }
-
-    // Override setCurrentWorkspace to ensure proper persistence
+    
+    // Set current workspace
     setCurrentWorkspace(workspace) {
         this.currentWorkspace = workspace;
         
         try {
-            // Save to localStorage with verification
             localStorage.setItem(this.workspaceKey, workspace.id);
             console.log('💾 Workspace saved to localStorage:', workspace.id);
-            
-            // Verify the save worked
-            const verify = localStorage.getItem(this.workspaceKey);
-            if (verify !== workspace.id) {
-                throw new Error('Workspace persistence verification failed');
-            }
         } catch (error) {
             console.error('❌ Failed to save workspace to localStorage:', error);
             // Try sessionStorage as fallback
@@ -514,11 +189,85 @@ class FixedWorkspaceManager extends EnhancedWorkspaceManager {
             this.onWorkspaceChange();
         }
     }
-
-    // Enhanced workspace selection with better default handling
+    
+    // Update UI to show current workspace
+    updateWorkspaceUI() {
+        const workspaceIndicator = document.getElementById('workspaceIndicator');
+        
+        if (workspaceIndicator && this.currentWorkspace) {
+            const typeLabel = this.getWorkspaceTypeLabel(this.currentWorkspace);
+            
+            workspaceIndicator.innerHTML = `
+                <i class="fas fa-desktop"></i> 
+                ${this.currentWorkspace.name}
+                <span class="workspace-type">${typeLabel}</span>
+            `;
+            workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
+            console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
+        }
+        
+        // Update document title
+        if (this.currentWorkspace) {
+            document.title = `ProClean - ${this.currentWorkspace.name}`;
+        }
+    }
+    
+    getWorkspaceTypeLabel(workspace) {
+        const ws = workspace || this.currentWorkspace;
+        
+        if (!ws || !ws.type) {
+            return 'Genel';
+        }
+        
+        const types = {
+            'packaging': 'Paketleme',
+            'shipping': 'Sevkiyat',
+            'quality': 'Kalite Kontrol',
+            'admin': 'Yönetici'
+        };
+        
+        return types[ws.type] || ws.type || 'Genel';
+    }
+    
+    // Initialize workspace-specific Excel storage
+    initializeWorkspaceStorage() {
+        if (!this.currentWorkspace) {
+            console.warn('⚠️ No current workspace for storage initialization');
+            return;
+        }
+        
+        console.log('💾 Initializing workspace storage for:', this.currentWorkspace.id);
+        this.loadWorkspaceData();
+    }
+    
+    // Load workspace-specific data
+    async loadWorkspaceData() {
+        try {
+            const workspaceId = this.currentWorkspace?.id || 'default';
+            const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+            const packages = data ? JSON.parse(data) : [];
+            
+            // Make sure excelPackages global variable is updated
+            excelPackages = packages;
+            
+            console.log(`📦 Workspace data loaded: ${excelPackages.length} packages for workspace: ${workspaceId}`);
+            return packages;
+        } catch (error) {
+            console.error('❌ Error loading workspace data:', error);
+            excelPackages = [];
+            return [];
+        }
+    }
+    
+    // Show workspace selection modal
     async showWorkspaceSelection() {
         return new Promise((resolve) => {
-            // Create modal with auto-select option
+            // Check if modal already exists
+            if (document.querySelector('.workspace-modal')) {
+                resolve();
+                return;
+            }
+
             const modal = document.createElement('div');
             modal.className = 'modal workspace-modal';
             modal.style.cssText = `
@@ -540,21 +289,9 @@ class FixedWorkspaceManager extends EnhancedWorkspaceManager {
                     <p>Lütfen bu monitör için bir çalışma istasyonu seçin:</p>
                     <div id="workspaceOptions" style="margin: 1rem 0; max-height: 300px; overflow-y: auto;"></div>
                     
-                    <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px;">
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="rememberWorkspaceChoice" checked>
-                            Bu seçimi hatırla (tarayıcıyı kapatsanız bile)
-                        </label>
-                    </div>
-                    
                     <button id="createNewWorkspaceBtn" 
                             style="margin-top: 1rem; padding: 0.5rem 1rem; width: 100%; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
                         <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
-                    </button>
-                    
-                    <button id="autoSelectWorkspaceBtn" 
-                            style="margin-top: 0.5rem; padding: 0.5rem 1rem; width: 100%; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                        <i class="fas fa-magic"></i> Otomatik Seç (İstasyon 1)
                     </button>
                 </div>
             `;
@@ -593,14 +330,7 @@ class FixedWorkspaceManager extends EnhancedWorkspaceManager {
                     button.onmouseout = () => button.style.background = '#f9f9f9';
                     
                     button.onclick = () => {
-                        const rememberChoice = document.getElementById('rememberWorkspaceChoice').checked;
-                        if (rememberChoice) {
-                            this.setCurrentWorkspace(workspace);
-                        } else {
-                            // Use sessionStorage for temporary selection
-                            this.currentWorkspace = workspace;
-                            sessionStorage.setItem(this.workspaceKey, workspace.id);
-                        }
+                        this.setCurrentWorkspace(workspace);
                         document.body.removeChild(modal);
                         resolve();
                     };
@@ -609,7 +339,7 @@ class FixedWorkspaceManager extends EnhancedWorkspaceManager {
                 });
             }
             
-            // Create new workspace button
+            // Create new workspace button handler
             const createBtn = document.getElementById('createNewWorkspaceBtn');
             if (createBtn) {
                 createBtn.onclick = () => {
@@ -619,79 +349,238 @@ class FixedWorkspaceManager extends EnhancedWorkspaceManager {
                 };
             }
             
-            // Auto-select button
-            const autoSelectBtn = document.getElementById('autoSelectWorkspaceBtn');
-            if (autoSelectBtn) {
-                autoSelectBtn.onclick = () => {
-                    const station1 = this.availableWorkspaces.find(ws => ws.id === 'station-1');
-                    if (station1) {
-                        this.setCurrentWorkspace(station1);
-                        document.body.removeChild(modal);
-                        resolve();
-                    }
-                };
-            }
-            
-            // Close modal on background click
+            // Prevent closing without selection
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
-                    // Don't allow closing without selection
                     showAlert('Lütfen bir çalışma istasyonu seçin', 'warning');
                 }
             });
         });
     }
-}
-
-// Replace the existing workspace manager
-window.workspaceManager = new FixedWorkspaceManager();
-
-// Enhanced DOMContentLoaded handler
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 DOM loaded, initializing workspace...');
     
-    try {
-        // Initialize workspace manager
-        await window.workspaceManager.initialize();
+    // Create new workspace
+    createNewWorkspace() {
+        const name = prompt('Yeni istasyon adını girin:');
+        if (!name || name.trim() === '') {
+            console.log('Workspace creation cancelled');
+            return;
+        }
         
-        // Only show modal if no workspace is selected after initialization
-        setTimeout(async () => {
-            if (!window.workspaceManager.currentWorkspace) {
-                console.log('🔄 No workspace selected after initialization, showing modal...');
-                await window.workspaceManager.showWorkspaceSelection();
-            } else {
-                console.log('✅ Workspace initialized successfully:', 
-                    window.workspaceManager.currentWorkspace.name);
-            }
-        }, 500);
+        const newWorkspace = {
+            id: 'station-' + Date.now(),
+            name: name.trim(),
+            type: 'packaging',
+            created: new Date().toISOString()
+        };
         
-    } catch (error) {
-        console.error('❌ Workspace initialization failed:', error);
-        // Fallback: auto-select station-1
-        const station1 = window.workspaceManager.availableWorkspaces.find(ws => ws.id === 'station-1');
-        if (station1) {
-            window.workspaceManager.setCurrentWorkspace(station1);
-            showAlert('Otomatik olarak İstasyon 1 seçildi', 'info');
+        this.availableWorkspaces.push(newWorkspace);
+        this.saveWorkspaces();
+        this.setCurrentWorkspace(newWorkspace);
+        
+        console.log('New workspace created:', newWorkspace);
+        showAlert(`Yeni istasyon oluşturuldu: ${newWorkspace.name}`, 'success');
+    }
+    
+    // Save workspaces to localStorage
+    saveWorkspaces() {
+        localStorage.setItem('proclean_workspaces', JSON.stringify(this.availableWorkspaces));
+    }
+    
+    // ==================== PRINTER CONFIGURATION ====================
+    
+    // Load printer configurations
+    loadPrinterConfigurations() {
+        // Default printer configurations
+        this.printerConfigs.set('station-1', {
+            name: 'Argox OS-214EX PPLA',
+            selectedPrinterName: 'Argox OS-214EX PPLA',
+            type: 'argox',
+            connection: 'usb',
+            ip: null,
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'İstasyon 1 - Ana Yazıcı'
+        });
+
+        this.printerConfigs.set('station-2', {
+            name: 'Argox OS-214EX PPLA1',
+            selectedPrinterName: 'Argox OS-214EX PPLA1', 
+            type: 'argox',
+            connection: 'usb',
+            ip: null,
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'İstasyon 2 - Ana Yazıcı'
+        });
+
+        this.printerConfigs.set('station-3', {
+            name: 'Zebra ZD420',
+            selectedPrinterName: 'Zebra ZD420',
+            type: 'zebra',
+            connection: 'usb',
+            ip: null,
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'İstasyon 3 - Sevkiyat Yazıcısı'
+        });
+
+        this.printerConfigs.set('station-4', {
+            name: 'Brother QL-800',
+            selectedPrinterName: 'Brother QL-800',
+            type: 'brother',
+            connection: 'usb',
+            ip: null,
+            paperWidth: 62,
+            paperHeight: 29,
+            dpi: 300,
+            description: 'İstasyon 4 - Kalite Kontrol'
+        });
+
+        // Load saved configurations
+        this.loadSavedPrinterConfigurations();
+        console.log('🖨️ Printer configurations loaded');
+    }
+    
+    // Get current printer configuration
+    getCurrentPrinterConfig() {
+        const workspaceId = this.currentWorkspace?.id;
+        if (!workspaceId) {
+            return this.getDefaultPrinterConfig();
+        }
+        
+        const config = this.printerConfigs.get(workspaceId);
+        if (!config) {
+            return this.getDefaultPrinterConfig();
+        }
+        
+        // Ensure selectedPrinterName exists
+        if (!config.selectedPrinterName) {
+            config.selectedPrinterName = config.name;
+            this.savePrinterConfigurations();
+        }
+        
+        return config;
+    }
+    
+    // Get default printer configuration
+    getDefaultPrinterConfig() {
+        return {
+            name: 'Default Printer',
+            selectedPrinterName: 'Default Printer',
+            type: 'generic',
+            connection: 'usb',
+            paperWidth: 50,
+            paperHeight: 30,
+            dpi: 203,
+            description: 'Varsayılan Yazıcı'
+        };
+    }
+    
+    // Save printer configurations
+    savePrinterConfigurations() {
+        try {
+            const configObj = Object.fromEntries(this.printerConfigs);
+            localStorage.setItem('workspace_printer_configs', JSON.stringify(configObj));
+        } catch (error) {
+            console.error('Error saving printer configurations:', error);
         }
     }
-});
-
-// Add cleanup on page unload to prevent issues
-window.addEventListener('beforeunload', function() {
-    // Clean up any temporary states if needed
-    console.log('🧹 Page unloading, cleaning up...');
-});
-
-// Force workspace selection with timeout fallback
-setTimeout(async () => {
-    if (!window.workspaceManager?.currentWorkspace && 
-        !document.querySelector('.workspace-modal')) {
-        console.log('⏰ Fallback: No workspace selected after timeout, forcing selection...');
-        await window.workspaceManager.showWorkspaceSelection();
+    
+    // Load saved printer configurations
+    loadSavedPrinterConfigurations() {
+        try {
+            const saved = localStorage.getItem('workspace_printer_configs');
+            if (saved) {
+                const configs = JSON.parse(saved);
+                Object.entries(configs).forEach(([workspaceId, config]) => {
+                    this.printerConfigs.set(workspaceId, config);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading printer configurations:', error);
+        }
     }
-}, 3000);
+    
+    // ==================== DATA VALIDATION ====================
+    
+    // Setup data validators
+    setupDataValidators() {
+        this.dataValidators.set('packages', (data) => {
+            const currentWorkspaceId = this.currentWorkspace?.id;
+            
+            if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
+                console.error('🚨 WORKSPACE VIOLATION: Package from different workspace', {
+                    packageId: data.id,
+                    packageWorkspace: data.workspace_id,
+                    currentWorkspace: currentWorkspaceId
+                });
+                return false;
+            }
+            
+            if (!data.workspace_id) {
+                data.workspace_id = currentWorkspaceId;
+            }
+            
+            return true;
+        });
+    }
+    
+    // Validate data access
+    validateDataAccess(tableName, data) {
+        const currentWorkspaceId = this.currentWorkspace?.id;
+        
+        if (!currentWorkspaceId) {
+            console.error('🚨 No current workspace set during data validation');
+            return false;
+        }
+        
+        const validator = this.dataValidators.get(tableName);
+        if (validator) {
+            return validator(data);
+        }
+        
+        if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
+            console.error(`🚨 WORKSPACE VIOLATION: access on ${tableName}`, {
+                dataWorkspace: data.workspace_id,
+                currentWorkspace: currentWorkspaceId,
+                dataId: data.id
+            });
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Create workspace filter for queries
+    createWorkspaceFilter(tableName) {
+        const currentWorkspaceId = this.currentWorkspace?.id;
+        
+        if (!currentWorkspaceId) {
+            console.warn('⚠️ No current workspace for filter');
+            return {};
+        }
+        
+        const workspaceFields = {
+            'packages': 'workspace_id',
+            'containers': 'workspace_id', 
+            'sync_queue': 'workspace_id',
+            'stock_items': 'workspace_id'
+        };
+        
+        const field = workspaceFields[tableName] || 'workspace_id';
+        
+        return { [field]: currentWorkspaceId };
+    }
+}
+
+// Initialize workspace manager
+window.workspaceManager = new WorkspaceManager();
 
 // ==================== WORKSPACE UTILITIES ====================
+
 // Safe workspace ID getter
 function getCurrentWorkspaceId() {
     try {
@@ -716,7 +605,6 @@ function getCurrentWorkspaceName() {
 function validateWorkspaceAccess(packageData) {
     const currentWorkspaceId = getCurrentWorkspaceId();
     
-    // If package has a workspace_id, ensure it matches current workspace
     if (packageData.workspace_id && packageData.workspace_id !== currentWorkspaceId) {
         console.warn('Workspace access violation:', {
             packageWorkspace: packageData.workspace_id,
@@ -735,459 +623,17 @@ function getWorkspaceFilter() {
     return { workspace_id: workspaceId };
 }
 
-// Test function to verify workspace isolation
-async function testWorkspaceIsolation() {
-    console.log('🧪 Testing workspace isolation...');
+// Strict workspace filter for all queries
+function getStrictWorkspaceFilter(tableName) {
+    if (!window.workspaceManager) {
+        console.error('🚨 Workspace manager not initialized for filter');
+        return {};
+    }
     
-    const workspaceId = getCurrentWorkspaceId();
-    const testPackages = [
-        { id: 'test-1', workspace_id: workspaceId, package_no: 'TEST-1' },
-        { id: 'test-2', workspace_id: 'different-workspace', package_no: 'TEST-2' },
-        { id: 'test-3', workspace_id: workspaceId, package_no: 'TEST-3' }
-    ];
-    
-    // Test filtering
-    const filtered = testPackages.filter(pkg => pkg.workspace_id === workspaceId);
-    console.log('Workspace filter test:', {
-        total: testPackages.length,
-        filtered: filtered.length,
-        expected: 2,
-        passed: filtered.length === 2
-    });
-    
-    // Test ID generation - USE THE SAME LOGIC AS completePackage
-    const timestamp = Date.now();
-    const id1 = `pkg-${workspaceId}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`;
-    const id2 = `pkg-${workspaceId}-${timestamp + 1}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log('ID generation test:', {
-        id1: id1,
-        id2: id2,
-        areUnique: id1 !== id2,
-        haveWorkspacePrefix: id1.includes(workspaceId) && id2.includes(workspaceId)
-    });
-    
-    return true;
+    return window.workspaceManager.createWorkspaceFilter(tableName);
 }
 
-
-
-// ==================== ENHANCED WORKSPACE ISOLATION ====================
-
-class EnhancedWorkspaceManager extends WorkspaceManager {
-    constructor() {
-        super();
-        this.dataValidators = new Map();
-        this.printerConfigs = new Map(); // ADDED: Printer configurations
-        this.setupDataValidators();
-        this.loadPrinterConfigurations(); // ADDED: Load printer configs
-    }
-
-    // ==================== PRINTER CONFIGURATION METHODS ====================
-    
-    // Load printer configurations for each workspace
-    loadPrinterConfigurations() {
-        // Define printer configurations for each station
-        this.printerConfigs.set('station-1', {
-            name: 'Argox OS-214EX PPLA',
-            type: 'argox',
-            connection: 'usb',
-            ip: null,
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203,
-            description: 'İstasyon 1 - Ana Yazıcı'
-        });
-
-        this.printerConfigs.set('station-2', {
-            name: 'Argox OS-214EX PPLA1', 
-            type: 'argox',
-            connection: 'usb',
-            ip: null,
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203,
-            description: 'İstasyon 2 - Ana Yazıcı'
-        });
-
-        this.printerConfigs.set('station-3', {
-            name: 'Zebra ZD420',
-            type: 'zebra', 
-            connection: 'usb',
-            ip: null,
-            paperWidth: 50,
-            paperHeight: 30,
-            dpi: 203,
-            description: 'İstasyon 3 - Sevkiyat Yazıcısı'
-        });
-
-        this.printerConfigs.set('station-4', {
-            name: 'Brother QL-800',
-            type: 'brother',
-            connection: 'usb', 
-            ip: null,
-            paperWidth: 62,
-            paperHeight: 29,
-            dpi: 300,
-            description: 'İstasyon 4 - Kalite Kontrol'
-        });
-
-        // Load any saved configurations from localStorage
-        this.loadSavedPrinterConfigurations();
-        
-        console.log('🖨️ Printer configurations loaded for all workstations');
-    }
-
-    
-// In the EnhancedWorkspaceManager class, replace getCurrentPrinterConfig:
-getCurrentPrinterConfig() {
-    const workspaceId = this.currentWorkspace?.id;
-    if (!workspaceId) {
-        console.warn('No workspace selected, using default printer');
-        return this.getDefaultPrinterConfig();
-    }
-    
-    const config = this.printerConfigs.get(workspaceId);
-    if (!config) {
-        console.warn(`No printer config for workspace ${workspaceId}, using default`);
-        return this.getDefaultPrinterConfig();
-    }
-    
-    // Ensure selectedPrinterName exists
-    if (!config.selectedPrinterName) {
-        console.warn(`⚠️ Missing selectedPrinterName for ${workspaceId}, using name as fallback`);
-        config.selectedPrinterName = config.name;
-        this.savePrinterConfigurations(); // Save the fix
-    }
-    
-    return config;
-}
-
-// Also update getDefaultPrinterConfig:
-getDefaultPrinterConfig() {
-    return {
-        name: 'Default Printer',
-        selectedPrinterName: 'Default Printer',
-        type: 'generic',
-        connection: 'wifi', // Changed to 'wifi' as the new default
-        paperWidth: 50,
-        paperHeight: 30,
-        dpi: 203,
-        description: 'Varsayılan Yazıcı'
-    };
-}
-    // Get printer configuration for specific workspace
-    getPrinterConfig(workspaceId) {
-        return this.printerConfigs.get(workspaceId) || this.getDefaultPrinterConfig();
-    }
-
-    // Update printer configuration for current workspace
-    updatePrinterConfig(newConfig) {
-        const workspaceId = this.currentWorkspace?.id;
-        if (workspaceId) {
-            this.printerConfigs.set(workspaceId, {
-                ...this.getCurrentPrinterConfig(),
-                ...newConfig
-            });
-            this.savePrinterConfigurations();
-            console.log(`🖨️ Printer config updated for ${workspaceId}:`, newConfig);
-            
-            // Update printer UI if available
-            this.updatePrinterUI();
-        }
-    }
-
-    // Update printer configuration for specific workspace
-    updatePrinterConfigForWorkspace(workspaceId, newConfig) {
-        this.printerConfigs.set(workspaceId, {
-            ...this.getPrinterConfig(workspaceId),
-            ...newConfig
-        });
-        this.savePrinterConfigurations();
-        console.log(`🖨️ Printer config updated for workspace ${workspaceId}`);
-    }
-
-    // Save printer configurations to localStorage
-    savePrinterConfigurations() {
-        try {
-            const configObj = Object.fromEntries(this.printerConfigs);
-            localStorage.setItem('workspace_printer_configs', JSON.stringify(configObj));
-            console.log('💾 Printer configurations saved');
-        } catch (error) {
-            console.error('Error saving printer configurations:', error);
-        }
-    }
-
-    // Load saved configurations from localStorage
-    loadSavedPrinterConfigurations() {
-        try {
-            const saved = localStorage.getItem('workspace_printer_configs');
-            if (saved) {
-                const configs = JSON.parse(saved);
-                Object.entries(configs).forEach(([workspaceId, config]) => {
-                    this.printerConfigs.set(workspaceId, config);
-                });
-                console.log('📁 Loaded saved printer configurations');
-            }
-        } catch (error) {
-            console.error('Error loading printer configurations:', error);
-        }
-    }
-
-    // Get all printer configurations for settings panel
-    getAllPrinterConfigs() {
-        return Array.from(this.printerConfigs.entries()).map(([workspaceId, config]) => ({
-            workspaceId,
-            workspaceName: this.availableWorkspaces.find(ws => ws.id === workspaceId)?.name || workspaceId,
-            ...config
-        }));
-    }
-
-    // Update printer UI indicator
-    updatePrinterUI() {
-        const printerIndicator = document.getElementById('printerIndicator');
-        if (printerIndicator && this.currentWorkspace) {
-            const printerConfig = this.getCurrentPrinterConfig();
-            printerIndicator.innerHTML = `
-                <i class="fas fa-print"></i> 
-                ${this.currentWorkspace.name}: ${printerConfig.name}
-                <span class="printer-status">🖨️</span>
-            `;
-            printerIndicator.title = `Yazıcı: ${printerConfig.name} - ${printerConfig.description || ''}`;
-        }
-    }
-
-    // Override setCurrentWorkspace to update printer when workspace changes
-    setCurrentWorkspace(workspace) {
-        super.setCurrentWorkspace(workspace);
-        
-        // Update printer configuration for new workspace
-        setTimeout(() => {
-            this.updatePrinterUI();
-            console.log(`🖨️ Workspace changed to ${workspace.name}, active printer: ${this.getCurrentPrinterConfig().name}`);
-            
-            // Initialize workstation printer if available
-            if (window.workstationPrinter) {
-                window.workstationPrinter.initialize();
-            }
-        }, 100);
-    }
-
-    // Test printer connection for current workspace
-    async testCurrentPrinter() {
-        const printerConfig = this.getCurrentPrinterConfig();
-        console.log(`🧪 Testing printer: ${printerConfig.name} for ${this.currentWorkspace.name}`);
-        
-        // Simulate printer test
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                // In real implementation, this would actually test the printer connection
-                console.log(`✅ Printer test completed for ${printerConfig.name}`);
-                showAlert(`Yazıcı testi tamamlandı: ${printerConfig.name}`, 'success');
-                resolve(true);
-            }, 1000);
-        });
-    }
-
-    // ==================== EXISTING DATA VALIDATION METHODS ====================
-
-    // Setup validation rules for all data types
-    setupDataValidators() {
-        // Package validation
-        this.dataValidators.set('packages', (data) => {
-            const currentWorkspaceId = this.currentWorkspace?.id;
-            
-            // Critical: Reject packages from different workspaces
-            if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
-                console.error('🚨 WORKSPACE VIOLATION: Package from different workspace', {
-                    packageId: data.id,
-                    packageWorkspace: data.workspace_id,
-                    currentWorkspace: currentWorkspaceId
-                });
-                return false;
-            }
-            
-            // Ensure workspace_id is set
-            if (!data.workspace_id) {
-                data.workspace_id = currentWorkspaceId;
-            }
-            
-            return true;
-        });
-
-        // Container validation
-        this.dataValidators.set('containers', (data) => {
-            // Containers are workspace-specific but might not have explicit workspace_id
-            // We'll filter them based on their packages
-            return true;
-        });
-
-        // Sync operation validation
-        this.dataValidators.set('sync_operations', (data) => {
-            const currentWorkspaceId = this.currentWorkspace?.id;
-            
-            if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
-                console.error('🚨 WORKSPACE VIOLATION: Sync operation from different workspace', data);
-                return false;
-            }
-            
-            data.workspace_id = currentWorkspaceId;
-            return true;
-        });
-    }
-
-    // Enhanced workspace filtering for queries
-    createWorkspaceFilter(tableName) {
-        const currentWorkspaceId = this.currentWorkspace?.id;
-        
-        if (!currentWorkspaceId) {
-            console.warn('⚠️ No current workspace for filter');
-            return {};
-        }
-        
-        // Different tables might have different workspace field names
-        const workspaceFields = {
-            'packages': 'workspace_id',
-            'containers': 'workspace_id', 
-            'sync_queue': 'workspace_id',
-            'stock_items': 'workspace_id'
-        };
-        
-        const field = workspaceFields[tableName] || 'workspace_id';
-        
-        return { [field]: currentWorkspaceId };
-    }
-
-    // Validate data before any operation
-    validateDataAccess(tableName, data, operation = 'access') {
-        const currentWorkspaceId = this.currentWorkspace?.id;
-        
-        if (!currentWorkspaceId) {
-            console.error('🚨 No current workspace set during data validation');
-            return false;
-        }
-        
-        const validator = this.dataValidators.get(tableName);
-        if (validator) {
-            return validator(data);
-        }
-        
-        // Default validation for unknown tables
-        if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
-            console.error(`🚨 WORKSPACE VIOLATION: ${operation} on ${tableName}`, {
-                dataWorkspace: data.workspace_id,
-                currentWorkspace: currentWorkspaceId,
-                dataId: data.id
-            });
-            return false;
-        }
-        
-        return true;
-    }
-
-    // Enhanced workspace-aware data loading
-    async loadWorkspaceDataStrict() {
-        const workspaceId = this.currentWorkspace?.id;
-        
-        if (!workspaceId) {
-            throw new Error('No workspace selected');
-        }
-        
-        console.log(`🔒 Loading STRICT workspace data for: ${workspaceId}`);
-        
-        try {
-            // Load from Excel with strict filtering
-            const allExcelData = await ExcelJS.readFile();
-            const workspaceData = allExcelData.filter(item => {
-                const isValid = item.workspace_id === workspaceId;
-                if (!isValid) {
-                    console.warn('🔒 Filtered out non-workspace Excel data:', {
-                        id: item.id,
-                        itemWorkspace: item.workspace_id,
-                        currentWorkspace: workspaceId
-                    });
-                }
-                return isValid;
-            });
-            
-            // Update global excelPackages
-            excelPackages = workspaceData;
-            
-            console.log(`✅ Strict workspace data loaded: ${workspaceData.length} items`);
-            return workspaceData;
-            
-        } catch (error) {
-            console.error('❌ Error in strict workspace data loading:', error);
-            throw error;
-        }
-    }
-
-    // Audit data access for security
-    auditDataAccess(tableName, operation, data) {
-        const auditEntry = {
-            timestamp: new Date().toISOString(),
-            workspace: this.currentWorkspace?.id,
-            table: tableName,
-            operation: operation,
-            dataId: data.id,
-            user: currentUser?.email || 'unknown'
-        };
-        
-        // Log to console in development
-        if (window.DEBUG_MODE) {
-            console.log('🔍 Data Access Audit:', auditEntry);
-        }
-        
-        // Store in localStorage for debugging
-        const auditLog = JSON.parse(localStorage.getItem('workspace_audit_log') || '[]');
-        auditLog.push(auditEntry);
-        
-        // Keep only last 1000 entries
-        if (auditLog.length > 1000) {
-            auditLog.splice(0, auditLog.length - 1000);
-        }
-        
-        localStorage.setItem('workspace_audit_log', JSON.stringify(auditLog));
-    }
-}
-
-// Replace the existing WorkspaceManager
-window.workspaceManager = new EnhancedWorkspaceManager();
-
-// ==================== WORKSTATION PRINTER TEST FUNCTIONS ====================
-
-// Test function for workstation printing system
-window.testWorkstationPrinting = function() {
-    if (window.workspaceManager?.currentWorkspace) {
-        const printer = window.workspaceManager.getCurrentPrinterConfig();
-        console.log(`🎯 Current workstation: ${window.workspaceManager.currentWorkspace.name}`);
-        console.log(`🖨️ Assigned printer: ${printer.name}`);
-        console.log(`🔧 Printer type: ${printer.type}`);
-        console.log(`📝 Description: ${printer.description}`);
-        
-        return {
-            workstation: window.workspaceManager.currentWorkspace.name,
-            printer: printer.name,
-            type: printer.type,
-            description: printer.description
-        };
-    } else {
-        console.log('❌ No workspace selected');
-        return null;
-    }
-};
-
-// Function to test all workstation printers
-window.showAllWorkstationPrinters = function() {
-    const allPrinters = window.workspaceManager.getAllPrinterConfigs();
-    console.log('🏢 All Workstation Printers:');
-    allPrinters.forEach((printer, index) => {
-        console.log(`  ${index + 1}. ${printer.workspaceName} (${printer.workspaceId}) → ${printer.name} [${printer.type}]`);
-        console.log(`     Description: ${printer.description}`);
-    });
-    return allPrinters;
-};
-
-// Enhanced workspace validation function
+// Strict workspace access validation
 function validateWorkspaceAccessStrict(data, tableName = 'packages') {
     if (!window.workspaceManager) {
         console.error('🚨 Workspace manager not initialized');
@@ -1197,11 +643,9 @@ function validateWorkspaceAccessStrict(data, tableName = 'packages') {
     return window.workspaceManager.validateDataAccess(tableName, data);
 }
 
-
-
 // ==================== WORKSTATION PRINTER FUNCTIONS ====================
 
-// Global printer functions
+// Print for current workstation
 async function printForCurrentWorkstation(packageData) {
     if (!window.workspaceManager?.currentWorkspace) {
         showAlert('Önce çalışma istasyonu seçin', 'error');
@@ -1212,7 +656,6 @@ async function printForCurrentWorkstation(packageData) {
     console.log(`🖨️ Printing from ${window.workspaceManager.currentWorkspace.name} on ${printerConfig.name}`);
 
     try {
-        // Generate and print label
         const success = await generateAndPrintLabel(packageData, printerConfig);
         
         if (success) {
@@ -1228,10 +671,7 @@ async function printForCurrentWorkstation(packageData) {
 }
 
 async function generateAndPrintLabel(packageData, printerConfig) {
-    // Generate label content based on printer type
     const labelContent = generateLabelContent(packageData, printerConfig);
-    
-    // Send to printer
     return await sendToPrinter(labelContent, printerConfig);
 }
 
@@ -1242,8 +682,7 @@ function generateLabelContent(packageData, printerConfig) {
     
     switch (printerConfig.type) {
         case 'argox':
-            return `
-SIZE ${printerConfig.paperWidth} mm, ${printerConfig.paperHeight} mm
+            return `SIZE ${printerConfig.paperWidth} mm, ${printerConfig.paperHeight} mm
 GAP 2 mm, 0 mm
 CLS
 TEXT 10,10,"0",0,1,1,"${workspace.name}"
@@ -1253,11 +692,9 @@ TEXT 10,100,"0",0,1,1,"${itemsText}"
 TEXT 10,130,"0",0,1,1,"Toplam: ${packageData.total_quantity}"
 TEXT 10,160,"0",0,1,1,"${date}"
 BARCODE 10,190,"128",40,1,0,2,2,"${packageData.package_no}"
-PRINT 1
-`;
+PRINT 1`;
         case 'zebra':
-            return `
-^XA
+            return `^XA
 ^FO20,20^A0N,25,25^FD${workspace.name}^FS
 ^FO20,50^A0N,20,20^FD${packageData.package_no}^FS
 ^FO20,80^A0N,20,20^FD${packageData.customer_name}^FS
@@ -1265,20 +702,16 @@ PRINT 1
 ^FO20,140^A0N,20,20^FDToplam: ${packageData.total_quantity}^FS
 ^FO20,170^A0N,15,15^FD${date}^FS
 ^FO20,200^BY2^BCN,40,Y,N,N^FD${packageData.package_no}^FS
-^XZ
-`;
+^XZ`;
         default:
-            // Generic label for browser printing
             return 'generic';
     }
 }
 
 async function sendToPrinter(labelContent, printerConfig) {
     if (printerConfig.connection === 'network' && printerConfig.ip) {
-        // Network printing
         return await printViaNetwork(labelContent, printerConfig);
     } else {
-        // Browser printing (fallback)
         return await printViaBrowser(labelContent, printerConfig);
     }
 }
@@ -1353,141 +786,62 @@ async function printViaBrowser(labelContent, printerConfig) {
         `);
         printWindow.document.close();
         
-        // Listen for print completion
         window.addEventListener('message', function(event) {
             if (event.data === 'print_complete') {
                 resolve(true);
             }
         });
         
-        // Fallback timeout
         setTimeout(() => resolve(true), 3000);
     });
 }
 
-// Test printer for current workstation
-async function testCurrentWorkstationPrinter() {
-    if (!window.workspaceManager?.currentWorkspace) {
-        showAlert('Önce çalışma istasyonu seçin', 'error');
-        return;
-    }
-    
-    await window.workspaceManager.testCurrentPrinter();
-}
+// ==================== INITIALIZATION ====================
 
-
-
-
-// Enhanced workspace filter for all queries
-function getStrictWorkspaceFilter(tableName) {
-    if (!window.workspaceManager) {
-        console.error('🚨 Workspace manager not initialized for filter');
-        return {};
-    }
-    
-    return window.workspaceManager.createWorkspaceFilter(tableName);
-}
-
-
-        
-
-
-// Replace ALL data loading functions with strict versions
-async function loadPackagesDataStrict() {
-    if (!window.workspaceManager?.currentWorkspace) {
-        console.warn('Workspace not initialized, using default');
-    }
+// Initialize workspace when DOM is loaded
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 DOM loaded, initializing workspace...');
     
     try {
-        const workspaceId = getCurrentWorkspaceId();
+        // Initialize workspace manager
+        await window.workspaceManager.initialize();
         
-        console.log(`🔒 STRICT: Loading packages for workspace: ${workspaceId}`);
-        
-        // Load from workspace-specific Excel with strict filtering
-        const excelData = await ExcelJS.readFile();
-        const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
-        
-        // STRICT workspace filtering with validation
-        const workspacePackages = excelPackagesList.filter(pkg => {
-            const isValidWorkspace = pkg.workspace_id === workspaceId;
-            const isWaiting = pkg.status === 'beklemede';
-            const hasNoContainer = !pkg.container_id || pkg.container_id === null;
+        console.log('✅ Workspace initialized successfully:', 
+            window.workspaceManager.currentWorkspace?.name);
             
-            if (!isValidWorkspace) {
-                console.warn('🔒 STRICT: Filtered package from different workspace:', {
-                    packageId: pkg.id,
-                    packageWorkspace: pkg.workspace_id,
-                    currentWorkspace: workspaceId
-                });
-                return false;
-            }
-            
-            return isWaiting && hasNoContainer;
-        });
-        
-        console.log(`✅ STRICT: Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
-        window.packages = workspacePackages;
-        
-        // Load from Supabase with STRICT workspace filtering
-        if (supabase && navigator.onLine) {
-            try {
-                const workspaceFilter = getStrictWorkspaceFilter('packages');
-                
-                const { data: supabasePackages, error } = await supabase
-                    .from('packages')
-                    .select(`*, customers (name, code)`)
-                    .is('container_id', null)
-                    .eq('status', 'beklemede')
-                    .eq('workspace_id', workspaceId)
-                    .order('created_at', { ascending: false });
-                
-                if (!error && supabasePackages && supabasePackages.length > 0) {
-                    console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
-                    
-                    const validSupabasePackages = supabasePackages.filter(pkg => 
-                        validateWorkspaceAccessStrict(pkg)
-                    );
-                    
-                    const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
-                    window.packages = mergedPackages;
-                    
-                    const excelData = ExcelJS.toExcelFormat(mergedPackages);
-                    await ExcelJS.writeFile(excelData);
-                }
-            } catch (supabaseError) {
-                console.warn('Supabase load failed, using Excel data:', supabaseError);
-            }
-        }
-        
-        await populatePackagesTable();
-        
     } catch (error) {
-        console.error('Error in strict packages data loading:', error);
-        showAlert('Paket verileri yüklenirken hata oluştu', 'error');
-    }
-}
-
-
-// Strict merge function
-function mergePackagesStrict(excelPackages, supabasePackages) {
-    const merged = [...excelPackages];
-    const excelIds = new Set(excelPackages.map(p => p.id));
-    
-    for (const supabasePkg of supabasePackages) {
-        // Validate workspace access before merging
-        if (!validateWorkspaceAccessStrict(supabasePkg)) {
-            console.warn('🔒 Skipping Supabase package from different workspace:', supabasePkg.id);
-            continue;
-        }
+        console.error('❌ Workspace initialization failed:', error);
         
-        if (!excelIds.has(supabasePkg.id)) {
-            merged.push(supabasePkg);
+        // Emergency fallback
+        const station1 = window.workspaceManager.availableWorkspaces.find(ws => ws.id === 'station-1');
+        if (station1) {
+            window.workspaceManager.setCurrentWorkspace(station1);
+            showAlert('Otomatik olarak İstasyon 1 seçildi', 'info');
         }
     }
-    
-    return merged;
-}
+});
 
+// Manual workspace selection function
+window.selectWorkspaceManually = async function() {
+    await window.workspaceManager.showWorkspaceSelection();
+};
+
+// Test function
+window.testWorkspaceIsolation = function() {
+    console.log('🧪 Testing workspace isolation...');
+    
+    const workspaceId = getCurrentWorkspaceId();
+    const workspaceName = getCurrentWorkspaceName();
+    
+    console.log('Current workspace:', workspaceName, '(', workspaceId, ')');
+    console.log('Printer config:', window.workspaceManager.getCurrentPrinterConfig());
+    
+    return {
+        workspaceId,
+        workspaceName,
+        printer: window.workspaceManager.getCurrentPrinterConfig().name
+    };
+};
 
 
 // Generate proper UUID v4 for Excel packages
