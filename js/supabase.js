@@ -1791,8 +1791,17 @@ async function uploadExcelToSupabase(packages) {
 
 
 
-// FIXED: Supabase istemcisini başlat - Singleton pattern ile
-function initializeSupabase() {
+// Update this function to load the saved API key on startup
+async function initializeSupabase() {
+    // ✅ CHANGED: Load saved API key if not already set
+    if (!SUPABASE_ANON_KEY) {
+        const savedApiKey = await StorageManager.getItem('procleanApiKey');
+        if (savedApiKey) {
+            SUPABASE_ANON_KEY = savedApiKey;
+            console.log('✅ Saved API key loaded');
+        }
+    }
+    
     // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
     if (supabase && SUPABASE_ANON_KEY) {
         return supabase;
@@ -1809,11 +1818,11 @@ function initializeSupabase() {
     try {
         // Global supabase değişkenine ata
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized successfully');
+        console.log('✅ Supabase client initialized successfully');
         isUsingExcel = false;
         return supabase;
     } catch (error) {
-        console.error('Supabase initialization error:', error);
+        console.error('❌ Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
         isUsingExcel = true;
         showApiKeyModal();
@@ -2533,8 +2542,10 @@ function enhanceSyncQueue() {
     }
 }
 
-// FIXED: API anahtarını kaydet ve istemciyi başlat
-function saveApiKey() {
+// ==================== REPLACE YOUR EXISTING saveApiKey() FUNCTION ====================
+
+// Updated version with StorageManager
+async function saveApiKey() {
     const apiKey = document.getElementById('apiKeyInput').value.trim();
     if (!apiKey) {
         showAlert('Lütfen bir API anahtarı girin', 'error');
@@ -2546,7 +2557,9 @@ function saveApiKey() {
     
     // Yeni API key'i ayarla
     SUPABASE_ANON_KEY = apiKey;
-    localStorage.setItem('procleanApiKey', apiKey);
+    
+    // ✅ CHANGED: Use StorageManager instead of localStorage
+    await StorageManager.setItem('procleanApiKey', apiKey);
     
     // Yeni client oluştur
     const newClient = initializeSupabase();
@@ -2561,6 +2574,45 @@ function saveApiKey() {
     }
 }
 
+
+
+
+// Clear API key (useful for settings/reset)
+async function clearApiKey() {
+    await StorageManager.removeItem('procleanApiKey');
+    SUPABASE_ANON_KEY = null;
+    supabase = null;
+    console.log('API key cleared');
+    showAlert('API anahtarı temizlendi', 'info');
+}
+
+// Check if API key is saved
+async function hasApiKey() {
+    const apiKey = await StorageManager.getItem('procleanApiKey');
+    return apiKey !== null && apiKey !== undefined;
+}
+
+// ==================== UPDATE YOUR APP INITIALIZATION ====================
+
+// Update your DOMContentLoaded or app initialization
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 App starting...');
+    
+    // Initialize Supabase (will auto-load saved API key)
+    await initializeSupabase();
+    
+    // Check if API key exists
+    const hasKey = await hasApiKey();
+    if (!hasKey) {
+        console.log('⚠️ No API key found, showing modal');
+        showApiKeyModal();
+    } else {
+        console.log('✅ API key exists, ready to use');
+    }
+    
+    // Your other initialization code...
+    await initializeApp();
+});
         
 let connectionAlertShown = false; // Prevent duplicate success alert
 
