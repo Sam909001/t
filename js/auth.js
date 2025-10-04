@@ -300,98 +300,55 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
 
 // Fixed: Send Excel file to Main PC via Electron network share
 async function sendExcelToMainPC(packages) {
-    try {
-        console.log("🚀 Starting Excel transfer to Main PC...");
-        console.log("📦 Package count:", packages.length);
+    if (!packages || packages.length === 0) {
+        showAlert("Gönderilecek Excel verisi bulunamadı", "warning");
+        return false;
+    }
 
-        // Create the Excel data
-        const excelData = packages.map(pkg => ({
-            'Paket ID': pkg.id || '',
-            'Müşteri': pkg.customer_name || '',
-            'Ürün': pkg.product_name || '',
-            'Miktar': pkg.quantity || '',
-            'Toplam Miktar': pkg.total_quantity || '',
-            'Durum': pkg.status || '',
-            'Oluşturulma Tarihi': pkg.created_at || '',
-            'Workspace': pkg.workspace || (getCurrentWorkspaceName ? getCurrentWorkspaceName() : 'unknown')
-        }));
-        
-        if (!excelData || excelData.length === 0) {
-            console.log("❌ No data to send to main PC");
-            showAlert("Gönderilecek Excel verisi bulunamadı", "warning");
-            return false;
-        }
+    const excelData = packages.map(pkg => ({
+        'Paket ID': pkg.id || '',
+        'Müşteri': pkg.customer_name || '',
+        'Ürün': pkg.product_name || '',
+        'Miktar': pkg.quantity || '',
+        'Toplam Miktar': pkg.total_quantity || '',
+        'Durum': pkg.status || '',
+        'Oluşturulma Tarihi': pkg.created_at || '',
+        'Workspace': pkg.workspace || (getCurrentWorkspaceName ? getCurrentWorkspaceName() : 'unknown')
+    }));
 
-        console.log("📊 Excel data ready:", excelData.length, "rows");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `ProClean_Rapor_${timestamp}.xlsx`;
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const fileName = `ProClean_Rapor_${timestamp}.xlsx`;
+    if (window.electronAPI) {
+        const result = await window.electronAPI.saveExcelToNetwork(excelData, fileName);
 
-        // Try Electron network save first
-        if (window.electronAPI) {
-            console.log('🔄 Attempting network save via Electron...');
-            
-            // Test network connection first
-            try {
-                const networkTest = await window.electronAPI.testNetworkConnection();
-                console.log('🔍 Network test result:', networkTest.success ? '✅ SUCCESS' : '❌ FAILED');
-            } catch (testError) {
-                console.log('🔍 Network test unavailable:', testError);
-            }
-            
-            const result = await window.electronAPI.saveExcelToNetwork(excelData, fileName);
+        if (result.success) {
+            showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
             console.log('📡 Network save result:', result);
-            
-            if (result.success) {
-                console.log('✅ Excel file sent to network share via Electron');
-                showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
-                return true;
-            } else if (result.manualTransferRequired) {
-                console.log('❌ Network save failed, manual transfer required');
-                
-                // Show instructions with local file path
-                showNetworkShareInstructions(result.localPath, result.networkPath);
-                return false;
-            } else {
-                console.log('❌ Network save failed, trying local save...');
-                
-                // Fallback: Save locally
-                const localResult = await window.electronAPI.saveExcelLocally(excelData, fileName);
-                if (localResult.success) {
-                    showAlert(`Excel dosyası kaydedildi: ${localResult.path}`, 'info');
-                    showNetworkShareInstructions(localResult.path, localResult.networkPath);
-                } else {
-                    showNetworkShareInstructions();
-                }
-                return false;
-            }
-        } else {
-            // Not in Electron - use browser download
-            console.log('🌐 Not in Electron, using browser download');
-            // Create simple CSV download
-            const csvContent = "Paket ID,Müşteri,Ürün,Miktar,Durum\n" + 
-                packages.map(pkg => 
-                    `${pkg.id || ''},${pkg.customer_name || ''},${pkg.product_name || ''},${pkg.quantity || ''},${pkg.status || ''}`
-                ).join('\n');
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName.replace('.xlsx', '.csv');
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            showNetworkShareInstructions();
+            return true;
+        } else if (result.manualTransferRequired) {
+            console.log('⚠️ Network save failed, manual transfer required.');
+            showNetworkShareInstructions(result.localPath, result.networkPath);
             return false;
         }
-        
-    } catch (err) {
-        console.error("💥 Main PC transfer error:", err);
-        showAlert("Ağ paylaşımı hatası: " + err.message, 'error');
+    } else {
+        // Not in Electron → fallback browser download
+        const csvContent = "Paket ID,Müşteri,Ürün,Miktar,Durum\n" + 
+            packages.map(pkg => 
+                `${pkg.id || ''},${pkg.customer_name || ''},${pkg.product_name || ''},${pkg.quantity || ''},${pkg.status || ''}`
+            ).join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName.replace('.xlsx', '.csv');
+        a.click();
+        URL.revokeObjectURL(url);
         showNetworkShareInstructions();
         return false;
     }
 }
+
 // Method 1: WebDAV approach for Windows shares
 async function sendViaWebDAV(excelData, packages) {
     try {
