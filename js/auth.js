@@ -164,7 +164,7 @@ function applyRoleBasedPermissions(role) {
     }
 }
 
-// Enhanced logout function with proper Excel upload
+// Enhanced logout function with proper Excel upload and dependency checks
 async function logoutWithConfirmation() {
     const confirmation = confirm(
         "Çıkış yapmak üzeresiniz. Excel dosyası raporlar sayfasına taşınacak, " +
@@ -177,43 +177,99 @@ async function logoutWithConfirmation() {
     try {
         showAlert("Excel dosyası aktarılıyor...", "info");
         
-        // Get current Excel data
-        const currentPackages = await ExcelJS.readFile();
+        // Safe dependency checks
+        let currentPackages = [];
+        
+        // Check if ExcelJS exists and has readFile method
+        if (typeof ExcelJS !== 'undefined' && typeof ExcelJS.readFile === 'function') {
+            try {
+                currentPackages = await ExcelJS.readFile();
+                console.log('📊 Found packages to backup:', currentPackages.length);
+            } catch (excelError) {
+                console.warn('❌ ExcelJS.readFile failed:', excelError);
+                // Continue with empty packages
+            }
+        } else {
+            console.warn('❌ ExcelJS not available, skipping Excel backup');
+        }
         
         if (currentPackages.length > 0) {
-            // Upload to Supabase using professional export
-            await uploadExcelToSupabase(currentPackages);
+            // Upload to Supabase if available
+            if (typeof uploadExcelToSupabase === 'function' && window.supabase) {
+                try {
+                    await uploadExcelToSupabase(currentPackages);
+                    console.log('✅ Supabase upload completed');
+                } catch (supabaseError) {
+                    console.warn('❌ Supabase upload failed:', supabaseError);
+                    // Continue with other backup methods
+                }
+            }
 
-            // Send to Main PC (browser download as fallback)
-            await sendExcelToMainPC(currentPackages);
+            // Send to Main PC if function exists
+            if (typeof sendExcelToMainPC === 'function') {
+                try {
+                    await sendExcelToMainPC(currentPackages);
+                    console.log('✅ Main PC transfer completed');
+                } catch (mainPCError) {
+                    console.warn('❌ Main PC transfer failed:', mainPCError);
+                    // Continue with other backup methods
+                }
+            }
             
-            // LocalStorage backup
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const reportData = {
-                fileName: `rapor_${timestamp}.json`,
-                date: new Date().toISOString(),
-                packages: currentPackages,
-                packageCount: currentPackages.length,
-                totalQuantity: currentPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
-            };
-            
-            localStorage.setItem(`report_${timestamp}`, JSON.stringify(reportData));
+            // LocalStorage backup (always available)
+            try {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const reportData = {
+                    fileName: `rapor_${timestamp}.json`,
+                    date: new Date().toISOString(),
+                    packages: currentPackages,
+                    packageCount: currentPackages.length,
+                    totalQuantity: currentPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
+                };
+                
+                localStorage.setItem(`report_${timestamp}`, JSON.stringify(reportData));
+                console.log('✅ Local storage backup completed');
+            } catch (storageError) {
+                console.warn('❌ Local storage backup failed:', storageError);
+            }
 
-            // Clear local Excel
-            await ExcelJS.writeFile([]);
-            excelPackages = [];
+            // Clear local Excel if available
+            if (typeof ExcelJS !== 'undefined' && typeof ExcelJS.writeFile === 'function') {
+                try {
+                    await ExcelJS.writeFile([]);
+                    if (typeof excelPackages !== 'undefined') {
+                        excelPackages = [];
+                    }
+                    console.log('✅ Excel data cleared');
+                } catch (clearError) {
+                    console.warn('❌ Excel clear failed:', clearError);
+                }
+            }
 
             showAlert("Excel dosyası başarıyla yedeklendi ve raporlara taşındı", "success");
+        } else {
+            console.log('ℹ️ No packages to backup');
+            showAlert("Yedeklenecek veri bulunamadı", "info");
         }
 
-        // Perform logout
+        // Perform logout with session cleanup
         await performLogout();
 
     } catch (error) {
-        console.error("Logout error:", error);
+        console.error("❌ Logout error:", error);
         showAlert("Logout işlemi sırasında hata oluştu: " + error.message, "error");
+        
+        // Even if there's an error, try to logout anyway
+        try {
+            await performLogout();
+        } catch (finalError) {
+            console.error("❌ Final logout failed:", finalError);
+            // Force UI update
+            document.getElementById('loginScreen').style.display = "flex";
+            document.getElementById('appContainer').style.display = "none";
+        }
     }
-} // FIXED: Added missing closing brace
+}
 
 // Fixed: Upload Excel data to Supabase storage
 async function uploadExcelToSupabase(packages) {
@@ -515,66 +571,107 @@ async function downloadExcelForManualTransfer() {
     }
 }
 
-// Simplified and more reliable performLogout
+// Safe performLogout function with dependency checks
 async function performLogout() {
     console.log('🔧 performLogout called');
     
     try {
-        // Step 1: Try to sync any pending changes
-        if (supabase && navigator.onLine && excelSyncQueue.length > 0) {
+        // Step 1: Clear session management if available
+        if (typeof SessionManager !== 'undefined') {
+            SessionManager.clearSession();
+            SessionManager.setRememberMe(false);
+            console.log('✅ Session manager cleared');
+        }
+
+        // Step 2: Try to sync any pending changes if dependencies exist
+        if (typeof supabase !== 'undefined' && 
+            navigator.onLine && 
+            typeof excelSyncQueue !== 'undefined' && 
+            excelSyncQueue.length > 0 &&
+            typeof syncExcelWithSupabase === 'function') {
+            
             console.log('🔄 Syncing pending changes...');
             showAlert("Bekleyen değişiklikler senkronize ediliyor...", "info");
             await syncExcelWithSupabase();
         }
 
-        // Step 2: Clear authentication
+        // Step 3: Clear authentication if Supabase exists
         console.log('🔒 Signing out from Supabase...');
-        if (supabase) {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                console.error("❌ Sign out error:", error);
-            } else {
-                console.log('✅ Signed out from Supabase');
+        if (typeof supabase !== 'undefined') {
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    console.error("❌ Sign out error:", error);
+                } else {
+                    console.log('✅ Signed out from Supabase');
+                }
+            } catch (supabaseError) {
+                console.error("❌ Supabase signout error:", supabaseError);
             }
         }
 
-        // Step 3: Reset global variables
+        // Step 4: Reset global variables safely
         console.log('🔄 Resetting global variables...');
-        selectedCustomer = null;
-        currentPackage = {};
-        currentContainer = null;
-        selectedProduct = null;
-        currentUser = null;
-        scannedBarcodes = [];
-        excelPackages = [];
-        excelSyncQueue = [];
-        connectionTested = false;
+        const globalVars = [
+            'selectedCustomer', 'currentPackage', 'currentContainer', 
+            'selectedProduct', 'currentUser', 'scannedBarcodes',
+            'editingStockItem', 'scannerMode', 'currentContainerDetails',
+            'currentReportData', 'selectedPackageForPrinting',
+            'excelPackages', 'excelSyncQueue', 'connectionTested'
+        ];
         
-        // Step 4: Clear sensitive data from localStorage (keep only essential)
+        globalVars.forEach(varName => {
+            if (typeof window[varName] !== 'undefined') {
+                if (Array.isArray(window[varName])) {
+                    window[varName] = [];
+                } else if (typeof window[varName] === 'object') {
+                    window[varName] = {};
+                } else {
+                    window[varName] = null;
+                }
+            }
+        });
+
+        // Step 5: Clear sensitive data from localStorage (keep only essential)
         console.log('🗑️ Clearing localStorage...');
         const keysToKeep = ['proclean_workspaces', 'workspace_printer_configs', 'procleanSettings'];
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const key = localStorage.key(i);
             if (key && !keysToKeep.includes(key) && !key.startsWith('report_')) {
-                localStorage.removeItem(key);
+                try {
+                    localStorage.removeItem(key);
+                } catch (e) {
+                    console.warn(`Could not remove ${key}:`, e);
+                }
             }
         }
 
-        // Step 5: Switch to login screen
+        // Step 6: Switch to login screen
         console.log('🔄 Switching to login screen...');
-        document.getElementById('loginScreen').style.display = "flex";
-        document.getElementById('appContainer').style.display = "none";
+        const loginScreen = document.getElementById('loginScreen');
+        const appContainer = document.getElementById('appContainer');
         
-        // Step 6: Clear any intervals or timeouts
+        if (loginScreen) loginScreen.style.display = "flex";
+        if (appContainer) appContainer.style.display = "none";
+        
+        // Step 7: Clear any intervals or timeouts
         console.log('🔄 Cleaning up intervals...');
-        if (window.autoRefreshManager) {
+        if (window.autoRefreshManager && typeof window.autoRefreshManager.stop === 'function') {
             window.autoRefreshManager.stop();
         }
         
-        // Step 7: Reset form fields
+        // Stop session refresh interval
+        if (sessionRefreshInterval) {
+            clearInterval(sessionRefreshInterval);
+            sessionRefreshInterval = null;
+        }
+        
+        // Step 8: Reset form fields
         console.log('🔄 Resetting form fields...');
-        document.getElementById('email').value = '';
-        document.getElementById('password').value = '';
+        const emailField = document.getElementById('email');
+        const passwordField = document.getElementById('password');
+        if (emailField) emailField.value = '';
+        if (passwordField) passwordField.value = '';
         
         console.log('✅ Logout completed successfully');
         showAlert("Başarıyla çıkış yapıldı", "success");
@@ -582,12 +679,15 @@ async function performLogout() {
     } catch (error) {
         console.error("❌ performLogout error:", error);
         // Force logout even if there are errors
-        document.getElementById('loginScreen').style.display = "flex";
-        document.getElementById('appContainer').style.display = "none";
+        const loginScreen = document.getElementById('loginScreen');
+        const appContainer = document.getElementById('appContainer');
+        
+        if (loginScreen) loginScreen.style.display = "flex";
+        if (appContainer) appContainer.style.display = "none";
+        
         showAlert("Çıkış yapıldı", "info");
     }
 }
-
 // Replace existing logout functionality
 function setupEnhancedLogout() {
     // Find and replace any existing logout buttons
