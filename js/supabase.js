@@ -5649,92 +5649,45 @@ window.printSinglePackage = async function(packageId) {
 
 
 
-// ==================== INTEGRATE WITH EXISTING TAB SYSTEM ====================
-console.log('🔗 Integrating with existing tab system...');
+// ==================== EVENT DELEGATION APPROACH ====================
+console.log('🎯 Setting up event delegation for tabs...');
 
-// Store the original switchTab function
-const originalSwitchTab = window.switchTab;
+// Remove any existing click handlers from tabs
+document.querySelectorAll('[data-tab]').forEach(tab => {
+    tab.onclick = null;
+});
 
-// Override switchTab to automatically load tab data
-window.switchTab = function(tabName) {
-    console.log(`🎯 switchTab called: ${tabName}`);
-    
-    // Call the original function first
-    if (originalSwitchTab) {
-        originalSwitchTab(tabName);
-    }
-    
-    // Wait for tab content to be ready, then load data
-    setTimeout(() => {
-        console.log(`🔄 Loading data for ${tabName} tab...`);
-        loadTabData(tabName);
-    }, 300);
-};
-
-function loadTabData(tabName) {
-    console.log(`📦 Loading ${tabName} data...`);
-    
-    // Retry mechanism for dynamic content
-    function tryLoad(attempt = 0) {
-        const maxAttempts = 5;
-        
-        switch(tabName) {
-            case 'shipping':
-                const shippingFolders = document.getElementById('shippingFolders');
-                if (shippingFolders) {
-                    console.log('✅ shippingFolders found, loading data...');
-                    populateShippingTable();
-                } else if (attempt < maxAttempts) {
-                    console.log(`⏳ shippingFolders not found, retrying... (${attempt + 1}/${maxAttempts})`);
-                    setTimeout(() => tryLoad(attempt + 1), 200);
-                } else {
-                    console.log('❌ shippingFolders not found after retries');
-                }
-                break;
-                
-            case 'stock':
-                const stockTableBody = document.getElementById('stockTableBody');
-                if (stockTableBody) {
-                    console.log('✅ stockTableBody found, loading data...');
-                    populateStockTable();
-                } else if (attempt < maxAttempts) {
-                    console.log(`⏳ stockTableBody not found, retrying... (${attempt + 1}/${maxAttempts})`);
-                    setTimeout(() => tryLoad(attempt + 1), 200);
-                } else {
-                    console.log('❌ stockTableBody not found after retries');
-                }
-                break;
-                
-            case 'reports':
-                const reportsTableBody = document.getElementById('reportsTableBody');
-                if (reportsTableBody) {
-                    console.log('✅ reportsTableBody found, loading data...');
-                    populateReportsTable();
-                } else if (attempt < maxAttempts) {
-                    console.log(`⏳ reportsTableBody not found, retrying... (${attempt + 1}/${maxAttempts})`);
-                    setTimeout(() => tryLoad(attempt + 1), 200);
-                } else {
-                    console.log('❌ reportsTableBody not found after retries');
-                }
-                break;
-        }
-    }
-    
-    tryLoad();
-}
-
-// Also hook into the tab click events directly
-document.addEventListener('click', function(e) {
+// Add our own event delegation
+document.querySelector('.tabs').addEventListener('click', function(e) {
     const tab = e.target.closest('[data-tab]');
     if (tab) {
         const tabName = tab.getAttribute('data-tab');
-        console.log(`🎯 Tab clicked: ${tabName}`);
+        console.log(`🎯 Tab clicked via delegation: ${tabName}`);
         
-        // Let the existing system handle the click, then load data
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Update active tab visually
+        document.querySelectorAll('[data-tab]').forEach(t => {
+            t.classList.remove('active');
+        });
+        tab.classList.add('active');
+        
+        // Show the corresponding tab content
+        const contentId = tabName + 'Tab';
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.style.display = 'none';
+        });
+        const targetContent = document.getElementById(contentId);
+        if (targetContent) {
+            targetContent.style.display = 'block';
+        }
+        
+        // Load the tab data
         setTimeout(() => {
             loadTabData(tabName);
-        }, 400);
+        }, 200);
     }
 });
 
-console.log('✅ Tab system integration complete');
+console.log('✅ Event delegation setup complete');
