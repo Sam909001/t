@@ -134,7 +134,7 @@ class WorkspaceManager {
     // Set current workspace
     setCurrentWorkspace(workspace) {
         this.currentWorkspace = workspace;
-        await saveWorkstationSelection(name);
+        localStorage.setItem(this.workspaceKey, workspace.id);
         
         console.log('🎯 Current workspace set:', workspace.name);
         
@@ -151,34 +151,49 @@ class WorkspaceManager {
     }
     
     // Update UI to show current workspace
-    updateWorkspaceUI() {
-        const workspaceIndicator = document.getElementById('workspaceIndicator');
-        if (workspaceIndicator && this.currentWorkspace) {
-            workspaceIndicator.innerHTML = `
-                <i class="fas fa-desktop"></i> 
-                ${this.currentWorkspace.name}
-                <span class="workspace-type">${this.getWorkspaceTypeLabel()}</span>
-            `;
-            workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
-            console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
-        } else {
-            console.warn('⚠️ Workspace indicator element not found');
-        }
+   updateWorkspaceUI() {
+    const workspaceIndicator = document.getElementById('workspaceIndicator');
+    
+    if (workspaceIndicator && this.currentWorkspace) {
+        const typeLabel = this.getWorkspaceTypeLabel(this.currentWorkspace);
         
-        // Update document title
-        document.title = `ProClean - ${this.currentWorkspace.name}`;
+        workspaceIndicator.innerHTML = `
+            <i class="fas fa-desktop"></i> 
+            ${this.currentWorkspace.name}
+            <span class="workspace-type">${typeLabel}</span>
+        `;
+        workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
+        console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
+    } else {
+        console.warn('⚠️ Workspace indicator element not found or workspace is null');
     }
     
-    // Get workspace type label
-    getWorkspaceTypeLabel() {
-        const types = {
-            'packaging': 'Paketleme',
-            'shipping': 'Sevkiyat',
-            'quality': 'Kalite Kontrol',
-            'admin': 'Yönetici'
-        };
-        return types[this.currentWorkspace.type] || this.currentWorkspace.type;
+    // Update document title
+    if (this.currentWorkspace) {
+        document.title = `ProClean - ${this.currentWorkspace.name}`;
     }
+}
+
+
+    
+    
+  getWorkspaceTypeLabel(workspace) {
+    // FIXED: Handle null workspace
+    const ws = workspace || this.currentWorkspace;
+    
+    if (!ws || !ws.type) {
+        return 'Genel'; // Default fallback
+    }
+    
+    const types = {
+        'packaging': 'Paketleme',
+        'shipping': 'Sevkiyat',
+        'quality': 'Kalite Kontrol',
+        'admin': 'Yönetici'
+    };
+    
+    return types[ws.type] || ws.type || 'Genel';
+}
     
     // Initialize workspace-specific Excel storage
     initializeWorkspaceStorage() {
@@ -199,7 +214,7 @@ class WorkspaceManager {
         ExcelJS.readFile = async function() {
             try {
                 const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                const data = await getExcelPackages(workspaceId) || [];
+                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
                 const packages = data ? JSON.parse(data) : [];
                 console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
                 return packages;
@@ -212,7 +227,7 @@ class WorkspaceManager {
         ExcelJS.writeFile = async function(data) {
             try {
                 const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                await saveExcelPackages(workspaceId, data);
+                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
                 console.log(`💾 Saved ${data.length} packages to workspace: ${workspaceId}`);
                 return true;
             } catch (error) {
@@ -254,78 +269,118 @@ async loadWorkspaceData() {
         }
     }
     
-    // Show workspace selection modal
-    async showWorkspaceSelection() {
-        return new Promise((resolve) => {
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
-                align-items: center; z-index: 10000;
-            `;
-            
-            modal.innerHTML = `
-                <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%;">
-                    <h2>Çalışma İstasyonu Seçin</h2>
-                    <p>Lütfen bu monitör için bir çalışma istasyonu seçin:</p>
-                    <div id="workspaceOptions" style="margin: 1rem 0;"></div>
-                    <button onclick="window.workspaceManager.createNewWorkspace()" 
-                            style="margin-top: 1rem; padding: 0.5rem 1rem;">
-                        <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
-                    </button>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Populate workspace options
-            const optionsContainer = document.getElementById('workspaceOptions');
+  async showWorkspaceSelection() {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal workspace-modal';
+        modal.style.cssText = `
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.8); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%;">
+                <h2>Çalışma İstasyonu Seçin</h2>
+                <p>Lütfen bu monitör için bir çalışma istasyonu seçin:</p>
+                <div id="workspaceOptions" style="margin: 1rem 0;"></div>
+                <button id="createNewWorkspaceBtn" 
+                        style="margin-top: 1rem; padding: 0.5rem 1rem; width: 100%; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Populate workspace options
+        const optionsContainer = document.getElementById('workspaceOptions');
+        
+        if (this.availableWorkspaces.length === 0) {
+            optionsContainer.innerHTML = '<p style="color: #666; text-align: center;">Henüz istasyon yok. Yeni istasyon oluşturun.</p>';
+        } else {
             this.availableWorkspaces.forEach(workspace => {
                 const button = document.createElement('button');
                 button.style.cssText = `
-                    display: block; width: 100%; padding: 1rem; margin: 0.5rem 0; 
-                    text-align: left; border: 1px solid #ddd; border-radius: 5px;
-                    background: #f9f9f9; cursor: pointer;
+                    display: block; 
+                    width: 100%; 
+                    padding: 1rem; 
+                    margin: 0.5rem 0; 
+                    text-align: left; 
+                    border: 1px solid #ddd; 
+                    border-radius: 5px;
+                    background: #f9f9f9; 
+                    cursor: pointer;
+                    transition: background 0.2s;
                 `;
+                
+                // FIXED: Pass workspace to getWorkspaceTypeLabel
+                const typeLabel = this.getWorkspaceTypeLabel(workspace);
+                
                 button.innerHTML = `
                     <strong>${workspace.name}</strong><br>
-                    <small>Tip: ${this.getWorkspaceTypeLabel(workspace.type)}</small>
+                    <small>Tip: ${typeLabel}</small>
                 `;
+                
+                button.onmouseover = () => button.style.background = '#e8e8e8';
+                button.onmouseout = () => button.style.background = '#f9f9f9';
+                
                 button.onclick = () => {
                     this.setCurrentWorkspace(workspace);
                     document.body.removeChild(modal);
                     resolve();
                 };
+                
                 optionsContainer.appendChild(button);
             });
-        });
-    }
+        }
+        
+        // Create new workspace button handler
+        const createBtn = document.getElementById('createNewWorkspaceBtn');
+        if (createBtn) {
+            createBtn.onclick = () => {
+                this.createNewWorkspace();
+                document.body.removeChild(modal);
+                resolve();
+            };
+        }
+    });
+}
     
     // Create new workspace
-    createNewWorkspace() {
-        const name = prompt('Yeni istasyon adını girin:');
-        if (!name) return;
-        
-        const newWorkspace = {
-            id: 'station-' + Date.now(),
-            name: name,
-            type: 'packaging',
-            created: new Date().toISOString()
-        };
-        
-        this.availableWorkspaces.push(newWorkspace);
-        this.saveWorkspaces();
-        this.setCurrentWorkspace(newWorkspace);
-        
-        // Remove modal
-        const modal = document.querySelector('.modal');
-        if (modal) document.body.removeChild(modal);
+   createNewWorkspace() {
+    const name = prompt('Yeni istasyon adını girin:');
+    if (!name || name.trim() === '') {
+        console.log('Workspace creation cancelled');
+        return;
     }
+    
+    const newWorkspace = {
+        id: 'station-' + Date.now(),
+        name: name.trim(),
+        type: 'packaging', // Default type
+        created: new Date().toISOString()
+    };
+    
+    this.availableWorkspaces.push(newWorkspace);
+    this.saveWorkspaces();
+    this.setCurrentWorkspace(newWorkspace);
+    
+    console.log('New workspace created:', newWorkspace);
+    showAlert(`Yeni istasyon oluşturuldu: ${newWorkspace.name}`, 'success');
+}
+
     
     // Save workspaces to localStorage
     saveWorkspaces() {
-        await StorageManager.setItem('proclean_workspaces', JSON.stringify(this.availableWorkspaces));
+        localStorage.setItem('proclean_workspaces', JSON.stringify(this.availableWorkspaces));
     }
     
     // Check if current workspace can perform an action
@@ -575,7 +630,7 @@ getDefaultPrinterConfig() {
     savePrinterConfigurations() {
         try {
             const configObj = Object.fromEntries(this.printerConfigs);
-            await StorageManager.setItem('workspace_printer_configs', JSON.stringify(configObj));
+            localStorage.setItem('workspace_printer_configs', JSON.stringify(configObj));
             console.log('💾 Printer configurations saved');
         } catch (error) {
             console.error('Error saving printer configurations:', error);
@@ -811,7 +866,7 @@ getDefaultPrinterConfig() {
             auditLog.splice(0, auditLog.length - 1000);
         }
         
-        await StorageManager.setItem('workspace_audit_log', JSON.stringify(auditLog));
+        localStorage.setItem('workspace_audit_log', JSON.stringify(auditLog));
     }
 }
 
@@ -1053,6 +1108,10 @@ function getStrictWorkspaceFilter(tableName) {
     return window.workspaceManager.createWorkspaceFilter(tableName);
 }
 
+
+        
+
+
 // Replace ALL data loading functions with strict versions
 async function loadPackagesDataStrict() {
     if (!window.workspaceManager?.currentWorkspace) {
@@ -1099,22 +1158,19 @@ async function loadPackagesDataStrict() {
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', workspaceId) // STRICT FILTER
+                    .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
                 
                 if (!error && supabasePackages && supabasePackages.length > 0) {
                     console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
-                    // Validate each package from Supabase
                     const validSupabasePackages = supabasePackages.filter(pkg => 
                         validateWorkspaceAccessStrict(pkg)
                     );
                     
-                    // Merge with Excel data (Supabase takes priority)
                     const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
                     window.packages = mergedPackages;
                     
-                    // Update Excel storage with merged data
                     const excelData = ExcelJS.toExcelFormat(mergedPackages);
                     await ExcelJS.writeFile(excelData);
                 }
@@ -1126,10 +1182,11 @@ async function loadPackagesDataStrict() {
         await populatePackagesTable();
         
     } catch (error) {
-        console.error('❌ Error in strict packages data loading:', error);
+        console.error('Error in strict packages data loading:', error);
         showAlert('Paket verileri yüklenirken hata oluştu', 'error');
     }
 }
+
 
 // Strict merge function
 function mergePackagesStrict(excelPackages, supabasePackages) {
@@ -1255,7 +1312,7 @@ const ExcelStorage = {
             localStorage.setItem(fileName, JSON.stringify(enhancedData));
             
             // Also update the current active file reference
-            await StorageManager.setItem('excelPackages_current', fileName);
+            localStorage.setItem('excelPackages_current', fileName);
             
             console.log(`💾 Saved ${enhancedData.length} records to ${fileName}`);
             return true;
@@ -1343,7 +1400,7 @@ convertToCSV: function(data) {
             const key = localStorage.key(i);
             if (key.startsWith('packages_') && key.endsWith('.json')) {
                 if (!filesToKeep.includes(key)) {
-                    await StorageManager.removeItem(key);
+                    localStorage.removeItem(key);
                     console.log(`🧹 Removed old file: ${key}`);
                 }
             }
@@ -1412,37 +1469,358 @@ toExcelFormat: function(packages) {
 
 
 
-// ==================== UPDATED FUNCTIONS - Replace in your code ====================
-
-// 1. REPLACE: ExcelStorage.exportDailyFile function
-ExcelStorage.exportDailyFile = async function(dateString) {
-    try {
-        const fileName = `packages_${dateString}.json`;
-        const fileData = await StorageManager.getItem(fileName); // ✅ CHANGED
-        
-        if (!fileData) {
-            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
-            return;
-        }
-        
-        const packages = fileData; // ✅ CHANGED - no JSON.parse needed
-        
-        if (packages.length === 0) {
-            showAlert(`${dateString} tarihli dosyada paket bulunmamaktadır`, 'info');
-            return;
+// ==================== PROFESSIONAL EXCEL EXPORT - SIMPLIFIED ====================
+const ProfessionalExcelExport = {
+    // Convert packages to Excel-friendly format with simplified headers
+    convertToProfessionalExcel: function(packages) {
+        if (!packages || packages.length === 0) {
+            return [];
         }
 
-        // Use professional Excel export
-        const filename = `ProClean_Paketler_${dateString}.xlsx`;
-        ProfessionalExcelExport.exportToProfessionalExcel(packages, filename);
-        
-    } catch (error) {
-        console.error('Enhanced export error:', error);
-        showAlert('Dosya dışa aktarılırken hata oluştu', 'error');
+        // Define simplified professional headers
+        const excelData = packages.map(pkg => {
+            // Extract items information professionally - SIMPLIFIED VERSION
+            let itemsInfo = 'Ürün bilgisi yok';
+            let totalQuantity = pkg.total_quantity || 0;
+            
+            // FIXED: Better product extraction - KEEP ONLY PRODUCT NAMES
+            if (pkg.items) {
+                if (Array.isArray(pkg.items)) {
+                    // Array format: [{name: "Product", qty: 5}]
+                    // KEEP ONLY PRODUCT NAMES, remove quantities from display
+                    itemsInfo = pkg.items.map(item => item.name || 'Ürün').join(', ');
+                    
+                    // Calculate total quantity from items array
+                    if (pkg.items.length > 0 && !totalQuantity) {
+                        totalQuantity = pkg.items.reduce((sum, item) => sum + (item.qty || 0), 0);
+                    }
+                } else if (typeof pkg.items === 'object') {
+                    // Object format: {"Product1": 5, "Product2": 3}
+                    // KEEP ONLY PRODUCT NAMES, remove quantities from display
+                    itemsInfo = Object.keys(pkg.items).join(', ');
+                    
+                    // Calculate total quantity from items object
+                    const itemsArray = Object.entries(pkg.items);
+                    if (itemsArray.length > 0 && !totalQuantity) {
+                        totalQuantity = itemsArray.reduce((sum, [_, quantity]) => sum + quantity, 0);
+                    }
+                }
+            } else if (pkg.items_display) {
+                // Fallback to items_display but extract only product names
+                const productMatches = pkg.items_display.match(/([^:,]+)(?=:)/g);
+                if (productMatches) {
+                    itemsInfo = productMatches.map(match => match.trim()).join(', ');
+                } else {
+                    itemsInfo = pkg.items_display;
+                }
+            } else if (pkg.product) {
+                // Fallback to single product field
+                itemsInfo = pkg.product;
+            }
+
+            // Get customer information - KEEP ONLY CUSTOMER NAME, REMOVE ID
+            const customerName = pkg.customer_name || pkg.customers?.name || 'Bilinmeyen Müşteri';
+            
+            // Format dates properly
+            const createdDate = pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A';
+            const updatedDate = pkg.updated_at ? new Date(pkg.updated_at).toLocaleDateString('tr-TR') : 'N/A';
+
+            // SIMPLIFIED COLUMNS - Only essential fields
+            return {
+                'PAKET NO': pkg.package_no || 'N/A',
+                'MÜŞTERİ': customerName, // ONLY CUSTOMER NAME, NO ID
+                'ÜRÜNLER': itemsInfo, // ONLY PRODUCT NAMES, NO DETAILS
+                'TOPLAM ADET': totalQuantity,
+                'DURUM': pkg.status === 'sevk-edildi' ? 'SEVK EDİLDİ' : 'BEKLEMEDE',
+                'PAKETLEYEN': pkg.packer || 'Bilinmiyor',
+                'OLUŞTURULMA TARİHİ': createdDate,
+                'GÜNCELLENME TARİHİ': updatedDate,
+                'İSTASYON': pkg.station_name || pkg.workspace_id || 'Default'
+            };
+        });
+
+        return excelData;
+    },
+
+    // Create professional Excel file with WIDER columns and proper styling
+    exportToProfessionalExcel: function(packages, filename = null) {
+        try {
+            if (!packages || packages.length === 0) {
+                showAlert('Excel için paket verisi bulunamadı', 'warning');
+                return false;
+            }
+
+            const excelData = this.convertToProfessionalExcel(packages);
+            
+            if (!filename) {
+                const date = new Date().toISOString().split('T')[0];
+                filename = `ProClean_Paketler_${date}_${getCurrentWorkspaceName()}.xlsx`;
+            }
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            
+            // Convert data to worksheet
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            
+            // SET WIDER COLUMN WIDTHS FOR BETTER VISIBILITY
+            const colWidths = [
+                { wch: 60 }, // PAKET NO - WIDER
+                { wch: 40 }, // MÜŞTERİ - WIDER
+                { wch: 35 }, // ÜRÜNLER - MUCH WIDER for product names
+                { wch: 10 }, // TOPLAM ADET
+                { wch: 40 }, // DURUM
+                { wch: 40 }, // PAKETLEYEN - WIDER
+                { wch: 40 }, // OLUŞTURULMA TARİHİ
+                { wch: 40 }, // GÜNCELLENME TARİHİ
+                { wch: 5 }  // İSTASYON
+            ];
+            ws['!cols'] = colWidths;
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Paketler');
+
+            // Create header style
+            if (ws['!ref']) {
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                
+                // Style header row (row 0)
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cell_address = { c: C, r: 0 };
+                    const cell_ref = XLSX.utils.encode_cell(cell_address);
+                    if (!ws[cell_ref]) continue;
+                    
+                    // Make header cells bold with professional styling
+                    if (!ws[cell_ref].s) {
+                        ws[cell_ref].s = {};
+                    }
+                    ws[cell_ref].s = {
+                        font: { 
+                            bold: true, 
+                            color: { rgb: "FFFFFF" },
+                            sz: 12 // Slightly larger font
+                        },
+                        fill: { 
+                            fgColor: { rgb: "2F75B5" } 
+                        },
+                        alignment: { 
+                            horizontal: "center", 
+                            vertical: "center",
+                            wrapText: true
+                        },
+                        border: {
+                            top: { style: "thin", color: { rgb: "1F5B95" } },
+                            left: { style: "thin", color: { rgb: "1F5B95" } },
+                            bottom: { style: "thin", color: { rgb: "1F5B95" } },
+                            right: { style: "thin", color: { rgb: "1F5B95" } }
+                        }
+                    };
+                }
+
+                // Style data rows for better readability
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cell_address = { c: C, r: R };
+                        const cell_ref = XLSX.utils.encode_cell(cell_address);
+                        if (!ws[cell_ref]) continue;
+                        
+                        if (!ws[cell_ref].s) {
+                            ws[cell_ref].s = {};
+                        }
+                        
+                        // Set text wrapping for better visibility
+                        ws[cell_ref].s.alignment = {
+                            wrapText: true,
+                            vertical: "top"
+                        };
+                        
+                        // Alternate row coloring for better readability
+                        if (R % 2 === 0) {
+                            ws[cell_ref].s.fill = { fgColor: { rgb: "F8F9FA" } };
+                        }
+                        
+                        // Add borders to all cells
+                        ws[cell_ref].s.border = {
+                            top: { style: "thin", color: { rgb: "E0E0E0" } },
+                            left: { style: "thin", color: { rgb: "E0E0E0" } },
+                            bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+                            right: { style: "thin", color: { rgb: "E0E0E0" } }
+                        };
+                    }
+                }
+
+                // Add auto filters
+                ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+                
+                // Freeze header row
+                ws['!freeze'] = { x: 0, y: 1 };
+            }
+
+            // Write and download file
+            XLSX.writeFile(wb, filename);
+            
+            showAlert(`✅ ${packages.length} paket profesyonel Excel formatında dışa aktarıldı`, 'success');
+            console.log('Professional Excel exported:', packages.length, 'packages');
+            
+            return true;
+
+        } catch (error) {
+            console.error('Professional Excel export error:', error);
+            showAlert('Excel dışa aktarım hatası: ' + error.message, 'error');
+            return false;
+        }
+    },
+
+    // Enhanced CSV export with simplified columns and better formatting
+    exportToProfessionalCSV: function(packages, filename = null) {
+        try {
+            if (!packages || packages.length === 0) {
+                showAlert('CSV için paket verisi bulunamadı', 'warning');
+                return false;
+            }
+
+            const excelData = this.convertToProfessionalExcel(packages);
+            
+            if (!filename) {
+                const date = new Date().toISOString().split('T')[0];
+                filename = `ProClean_Paketler_${date}_${getCurrentWorkspaceName()}.csv`;
+            }
+
+            // Convert to CSV with proper formatting
+            const headers = Object.keys(excelData[0]);
+            const csvContent = [
+                headers.join(','), // Header row
+                ...excelData.map(row => 
+                    headers.map(header => {
+                        const value = row[header];
+                        // Escape commas and quotes in values
+                        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                            return `"${value.replace(/"/g, '""')}"`;
+                        }
+                        return value;
+                    }).join(',')
+                )
+            ].join('\n');
+
+            // Create and download CSV file
+            const blob = new Blob(['\uFEFF' + csvContent], { 
+                type: 'text/csv;charset=utf-8;' 
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showAlert(`✅ ${packages.length} paket CSV formatında dışa aktarıldı`, 'success');
+            return true;
+
+        } catch (error) {
+            console.error('Professional CSV export error:', error);
+            showAlert('CSV dışa aktarım hatası: ' + error.message, 'error');
+            return false;
+        }
     }
 };
 
-// 2. REPLACE: initializeExcelStorage function
+// Also update the upload function to use simplified columns
+async function uploadExcelToSupabase(packages) {
+    if (!supabase || !navigator.onLine) {
+        console.log("Supabase not available, skipping upload");
+        return false;
+    }
+
+    try {
+        // Use the SIMPLIFIED ProfessionalExcelExport functionality
+        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
+        
+        if (!excelData || excelData.length === 0) {
+            console.log("No data to upload");
+            return false;
+        }
+
+        // Create CSV content with simplified columns
+        const headers = Object.keys(excelData[0]);
+        const csvContent = [
+            headers.join(','),
+            ...excelData.map(row => 
+                headers.map(header => {
+                    const value = row[header];
+                    // Escape commas and quotes
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value;
+                }).join(',')
+            )
+        ].join('\n');
+
+        // Create blob with BOM for Excel compatibility
+        const blob = new Blob(['\uFEFF' + csvContent], { 
+            type: 'text/csv;charset=utf-8;' 
+        });
+
+        // File name
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `backup_${timestamp}.csv`;
+
+        // Upload to Supabase storage
+        const { data, error } = await supabase.storage
+            .from('reports')
+            .upload(fileName, blob);
+
+        if (error) {
+            console.error("Supabase storage upload error:", error);
+            
+            // Fallback: Try to insert as records in a table
+            await uploadAsDatabaseRecords(packages, timestamp);
+            return false;
+        }
+
+        console.log("Excel backup uploaded to Supabase storage:", fileName);
+        return true;
+        
+    } catch (error) {
+        console.error("Supabase upload error:", error);
+        return false;
+    }
+}
+
+
+
+// FIXED: Supabase istemcisini başlat - Singleton pattern ile
+function initializeSupabase() {
+    // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
+    if (supabase && SUPABASE_ANON_KEY) {
+        return supabase;
+    }
+    
+    if (!SUPABASE_ANON_KEY) {
+        console.warn('Supabase API key not set, showing modal');
+        showApiKeyModal();
+        isUsingExcel = true;
+        showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
+        return null;
+    }
+    
+    try {
+        // Global supabase değişkenine ata
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase client initialized successfully');
+        isUsingExcel = false;
+        return supabase;
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
+        showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
+        isUsingExcel = true;
+        showApiKeyModal();
+        return null;
+    }
+}
+
 async function initializeExcelStorage() {
     try {
         // Initialize daily file system
@@ -1456,8 +1834,8 @@ async function initializeExcelStorage() {
         console.log(`Excel packages loaded from daily file:`, excelPackages.length);
         
         // Sync queue'yu yükle
-        const savedQueue = await StorageManager.getItem('excelSyncQueue'); // ✅ CHANGED
-        excelSyncQueue = savedQueue || []; // ✅ CHANGED - no JSON.parse needed
+        const savedQueue = localStorage.getItem('excelSyncQueue');
+        excelSyncQueue = savedQueue ? JSON.parse(savedQueue) : [];
         
         return excelPackages;
     } catch (error) {
@@ -1467,59 +1845,77 @@ async function initializeExcelStorage() {
     }
 }
 
-// 3. REPLACE: addToSyncQueue function
-async function addToSyncQueue(operationType, data) {
-    // Create operation fingerprint for deduplication
-    const operationFingerprint = `${operationType}-${data.id}`;
-    
-    // Check for duplicates
-    const isDuplicate = excelSyncQueue.some(op => 
-        op.fingerprint === operationFingerprint && op.status !== 'failed'
-    );
-    
-    if (isDuplicate) {
-        console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
-        return;
+// REPLACE the existing saveToExcel function with this:
+async function saveToExcel(packageData) {
+    try {
+        // Enhanced package data with customer and product info
+        const enhancedPackageData = {
+            ...packageData,
+            // Ensure customer info is included
+            customer_name: packageData.customer_name || selectedCustomer?.name || 'Bilinmeyen Müşteri',
+            customer_code: selectedCustomer?.code || '',
+            // Ensure product/items info is properly formatted
+            items: packageData.items || currentPackage.items || {},
+            // Add date info for daily file management
+            excel_export_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            // Convert items to readable string for Excel
+            items_display: packageData.items ? 
+                Object.entries(packageData.items).map(([product, quantity]) => 
+                    `${product}: ${quantity} adet`
+                ).join(', ') : 'Ürün bilgisi yok',
+            // Add workspace info
+            workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default',
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
+        };
+        
+        // Read current daily file
+        const currentPackages = await ExcelJS.readFile();
+        
+        // Yeni paketi ekle veya güncelle
+        const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
+        if (existingIndex >= 0) {
+            currentPackages[existingIndex] = enhancedPackageData;
+        } else {
+            currentPackages.push(enhancedPackageData);
+        }
+        
+        // Save to daily file
+        const success = await ExcelJS.writeFile(currentPackages);
+        
+        if (success) {
+            // Global excelPackages değişkenini güncelle
+            excelPackages = currentPackages;
+            console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
+            return true;
+        }
+        return false;
+        
+    } catch (error) {
+        console.error('Save to Excel error:', error);
+        return false;
     }
-
-    // Remove any older operations for the same data ID
-    excelSyncQueue = excelSyncQueue.filter(op => 
-        !(op.data.id === data.id && op.type !== operationType)
-    );
-
-    // Create enhanced operation object
-    const enhancedOperation = {
-        type: operationType,
-        data: data,
-        timestamp: new Date().toISOString(),
-        fingerprint: operationFingerprint,
-        workspace_id: getCurrentWorkspaceId(),
-        attempts: 0,
-        maxAttempts: 3,
-        status: 'pending',
-        lastAttempt: null,
-        lastError: null
-    };
-
-    // Create backup before modifying queue
-    await StorageManager.setItem('excelSyncQueue_backup', excelSyncQueue); // ✅ CHANGED
-    
-    // Add new operation
-    excelSyncQueue.push(enhancedOperation);
-    
-    // Limit queue size to prevent memory issues
-    if (excelSyncQueue.length > 1000) {
-        console.warn('📦 Sync queue too large, removing oldest failed operations');
-        excelSyncQueue = excelSyncQueue
-            .filter(op => op.status !== 'failed')
-            .slice(-500); // Keep last 500 non-failed operations
-    }
-
-    await StorageManager.setItem('excelSyncQueue', excelSyncQueue); // ✅ CHANGED
-    console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
 }
 
-// 4. REPLACE: syncExcelWithSupabase function - Update the queue save part
+async function deleteFromExcel(packageId) {
+    try {
+        const currentPackages = await ExcelJS.readFile();
+        const filteredPackages = currentPackages.filter(p => p.id !== packageId);
+        
+        const success = await ExcelJS.writeFile(filteredPackages);
+        
+        if (success) {
+            excelPackages = filteredPackages;
+            console.log('Package deleted from Excel daily file');
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Delete from Excel error:', error);
+        return false;
+    }
+}
+
+// REPLACE the existing syncExcelWithSupabase function with this:
 async function syncExcelWithSupabase() {
     if (!supabase || !navigator.onLine) {
         console.log('❌ Cannot sync: No Supabase client or offline');
@@ -1576,6 +1972,7 @@ async function syncExcelWithSupabase() {
                 let result;
                 const operationData = {
                     ...operation.data,
+                    // Ensure workspace consistency during sync
                     workspace_id: currentWorkspaceId,
                     updated_at: new Date().toISOString()
                 };
@@ -1585,7 +1982,7 @@ async function syncExcelWithSupabase() {
                         result = await supabase
                             .from('packages')
                             .upsert([operationData], {
-                                onConflict: 'id',
+                                onConflict: 'id', // Use upsert to handle conflicts
                                 ignoreDuplicates: false
                             });
                         break;
@@ -1595,7 +1992,7 @@ async function syncExcelWithSupabase() {
                             .from('packages')
                             .update(operationData)
                             .eq('id', operationData.id)
-                            .eq('workspace_id', currentWorkspaceId);
+                            .eq('workspace_id', currentWorkspaceId); // Workspace safety
                         break;
                         
                     case 'delete':
@@ -1603,7 +2000,7 @@ async function syncExcelWithSupabase() {
                             .from('packages')
                             .delete()
                             .eq('id', operationData.id)
-                            .eq('workspace_id', currentWorkspaceId);
+                            .eq('workspace_id', currentWorkspaceId); // Workspace safety
                         break;
                         
                     default:
@@ -1614,6 +2011,7 @@ async function syncExcelWithSupabase() {
                     throw result.error;
                 }
 
+                // Mark as successful
                 operation.status = 'success';
                 results.successful.push(operation.fingerprint);
                 console.log(`✅ Sync successful: ${operation.type} for ${operation.data.id}`);
@@ -1630,6 +2028,7 @@ async function syncExcelWithSupabase() {
                     packageId: operation.data.id
                 });
 
+                // If it's a network error, stop the entire sync
                 if (opError.message?.includes('network') || 
                     opError.message?.includes('fetch') || 
                     opError.message?.includes('Internet')) {
@@ -1639,7 +2038,7 @@ async function syncExcelWithSupabase() {
             }
         }
 
-        // Step 4: ATOMIC QUEUE UPDATE
+        // Step 4: ATOMIC QUEUE UPDATE - Only remove successful operations
         const updatedQueue = excelSyncQueue.filter(op => 
             op.status !== 'success' && 
             !results.successful.includes(op.fingerprint)
@@ -1647,8 +2046,9 @@ async function syncExcelWithSupabase() {
 
         // Step 5: VERIFY CHANGES BEFORE COMMITTING
         if (updatedQueue.length === excelSyncQueue.length - results.successful.length) {
+            // Atomic update - all or nothing
             excelSyncQueue = updatedQueue;
-            await StorageManager.setItem('excelSyncQueue', excelSyncQueue); // ✅ CHANGED
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
             console.log('💾 Queue updated atomically');
         } else {
             throw new Error('Queue integrity check failed during sync');
@@ -1661,19 +2061,24 @@ async function syncExcelWithSupabase() {
 
     } catch (error) {
         console.error('💥 CRITICAL: Atomic sync process failed:', error);
+        
+        // CRITICAL: Restore from backup if catastrophic failure
         await restoreSyncBackup();
+        
         showAlert('❌ Senkronizasyon sürecinde kritik hata oluştu. Veriler korundu.', 'error');
         return false;
     }
 }
 
-// 5. REPLACE: restoreSyncBackup function
+
+
+// Add backup restoration function
 async function restoreSyncBackup() {
     try {
-        const backup = await StorageManager.getItem('excelSyncQueue_backup'); // ✅ CHANGED
+        const backup = localStorage.getItem('excelSyncQueue_backup');
         if (backup) {
-            excelSyncQueue = backup; // ✅ CHANGED - no JSON.parse needed
-            await StorageManager.setItem('excelSyncQueue', excelSyncQueue); // ✅ CHANGED
+            excelSyncQueue = JSON.parse(backup);
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
             console.log('🔄 Sync queue restored from backup');
         }
     } catch (error) {
@@ -1681,16 +2086,177 @@ async function restoreSyncBackup() {
     }
 }
 
-// 6. REPLACE: AtomicSyncManager.createSyncBackup method
-async createSyncBackup() {
-    this.backupQueue = JSON.parse(JSON.stringify(excelSyncQueue));
+// Enhanced addToSyncQueue with backup
+function addToSyncQueue(operationType, data) {
+    // Create operation fingerprint for deduplication
+    const operationFingerprint = `${operationType}-${data.id}`;
     
-    // Also backup current Excel data
-    const currentData = await ExcelJS.readFile();
-    await StorageManager.setItem('sync_backup_data', currentData); // ✅ CHANGED
+    // Check for duplicates
+    const isDuplicate = excelSyncQueue.some(op => 
+        op.fingerprint === operationFingerprint && op.status !== 'failed'
+    );
     
-    console.log('📦 Sync backup created:', this.backupQueue.length, 'operations');
+    if (isDuplicate) {
+        console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
+        return;
+    }
+
+    // Remove any older operations for the same data ID
+    excelSyncQueue = excelSyncQueue.filter(op => 
+        !(op.data.id === data.id && op.type !== operationType)
+    );
+
+    // Create enhanced operation object
+    const enhancedOperation = {
+        type: operationType,
+        data: data,
+        timestamp: new Date().toISOString(),
+        fingerprint: operationFingerprint,
+        workspace_id: getCurrentWorkspaceId(),
+        attempts: 0,
+        maxAttempts: 3,
+        status: 'pending',
+        lastAttempt: null,
+        lastError: null
+    };
+
+    // Create backup before modifying queue
+    localStorage.setItem('excelSyncQueue_backup', JSON.stringify(excelSyncQueue));
+    
+    // Add new operation
+    excelSyncQueue.push(enhancedOperation);
+    
+    // Limit queue size to prevent memory issues
+    if (excelSyncQueue.length > 1000) {
+        console.warn('📦 Sync queue too large, removing oldest failed operations');
+        excelSyncQueue = excelSyncQueue
+            .filter(op => op.status !== 'failed')
+            .slice(-500); // Keep last 500 non-failed operations
+    }
+
+    localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+    console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
 }
+
+
+
+
+
+// ==================== ATOMIC SYNC QUEUE SYSTEM ====================
+
+// Add this to supabase.js after the existing sync functions
+
+class AtomicSyncManager {
+    constructor() {
+        this.isSyncing = false;
+        this.backupQueue = [];
+        this.maxRetries = 3;
+    }
+
+    // Create atomic transaction wrapper
+    async executeAtomicSync() {
+        if (this.isSyncing) {
+            console.log('🔄 Sync already in progress, skipping...');
+            return false;
+        }
+
+        this.isSyncing = true;
+        
+        try {
+            // Step 1: Create backup
+            await this.createSyncBackup();
+            
+            // Step 2: Process operations in transaction
+            const result = await this.processSyncTransaction();
+            
+            // Step 3: Only commit if ALL operations succeed
+            if (result.success) {
+                await this.commitSync();
+                return true;
+            } else {
+                await this.rollbackSync();
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('💥 Atomic sync failed:', error);
+            await this.rollbackSync();
+            return false;
+        } finally {
+            this.isSyncing = false;
+        }
+    }
+
+    // Create comprehensive backup
+    async createSyncBackup() {
+        this.backupQueue = JSON.parse(JSON.stringify(excelSyncQueue));
+        
+        // Also backup current Excel data
+        const currentData = await ExcelJS.readFile();
+        localStorage.setItem('sync_backup_data', JSON.stringify(currentData));
+        
+        console.log('📦 Sync backup created:', this.backupQueue.length, 'operations');
+    }
+
+    // Process operations as atomic transaction
+    async processSyncTransaction() {
+        if (!supabase || !navigator.onLine) {
+            throw new Error('Cannot sync: No Supabase client or offline');
+        }
+
+        const workspaceId = getCurrentWorkspaceId();
+        const workspaceOperations = excelSyncQueue.filter(op => 
+            op.workspace_id === workspaceId && op.status !== 'success'
+        );
+
+        if (workspaceOperations.length === 0) {
+            return { success: true, processed: 0 };
+        }
+
+        const results = {
+            successful: [],
+            failed: [],
+            skipped: []
+        };
+
+        // Process each operation with individual error handling
+        for (const operation of workspaceOperations) {
+            try {
+                if (operation.attempts >= this.maxRetries) {
+                    results.skipped.push(operation.fingerprint);
+                    continue;
+                }
+
+                const success = await this.executeSingleOperation(operation);
+                
+                if (success) {
+                    operation.status = 'success';
+                    results.successful.push(operation.fingerprint);
+                } else {
+                    throw new Error('Operation failed');
+                }
+
+            } catch (error) {
+                console.error(`❌ Sync failed for ${operation.type}:`, error);
+                operation.status = 'failed';
+                operation.lastError = error.message;
+                operation.attempts = (operation.attempts || 0) + 1;
+                results.failed.push(operation.fingerprint);
+
+                // Critical: Stop on network errors
+                if (this.isNetworkError(error)) {
+                    console.log('🌐 Network error detected, stopping sync');
+                    break;
+                }
+            }
+        }
+
+        return {
+            success: results.failed.length === 0,
+            results: results
+        };
+    }
+
     // Execute single operation with timeout
     async executeSingleOperation(operation) {
         const timeoutPromise = new Promise((_, reject) => 
@@ -1770,12 +2336,12 @@ async createSyncBackup() {
         // Verify integrity before committing
         if (updatedQueue.length <= excelSyncQueue.length) {
             excelSyncQueue = updatedQueue;
-            await StorageManager.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
             console.log('💾 Sync committed successfully');
             
             // Clear backup after successful commit
             this.backupQueue = [];
-            await StorageManager.removeItem('sync_backup_data');
+            localStorage.removeItem('sync_backup_data');
         } else {
             throw new Error('Queue integrity check failed during commit');
         }
@@ -1788,7 +2354,7 @@ async createSyncBackup() {
         // Restore queue from backup
         if (this.backupQueue.length > 0) {
             excelSyncQueue = this.backupQueue;
-            await StorageManager.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
         }
         
         // Restore Excel data from backup
@@ -1851,7 +2417,7 @@ async function migrateExistingDataToWorkspace() {
                 ...op,
                 workspace_id: op.workspace_id || workspaceId
             }));
-            await StorageManager.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
             console.log('🔄 Migrated sync queue to workspace');
         }
         
@@ -1963,7 +2529,7 @@ function enhanceSyncQueue() {
             lastAttempt: null,
             status: 'pending'
         }));
-        await StorageManager.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
     }
 }
 
@@ -1980,7 +2546,7 @@ function saveApiKey() {
     
     // Yeni API key'i ayarla
     SUPABASE_ANON_KEY = apiKey;
-    await StorageManager.setItem('procleanApiKey', apiKey);
+    localStorage.setItem('procleanApiKey', apiKey);
     
     // Yeni client oluştur
     const newClient = initializeSupabase();
@@ -2100,7 +2666,7 @@ async function testConnection() {
                 }
                 
                 // Başarılı senkronizasyondan sonra çevrimdışı verileri temizle
-                await StorageManager.removeItem('procleanOfflineData');
+                localStorage.removeItem('procleanOfflineData');
                 showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
                 
             } catch (error) {
@@ -2118,7 +2684,7 @@ async function testConnection() {
             }
             
             offlineData[type].push(data);
-            await StorageManager.setItem('procleanOfflineData', JSON.stringify(offlineData));
+            localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
         }
 
 
@@ -2330,7 +2896,7 @@ async function populatePackagesTable() {
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-           row.innerHTML = `
+row.innerHTML = `
     <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
     <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
     <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
@@ -2342,7 +2908,12 @@ async function populatePackagesTable() {
     </td>
     <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
     <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-    <td style="text-align: center;">${sourceIcon}</td>
+    <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+    ${sourceIcon}
+    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+        <i class="fas fa-print"></i>
+    </button>
+</td>
 `;
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
@@ -2810,11 +3381,10 @@ async function viewContainerDetails(containerId) {
 
 
 
-  let isStockTableLoading = false;
+let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// REPLACE the populateReportsTable function with this:
-// REPLACE the populateReportsTable function with this:
+// Enhanced populateReportsTable function
 async function populateReportsTable() {
     try {
         console.log('Populating reports table with daily Excel files...');
@@ -2824,6 +3394,14 @@ async function populateReportsTable() {
             console.error('Reports container not found');
             return;
         }
+        
+        // Show loading state
+        reportsContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <h4>Raporlar yükleniyor...</h4>
+            </div>
+        `;
         
         // Get daily Excel files
         const dailyFiles = ExcelStorage.getAvailableDailyFiles();
@@ -2855,8 +3433,10 @@ async function populateReportsTable() {
                         margin: 12px 0;
                         border-radius: 6px;
                         background: ${isToday ? '#f8fff8' : '#f9f9f9'};
-                    ">
-                        <div style="display: flex; justify-content: between; align-items: center;">
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="flex: 1;">
                                 <h4 style="margin: 0 0 8px 0; color: #333;">
                                     <i class="fas fa-calendar-day"></i> ${file.displayDate}
@@ -2878,7 +3458,7 @@ async function populateReportsTable() {
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <button onclick="ExcelStorage.exportDailyFile('${file.date}')" 
+                                <button onclick="exportDailyFile('${file.date}')" 
                                         class="btn btn-success btn-sm" 
                                         style="white-space: nowrap;">
                                     <i class="fas fa-download"></i> CSV İndir
@@ -2897,7 +3477,7 @@ async function populateReportsTable() {
             // Add cleanup button
             reportsHTML += `
                 <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
-                    <button onclick="ExcelStorage.cleanupOldFiles(); populateReportsTable();" 
+                    <button onclick="cleanupOldFiles()" 
                             class="btn btn-warning btn-sm">
                         <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
                     </button>
@@ -2927,7 +3507,7 @@ async function populateReportsTable() {
     }
 }
 
-// ADD this new function to view daily file details
+// Enhanced viewDailyFile function
 async function viewDailyFile(dateString) {
     try {
         const fileName = `packages_${dateString}.json`;
@@ -2940,93 +3520,203 @@ async function viewDailyFile(dateString) {
         
         const packages = JSON.parse(fileData);
         
+        // Remove existing modal if any
+        const existingModal = document.querySelector('.daily-file-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
         // Create a modal to show file details
         const modal = document.createElement('div');
+        modal.className = 'daily-file-modal';
         modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
-            align-items: center; z-index: 10000;
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(0,0,0,0.8); 
+            display: flex; 
+            justify-content: center;
+            align-items: center; 
+            z-index: 10000;
+            font-family: inherit;
         `;
         
         modal.innerHTML = `
-            <div style="background: white; padding: 24px; border-radius: 8px; max-width: 90%; max-height: 90%; width: 800px; overflow: auto;">
-                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">
-                        <i class="fas fa-file-excel"></i> ${dateString} - Paket Detayları
+            <div style="
+                background: white; 
+                padding: 24px; 
+                border-radius: 8px; 
+                max-width: 90%; 
+                max-height: 90%; 
+                width: 900px; 
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0;">
+                    <h3 style="margin: 0; color: #333;">
+                        <i class="fas fa-file-excel" style="color: #217346;"></i> 
+                        ${dateString} - Paket Detayları
                     </h3>
-                    <button onclick="this.closest('.modal').remove()" 
-                            style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">
+                    <button onclick="closeDailyFileModal()" 
+                            style="
+                                background: none; 
+                                border: none; 
+                                font-size: 24px; 
+                                cursor: pointer; 
+                                color: #666;
+                                padding: 0;
+                                width: 30px;
+                                height: 30px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">
                         ×
                     </button>
                 </div>
                 
-                <div style="margin-bottom: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
-                    <strong>Toplam:</strong> ${packages.length} paket, 
-                    ${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet
+                <div style="
+                    margin-bottom: 16px; 
+                    padding: 12px; 
+                    background: #f5f5f5; 
+                    border-radius: 4px;
+                    flex-shrink: 0;
+                ">
+                    <strong>Özet:</strong> 
+                    <span style="color: #2196F3; font-weight: bold;">${packages.length} paket</span>, 
+                    <span style="color: #4CAF50; font-weight: bold;">${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet</span>
                 </div>
                 
-                <div style="max-height: 400px; overflow: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                <div style="
+                    flex: 1; 
+                    overflow: auto; 
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                ">
+                    <table style="
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        font-size: 0.9em;
+                        min-width: 600px;
+                    ">
                         <thead style="background: #f0f0f0; position: sticky; top: 0;">
                             <tr>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Paket No</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Müşteri</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Ürünler</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Adet</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Durum</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Paket No</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Müşteri</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Ürünler</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: center; background: #e0e0e0;">Adet</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Durum</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${packages.map(pkg => `
-                                <tr>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.package_no || 'N/A'}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; word-wrap: break-word;">
-                                        ${pkg.items_display || 'N/A'}
+                                <tr style="transition: background-color 0.2s ease;" 
+                                    onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                                    onmouseout="this.style.backgroundColor='transparent'">
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 500;">${pkg.package_no || 'N/A'}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; max-width: 250px; word-wrap: break-word;">
+                                        ${pkg.items_display || pkg.product || 'N/A'}
                                     </td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pkg.total_quantity || 0}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">
-                                        <span class="status-${pkg.status || 'beklemede'}">
-                                            ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #2196F3;">
+                                        ${pkg.total_quantity || 0}
+                                    </td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">
+                                        <span style="
+                                            padding: 4px 8px;
+                                            border-radius: 12px;
+                                            font-size: 0.8em;
+                                            font-weight: 500;
+                                            ${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 
+                                                'background: #4CAF50; color: white;' : 
+                                                'background: #FF9800; color: white;'
+                                            }
+                                        ">
+                                            ${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 'Sevk Edildi' : 'Beklemede'}
                                         </span>
                                     </td>
                                 </tr>
                             `).join('')}
+                            ${packages.length === 0 ? `
+                                <tr>
+                                    <td colspan="5" style="padding: 40px; text-align: center; color: #666; border: 1px solid #ddd;">
+                                        <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; opacity: 0.5;"></i><br>
+                                        Bu dosyada paket bulunmamaktadır
+                                    </td>
+                                </tr>
+                            ` : ''}
                         </tbody>
                     </table>
                 </div>
                 
-                <div style="margin-top: 16px; text-align: center;">
-                    <button onclick="ExcelStorage.exportDailyFile('${dateString}')" class="btn btn-success">
+                <div style="
+                    margin-top: 16px; 
+                    text-align: center;
+                    flex-shrink: 0;
+                    padding-top: 16px;
+                    border-top: 1px solid #eee;
+                ">
+                    <button onclick="exportDailyFile('${dateString}')" 
+                            class="btn btn-success"
+                            style="margin-right: 8px;">
                         <i class="fas fa-download"></i> CSV Olarak İndir
+                    </button>
+                    <button onclick="printDailyFile('${dateString}')" 
+                            class="btn btn-primary"
+                            style="margin-right: 8px;">
+                        <i class="fas fa-print"></i> Yazdır
+                    </button>
+                    <button onclick="closeDailyFileModal()" 
+                            class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Kapat
                     </button>
                 </div>
             </div>
         `;
         
-        modal.classList.add('modal');
         document.body.appendChild(modal);
+        
+        // Close modal with Escape key
+        const closeModal = () => modal.remove();
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') closeModal();
+        };
+        
+        document.addEventListener('keydown', handleEscape);
+        modal._handleEscape = handleEscape;
         
         // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
-                modal.remove();
+                closeModal();
             }
         });
         
     } catch (error) {
         console.error('Error viewing daily file:', error);
-        showAlert('Dosya görüntülenirken hata oluştu', 'error');
+        showAlert('Dosya görüntülenirken hata oluştu: ' + error.message, 'error');
     }
 }
 
+// Close modal function
+function closeDailyFileModal() {
+    const modal = document.querySelector('.daily-file-modal');
+    if (modal) {
+        if (modal._handleEscape) {
+            document.removeEventListener('keydown', modal._handleEscape);
+        }
+        modal.remove();
+    }
+}
 
-
-
-
-// ADD this new function to view daily file details
-async function viewDailyFile(dateString) {
+// Enhanced export function
+async function exportDailyFile(dateString) {
     try {
+        showAlert('CSV dosyası hazırlanıyor...', 'info');
+        
         const fileName = `packages_${dateString}.json`;
         const fileData = localStorage.getItem(fileName);
         
@@ -3037,189 +3727,386 @@ async function viewDailyFile(dateString) {
         
         const packages = JSON.parse(fileData);
         
-        // Create a modal to show file details
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
-            align-items: center; z-index: 10000;
-        `;
+        if (packages.length === 0) {
+            showAlert('İndirilecek paket bulunamadı', 'warning');
+            return;
+        }
         
-        modal.innerHTML = `
-            <div style="background: white; padding: 24px; border-radius: 8px; max-width: 90%; max-height: 90%; width: 800px; overflow: auto;">
-                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">
-                        <i class="fas fa-file-excel"></i> ${dateString} - Paket Detayları
-                    </h3>
-                    <button onclick="this.closest('.modal').remove()" 
-                            style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">
-                        ×
-                    </button>
-                </div>
-                
-                <div style="margin-bottom: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
-                    <strong>Toplam:</strong> ${packages.length} paket, 
-                    ${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet
-                </div>
-                
-                <div style="max-height: 400px; overflow: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
-                        <thead style="background: #f0f0f0; position: sticky; top: 0;">
-                            <tr>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Paket No</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Müşteri</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Ürünler</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Adet</th>
-                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Durum</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${packages.map(pkg => `
-                                <tr>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.package_no || 'N/A'}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; word-wrap: break-word;">
-                                        ${pkg.items_display || 'N/A'}
-                                    </td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pkg.total_quantity || 0}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">
-                                        <span class="status-${pkg.status || 'beklemede'}">
-                                            ${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div style="margin-top: 16px; text-align: center;">
-                    <button onclick="ExcelStorage.exportDailyFile('${dateString}')" class="btn btn-success">
-                        <i class="fas fa-download"></i> CSV Olarak İndir
-                    </button>
-                </div>
-            </div>
-        `;
+        // Create CSV content
+        const headers = ['Paket No', 'Müşteri', 'Müşteri Kodu', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Oluşturulma Tarihi'];
+        const csvRows = [headers.join(',')];
         
-        modal.classList.add('modal');
-        document.body.appendChild(modal);
-        
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
+        packages.forEach(pkg => {
+            const row = [
+                `"${pkg.package_no || ''}"`,
+                `"${pkg.customer_name || ''}"`,
+                `"${pkg.customer_code || ''}"`,
+                `"${pkg.items_display || pkg.product || ''}"`,
+                pkg.total_quantity || 0,
+                `"${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 'Sevk Edildi' : 'Beklemede'}"`,
+                `"${pkg.packer || ''}"`,
+                `"${new Date(pkg.created_at).toLocaleDateString('tr-TR')}"`
+            ];
+            csvRows.push(row.join(','));
         });
         
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `paketler_${dateString}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showAlert(`CSV dosyası indirildi: ${packages.length} paket`, 'success');
+        
     } catch (error) {
-        console.error('Error viewing daily file:', error);
-        showAlert('Dosya görüntülenirken hata oluştu', 'error');
+        console.error('Error exporting daily file:', error);
+        showAlert('CSV dosyası indirilirken hata oluştu: ' + error.message, 'error');
     }
 }
 
+// Print function
+function printDailyFile(dateString) {
+    try {
+        const modal = document.querySelector('.daily-file-modal');
+        if (!modal) {
+            showAlert('Önce dosyayı görüntüleyin', 'warning');
+            return;
+        }
+        
+        const printContent = modal.querySelector('div').cloneNode(true);
+        const printWindow = window.open('', '_blank', 'width=1000,height=700');
+        
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Paket Raporu - ${dateString}</title>
+                <style>
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 20px; 
+                        color: #333;
+                    }
+                    h1 { 
+                        color: #2c3e50; 
+                        border-bottom: 2px solid #3498db;
+                        padding-bottom: 10px;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin: 20px 0;
+                    }
+                    th, td { 
+                        border: 1px solid #ddd; 
+                        padding: 12px; 
+                        text-align: left;
+                    }
+                    th { 
+                        background-color: #f8f9fa; 
+                        font-weight: bold;
+                    }
+                    tr:nth-child(even) {
+                        background-color: #f8f9fa;
+                    }
+                    .summary {
+                        background: #e3f2fd;
+                        padding: 15px;
+                        border-radius: 5px;
+                        margin: 15px 0;
+                        font-weight: bold;
+                    }
+                    @media print {
+                        body { margin: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>📦 Paket Raporu - ${dateString}</h1>
+                <div class="summary">
+                    Toplam: ${printContent.querySelector('div:nth-child(2)').textContent.replace('Özet:', '').trim()}
+                </div>
+                ${printContent.querySelector('table').outerHTML}
+                <div class="no-print" style="margin-top: 20px; text-align: center;">
+                    <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        🖨️ Yazdır
+                    </button>
+                    <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                        ❌ Kapat
+                    </button>
+                </div>
+                <script>
+                    window.onload = function() {
+                        // Auto-print if needed
+                        // window.print();
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        
+    } catch (error) {
+        console.error('Error printing daily file:', error);
+        showAlert('Yazdırma sırasında hata oluştu', 'error');
+    }
+}
 
+// Enhanced cleanup function
+async function cleanupOldFiles() {
+    try {
+        if (!confirm('7 günden eski dosyalar silinecek. Emin misiniz?')) {
+            return;
+        }
+        
+        showAlert('Eski dosyalar temizleniyor...', 'info');
+        
+        // Call ExcelStorage cleanup
+        if (typeof ExcelStorage.cleanupOldFiles === 'function') {
+            await ExcelStorage.cleanupOldFiles();
+        } else {
+            // Fallback cleanup
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('packages_')) {
+                    const dateStr = key.replace('packages_', '').replace('.json', '');
+                    const fileDate = new Date(dateStr);
+                    
+                    if (fileDate < oneWeekAgo) {
+                        localStorage.removeItem(key);
+                        console.log(`🗑️ Removed old file: ${key}`);
+                    }
+                }
+            }
+        }
+        
+        // Refresh the reports table
+        await populateReportsTable();
+        showAlert('Eski dosyalar başarıyla temizlendi', 'success');
+        
+    } catch (error) {
+        console.error('Error cleaning up old files:', error);
+        showAlert('Dosya temizleme sırasında hata oluştu: ' + error.message, 'error');
+    }
+}
 
+// Initialize reports when tab is shown
+function initializeReportsTab() {
+    // Set up tab click handler
+    const reportsTab = document.querySelector('[data-tab="reports"]');
+    if (reportsTab) {
+        reportsTab.addEventListener('click', async function() {
+            // Small delay to ensure tab is visible
+            setTimeout(async () => {
+                await populateReportsTable();
+            }, 100);
+        });
+    }
+    
+    // Also initialize if reports tab is active by default
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab && activeTab.getAttribute('data-tab') === 'reports') {
+        setTimeout(async () => {
+            await populateReportsTable();
+        }, 500);
+    }
+}
 
+// Enhanced error handling for missing functions
+function safeExcelStorageCall(method, ...args) {
+    if (typeof ExcelStorage !== 'undefined' && typeof ExcelStorage[method] === 'function') {
+        return ExcelStorage[method](...args);
+    } else {
+        console.warn(`ExcelStorage.${method} is not available, using fallback`);
+        // Provide fallback implementations if needed
+        return null;
+    }
+}
+
+// Add CSS styles for better appearance
+function addReportsStyles() {
+    if (!document.getElementById('reports-styles')) {
+        const styles = `
+            .daily-file-item {
+                transition: all 0.3s ease;
+            }
+            .daily-file-item:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+            .btn-success { background: #28a745; border-color: #28a745; }
+            .btn-primary { background: #007bff; border-color: #007bff; }
+            .btn-warning { background: #ffc107; border-color: #ffc107; color: #212529; }
+            .btn-secondary { background: #6c757d; border-color: #6c757d; }
+            .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+            .btn { 
+                display: inline-block; 
+                padding: 0.375rem 0.75rem; 
+                border: 1px solid transparent;
+                border-radius: 0.25rem; 
+                color: white; 
+                text-decoration: none;
+                cursor: pointer;
+                font-size: 1rem;
+                line-height: 1.5;
+                transition: all 0.15s ease;
+            }
+            .btn:hover {
+                opacity: 0.9;
+                transform: translateY(-1px);
+            }
+        `;
+        const styleSheet = document.createElement('style');
+        styleSheet.id = 'reports-styles';
+        styleSheet.textContent = styles;
+        document.head.appendChild(styleSheet);
+    }
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    addReportsStyles();
+    initializeReportsTab();
+    
+    // Also initialize if we're already on reports tab
+    setTimeout(() => {
+        const activeTab = document.querySelector('.tab.active');
+        if (activeTab && activeTab.getAttribute('data-tab') === 'reports') {
+            populateReportsTable();
+        }
+    }, 1000);
+});
+
+// Export functions for global access
+window.populateReportsTable = populateReportsTable;
+window.viewDailyFile = viewDailyFile;
+window.exportDailyFile = exportDailyFile;
+window.printDailyFile = printDailyFile;
+window.cleanupOldFiles = cleanupOldFiles;
+window.closeDailyFileModal = closeDailyFileModal;
+
+console.log('✅ Reports module loaded successfully');
 
 
 // Fixed populateStockTable function
 async function populateStockTable() {
-    const stockTableBody = document.getElementById('stockTableBody');
+    if (isStockTableLoading) return;
     
-    if (!stockTableBody) {
-        console.error('Stock table body element not found');
+    const now = Date.now();
+    if (now - lastStockFetchTime < 500) {
+        setTimeout(() => populateStockTable(), 500);
         return;
     }
     
+    isStockTableLoading = true;
+    lastStockFetchTime = now;
+    
     try {
-        showAlert('Stok verileri yükleniyor...', 'info', 1000);
+        console.log('Populating stock table...');
         
-        let stockItems = [];
-        
-        // Try to load from Supabase first
-        if (supabase && navigator.onLine) {
-            const { data, error } = await supabase
-                .from('stock_items')
-                .select('*')
-                .order('code', { ascending: true });
-            
-            if (!error && data) {
-                stockItems = data;
-            }
+        const stockTableBody = document.getElementById('stockTableBody');
+        if (!stockTableBody) {
+            console.error('Stock table body not found');
+            return;
         }
         
-        // Fallback to localStorage
-        if (stockItems.length === 0) {
-            const localStock = localStorage.getItem('stock_items');
-            if (localStock) {
-                stockItems = JSON.parse(localStock);
-            }
-        }
+        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
         
-        // If still no data, create default stock items
-        if (stockItems.length === 0) {
-            stockItems = [
-                { code: 'BC001', product_name: 'Büyük Çarşaf', quantity: 0, category: 'Çarşaf' },
-                { code: 'C001', product_name: 'Çarşaf', quantity: 0, category: 'Çarşaf' },
-                { code: 'BN001', product_name: 'Büyük Nevresim', quantity: 0, category: 'Nevresim' },
-                { code: 'N001', product_name: 'Nevresim', quantity: 0, category: 'Nevresim' },
-                { code: 'BH001', product_name: 'Büyük Havlu', quantity: 0, category: 'Havlu' },
-                { code: 'H001', product_name: 'Havlu', quantity: 0, category: 'Havlu' },
-                { code: 'Y001', product_name: 'Yastık', quantity: 0, category: 'Yastık' },
-                { code: 'YK001', product_name: 'Yastık Kılıfı', quantity: 0, category: 'Yastık' },
-                { code: 'A001', product_name: 'Alez', quantity: 0, category: 'Alez' }
+        let stockData = [];
+        
+        // Check if we should use Excel data
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Use mock stock data for Excel mode
+            stockData = [
+                { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
+                { code: 'STK002', name: 'Büyük Havlu', quantity: 200, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
+                { code: 'STK003', name: 'Nevresim', quantity: 85, unit: 'Adet', status: 'Az Stok', updated_at: new Date().toISOString() },
+                { code: 'STK004', name: 'Çarşaf', quantity: 300, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
+                { code: 'STK005', name: 'Havlu', quantity: 25, unit: 'Adet', status: 'Kritik', updated_at: new Date().toISOString() }
             ];
-            
-            // Save default items
-            await StorageManager.setItem('stock_items', JSON.stringify(stockItems));
+            console.log('Using mock stock data for Excel mode');
+        } else {
+            // Use Supabase data
+            try {
+                const { data, error } = await supabase
+                    .from('stock_items')
+                    .select('*')
+                    .order('name', { ascending: true });
+                
+                if (error) throw error;
+                stockData = data || [];
+                console.log('Loaded stock data from Supabase:', stockData.length);
+            } catch (error) {
+                console.warn('Supabase stock fetch failed, using mock data:', error);
+                stockData = [
+                    { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() }
+                ];
+            }
         }
         
-        // Clear and populate table
+        // Clear loading message
         stockTableBody.innerHTML = '';
         
-        stockItems.forEach(item => {
+        if (stockData.length === 0) {
+            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verisi bulunamadı</td></tr>';
+            return;
+        }
+        
+        // Populate stock table
+        stockData.forEach(item => {
             const row = document.createElement('tr');
             
-            const quantity = item.quantity || 0;
-            let statusClass, statusText;
+            // Determine status class
+            let statusClass = 'status-stokta';
+            let statusText = 'Stokta';
             
-            if (quantity === 0) {
+            if (item.quantity <= 0) {
                 statusClass = 'status-kritik';
                 statusText = 'Tükendi';
-            } else if (quantity < 10) {
+            } else if (item.quantity < 10) {
                 statusClass = 'status-az-stok';
                 statusText = 'Az Stok';
-            } else if (quantity < 50) {
+            } else if (item.quantity < 50) {
                 statusClass = 'status-uyari';
                 statusText = 'Düşük';
-            } else {
-                statusClass = 'status-stokta';
-                statusText = 'Stokta';
             }
             
             row.innerHTML = `
-                <td>${item.code}</td>
-                <td>${item.product_name}</td>
-                <td>${quantity}</td>
-                <td>${item.category || '-'}</td>
+                <td>${escapeHtml(item.code || 'N/A')}</td>
+                <td>${escapeHtml(item.name || 'N/A')}</td>
+                <td>${item.quantity || 0}</td>
+                <td>${escapeHtml(item.unit || 'Adet')}</td>
                 <td><span class="${statusClass}">${statusText}</span></td>
-                <td>${new Date().toLocaleDateString('tr-TR')}</td>
+                <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                 <td>
-                    <button onclick="editStockItem('${item.code}')" class="btn btn-sm btn-primary">
-                        <i class="fas fa-edit"></i> Düzenle
-                    </button>
+                    <button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
                 </td>
             `;
             
             stockTableBody.appendChild(row);
         });
         
-        console.log(`✅ Stock table populated with ${stockItems.length} items`);
+        console.log('Stock table populated with', stockData.length, 'items');
         
     } catch (error) {
-        console.error('Stock table population error:', error);
-        showAlert('Stok tablosu yüklenirken hata oluştu: ' + error.message, 'error');
-        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem;">Veri yüklenemedi</td></tr>';
+        console.error('Error in populateStockTable:', error);
+        const stockTableBody = document.getElementById('stockTableBody');
+        if (stockTableBody) {
+            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Stok verileri yüklenirken hata oluştu</td></tr>';
+        }
+        showAlert('Stok verileri yüklenirken hata oluştu', 'error');
+    } finally {
+        isStockTableLoading = false;
     }
 }
 
@@ -3559,7 +4446,7 @@ function debouncedPopulateStockTable() {
                                 <strong>${customer.name}</strong> (${customer.code})<br>
                                 <small>${customer.email || 'E-posta yok'}</small>
                             </div>
-                            <button onclick="deleteCustomer('${customer.id}')" class="btn btn-danger btn-sm">Sil</button>
+                            <button onclick="deleteCustomerWithAuth('${customer.id}', '${customer.name}')" class="btn btn-danger btn-sm">Sil</button>
                         `;
                         elements.allCustomersList.appendChild(div);
                     });
@@ -4575,9 +5462,9 @@ class SecurityManager {
         
         // Clear local storage (keep backups)
         const backups = localStorage.getItem('app_backups');
-        await StorageManager.clear();
+        localStorage.clear();
         if (backups) {
-            await StorageManager.setItem('app_backups', backups);
+            localStorage.setItem('app_backups', backups);
         }
         
         showAlert(message, 'warning');
@@ -4639,7 +5526,7 @@ class SecurityManager {
             securityLog.splice(0, securityLog.length - 1000);
         }
         
-        await StorageManager.setItem('security_audit_log', JSON.stringify(securityLog));
+        localStorage.setItem('security_audit_log', JSON.stringify(securityLog));
     }
 }
 
@@ -4722,3 +5609,36 @@ window.supabase = createSecureSupabaseClient();
 
 
 window.workspaceManager = new EnhancedWorkspaceManager();
+
+
+
+
+
+// Print single package function
+window.printSinglePackage = async function(packageId) {
+    console.log('🖨️ Printing package:', packageId);
+    
+    const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
+    
+    if (!checkbox) {
+        alert('Paket bulunamadı!');
+        return;
+    }
+    
+    // Uncheck all other checkboxes
+    const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    allCheckboxes.forEach(cb => cb.checked = false);
+    
+    // Check only this package
+    checkbox.checked = true;
+    
+    // Wait a moment for the checkbox to update
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Call the main print function
+    if (typeof window.printSelectedElectron === 'function') {
+        await window.printSelectedElectron();
+    } else {
+        alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
+    }
+};
