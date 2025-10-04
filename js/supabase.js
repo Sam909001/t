@@ -5642,3 +5642,53 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
+
+
+
+// ==================== TAB INITIALIZATION ====================
+// Add this right before the end of your supabase.js file
+
+function initializeTabs() {
+    console.log('🚀 Initializing tabs...');
+    
+    const tabHandlers = {
+        'shipping': populateShippingTable,
+        'stock': populateStockTable,
+        'reports': populateReportsTable
+    };
+    
+    // Add click handlers to all tabs
+    document.querySelectorAll('[data-tab]').forEach(tab => {
+        const tabName = tab.getAttribute('data-tab');
+        const handler = tabHandlers[tabName];
+        
+        if (handler) {
+            tab.addEventListener('click', function() {
+                console.log(`🎯 ${tabName} tab clicked, loading...`);
+                
+                // Call the tab function
+                setTimeout(() => {
+                    try {
+                        handler();
+                    } catch (error) {
+                        console.error(`❌ Error loading ${tabName} tab:`, error);
+                    }
+                }, 100);
+            });
+            
+            console.log(`✅ Added handler to ${tabName} tab`);
+        }
+    });
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initializeTabs, 1000);
+});
+
+// Also initialize when workspace is ready
+if (window.workspaceManager) {
+    window.workspaceManager.onWorkspaceChange = function() {
+        setTimeout(initializeTabs, 500);
+    };
+}
