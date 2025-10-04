@@ -1791,14 +1791,14 @@ async function uploadExcelToSupabase(packages) {
 
 
 
-// Update this function to load the saved API key on startup
+// FIXED: Supabase istemcisini başlat - Singleton pattern ile
 async function initializeSupabase() {
-    // ✅ CHANGED: Load saved API key if not already set
+    // ✅ ADD THIS: Load saved API key from storage if not set
     if (!SUPABASE_ANON_KEY) {
         const savedApiKey = await StorageManager.getItem('procleanApiKey');
         if (savedApiKey) {
             SUPABASE_ANON_KEY = savedApiKey;
-            console.log('✅ Saved API key loaded');
+            console.log('Saved API key loaded from storage');
         }
     }
     
@@ -1818,11 +1818,11 @@ async function initializeSupabase() {
     try {
         // Global supabase değişkenine ata
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('✅ Supabase client initialized successfully');
+        console.log('Supabase client initialized successfully');
         isUsingExcel = false;
         return supabase;
     } catch (error) {
-        console.error('❌ Supabase initialization error:', error);
+        console.error('Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
         isUsingExcel = true;
         showApiKeyModal();
@@ -2542,7 +2542,7 @@ function enhanceSyncQueue() {
     }
 }
 
-// ==================== REPLACE YOUR EXISTING saveApiKey() FUNCTION ====================
+
 
 // Updated version with StorageManager
 async function saveApiKey() {
@@ -2574,45 +2574,6 @@ async function saveApiKey() {
     }
 }
 
-
-
-
-// Clear API key (useful for settings/reset)
-async function clearApiKey() {
-    await StorageManager.removeItem('procleanApiKey');
-    SUPABASE_ANON_KEY = null;
-    supabase = null;
-    console.log('API key cleared');
-    showAlert('API anahtarı temizlendi', 'info');
-}
-
-// Check if API key is saved
-async function hasApiKey() {
-    const apiKey = await StorageManager.getItem('procleanApiKey');
-    return apiKey !== null && apiKey !== undefined;
-}
-
-// ==================== UPDATE YOUR APP INITIALIZATION ====================
-
-// Update your DOMContentLoaded or app initialization
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 App starting...');
-    
-    // Initialize Supabase (will auto-load saved API key)
-    await initializeSupabase();
-    
-    // Check if API key exists
-    const hasKey = await hasApiKey();
-    if (!hasKey) {
-        console.log('⚠️ No API key found, showing modal');
-        showApiKeyModal();
-    } else {
-        console.log('✅ API key exists, ready to use');
-    }
-    
-    // Your other initialization code...
-    await initializeApp();
-});
         
 let connectionAlertShown = false; // Prevent duplicate success alert
 
