@@ -283,7 +283,6 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
 }
 
 // Fixed: Send Excel file to Main PC via Electron network share
-// Fixed: Send Excel file to Main PC via Electron network share
 async function sendExcelToMainPC(packages) {
     try {
         // Create the Excel data
@@ -306,14 +305,20 @@ async function sendExcelToMainPC(packages) {
                 console.log('✅ Excel file sent to network share via Electron');
                 showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
                 return true;
+            } else if (result.manualTransferRequired) {
+                console.log('❌ Network save failed, manual transfer required');
+                
+                // Show instructions with local file path
+                showNetworkShareInstructions(result.localPath, result.networkPath);
+                return false;
             } else {
                 console.log('❌ Network save failed, trying local save...');
                 
-                // Fallback: Save locally and show instructions
-                const localResult = await window.electronAPI.saveExcelLocal(excelData, fileName);
+                // Fallback: Save locally
+                const localResult = await window.electronAPI.saveExcelLocally(excelData, fileName);
                 if (localResult.success) {
                     showAlert(`Excel dosyası kaydedildi: ${localResult.path}`, 'info');
-                    showNetworkShareInstructions(localResult.path);
+                    showNetworkShareInstructions(localResult.path, localResult.networkPath);
                 } else {
                     showNetworkShareInstructions();
                 }
@@ -431,9 +436,9 @@ async function sendViaFetch(excelData, packages) {
     }
 }
 
-// Method 3: Show instructions for manual network share setup
+
 // Enhanced network instructions
-function showNetworkShareInstructions(filePath = null) {
+function showNetworkShareInstructions(filePath = null, networkPath = '\\\\MAIN-PC\\SharedReports') {
     const instructions = filePath ? `
         AĞ PAYLAŞIMINA MANUEL TAŞIMA GEREKİYOR
 
@@ -442,7 +447,7 @@ function showNetworkShareInstructions(filePath = null) {
         AŞAĞIDAKİ ADIMLARI İZLEYİN:
         1. Yukarıdaki dosya konumunu açın
         2. Dosyayı kopyalayın
-        3. Ağ paylaşımına yapıştırın: \\\\MAIN-PC\\SharedReports
+        3. Ağ paylaşımına yapıştırın: ${networkPath}
 
         OTOMATİK GÖNDERİM: Ağ bağlantısı kurulamadı
     ` : `
@@ -452,10 +457,10 @@ function showNetworkShareInstructions(filePath = null) {
         1. Excel dosyası bilgisayarınıza indirildi
         2. Dosya konumunu açın
         3. Dosyayı kopyalayın
-        4. Ağ paylaşımına yapıştırın: \\\\MAIN-PC\\SharedReports
+        4. Ağ paylaşımına yapıştırın: ${networkPath}
     `;
 
-    // Show detailed instructions to user
+    // Your existing modal code here...
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.cssText = `
@@ -471,6 +476,9 @@ function showNetworkShareInstructions(filePath = null) {
                 <pre style="white-space: pre-wrap; font-family: Arial; font-size: 14px; color: #856404;">${instructions}</pre>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                ${filePath ? `<button onclick="window.electronAPI.openFileLocation('${filePath}')" class="btn btn-primary">
+                    <i class="fas fa-folder-open"></i> Dosya Konumunu Aç
+                </button>` : ''}
                 <button onclick="downloadExcelForManualTransfer()" class="btn btn-primary">
                     <i class="fas fa-download"></i> Excel'i İndir
                 </button>
