@@ -32,48 +32,128 @@ const SESSION_REFRESH_TIME = 15 * 60 * 1000; // 15 minutes
 class SessionManager {
     static SESSION_KEY = 'proclean_session';
     static REMEMBER_ME_KEY = 'proclean_remember_me';
+    static USER_KEY = 'proclean_user_data';
     
     static async initializeSession() {
-        // Check for existing session
+        console.log('🔄 Checking for existing session...');
+        
         const savedSession = localStorage.getItem(this.SESSION_KEY);
         const rememberMe = localStorage.getItem(this.REMEMBER_ME_KEY) === 'true';
+        const savedUser = localStorage.getItem(this.USER_KEY);
         
-        if (savedSession && rememberMe && window.supabase) {
+        // ALWAYS try to restore session if possible
+        if (savedSession && savedUser && window.supabase) {
             try {
-                const { data, error } = await window.supabase.auth.setSession(JSON.parse(savedSession));
+                const { data, error } = await window.supabase.auth.setSession(
+                    JSON.parse(savedSession)
+                );
                 
                 if (!error && data.user) {
-                    console.log('✅ Session restored from storage');
-                    await this.handleSuccessfulLogin(data.user);
+                    console.log('✅ Auto-login: Session restored from storage');
+                    
+                    // Restore user data
+                    const userData = JSON.parse(savedUser);
+                    window.currentUser = userData;
+                    
+                    // Update UI
+                    this.updateUIAfterAutoLogin(userData);
+                    
+                    // Start session refresh
+                    this.startSessionRefresh();
+                    
                     return true;
                 }
             } catch (error) {
-                console.warn('❌ Session restoration failed:', error);
+                console.warn('❌ Auto-login failed, continuing normally:', error);
                 this.clearSession();
             }
         }
+        
+        // If no saved session or auto-login failed, show login screen
+        console.log('ℹ️ No valid session found, showing login screen');
         return false;
+    }
+    
+    static async handleSuccessfulLogin(user) {
+        console.log('✅ Login successful, saving session...');
+        
+        // Get user role and info
+        const { data: userData, error: userError } = await window.supabase
+            .from('personnel')
+            .select('role, name')
+            .eq('email', user.email)
+            .single();
+
+        const currentUserData = {
+            email: user.email,
+            uid: user.id,
+            name: userData?.name || user.email.split('@')[0],
+            role: userData?.role || 'operator'
+        };
+
+        window.currentUser = currentUserData;
+
+        // ALWAYS save user data for auto-login
+        localStorage.setItem(this.USER_KEY, JSON.stringify(currentUserData));
+        
+        // ALWAYS set remember me to true for persistent sessions
+        this.setRememberMe(true);
+        
+        // Update UI
+        this.updateUIAfterAutoLogin(currentUserData);
+
+        // Start session refresh
+        this.startSessionRefresh();
+
+        // Test connection only once after login
+        if (!window.connectionTested) {
+            await window.testConnection();
+            window.connectionTested = true;
+        }
+
+        if (typeof window.updateStorageIndicator === 'function') {
+            window.updateStorageIndicator();
+        }
+    }
+    
+    static updateUIAfterAutoLogin(userData) {
+        // Update user role display
+        const userRoleElement = document.getElementById('userRole');
+        if (userRoleElement) {
+            userRoleElement.textContent = 
+                `${userData.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${userData.name}`;
+        }
+
+        // Apply role-based permissions
+        if (typeof window.applyRoleBasedPermissions === 'function') {
+            window.applyRoleBasedPermissions(userData.role);
+        }
+
+        // Hide login screen, show app
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'flex';
+        
+        console.log('✅ UI updated for auto-login user:', userData.name);
     }
     
     static async saveSession(session) {
         if (session) {
+            // ALWAYS save session for auto-login
             localStorage.setItem(this.SESSION_KEY, JSON.stringify(session));
             this.startSessionRefresh();
         }
     }
     
     static clearSession() {
+        // Only clear session data on manual logout
         localStorage.removeItem(this.SESSION_KEY);
+        localStorage.removeItem(this.USER_KEY);
         this.stopSessionRefresh();
     }
     
     static setRememberMe(value) {
-        if (value) {
-            localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
-        } else {
-            localStorage.removeItem(this.REMEMBER_ME_KEY);
-            this.clearSession();
-        }
+        // ALWAYS remember users unless they manually logout
+        localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
     }
     
     static startSessionRefresh() {
@@ -104,47 +184,47 @@ class SessionManager {
             sessionRefreshInterval = null;
         }
     }
+}
+
+// Auto-login on app start
+async function initializeApp() {
+    console.log('🚀 Initializing application...');
     
-    static async handleSuccessfulLogin(user) {
-        // Kullanıcı rolünü al
-        const { data: userData, error: userError } = await window.supabase
-            .from('personnel')
-            .select('role, name')
-            .eq('email', user.email)
-            .single();
-
-        window.currentUser = {
-            email: user.email,
-            uid: user.id,
-            name: userData?.name || user.email.split('@')[0],
-            role: userData?.role || 'operator'
-        };
-
-        const userRoleElement = document.getElementById('userRole');
-        if (userRoleElement) {
-            userRoleElement.textContent = 
-                `${window.currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${window.currentUser.name}`;
-        }
-
-        // Rol bazlı yetkilendirme
-        if (typeof window.applyRoleBasedPermissions === 'function') {
-            window.applyRoleBasedPermissions(window.currentUser.role);
-        }
-
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'flex';
-
-        // Test connection only once after login
-        if (!window.connectionTested) {
-            await window.testConnection();
-            window.connectionTested = true;
-        }
-
-        if (typeof window.updateStorageIndicator === 'function') {
-            window.updateStorageIndicator();
-        }
+    // Initialize Supabase first
+    initializeSupabase();
+    
+    // Try auto-login before showing login screen
+    const autoLoggedIn = await SessionManager.initializeSession();
+    
+    if (!autoLoggedIn) {
+        // Show login screen only if auto-login failed
+        console.log('ℹ️ Manual login required');
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('appContainer').style.display = 'none';
+    } else {
+        // Auto-login successful, load app data
+        console.log('✅ Auto-login successful, loading app data...');
+        await loadAppData();
     }
 }
+
+// Load app data after successful login/auto-login
+async function loadAppData() {
+    try {
+        await populateCustomers();
+        await populatePackagesTable();
+        await populateShippingTable();
+        await initializeExcelStorage();
+        console.log('✅ App data loaded successfully');
+    } catch (error) {
+        console.error('Error loading app data:', error);
+    }
+}
+
+// Start the app when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApp();
+});
 
 // Continue with your existing WorkspaceManager class...
 
