@@ -1615,3 +1615,4 @@ window.deleteReport = async function(fileName) {
         showAlert('Silme hatası', 'error');
     }
 }
+
