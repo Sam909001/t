@@ -101,58 +101,6 @@ async function login() {
     }
 }
 
-
-// Modify the handleLogin function to include remember me
-// In your auth.js - modify handleLogin function
-async function handleLogin() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const rememberMe = document.getElementById('rememberMe')?.checked || false;
-
-    if (!validateEmail(email) || !password) {
-        showAlert('Lütfen geçerli e-posta ve şifre girin.', 'error');
-        return;
-    }
-
-    try {
-        showAlert('Giriş yapılıyor...', 'info');
-        
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
-        });
-
-        if (error) throw error;
-
-        // Save credentials using the Electron-compatible manager
-        if (window.electronLoginManager) {
-            await electronLoginManager.saveCredentials(email, rememberMe);
-            if (rememberMe) {
-                await electronLoginManager.enableAutoLogin();
-            }
-        }
-
-        showAlert('Başarıyla giriş yapıldı!', 'success');
-        switchToAppView();
-        
-    } catch (error) {
-        console.error('Login error:', error);
-        showAlert('Giriş başarısız: ' + error.message, 'error');
-    }
-}
-
-// Update logout function
-async function logoutWithConfirmation() {
-    if (confirm('Çıkış yapmak istediğinizden emin misiniz?')) {
-        if (window.electronLoginManager) {
-            await electronLoginManager.disableAutoLogin();
-        }
-        
-        await supabase.auth.signOut();
-        switchToLoginView();
-        showAlert('Başarıyla çıkış yapıldı.', 'info');
-    }
-
 // Excel modunda devam et
 function proceedWithExcelMode() {
     isUsingExcel = true;
