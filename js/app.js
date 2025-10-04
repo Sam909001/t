@@ -374,6 +374,8 @@ async function deleteContainer() {
 }
 
 function switchTab(tabName) {
+    console.log('Switching to tab:', tabName);
+    
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.classList.remove('active');
@@ -392,20 +394,41 @@ function switchTab(tabName) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
         
-        // Load data when tab is clicked
-        setTimeout(() => {
-            switch(tabName) {
-                case 'shipping':
-                    populateShippingTable();
-                    break;
-                case 'stock':
-                    populateStockTable();
-                    break;
-                case 'reports':
-                    populateReportsTable();
-                    break;
-            }
-        }, 100);
+        // CRITICAL: Load data immediately when tab is shown
+        loadTabData(tabName);
+    } else {
+        console.error('Tab or pane not found:', tabName);
+    }
+}
+
+// New function to handle tab data loading
+async function loadTabData(tabName) {
+    console.log('Loading data for tab:', tabName);
+    
+    try {
+        switch(tabName) {
+            case 'packaging':
+                await safePopulatePackagesTable();
+                break;
+                
+            case 'shipping':
+                await safePopulateShippingTable();
+                break;
+                
+            case 'stock':
+                await safePopulateStockTable();
+                break;
+                
+            case 'reports':
+                await safePopulateReportsTable();
+                break;
+                
+            default:
+                console.log('No data loading needed for:', tabName);
+        }
+    } catch (error) {
+        console.error('Error loading tab data:', error);
+        showAlert(`${tabName} verileri yüklenirken hata: ${error.message}`, 'error');
     }
 }
 
@@ -668,13 +691,17 @@ function setupEventListeners() {
         });
     }
 
-    // Tab click events
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            if (tabName) switchTab(tabName);
-        });
+   // Inside setupEventListeners() function, replace the tab listeners with:
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function(e) {
+        e.preventDefault();
+        const tabName = this.getAttribute('data-tab');
+        if (tabName) {
+            console.log('Tab clicked:', tabName);
+            switchTab(tabName);
+        }
     });
+});
 
     // Close modal when clicking outside
     window.addEventListener('click', function(event) {
@@ -1616,3 +1643,53 @@ window.deleteReport = async function(fileName) {
     }
 }
 
+
+
+// Safe wrapper functions to prevent errors
+async function safePopulatePackagesTable() {
+    try {
+        if (typeof populatePackagesTable === 'function') {
+            await populatePackagesTable();
+        } else {
+            console.error('populatePackagesTable function not found');
+        }
+    } catch (error) {
+        console.error('Error in safePopulatePackagesTable:', error);
+    }
+}
+
+async function safePopulateShippingTable() {
+    try {
+        if (typeof populateShippingTable === 'function') {
+            await populateShippingTable();
+        } else {
+            console.error('populateShippingTable function not found');
+        }
+    } catch (error) {
+        console.error('Error in safePopulateShippingTable:', error);
+    }
+}
+
+async function safePopulateStockTable() {
+    try {
+        if (typeof populateStockTable === 'function') {
+            await populateStockTable();
+        } else {
+            console.error('populateStockTable function not found');
+        }
+    } catch (error) {
+        console.error('Error in safePopulateStockTable:', error);
+    }
+}
+
+async function safePopulateReportsTable() {
+    try {
+        if (typeof populateReportsTable === 'function') {
+            await populateReportsTable();
+        } else {
+            console.error('populateReportsTable function not found');
+        }
+    } catch (error) {
+        console.error('Error in safePopulateReportsTable:', error);
+    }
+}
