@@ -24,6 +24,132 @@ let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
 
+
+
+// FIXED: Kullanıcı girişi
+let connectionTested = false; // Flag to prevent duplicate connection tests
+
+// === ADD SESSION MANAGEMENT HERE === 
+let sessionRefreshInterval = null;
+const SESSION_REFRESH_TIME = 15 * 60 * 1000; // 15 minutes
+
+// Session Manager Class - Add this right after the variables above
+class SessionManager {
+    static SESSION_KEY = 'proclean_session';
+    static REMEMBER_ME_KEY = 'proclean_remember_me';
+    
+    static async initializeSession() {
+        // Check for existing session
+        const savedSession = localStorage.getItem(this.SESSION_KEY);
+        const rememberMe = localStorage.getItem(this.REMEMBER_ME_KEY) === 'true';
+        
+        if (savedSession && rememberMe && supabase) {
+            try {
+                const { data, error } = await supabase.auth.setSession(JSON.parse(savedSession));
+                
+                if (!error && data.user) {
+                    console.log('✅ Session restored from storage');
+                    await this.handleSuccessfulLogin(data.user);
+                    return true;
+                }
+            } catch (error) {
+                console.warn('❌ Session restoration failed:', error);
+                this.clearSession();
+            }
+        }
+        return false;
+    }
+    
+    static async saveSession(session) {
+        if (session) {
+            localStorage.setItem(this.SESSION_KEY, JSON.stringify(session));
+            this.startSessionRefresh();
+        }
+    }
+    
+    static clearSession() {
+        localStorage.removeItem(this.SESSION_KEY);
+        this.stopSessionRefresh();
+    }
+    
+    static setRememberMe(value) {
+        if (value) {
+            localStorage.setItem(this.REMEMBER_ME_KEY, 'true');
+        } else {
+            localStorage.removeItem(this.REMEMBER_ME_KEY);
+            this.clearSession();
+        }
+    }
+    
+    static startSessionRefresh() {
+        this.stopSessionRefresh();
+        
+        // Refresh session every 15 minutes
+        sessionRefreshInterval = setInterval(async () => {
+            if (supabase && currentUser) {
+                try {
+                    console.log('🔄 Refreshing session...');
+                    const { data, error } = await supabase.auth.refreshSession();
+                    if (!error && data.session) {
+                        await this.saveSession(data.session);
+                        console.log('✅ Session refreshed automatically');
+                    } else {
+                        console.warn('❌ Session refresh failed:', error);
+                    }
+                } catch (error) {
+                    console.warn('❌ Session refresh error:', error);
+                }
+            }
+        }, SESSION_REFRESH_TIME);
+    }
+    
+    static stopSessionRefresh() {
+        if (sessionRefreshInterval) {
+            clearInterval(sessionRefreshInterval);
+            sessionRefreshInterval = null;
+        }
+    }
+    
+    static async handleSuccessfulLogin(user) {
+        // Kullanıcı rolünü al
+        const { data: userData, error: userError } = await supabase
+            .from('personnel')
+            .select('role, name')
+            .eq('email', user.email)
+            .single();
+
+        currentUser = {
+            email: user.email,
+            uid: user.id,
+            name: userData?.name || user.email.split('@')[0],
+            role: userData?.role || 'operator'
+        };
+
+        const userRoleElement = document.getElementById('userRole');
+        if (userRoleElement) {
+            userRoleElement.textContent = 
+                `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+        }
+
+        // Rol bazlı yetkilendirme
+        if (typeof applyRoleBasedPermissions === 'function') {
+            applyRoleBasedPermissions(currentUser.role);
+        }
+
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'flex';
+
+        // Test connection only once after login
+        if (!connectionTested) {
+            await testConnection();
+            connectionTested = true;
+        }
+
+        updateStorageIndicator();
+    }
+}
+
+
 // Missing dependency placeholders
 if (typeof XLSX === 'undefined') {
     console.warn('XLSX library not found - using placeholder');
