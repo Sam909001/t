@@ -1,24 +1,31 @@
-// savelogin.js - Remember Me functionality for ProClean
+// savelogin-electron.js - Remember Me functionality for Electron
 
-class LoginManager {
+class ElectronLoginManager {
     constructor() {
-        this.rememberMeKey = 'proclean_remember_me';
         this.credentialsKey = 'proclean_saved_credentials';
         this.autoLoginKey = 'proclean_auto_login';
         this.isInitialized = false;
+        this.isElectron = this.checkElectronEnvironment();
     }
 
-    // Initialize the login manager
+    // Check if running in Electron
+    checkElectronEnvironment() {
+        return typeof window !== 'undefined' && 
+               window.process && 
+               window.process.type === 'renderer';
+    }
+
+    // Initialize with Electron-specific setup
     init() {
         if (this.isInitialized) return;
         
-        console.log('🔐 LoginManager initializing...');
+        console.log('🔐 ElectronLoginManager initializing...');
         this.setupLoginForm();
         this.checkSavedCredentials();
         this.isInitialized = true;
     }
 
-    // Setup the login form with remember me checkbox
+    // Setup login form (same as before)
     setupLoginForm() {
         const loginForm = document.querySelector('.login-form');
         if (!loginForm) {
@@ -26,7 +33,6 @@ class LoginManager {
             return;
         }
 
-        // Add remember me checkbox to the login form
         const rememberMeHtml = `
             <div class="form-group remember-me-group">
                 <label class="remember-me-label">
@@ -37,17 +43,117 @@ class LoginManager {
             </div>
         `;
 
-        // Insert before the login button
         const loginBtn = document.getElementById('loginBtn');
         if (loginBtn) {
             loginBtn.insertAdjacentHTML('beforebegin', rememberMeHtml);
         }
 
-        // Add styles for remember me checkbox
         this.addRememberMeStyles();
     }
 
-    // Add CSS styles for remember me checkbox
+    // Enhanced storage methods for Electron
+    async saveCredentials(email, rememberMe) {
+        if (!rememberMe) {
+            await this.clearSavedLogin();
+            return;
+        }
+
+        const credentials = {
+            email: email,
+            rememberMe: true,
+            timestamp: new Date().toISOString(),
+            appVersion: '2.0.0'
+        };
+
+        try {
+            if (this.isElectron && window.electronAPI) {
+                // Use Electron's secure storage
+                await window.electronAPI.storeSet(this.credentialsKey, JSON.stringify(credentials));
+                console.log('🔐 Credentials saved securely via Electron');
+            } else {
+                // Fallback to localStorage
+                localStorage.setItem(this.credentialsKey, JSON.stringify(credentials));
+                console.log('🔐 Credentials saved via localStorage');
+            }
+        } catch (error) {
+            console.error('Error saving credentials:', error);
+            // Fallback to localStorage if Electron storage fails
+            localStorage.setItem(this.credentialsKey, JSON.stringify(credentials));
+        }
+    }
+
+    async getSavedCredentials() {
+        try {
+            if (this.isElectron && window.electronAPI) {
+                // Try Electron secure storage first
+                const credentials = await window.electronAPI.storeGet(this.credentialsKey);
+                return credentials ? JSON.parse(credentials) : null;
+            } else {
+                // Fallback to localStorage
+                const saved = localStorage.getItem(this.credentialsKey);
+                return saved ? JSON.parse(saved) : null;
+            }
+        } catch (error) {
+            console.error('Error reading saved credentials:', error);
+            // Final fallback
+            try {
+                const saved = localStorage.getItem(this.credentialsKey);
+                return saved ? JSON.parse(saved) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+    }
+
+    async clearSavedLogin() {
+        try {
+            if (this.isElectron && window.electronAPI) {
+                await window.electronAPI.storeDelete(this.credentialsKey);
+                await window.electronAPI.storeDelete(this.autoLoginKey);
+            }
+            localStorage.removeItem(this.credentialsKey);
+            localStorage.removeItem(this.autoLoginKey);
+        } catch (error) {
+            console.error('Error clearing saved login:', error);
+        }
+    }
+
+    async shouldAutoLogin() {
+        try {
+            if (this.isElectron && window.electronAPI) {
+                const autoLogin = await window.electronAPI.storeGet(this.autoLoginKey);
+                return autoLogin === 'true';
+            }
+            return localStorage.getItem(this.autoLoginKey) === 'true';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    async enableAutoLogin() {
+        try {
+            if (this.isElectron && window.electronAPI) {
+                await window.electronAPI.storeSet(this.autoLoginKey, 'true');
+            } else {
+                localStorage.setItem(this.autoLoginKey, 'true');
+            }
+        } catch (error) {
+            console.error('Error enabling auto-login:', error);
+        }
+    }
+
+    async disableAutoLogin() {
+        try {
+            if (this.isElectron && window.electronAPI) {
+                await window.electronAPI.storeDelete(this.autoLoginKey);
+            }
+            localStorage.removeItem(this.autoLoginKey);
+        } catch (error) {
+            console.error('Error disabling auto-login:', error);
+        }
+    }
+
+    // Rest of the methods remain the same as previous version
     addRememberMeStyles() {
         const styles = `
             <style>
@@ -123,10 +229,6 @@ class LoginManager {
                     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 }
                 
-                .quick-login-btn:active {
-                    transform: translateY(0);
-                }
-                
                 .saved-user-info {
                     background: #f8f9fa;
                     border: 1px solid #e9ecef;
@@ -156,26 +258,19 @@ class LoginManager {
                     text-decoration: underline;
                     margin-top: 8px;
                 }
-                
-                .clear-saved-login:hover {
-                    color: #c0392b;
-                }
             </style>
         `;
-        
         document.head.insertAdjacentHTML('beforeend', styles);
     }
 
-    // Check if credentials are saved and setup auto-login
     async checkSavedCredentials() {
         try {
-            const saved = this.getSavedCredentials();
+            const saved = await this.getSavedCredentials();
             if (saved && saved.email && saved.rememberMe) {
-                console.log('🔐 Saved credentials found');
+                console.log('🔐 Saved credentials found in Electron env');
                 this.showQuickLoginOption(saved);
                 
-                // Auto-login if enabled
-                if (this.shouldAutoLogin()) {
+                if (await this.shouldAutoLogin()) {
                     console.log('🔐 Auto-login enabled, attempting login...');
                     await this.attemptAutoLogin(saved);
                 }
@@ -185,7 +280,6 @@ class LoginManager {
         }
     }
 
-    // Show quick login option for saved user
     showQuickLoginOption(savedCredentials) {
         const loginBtn = document.getElementById('loginBtn');
         if (!loginBtn) return;
@@ -194,29 +288,25 @@ class LoginManager {
             <div class="saved-user-info">
                 <div class="saved-user-email">${this.maskEmail(savedCredentials.email)}</div>
                 <div class="saved-user-timestamp">Kayıtlı: ${this.formatTimestamp(savedCredentials.timestamp)}</div>
-                <button type="button" class="quick-login-btn" onclick="loginManager.quickLogin()">
+                <button type="button" class="quick-login-btn" onclick="electronLoginManager.quickLogin()">
                     <i class="fas fa-bolt"></i>
                     Hızlı Giriş Yap
                 </button>
-                <button type="button" class="clear-saved-login" onclick="loginManager.clearSavedLogin()">
+                <button type="button" class="clear-saved-login" onclick="electronLoginManager.clearSavedLogin()">
                     Farklı kullanıcı ile giriş yap
                 </button>
             </div>
         `;
 
-        // Remove existing quick login if any
         const existingQuickLogin = document.querySelector('.saved-user-info');
         if (existingQuickLogin) {
             existingQuickLogin.remove();
         }
 
         loginBtn.insertAdjacentHTML('beforebegin', quickLoginHtml);
-        
-        // Hide regular form initially
         this.toggleRegularForm(false);
     }
 
-    // Toggle regular login form visibility
     toggleRegularForm(show) {
         const formGroups = document.querySelectorAll('.login-form .form-group');
         const rememberMe = document.querySelector('.remember-me-group');
@@ -230,178 +320,77 @@ class LoginManager {
             }
         });
 
-        // Show API key management link
         const apiKeyLink = document.querySelector('a[onclick="showApiKeyModal()"]');
         if (apiKeyLink) {
             apiKeyLink.style.display = show ? 'block' : 'none';
         }
     }
 
-    // Mask email for privacy
     maskEmail(email) {
         const [username, domain] = email.split('@');
         if (username.length <= 2) return email;
-        
         const maskedUsername = username[0] + '*'.repeat(username.length - 2) + username[username.length - 1];
         return maskedUsername + '@' + domain;
     }
 
-    // Format timestamp
     formatTimestamp(timestamp) {
         if (!timestamp) return 'Bilinmiyor';
-        
         const date = new Date(timestamp);
-        const now = new Date();
-        const diffTime = Math.abs(now - date);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 1) return 'Dün';
-        if (diffDays < 7) return `${diffDays} gün önce`;
-        if (diffDays < 30) return `${Math.floor(diffDays / 7)} hafta önce`;
-        
         return date.toLocaleDateString('tr-TR');
     }
 
-    // Quick login with saved credentials
     async quickLogin() {
-        const saved = this.getSavedCredentials();
+        const saved = await this.getSavedCredentials();
         if (!saved || !saved.email) {
             this.showAlert('Kayıtlı giriş bilgisi bulunamadı.', 'error');
-            this.clearSavedLogin();
+            await this.clearSavedLogin();
             return;
         }
 
         this.showAlert('Giriş yapılıyor...', 'info');
         
         try {
-            // Fill the form
             document.getElementById('email').value = saved.email;
-            
-            // Attempt login (password will be handled by auth system)
-            await window.handleLogin();
+            document.getElementById('password').focus(); // Focus on password for user to enter
         } catch (error) {
             console.error('Quick login failed:', error);
-            this.showAlert('Hızlı giriş başarısız. Lütfen şifrenizi girin.', 'error');
+            this.showAlert('Lütfen şifrenizi girin.', 'info');
             this.showRegularLoginForm();
         }
     }
 
-    // Show regular login form
     showRegularLoginForm() {
         this.toggleRegularForm(true);
-        
-        // Remove quick login option
         const quickLogin = document.querySelector('.saved-user-info');
         if (quickLogin) {
             quickLogin.remove();
         }
-        
-        // Focus on password field
         const passwordField = document.getElementById('password');
         if (passwordField) {
             passwordField.focus();
         }
     }
 
-    // Clear saved login data
-    clearSavedLogin() {
-        localStorage.removeItem(this.credentialsKey);
-        localStorage.removeItem(this.autoLoginKey);
-        
-        this.showAlert('Kayıtlı giriş bilgileri temizlendi.', 'info');
-        this.showRegularLoginForm();
-    }
-
-    // Save login credentials
-    saveCredentials(email, rememberMe) {
-        if (!rememberMe) {
-            this.clearSavedLogin();
-            return;
-        }
-
-        const credentials = {
-            email: email,
-            rememberMe: true,
-            timestamp: new Date().toISOString()
-        };
-
-        try {
-            localStorage.setItem(this.credentialsKey, JSON.stringify(credentials));
-            console.log('🔐 Credentials saved for:', this.maskEmail(email));
-        } catch (error) {
-            console.error('Error saving credentials:', error);
-        }
-    }
-
-    // Get saved credentials
-    getSavedCredentials() {
-        try {
-            const saved = localStorage.getItem(this.credentialsKey);
-            return saved ? JSON.parse(saved) : null;
-        } catch (error) {
-            console.error('Error reading saved credentials:', error);
-            return null;
-        }
-    }
-
-    // Check if auto-login should be attempted
-    shouldAutoLogin() {
-        try {
-            return localStorage.getItem(this.autoLoginKey) === 'true';
-        } catch (error) {
-            return false;
-        }
-    }
-
-    // Enable auto-login
-    enableAutoLogin() {
-        try {
-            localStorage.setItem(this.autoLoginKey, 'true');
-        } catch (error) {
-            console.error('Error enabling auto-login:', error);
-        }
-    }
-
-    // Disable auto-login
-    disableAutoLogin() {
-        try {
-            localStorage.removeItem(this.autoLoginKey);
-        } catch (error) {
-            console.error('Error disabling auto-login:', error);
-        }
-    }
-
-    // Attempt auto-login
     async attemptAutoLogin(savedCredentials) {
         if (!savedCredentials || !savedCredentials.email) return false;
 
         try {
-            console.log('🔐 Attempting auto-login...');
+            console.log('🔐 Attempting auto-login in Electron...');
             
-            // Set a timeout for auto-login attempt
-            const autoLoginPromise = new Promise((resolve, reject) => {
-                setTimeout(() => {
-                    reject(new Error('Auto-login timeout'));
-                }, 5000);
-                
-                // This would need to be integrated with your auth system
-                // For now, we'll just pre-fill the email
-                document.getElementById('email').value = savedCredentials.email;
-                resolve(true);
-            });
-
-            await autoLoginPromise;
+            // Pre-fill email and attempt login
+            document.getElementById('email').value = savedCredentials.email;
+            
+            // In Electron, you might want to implement actual auto-login
+            // This would require storing an encrypted token rather than just email
             return true;
             
         } catch (error) {
-            console.log('Auto-login failed or not implemented:', error);
+            console.log('Auto-login failed:', error);
             return false;
         }
     }
 
-    // Show alert message
     showAlert(message, type = 'info') {
-        // Use your existing alert system or create a simple one
         if (window.showAlert) {
             window.showAlert(message, type);
         } else {
@@ -411,14 +400,9 @@ class LoginManager {
 }
 
 // Create global instance
-const loginManager = new LoginManager();
+const electronLoginManager = new ElectronLoginManager();
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    loginManager.init();
+    electronLoginManager.init();
 });
-
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { LoginManager, loginManager };
-}
