@@ -1,12 +1,12 @@
-// ==================== APP.JS - TOP OF FILE ====================
-
-// Detect if running in Electron
-function isElectron() {
-    return typeof window !== 'undefined' && 
-           typeof window.process === 'object' && 
-           window.process.type === 'renderer';
-}
-
+// Sayfa yüklendiğinde API anahtarını localStorage'dan yükle
+document.addEventListener('DOMContentLoaded', () => {
+    const savedApiKey = localStorage.getItem('procleanApiKey');
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        initializeSupabase();
+        console.log('API key loaded from localStorage');
+    }
+});
 
 // State management functions
 function saveAppState() {
@@ -73,81 +73,43 @@ async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
-        // 1. CRITICAL FIX: Initialize elements FIRST before anything else
-        if (typeof initializeElementsObject !== 'function') {
-            console.error('❌ initializeElementsObject function not loaded!');
-            // Fallback: load from ui.js if not available
-            if (typeof elements === 'undefined') {
-                window.elements = {};
-            }
-        } else {
-            initializeElementsObject();
-        }
-        
-        // 2. Initialize workspace system
+        // 1. Initialize workspace system FIRST
         if (!window.workspaceManager) {
             window.workspaceManager = new WorkspaceManager();
         }
         await window.workspaceManager.initialize();
         
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-        
-        // 0. Detect and log environment
-        const runningInElectron = isElectron();
-        if (runningInElectron) {
-            console.log('📱 Running in Electron environment');
-            window.isElectronApp = true;
-        } else {
-            console.log('🌐 Running in Web Browser environment');
-            window.isElectronApp = false;
-        }
+
+        // 2. Initialize elements
+        initializeElementsObject();
         
         // 3. Initialize workspace-aware UI
-        if (typeof initializeWorkspaceUI === 'function') {
-            initializeWorkspaceUI();
-        }
-        if (typeof setupWorkspaceAwareUI === 'function') {
-            setupWorkspaceAwareUI();
-        }
-        
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+
         // 4. Migrate existing data to workspace
-        if (typeof migrateExistingDataToWorkspace === 'function') {
-            await migrateExistingDataToWorkspace();
-        }
-        
+        await migrateExistingDataToWorkspace();
+
         // 5. Initialize sync system
-        if (typeof initializeSyncQueue === 'function') {
-            initializeSyncQueue();
-        }
-        if (typeof setupEnhancedSyncTriggers === 'function') {
-            setupEnhancedSyncTriggers();
-        }
-        
+        initializeSyncQueue();
+        setupEnhancedSyncTriggers();
+
         // 6. Setup event listeners
         setupEventListeners();
         
         // 7. API key initialization
         initializeApiAndAuth();
-        
+
         // 8. Initialize settings
-        if (typeof initializeSettings === 'function') {
-            initializeSettings();
-        }
-        
+        initializeSettings();
+
         // 9. Initialize daily Excel file system
-        if (typeof ExcelStorage !== 'undefined') {
-            if (typeof ExcelStorage.cleanupOldFiles === 'function') {
-                await ExcelStorage.cleanupOldFiles();
-            }
-            if (typeof ExcelStorage.readFile === 'function') {
-                await ExcelStorage.readFile();
-            }
-        }
+        await ExcelStorage.cleanupOldFiles();
+        await ExcelStorage.readFile();
         
         // 10. Populate UI
-        if (elements.currentDate) {
-            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-        }
+        elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
         await populateCustomers();
         await populatePersonnel();
         
@@ -160,38 +122,33 @@ async function initApp() {
         await populateShippingTable();
         
         // 13. Test connection
-        if (supabase) {
-            await testConnection();
-        }
+        await testConnection();
         
         // 14. Set up auto-save and offline support
-        setInterval(saveAppState, 30000);
+        setInterval(saveAppState, 5000);
         setupOfflineSupport();
-        if (typeof setupBarcodeScanner === 'function') {
-            setupBarcodeScanner();
-        }
+        setupBarcodeScanner();
         
         // 15. Start daily auto-clear
         scheduleDailyClear();
-        
-        // 16. Auto-sync on startup if online and not in Electron
-        if (navigator.onLine && supabase && !runningInElectron) {
+
+        // 16. Auto-sync on startup if online
+        if (navigator.onLine && supabase) {
             setTimeout(async () => {
-                if (typeof syncExcelWithSupabase === 'function') {
-                    await syncExcelWithSupabase();
-                }
+                await syncExcelWithSupabase();
             }, 5000);
         }
-        const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
-        console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
-        showAlert('Uygulama başarıyla başlatıldı!', 'success', 3000);
         
+        console.log(`🎉 ProClean fully initialized for workspace: ${window.workspaceManager.currentWorkspace.name}`);
+        showAlert('Uygulama başarıyla başlatıldı!', 'success');
+
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
-        console.error('Error stack:', error.stack);
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 }
+
+
 
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
@@ -303,79 +260,54 @@ async function createNewContainer() {
 }
 
 async function deleteContainer() {
-    const selectedCheckboxes = document.querySelectorAll('.container-checkbox:checked');
-    
-    if (selectedCheckboxes.length === 0) {
+    // Seçili konteynerleri al
+    const selectedContainers = Array.from(document.querySelectorAll('.container-checkbox:checked'))
+        .map(cb => cb.value);
+        
+    if (selectedContainers.length === 0) {
         showAlert('Silinecek konteyner seçin', 'error');
         return;
     }
 
-    if (!confirm(`${selectedCheckboxes.length} konteyneri silmek istediğinize emin misiniz?`)) {
-        return;
-    }
+    if (!confirm(`${selectedContainers.length} konteyneri silmek istediğinize emin misiniz?`)) return;
 
     try {
-        showAlert('Konteynerler siliniyor...', 'info');
-        
-        // Get container IDs properly
-        const containerIds = [];
-        selectedCheckboxes.forEach(checkbox => {
-            // Try multiple ways to get the ID
-            const id = checkbox.getAttribute('data-container-id') || 
-                      checkbox.getAttribute('data-id') || 
-                      checkbox.value;
-            if (id) containerIds.push(id);
-        });
+        // Önce bu konteynerlere bağlı paketleri güncelle
+        const { error: updateError } = await supabase
+            .from('packages')
+            .update({ 
+                container_id: null,
+                status: 'beklemede'
+            })
+            .in('container_id', selectedContainers);
 
-        if (containerIds.length === 0) {
-            showAlert('Konteyner ID bulunamadı', 'error');
-            return;
-        }
+        if (updateError) throw updateError;
 
-        // Delete from Supabase
-        if (supabase && navigator.onLine) {
-            // First update packages
-            const { error: updateError } = await supabase
-                .from('packages')
-                .update({ 
-                    container_id: null,
-                    status: 'beklemede'
-                })
-                .in('container_id', containerIds);
+        // Sonra konteynerleri sil
+        const { error: deleteError } = await supabase
+            .from('containers')
+            .delete()
+            .in('id', selectedContainers);
 
-            if (updateError) {
-                console.error('Package update error:', updateError);
-            }
+        if (deleteError) throw deleteError;
 
-            // Then delete containers
-            const { error: deleteError } = await supabase
-                .from('containers')
-                .delete()
-                .in('id', containerIds);
-
-            if (deleteError) throw deleteError;
-        }
-
-        // Clear current container if deleted
-        if (currentContainer && containerIds.includes(currentContainer)) {
+        // Eğer silinen konteyner aktif konteyner ise sıfırla
+        if (currentContainer && selectedContainers.includes(currentContainer)) {
             currentContainer = null;
-            if (elements.containerNumber) {
-                elements.containerNumber.textContent = 'Yok';
-            }
+            elements.containerNumber.textContent = 'Yok';
+            saveAppState();
         }
         
-        showAlert(`✅ ${containerIds.length} konteyner silindi`, 'success');
+        showAlert(`${selectedContainers.length} konteyner silindi`, 'success');
         await populateShippingTable();
         
     } catch (error) {
-        console.error('Delete error:', error);
-        showAlert('Silme hatası: ' + error.message, 'error');
+        console.error('Error deleting container:', error);
+        showAlert('Konteyner silinirken hata oluştu', 'error');
     }
 }
 
 function switchTab(tabName) {
-    console.log('Switching to tab:', tabName);
-    
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.classList.remove('active');
@@ -394,41 +326,20 @@ function switchTab(tabName) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
         
-        // CRITICAL: Load data immediately when tab is shown
-        loadTabData(tabName);
-    } else {
-        console.error('Tab or pane not found:', tabName);
-    }
-}
-
-// New function to handle tab data loading
-async function loadTabData(tabName) {
-    console.log('Loading data for tab:', tabName);
-    
-    try {
-        switch(tabName) {
-            case 'packaging':
-                await safePopulatePackagesTable();
-                break;
-                
-            case 'shipping':
-                await safePopulateShippingTable();
-                break;
-                
-            case 'stock':
-                await safePopulateStockTable();
-                break;
-                
-            case 'reports':
-                await safePopulateReportsTable();
-                break;
-                
-            default:
-                console.log('No data loading needed for:', tabName);
-        }
-    } catch (error) {
-        console.error('Error loading tab data:', error);
-        showAlert(`${tabName} verileri yüklenirken hata: ${error.message}`, 'error');
+        // Load data when tab is clicked
+        setTimeout(() => {
+            switch(tabName) {
+                case 'shipping':
+                    populateShippingTable();
+                    break;
+                case 'stock':
+                    populateStockTable();
+                    break;
+                case 'reports':
+                    populateReportsTable();
+                    break;
+            }
+        }, 100);
     }
 }
 
@@ -691,17 +602,13 @@ function setupEventListeners() {
         });
     }
 
-   // Inside setupEventListeners() function, replace the tab listeners with:
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', function(e) {
-        e.preventDefault();
-        const tabName = this.getAttribute('data-tab');
-        if (tabName) {
-            console.log('Tab clicked:', tabName);
-            switchTab(tabName);
-        }
+    // Tab click events
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            if (tabName) switchTab(tabName);
+        });
     });
-});
 
     // Close modal when clicking outside
     window.addEventListener('click', function(event) {
@@ -905,9 +812,6 @@ function mergePackages(excelPackages, supabasePackages) {
     return merged;
 }
 
-
-
-
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -919,42 +823,23 @@ async function completePackage() {
         return;
     }
 
-    if (!window.workspaceManager?.canPerformAction('create_package')) {
+    // Check workspace permissions
+    if (!window.workspaceManager.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
     try {
-        const workspaceId = window.workspaceManager.currentWorkspace.id;
-        
-        // Generate short station number (st1, st2, st3, st4)
-        const stationNumber = workspaceId.replace('station-', 'st');
-        
-        // Get today's package count for this station to generate sequential number
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        
-        const todayPackages = await ExcelJS.readFile();
-        const todayStationPackages = todayPackages.filter(pkg => 
-            pkg.workspace_id === workspaceId && 
-            new Date(pkg.created_at) >= todayStart
-        );
-        
-        // Sequential number: pad to 6 digits
-        const sequentialNumber = (todayStationPackages.length + 1).toString().padStart(6, '0');
-        
-        // Generate SHORT package number: pkg-st1-000123
-        const packageNo = `pkg-${stationNumber}-${sequentialNumber}`;
-        
-        // Generate unique ID for database
-        const packageId = `pkg-${workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-        
+        // GENERATE THE ID ONCE HERE
+        const packageId = `pkg-${window.workspaceManager.currentWorkspace.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const packageNo = `PKG-${window.workspaceManager.currentWorkspace.id}-${Date.now()}`;
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect?.value || '';
+        const selectedPersonnel = elements.personnelSelect.value;
 
+        // Enhanced package data with workspace info - USE THE SAME ID
         const packageData = {
-            id: packageId, // Unique ID for database
-            package_no: packageNo, // SHORT display number
+            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
             customer_code: selectedCustomer.code,
@@ -971,13 +856,12 @@ async function completePackage() {
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            workspace_id: workspaceId,
+            workspace_id: window.workspaceManager.currentWorkspace.id,
             station_name: window.workspaceManager.currentWorkspace.name,
-            daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app'
+            daily_file: ExcelStorage.getTodayDateString()
         };
 
-        // Save to database and Excel
+        // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -987,20 +871,20 @@ async function completePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-                await saveToExcel(packageData);
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                await saveToExcel(packageData); // SAME packageData with SAME ID
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+                await saveToExcel(packageData); // SAME packageData with SAME ID
+                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+            await saveToExcel(packageData); // SAME packageData with SAME ID
+            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+            showAlert(`Paket Excel'e kaydedildi: ${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
 
@@ -1012,9 +896,10 @@ async function completePackage() {
 
     } catch (error) {
         console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+        showAlert('Paket oluşturma hatası', 'error');
     }
 }
+
 
 
 
@@ -1521,175 +1406,3 @@ function checkPrinterStatus() {
     return printer.isConnected;
 }
 
-
-
-
-
-
-
-
-
-// Fix for Select All Packages
-window.toggleSelectAllPackages = function() {
-    const selectAllCheckbox = document.getElementById('selectAllPackages');
-    if (!selectAllCheckbox) return;
-    
-    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:not(#selectAllPackages)');
-    
-    packageCheckboxes.forEach(checkbox => {
-        checkbox.checked = selectAllCheckbox.checked;
-    });
-    
-    console.log(`Selected ${packageCheckboxes.length} packages`);
-}
-
-// Make sure the checkbox has the right event listener
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        const selectAllCheckbox = document.getElementById('selectAllPackages');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.removeEventListener('change', toggleSelectAllPackages);
-            selectAllCheckbox.addEventListener('change', toggleSelectAllPackages);
-        }
-    }, 2000);
-});
-
-
-
-
-
-
-// Working Report Functions
-window.viewReport = async function(fileName) {
-    try {
-        const reportKey = `report_${fileName}`;
-        const reportData = localStorage.getItem(reportKey);
-        
-        if (!reportData) {
-            // Try to fetch from Supabase
-            if (supabase && navigator.onLine) {
-                const { data, error } = await supabase
-                    .from('reports')
-                    .select('*')
-                    .eq('fileName', fileName)
-                    .single();
-                
-                if (data) {
-                    window.open('data:application/json,' + encodeURIComponent(JSON.stringify(data)));
-                    return;
-                }
-            }
-            showAlert('Rapor bulunamadı', 'error');
-            return;
-        }
-        
-        // Open report in new tab
-        const blob = new Blob([reportData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        
-    } catch (error) {
-        console.error('View report error:', error);
-        showAlert('Rapor görüntülenemedi', 'error');
-    }
-}
-
-window.downloadReport = function(fileName) {
-    try {
-        const reportKey = `report_${fileName}`;
-        const reportData = localStorage.getItem(reportKey) || '{}';
-        
-        const blob = new Blob([reportData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${fileName}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        showAlert('Rapor indirildi', 'success');
-    } catch (error) {
-        console.error('Download error:', error);
-        showAlert('İndirme hatası', 'error');
-    }
-}
-
-window.deleteReport = async function(fileName) {
-    if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) return;
-    
-    try {
-        // Delete from localStorage
-        localStorage.removeItem(`report_${fileName}`);
-        
-        // Delete from Supabase if available
-        if (supabase && navigator.onLine) {
-            await supabase
-                .from('reports')
-                .delete()
-                .eq('fileName', fileName);
-        }
-        
-        showAlert('Rapor silindi', 'success');
-        
-        // Refresh table
-        if (typeof populateReportsTable === 'function') {
-            await populateReportsTable();
-        }
-    } catch (error) {
-        console.error('Delete report error:', error);
-        showAlert('Silme hatası', 'error');
-    }
-}
-
-
-
-// Safe wrapper functions to prevent errors
-async function safePopulatePackagesTable() {
-    try {
-        if (typeof populatePackagesTable === 'function') {
-            await populatePackagesTable();
-        } else {
-            console.error('populatePackagesTable function not found');
-        }
-    } catch (error) {
-        console.error('Error in safePopulatePackagesTable:', error);
-    }
-}
-
-async function safePopulateShippingTable() {
-    try {
-        if (typeof populateShippingTable === 'function') {
-            await populateShippingTable();
-        } else {
-            console.error('populateShippingTable function not found');
-        }
-    } catch (error) {
-        console.error('Error in safePopulateShippingTable:', error);
-    }
-}
-
-async function safePopulateStockTable() {
-    try {
-        if (typeof populateStockTable === 'function') {
-            await populateStockTable();
-        } else {
-            console.error('populateStockTable function not found');
-        }
-    } catch (error) {
-        console.error('Error in safePopulateStockTable:', error);
-    }
-}
-
-async function safePopulateReportsTable() {
-    try {
-        if (typeof populateReportsTable === 'function') {
-            await populateReportsTable();
-        } else {
-            console.error('populateReportsTable function not found');
-        }
-    } catch (error) {
-        console.error('Error in safePopulateReportsTable:', error);
-    }
-}
