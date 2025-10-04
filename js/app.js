@@ -513,16 +513,6 @@ function setupAuthListener() {
     });
 }
 
-// Load API key from localStorage
-function loadApiKey() {
-    const savedApiKey = localStorage.getItem('procleanApiKey');
-    if (savedApiKey) {
-        SUPABASE_ANON_KEY = savedApiKey;
-        return true;
-    }
-    return false;
-}
-
 // API hata yönetimi
 function handleSupabaseError(error, context) {
     console.error(`Supabase error in ${context}:`, error);
@@ -612,7 +602,6 @@ function scheduleDailyClear() {
 // Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
-
     try {
         // Initialize workspace system FIRST
         if (!window.workspaceManager) {
@@ -621,25 +610,24 @@ document.addEventListener('DOMContentLoaded', async function() {
         await window.workspaceManager.initialize();
         
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-
-        // Then initialize elements
+        
+        // Initialize elements
         initializeElementsObject();
         
         // Initialize workspace-aware UI
         initializeWorkspaceUI();
         setupWorkspaceAwareUI();
-
-        // Now setup all other event listeners
+        
+        // Setup event listeners
         setupEventListeners();
         
-        // API key initialization
-        initializeApiAndAuth();
-
+        // API key initialization - ADD AWAIT HERE
+        await initializeApiAndAuth();
+        
         // Initialize settings
         initializeSettings();
-
+        
         console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
-
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
@@ -724,13 +712,21 @@ function setupEventListeners() {
     });
 }
 
-function initializeApiAndAuth() {
-    if (loadApiKey()) {
-        supabase = initializeSupabase();
-        if (supabase) {
-            setupAuthListener();
-            console.log('✅ Supabase client initialized');
-        }
+async function initializeApiAndAuth() {
+    // Load API key from storage
+    const savedApiKey = await StorageManager.getItem('procleanApiKey');
+    
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        console.log('API key loaded from storage');
+    }
+    
+    // Initialize Supabase
+    const client = await initializeSupabase();
+    
+    if (client) {
+        setupAuthListener();
+        console.log('✅ Supabase client initialized');
     } else {
         showApiKeyModal();
     }
