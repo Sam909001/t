@@ -1604,52 +1604,6 @@ async function completePackageWithRecovery() {
 
 
 
-// Add this function to initialize the printer
-function initializePrinter() {
-    if (typeof printer === 'undefined') {
-        console.log('🖨️ Initializing printer service...');
-        
-        // Create a mock printer object if the real one isn't available
-        window.printer = {
-            isConnected: false,
-            serverUrl: null,
-            connect: function(url) {
-                this.serverUrl = url;
-                this.isConnected = true;
-                console.log('✅ Printer connected:', url);
-                return true;
-            },
-            disconnect: function() {
-                this.isConnected = false;
-                this.serverUrl = null;
-                console.log('❌ Printer disconnected');
-            },
-            print: function(content) {
-                if (!this.isConnected) {
-                    console.error('Printer not connected');
-                    return false;
-                }
-                console.log('🖨️ Printing content:', content);
-                return true;
-            }
-        };
-        
-        // Try to auto-connect to default printer
-        const defaultPrinterUrl = 'http://localhost:9100'; // Common printer URL
-        printer.connect(defaultPrinterUrl);
-        
-        console.log('✅ Printer service initialized');
-    }
-    return window.printer;
-}
-
-// Call this when your app starts
-document.addEventListener('DOMContentLoaded', function() {
-    initializePrinter();
-});
-
-
-
 function checkPrinterStatus() {
     console.log('🔍 Checking printer status...');
     
