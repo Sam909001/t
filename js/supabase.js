@@ -2979,11 +2979,13 @@ async function populateShippingTable(page = 0) {
     try {
         console.log('Populating shipping table...');
 
-        const shippingFolders = document.getElementById('shippingFolders');
-        if (!shippingFolders) {
-            console.error('shippingFolders element not found!');
-            return;
-        }
+       const shippingFolders = document.getElementById('shippingFolders');
+if (!shippingFolders) {
+    console.log('⏳ shippingFolders not found yet, waiting...');
+    // Try again in 500ms
+    setTimeout(populateShippingTable, 500);
+    return;
+}
 
         // Show loading state
         shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666; font-size:16px;">Sevkiyat verileri yükleniyor...</div>';
@@ -4015,10 +4017,11 @@ async function populateStockTable() {
         console.log('Populating stock table...');
         
         const stockTableBody = document.getElementById('stockTableBody');
-        if (!stockTableBody) {
-            console.error('Stock table body not found');
-            return;
-        }
+if (!stockTableBody) {
+    console.log('⏳ stockTableBody not found yet, waiting...');
+    setTimeout(populateStockTable, 500);
+    return;
+}
         
         stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
         
@@ -4116,10 +4119,11 @@ async function populateReportsTable() {
         console.log('Populating reports table...');
         
         const reportsTableBody = document.getElementById('reportsTableBody');
-        if (!reportsTableBody) {
-            console.error('Reports table body not found');
-            return;
-        }
+if (!reportsTableBody) {
+    console.log('⏳ reportsTableBody not found yet, waiting...');
+    setTimeout(populateReportsTable, 500);
+    return;
+}
         
         reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
         
