@@ -325,7 +325,7 @@ async loadWorkspaceData() {
     
     // Save workspaces to localStorage
     saveWorkspaces() {
-        localStorage.setItem('proclean_workspaces', JSON.stringify(this.availableWorkspaces));
+        await StorageManager.setItem('proclean_workspaces', JSON.stringify(this.availableWorkspaces));
     }
     
     // Check if current workspace can perform an action
@@ -575,7 +575,7 @@ getDefaultPrinterConfig() {
     savePrinterConfigurations() {
         try {
             const configObj = Object.fromEntries(this.printerConfigs);
-            localStorage.setItem('workspace_printer_configs', JSON.stringify(configObj));
+            await StorageManager.setItem('workspace_printer_configs', JSON.stringify(configObj));
             console.log('💾 Printer configurations saved');
         } catch (error) {
             console.error('Error saving printer configurations:', error);
@@ -811,7 +811,7 @@ getDefaultPrinterConfig() {
             auditLog.splice(0, auditLog.length - 1000);
         }
         
-        localStorage.setItem('workspace_audit_log', JSON.stringify(auditLog));
+        await StorageManager.setItem('workspace_audit_log', JSON.stringify(auditLog));
     }
 }
 
@@ -1255,7 +1255,7 @@ const ExcelStorage = {
             localStorage.setItem(fileName, JSON.stringify(enhancedData));
             
             // Also update the current active file reference
-            localStorage.setItem('excelPackages_current', fileName);
+            await StorageManager.setItem('excelPackages_current', fileName);
             
             console.log(`💾 Saved ${enhancedData.length} records to ${fileName}`);
             return true;
@@ -1343,7 +1343,7 @@ convertToCSV: function(data) {
             const key = localStorage.key(i);
             if (key.startsWith('packages_') && key.endsWith('.json')) {
                 if (!filesToKeep.includes(key)) {
-                    localStorage.removeItem(key);
+                    await StorageManager.removeItem(key);
                     console.log(`🧹 Removed old file: ${key}`);
                 }
             }
@@ -1770,12 +1770,12 @@ async createSyncBackup() {
         // Verify integrity before committing
         if (updatedQueue.length <= excelSyncQueue.length) {
             excelSyncQueue = updatedQueue;
-            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            await StorageManager.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
             console.log('💾 Sync committed successfully');
             
             // Clear backup after successful commit
             this.backupQueue = [];
-            localStorage.removeItem('sync_backup_data');
+            await StorageManager.removeItem('sync_backup_data');
         } else {
             throw new Error('Queue integrity check failed during commit');
         }
@@ -1788,7 +1788,7 @@ async createSyncBackup() {
         // Restore queue from backup
         if (this.backupQueue.length > 0) {
             excelSyncQueue = this.backupQueue;
-            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            await StorageManager.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
         }
         
         // Restore Excel data from backup
@@ -1851,7 +1851,7 @@ async function migrateExistingDataToWorkspace() {
                 ...op,
                 workspace_id: op.workspace_id || workspaceId
             }));
-            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            await StorageManager.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
             console.log('🔄 Migrated sync queue to workspace');
         }
         
@@ -1963,7 +1963,7 @@ function enhanceSyncQueue() {
             lastAttempt: null,
             status: 'pending'
         }));
-        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+        await StorageManager.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
     }
 }
 
@@ -1980,7 +1980,7 @@ function saveApiKey() {
     
     // Yeni API key'i ayarla
     SUPABASE_ANON_KEY = apiKey;
-    localStorage.setItem('procleanApiKey', apiKey);
+    await StorageManager.setItem('procleanApiKey', apiKey);
     
     // Yeni client oluştur
     const newClient = initializeSupabase();
@@ -2100,7 +2100,7 @@ async function testConnection() {
                 }
                 
                 // Başarılı senkronizasyondan sonra çevrimdışı verileri temizle
-                localStorage.removeItem('procleanOfflineData');
+                await StorageManager.removeItem('procleanOfflineData');
                 showAlert('Çevrimdışı veriler başarıyla senkronize edildi', 'success');
                 
             } catch (error) {
@@ -2118,7 +2118,7 @@ async function testConnection() {
             }
             
             offlineData[type].push(data);
-            localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
+            await StorageManager.setItem('procleanOfflineData', JSON.stringify(offlineData));
         }
 
 
@@ -3171,7 +3171,7 @@ async function populateStockTable() {
             ];
             
             // Save default items
-            localStorage.setItem('stock_items', JSON.stringify(stockItems));
+            await StorageManager.setItem('stock_items', JSON.stringify(stockItems));
         }
         
         // Clear and populate table
@@ -4575,9 +4575,9 @@ class SecurityManager {
         
         // Clear local storage (keep backups)
         const backups = localStorage.getItem('app_backups');
-        localStorage.clear();
+        await StorageManager.clear();
         if (backups) {
-            localStorage.setItem('app_backups', backups);
+            await StorageManager.setItem('app_backups', backups);
         }
         
         showAlert(message, 'warning');
@@ -4639,7 +4639,7 @@ class SecurityManager {
             securityLog.splice(0, securityLog.length - 1000);
         }
         
-        localStorage.setItem('security_audit_log', JSON.stringify(securityLog));
+        await StorageManager.setItem('security_audit_log', JSON.stringify(securityLog));
     }
 }
 
