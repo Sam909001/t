@@ -2,15 +2,17 @@
 let connectionTested = false; // Flag to prevent duplicate connection tests
 
 // FIXED: Kullanıcı girişi
+// FIXED: Kullanıcı girişi - UPDATED VERSION with Session Management
 async function login() {
+    const rememberMe = document.getElementById('rememberMe')?.checked || false;
+    
     // Supabase client'ı kontrol et ve gerekirse başlat
-    if (!supabase) {
-        const client = initializeSupabase();
+    if (!window.supabase) {
+        const client = window.initializeSupabase();
         if (!client) {
-            showAlert('Supabase bağlantısı yok. Excel modunda devam ediliyor.', 'warning');
-            // Excel modunda devam et
-            isUsingExcel = true;
-            proceedWithExcelMode();
+            window.showAlert('Supabase bağlantısı yok. Excel modunda devam ediliyor.', 'warning');
+            window.isUsingExcel = true;
+            window.proceedWithExcelMode();
             return;
         }
     }
@@ -19,7 +21,7 @@ async function login() {
     const password = document.getElementById('password').value;
 
     // Form doğrulama
-    if (!validateForm([
+    if (!window.validateForm([
         { id: 'email', errorId: 'emailError', type: 'email', required: true },
         { id: 'password', errorId: 'passwordError', type: 'text', required: true }
     ])) {
@@ -31,7 +33,7 @@ async function login() {
     loginBtn.textContent = 'Giriş yapılıyor...';
 
     try {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await window.supabase.auth.signInWithPassword({
             email: email,
             password: password,
         });
@@ -39,65 +41,86 @@ async function login() {
         if (error) {
             // Giriş başarısız olursa Excel modunda devam et
             console.warn('Login failed, continuing with Excel mode:', error.message);
-            showAlert('Giriş başarısız. Excel modunda devam ediliyor.', 'warning');
-            isUsingExcel = true;
-            proceedWithExcelMode();
+            window.showAlert('Giriş başarısız. Excel modunda devam ediliyor.', 'warning');
+            window.isUsingExcel = true;
+            window.proceedWithExcelMode();
             return;
         }
 
         if (data.user && data.user.email) {
-            // Kullanıcı rolünü al
-            const { data: userData, error: userError } = await supabase
-                .from('personnel')
-                .select('role, name')
-                .eq('email', data.user.email)
-                .single();
+            // Set remember me preference
+            if (typeof SessionManager !== 'undefined') {
+                SessionManager.setRememberMe(rememberMe);
+                
+                // Save session if remember me is checked
+                if (rememberMe && data.session) {
+                    await SessionManager.saveSession(data.session);
+                }
 
-            currentUser = {
-                email: data.user.email,
-                uid: data.user.id,
-                name: userData?.name || data.user.email.split('@')[0],
-                role: userData?.role || 'operator'
-            };
-
-            const userRoleElement = document.getElementById('userRole');
-            if (userRoleElement) {
-                userRoleElement.textContent = 
-                    `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
+                // Use the session manager to handle successful login
+                await SessionManager.handleSuccessfulLogin(data.user);
+            } else {
+                // Fallback to original login flow if SessionManager not available
+                await handleSuccessfulLoginLegacy(data.user);
             }
-
-            // Rol bazlı yetkilendirme
-            if (typeof applyRoleBasedPermissions === 'function') {
-                applyRoleBasedPermissions(currentUser.role);
-            }
-
-            showAlert('Giriş başarılı!', 'success');
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
-
-            // Test connection only once after login
-            if (!connectionTested) {
-                await testConnection();
-                connectionTested = true;
-            }
-
-            // Storage indicator'ı güncelle
-            updateStorageIndicator();
+            
+            window.showAlert('Giriş başarılı!', 'success');
 
         } else {
-            showAlert('Giriş başarısız. Excel modunda devam ediliyor.', 'warning');
-            isUsingExcel = true;
-            proceedWithExcelMode();
+            window.showAlert('Giriş başarısız. Excel modunda devam ediliyor.', 'warning');
+            window.isUsingExcel = true;
+            window.proceedWithExcelMode();
         }
 
     } catch (e) {
         console.error('Login error:', e);
-        showAlert('Giriş sırasında bir hata oluştu. Excel modunda devam ediliyor.', 'warning');
-        isUsingExcel = true;
-        proceedWithExcelMode();
+        window.showAlert('Giriş sırasında bir hata oluştu. Excel modunda devam ediliyor.', 'warning');
+        window.isUsingExcel = true;
+        window.proceedWithExcelMode();
     } finally {
         loginBtn.disabled = false;
         loginBtn.textContent = 'Giriş Yap';
+    }
+}
+
+// Fallback function if SessionManager is not available
+async function handleSuccessfulLoginLegacy(user) {
+    // Kullanıcı rolünü al
+    const { data: userData, error: userError } = await window.supabase
+        .from('personnel')
+        .select('role, name')
+        .eq('email', user.email)
+        .single();
+
+    window.currentUser = {
+        email: user.email,
+        uid: user.id,
+        name: userData?.name || user.email.split('@')[0],
+        role: userData?.role || 'operator'
+    };
+
+    const userRoleElement = document.getElementById('userRole');
+    if (userRoleElement) {
+        userRoleElement.textContent = 
+            `${window.currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${window.currentUser.name}`;
+    }
+
+    // Rol bazlı yetkilendirme
+    if (typeof window.applyRoleBasedPermissions === 'function') {
+        window.applyRoleBasedPermissions(window.currentUser.role);
+    }
+
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'flex';
+
+    // Test connection only once after login
+    if (!window.connectionTested) {
+        await window.testConnection();
+        window.connectionTested = true;
+    }
+
+    if (typeof window.updateStorageIndicator === 'function') {
+        window.updateStorageIndicator();
     }
 }
 
