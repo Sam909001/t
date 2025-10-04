@@ -561,13 +561,34 @@ function showNetworkShareInstructions(filePath = null) {
 
 // Download Excel for manual transfer
 async function downloadExcelForManualTransfer() {
-    const currentPackages = await ExcelJS.readFile();
-    if (currentPackages.length > 0) {
-        const date = new Date().toISOString().split('T')[0];
-        const filename = `ProClean_Rapor_${date}_${getCurrentWorkspaceName()}.xlsx`;
-        ProfessionalExcelExport.exportToProfessionalExcel(currentPackages, filename);
+    try {
+        const currentPackages = await ExcelJS.readFile();
+        if (currentPackages && currentPackages.length > 0) {
+            const date = new Date().toISOString().split('T')[0];
+            // Remove workspace reference since we removed workstation functionality
+            const filename = `ProClean_Rapor_${date}.xlsx`;
+            
+            // Use the professional export function
+            if (typeof ProfessionalExcelExport.exportToProfessionalExcel === 'function') {
+                ProfessionalExcelExport.exportToProfessionalExcel(currentPackages, filename);
+                showAlert("Excel dosyası indiriliyor...", "success");
+            } else {
+                // Fallback to simple download
+                const excelData = ProfessionalExcelExport.convertToProfessionalExcel(currentPackages);
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                XLSX.utils.book_append_sheet(wb, ws, "Paketler");
+                XLSX.writeFile(wb, filename);
+            }
+        } else {
+            showAlert("İndirilecek paket verisi bulunamadı", "warning");
+        }
+    } catch (error) {
+        console.error("Excel download error:", error);
+        showAlert("Excel indirme hatası: " + error.message, "error");
     }
 }
+
 
 // Simplified and more reliable performLogout
 async function performLogout() {
