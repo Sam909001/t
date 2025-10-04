@@ -141,7 +141,6 @@ function applyRoleBasedPermissions(role) {
     }
 }
 
-// Enhanced logout function with proper Excel upload
 async function logoutWithConfirmation() {
     const confirmation = confirm(
         "Çıkış yapmak üzeresiniz. Excel dosyası raporlar sayfasına taşınacak, " +
@@ -154,17 +153,29 @@ async function logoutWithConfirmation() {
     try {
         showAlert("Excel dosyası aktarılıyor...", "info");
         
-        // Get current Excel data
         const currentPackages = await ExcelJS.readFile();
+        let backupSuccess = false;
+        let supabaseSuccess = false;
+        let mainPCSuccess = false;
         
         if (currentPackages.length > 0) {
-            // Upload to Supabase using professional export
-            await uploadExcelToSupabase(currentPackages);
+            try {
+                // Try Supabase upload
+                supabaseSuccess = await uploadExcelToSupabase(currentPackages);
+            } catch (supabaseError) {
+                console.error("Supabase upload failed:", supabaseError);
+                supabaseSuccess = false;
+            }
 
-            // Send to Main PC (browser download as fallback)
-            await sendExcelToMainPC(currentPackages);
+            try {
+                // Try Main PC send (even if Supabase failed)
+                mainPCSuccess = await sendExcelToMainPC(currentPackages);
+            } catch (mainPCError) {
+                console.error("Main PC send failed:", mainPCError);
+                mainPCSuccess = false;
+            }
             
-            // LocalStorage backup
+            // LocalStorage backup (always try this)
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const reportData = {
                 fileName: `rapor_${timestamp}.json`,
@@ -176,23 +187,34 @@ async function logoutWithConfirmation() {
             
             localStorage.setItem(`report_${timestamp}`, JSON.stringify(reportData));
 
-            // Clear local Excel
+            // Only clear data if at least one backup method succeeded
+            backupSuccess = supabaseSuccess || mainPCSuccess;
+            
+            if (backupSuccess) {
+                await ExcelJS.writeFile([]);
+                excelPackages = [];
+                showAlert("Excel dosyası başarıyla yedeklendi ve raporlara taşındı", "success");
+            } else {
+                showAlert("Excel dosyası yedeklenemedi. Veriler korunuyor. Lütfen manuel olarak yedek alın.", "warning");
+                const continueLogout = confirm("Yedekleme başarısız oldu. Yine de çıkış yapmak istiyor musunuz? (Veriler kaybolabilir)");
+                if (!continueLogout) return;
+            }
+        } else {
             await ExcelJS.writeFile([]);
             excelPackages = [];
-
-            showAlert("Excel dosyası başarıyla yedeklendi ve raporlara taşındı", "success");
+            backupSuccess = true;
         }
 
-        // Perform logout
-        await performLogout();
+        if (backupSuccess || currentPackages.length === 0) {
+            await performLogout();
+        }
 
     } catch (error) {
         console.error("Logout error:", error);
         showAlert("Logout işlemi sırasında hata oluştu: " + error.message, "error");
     }
-} // FIXED: Added missing closing brace
-
-// Fixed: Upload Excel data to Supabase storage
+}
+// Fixed: Upload Excel data to Supabase storage with proper return values
 async function uploadExcelToSupabase(packages) {
     if (!supabase || !navigator.onLine) {
         console.log("Supabase not available, skipping upload");
@@ -242,8 +264,8 @@ async function uploadExcelToSupabase(packages) {
             console.error("Supabase storage upload error:", error);
             
             // Fallback: Try to insert as records in a table
-            await uploadAsDatabaseRecords(packages, timestamp);
-            return false;
+            const fallbackSuccess = await uploadAsDatabaseRecords(packages, timestamp);
+            return fallbackSuccess; // Return the result of fallback
         }
 
         console.log("Excel backup uploaded to Supabase storage:", fileName);
@@ -255,7 +277,7 @@ async function uploadExcelToSupabase(packages) {
     }
 }
 
-// Fallback: Upload packages as database records
+// Enhanced fallback with proper error handling
 async function uploadAsDatabaseRecords(packages, timestamp) {
     try {
         const backupData = {
@@ -268,10 +290,13 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
         };
 
         const { error } = await supabase
-            .from('package_backups') // Make sure this table exists!
+            .from('package_backups')
             .insert([backupData]);
 
-        if (error) throw error;
+        if (error) {
+            console.error("Database backup failed:", error);
+            return false;
+        }
         
         console.log("Packages backed up to database table");
         return true;
@@ -281,16 +306,29 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
         return false;
     }
 }
-
-// Fixed: Send Excel file to Main PC via Electron network share
 // Fixed: Send Excel file to Main PC via Electron network share
 async function sendExcelToMainPC(packages) {
     try {
-        // Create the Excel data
-        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
+        // Validate input parameters
+        if (!packages || !Array.isArray(packages) || packages.length === 0) {
+            console.log("No valid packages data to send to main PC");
+            showAlert("Gönderilecek Excel verisi bulunamadı", "warning");
+            return false;
+        }
+
+        // Create the Excel data with error handling
+        let excelData;
+        try {
+            excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
+        } catch (conversionError) {
+            console.error("Excel data conversion failed:", conversionError);
+            showAlert("Excel verisi dönüştürülürken hata oluştu", "error");
+            return false;
+        }
         
-        if (!excelData || excelData.length === 0) {
-            console.log("No data to send to main PC");
+        if (!excelData || !Array.isArray(excelData) || excelData.length === 0) {
+            console.log("No valid Excel data generated");
+            showAlert("Excel dosyası oluşturulamadı", "warning");
             return false;
         }
 
@@ -298,39 +336,78 @@ async function sendExcelToMainPC(packages) {
         const fileName = `ProClean_Rapor_${timestamp}.xlsx`;
 
         // Try Electron network save first
-        if (window.electronAPI) {
+        if (window.electronAPI && typeof window.electronAPI.saveExcelToNetwork === 'function') {
             console.log('🔄 Attempting network save via Electron...');
-            const result = await window.electronAPI.saveExcelToNetwork(excelData, fileName);
             
-            if (result.success) {
-                console.log('✅ Excel file sent to network share via Electron');
-                showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
-                return true;
-            } else {
-                console.log('❌ Network save failed, trying local save...');
+            try {
+                const result = await window.electronAPI.saveExcelToNetwork(excelData, fileName);
                 
-                // Fallback: Save locally and show instructions
-                const localResult = await window.electronAPI.saveExcelLocal(excelData, fileName);
-                if (localResult.success) {
-                    showAlert(`Excel dosyası kaydedildi: ${localResult.path}`, 'info');
-                    showNetworkShareInstructions(localResult.path);
+                if (result && result.success) {
+                    console.log('✅ Excel file sent to network share via Electron');
+                    showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
+                    return true;
                 } else {
-                    showNetworkShareInstructions();
+                    console.log('❌ Network save failed, trying local save...');
+                    
+                    // Fallback: Save locally and show instructions
+                    try {
+                        if (typeof window.electronAPI.saveExcelLocal === 'function') {
+                            const localResult = await window.electronAPI.saveExcelLocal(excelData, fileName);
+                            if (localResult && localResult.success) {
+                                showAlert(`Excel dosyası kaydedildi: ${localResult.path}`, 'info');
+                                showNetworkShareInstructions(localResult.path);
+                            } else {
+                                showNetworkShareInstructions();
+                            }
+                        } else {
+                            console.log('❌ Electron local save not available');
+                            showNetworkShareInstructions();
+                        }
+                    } catch (localSaveError) {
+                        console.error("Local save via Electron failed:", localSaveError);
+                        showNetworkShareInstructions();
+                    }
+                    return false;
                 }
-                return false;
+            } catch (electronError) {
+                console.error("Electron network save error:", electronError);
+                // Continue to browser fallback
             }
-        } else {
-            // Not in Electron - use browser download
-            console.log('🌐 Not in Electron, using browser download');
-            ProfessionalExcelExport.exportToProfessionalExcel(packages, fileName);
-            showNetworkShareInstructions();
-            return false;
         }
+
+        // Fallback: Browser download (if Electron not available or failed)
+        console.log('🌐 Using browser download fallback');
+        try {
+            if (typeof ProfessionalExcelExport.exportToProfessionalExcel === 'function') {
+                ProfessionalExcelExport.exportToProfessionalExcel(packages, fileName);
+                showAlert("Excel dosyası indirilmeye hazır", "info");
+                showNetworkShareInstructions();
+            } else {
+                console.error("ProfessionalExcelExport.exportToProfessionalExcel is not available");
+                showAlert("Excel dışa aktarma özelliği kullanılamıyor", "error");
+                showNetworkShareInstructions();
+            }
+        } catch (browserError) {
+            console.error("Browser download failed:", browserError);
+            showAlert("Excel indirme hatası: " + browserError.message, "error");
+            showNetworkShareInstructions();
+        }
+        
+        return false;
         
     } catch (err) {
         console.error("Main PC transfer error:", err);
-        showAlert("Ağ paylaşımı hatası: " + err.message, 'error');
-        showNetworkShareInstructions();
+        showAlert("Ağ paylaşımı hatası: " + (err.message || "Bilinmeyen hata"), 'error');
+        
+        // Final fallback - show instructions for manual transfer
+        try {
+            showNetworkShareInstructions();
+        } catch (instructionError) {
+            console.error("Even network instructions failed:", instructionError);
+            // Last resort - simple alert
+            alert("Dosya aktarımı başarısız. Lütfen Excel dosyasını manuel olarak yedekleyin.");
+        }
+        
         return false;
     }
 }
