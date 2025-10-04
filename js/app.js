@@ -491,10 +491,13 @@ function escapeHtml(text) {
 function setupAuthListener() {
     if (!supabase) return;
     
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email || 'No user');
         
         if (session) {
+            // ADD THIS LINE to save session
+            await saveUserSession(session);
+            
             currentUser = {
                 email: session.user.email,
                 uid: session.user.id,
@@ -507,11 +510,104 @@ function setupAuthListener() {
             
             initApp();
         } else {
+            // ADD THIS LINE to clear session on logout
+            await StorageManager.removeItem('supabase_session');
+            
             document.getElementById('loginScreen').style.display = "flex";
             document.getElementById('appContainer').style.display = "none";
         }
     });
 }
+
+// 2. UPDATE initializeApiAndAuth() at line 731
+async function initializeApiAndAuth() {
+    // Load API key from storage
+    const savedApiKey = await StorageManager.getItem('procleanApiKey');
+    
+    if (savedApiKey) {
+        SUPABASE_ANON_KEY = savedApiKey;
+        console.log('API key loaded from storage');
+    }
+    
+    // Initialize Supabase
+    const client = await initializeSupabase();
+    
+    if (client) {
+        // Setup auth listener
+        setupAuthListener();
+        
+        // ADD THIS: Try to restore saved session
+        const sessionRestored = await restoreUserSession();
+        
+        if (sessionRestored) {
+            console.log('User session restored, auto-login successful');
+        } else {
+            console.log('No valid session, user needs to login');
+        }
+        
+        console.log('Supabase client initialized');
+    } else {
+        showApiKeyModal();
+    }
+}
+
+// Save user session to storage
+async function saveUserSession(session) {
+    if (!session) return;
+    
+    await StorageManager.setItem('supabase_session', {
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        user: session.user,
+        expires_at: session.expires_at
+    });
+    
+    console.log('Session saved to storage');
+}
+
+// Restore user session from storage
+async function restoreUserSession() {
+    const savedSession = await StorageManager.getItem('supabase_session');
+    
+    if (!savedSession) {
+        console.log('No saved session found');
+        return false;
+    }
+    
+    // Check if session expired
+    if (savedSession.expires_at) {
+        const expiryDate = new Date(savedSession.expires_at * 1000);
+        const now = new Date();
+        
+        if (now > expiryDate) {
+            console.log('Session expired, clearing...');
+            await StorageManager.removeItem('supabase_session');
+            return false;
+        }
+    }
+    
+    // Restore session in Supabase
+    if (supabase) {
+        try {
+            const { data, error } = await supabase.auth.setSession({
+                access_token: savedSession.access_token,
+                refresh_token: savedSession.refresh_token
+            });
+            
+            if (error) throw error;
+            
+            console.log('Session restored successfully');
+            return true;
+        } catch (error) {
+            console.error('Failed to restore session:', error);
+            await StorageManager.removeItem('supabase_session');
+            return false;
+        }
+    }
+    
+    return false;
+}
+
 
 // API hata yönetimi
 function handleSupabaseError(error, context) {
