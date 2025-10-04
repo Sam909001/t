@@ -1,3 +1,43 @@
+// Add this at the very start of your app, before any other initialization
+
+// ============================================
+// 1. STORAGE INITIALIZATION
+// ============================================
+
+// Load storage wrapper (include the storage.js file in your HTML first)
+// <script src="storage.js"></script>
+
+async function initializeApp() {
+  console.log('🚀 Initializing app...');
+  console.log('Environment:', WorkstationStorage ? 'Storage Ready' : 'Storage Not Available');
+  console.log('Running in Electron:', StorageManager.isElectron());
+
+  // Check and restore workstation name
+  const savedWorkstation = await WorkstationStorage.getWorkstation();
+  if (savedWorkstation) {
+    console.log('✅ Workstation found:', savedWorkstation);
+    // Set it in your UI
+    if (document.getElementById('workstationName')) {
+      document.getElementById('workstationName').value = savedWorkstation;
+    }
+    // Store in a global variable if needed
+    window.CURRENT_WORKSTATION = savedWorkstation;
+  } else {
+    console.log('⚠️ No saved workstation - will prompt user');
+  }
+
+  // Check and restore authentication
+  const authData = await WorkstationStorage.getAuth();
+  if (authData) {
+    console.log('✅ Auth data found - user should stay logged in');
+    // Restore your Supabase session or auth state here
+    window.CURRENT_USER = authData;
+  } else {
+    console.log('⚠️ No auth data - user needs to log in');
+  }
+}
+
+
 // ==================== APP.JS - TOP OF FILE ====================
 
 // Detect if running in Electron
