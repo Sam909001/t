@@ -26,10 +26,6 @@ let isUsingExcel = false;
 
 
 
-// FIXED: Kullanıcı girişi
-let connectionTested = false; // Flag to prevent duplicate connection tests
-
-
 // Missing dependency placeholders
 if (typeof XLSX === 'undefined') {
     console.warn('XLSX library not found - using placeholder');
