@@ -5692,3 +5692,60 @@ if (window.workspaceManager) {
         setTimeout(initializeTabs, 500);
     };
 }
+
+
+
+// ==================== ULTIMATE TAB FIX ====================
+console.log('🎯 ULTIMATE TAB FIX - Starting execution');
+
+// Simple direct approach
+function ultimateTabFix() {
+    console.log('🔧 UltimateTabFix executing...');
+    
+    // Direct onclick assignments
+    const shippingTab = document.querySelector('[data-tab="shipping"]');
+    const stockTab = document.querySelector('[data-tab="stock"]');
+    const reportsTab = document.querySelector('[data-tab="reports"]');
+    
+    if (shippingTab) {
+        shippingTab.onclick = function() {
+            console.log('🚚 Shipping tab clicked - calling populateShippingTable');
+            populateShippingTable();
+        };
+        console.log('✅ Shipping tab handler set');
+    }
+    
+    if (stockTab) {
+        stockTab.onclick = function() {
+            console.log('📦 Stock tab clicked - calling populateStockTable');
+            populateStockTable();
+        };
+        console.log('✅ Stock tab handler set');
+    }
+    
+    if (reportsTab) {
+        reportsTab.onclick = function() {
+            console.log('📊 Reports tab clicked - calling populateReportsTable');
+            populateReportsTable();
+        };
+        console.log('✅ Reports tab handler set');
+    }
+}
+
+// Run with multiple fallbacks
+console.log('🔄 Setting up execution...');
+
+// Immediate execution
+setTimeout(ultimateTabFix, 100);
+
+// DOM ready execution
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ultimateTabFix);
+} else {
+    setTimeout(ultimateTabFix, 500);
+}
+
+// Window load execution
+window.addEventListener('load', ultimateTabFix);
+
+console.log('🎯 ULTIMATE TAB FIX - Setup complete');
