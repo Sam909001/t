@@ -2513,6 +2513,11 @@ function setupEnhancedSyncTriggers() {
 
 
 
+
+
+
+
+
 // Add to supabase.js - Better queue structure
 function enhanceSyncQueue() {
     // Convert existing queue to enhanced format if needed
@@ -2990,325 +2995,6 @@ async function populateShippingTable(page = 0) {
         if (isUsingExcel || !supabase || !navigator.onLine) {
             console.log('Using Excel data for shipping');
             
-            // Use Excel data for containers - FIXED: Check excelPackages instead of containers
-            const excelContainers = {};
-            
-            // Group packages by container from excelPackages
-            if (excelPackages && excelPackages.length > 0) {
-                excelPackages.forEach(pkg => {
-                    if (pkg.container_id) {
-                        if (!excelContainers[pkg.container_id]) {
-                            excelContainers[pkg.container_id] = {
-                                id: pkg.container_id,
-                                container_no: pkg.container_id,
-                                packages: [],
-                                package_count: 0,
-                                total_quantity: 0,
-                                status: pkg.status || 'beklemede',
-                                created_at: pkg.created_at
-                            };
-                        }
-                        excelContainers[pkg.container_id].packages.push(pkg);
-                        excelContainers[pkg.container_id].package_count++;
-                        excelContainers[pkg.container_id].total_quantity += pkg.total_quantity || 0;
-                    }
-                });
-                
-                containers = Object.values(excelContainers);
-                console.log('Excel containers found:', containers.length);
-            } else {
-                console.log('No Excel packages found for shipping');
-                containers = [];
-            }
-            
-        } else {
-            console.log('Using Supabase data for shipping');
-            
-            // Use Supabase data
-            try {
-                const { data: supabaseContainers, error } = await supabase
-                    .from('containers')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) {
-                    console.error('Supabase containers error:', error);
-                    throw error;
-                }
-
-                containers = supabaseContainers || [];
-                console.log('Supabase containers loaded:', containers.length);
-
-                // Get packages for these containers if we have containers
-                if (containers.length > 0) {
-                    const containerIds = containers.map(c => c.id);
-                    const { data: supabasePackages } = await supabase
-                        .from('packages')
-                        .select('*, customers(name)')
-                        .in('container_id', containerIds);
-                    
-                    packagesData = supabasePackages || [];
-                    console.log('Packages for containers loaded:', packagesData.length);
-                }
-
-            } catch (supabaseError) {
-                console.error('Supabase shipping data error:', supabaseError);
-                // Fallback to empty array
-                containers = [];
-            }
-        }
-
-        // Clear loading message
-        shippingFolders.innerHTML = '';
-
-        if (!containers || containers.length === 0) {
-            shippingFolders.innerHTML = `
-                <div style="text-align:center; padding:60px; color:#666;">
-                    <i class="fas fa-box-open" style="font-size:48px; margin-bottom:20px; opacity:0.5;"></i>
-                    <h3>Henüz konteyner bulunmamaktadır</h3>
-                    <p>Paketleri sevkiyat için konteynerlere ekleyin.</p>
-                    <button onclick="createNewContainer()" class="btn btn-primary" style="margin-top:15px;">
-                        <i class="fas fa-plus"></i> Yeni Konteyner Oluştur
-                    </button>
-                    <div style="margin-top:20px; color:#888;">
-                        <small>Not: Paketleri "Paketler" sekmesinden seçip "Sevkiyata Gönder" butonu ile konteynerlere ekleyebilirsiniz.</small>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-
-        console.log('Rendering containers:', containers.length);
-
-         // Group containers by customer for folder view
-        const customersMap = {};
-        
-        containers.forEach(container => {
-            let customerName = 'Genel Sevkiyat';
-            
-            // Try to find customer name from packages
-            if (packagesData.length > 0) {
-                const containerPackages = packagesData.filter(p => p.container_id === container.id);
-                if (containerPackages.length > 0) {
-                    const customerNames = containerPackages.map(p => p.customers?.name).filter(Boolean);
-                    if (customerNames.length > 0) {
-                        customerName = [...new Set(customerNames)].join(', ');
-                    }
-                }
-            } else if (container.packages && container.packages.length > 0) {
-                // For Excel data
-                const customerNames = container.packages.map(p => p.customer_name).filter(Boolean);
-                if (customerNames.length > 0) {
-                    customerName = [...new Set(customerNames)].join(', ');
-                }
-            } else if (container.customer) {
-                customerName = container.customer;
-            }
-
-            if (!customersMap[customerName]) {
-                customersMap[customerName] = [];
-            }
-            customersMap[customerName].push(container);
-        });
-
-        // Render customer folders
-        Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
-            const folderDiv = document.createElement('div');
-            folderDiv.className = 'customer-folder';
-            folderDiv.style.marginBottom = '20px';
-            folderDiv.style.border = '1px solid var(--border)';
-            folderDiv.style.borderRadius = '8px';
-            folderDiv.style.overflow = 'hidden';
-
-            const folderHeader = document.createElement('div');
-            folderHeader.className = 'folder-header';
-            folderHeader.style.padding = '15px';
-            folderHeader.style.background = 'var(--light)';
-            folderHeader.style.cursor = 'pointer';
-            folderHeader.style.display = 'flex';
-            folderHeader.style.justifyContent = 'space-between';
-            folderHeader.style.alignItems = 'center';
-            
-            folderHeader.innerHTML = `
-                <div>
-                    <strong>${escapeHtml(customerName)}</strong>
-                    <span style="margin-left:10px; color:#666; font-size:0.9em;">
-                        (${customerContainers.length} konteyner)
-                    </span>
-                </div>
-                <div class="folder-toggle">
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            `;
-
-            const folderContent = document.createElement('div');
-            folderContent.className = 'folder-content';
-            folderContent.style.padding = '0';
-            folderContent.style.display = 'none'; // Start collapsed
-
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.innerHTML = `
-                <thead>
-                    <tr style="background: var(--light);">
-                        <th style="padding:12px; border:1px solid var(--border); width:30px;">
-                            <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
-                        </th>
-                        <th style="padding:12px; border:1px solid var(--border);">Konteyner No</th>
-                        <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
-                        <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
-                        <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
-                        <th style="padding:12px; border:1px solid var(--border);">Durum</th>
-                        <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${customerContainers.map(container => `
-                        <tr>
-                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
-                                <input type="checkbox" value="${container.id}" class="container-checkbox">
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border);">
-                                <strong>${escapeHtml(container.container_no)}</strong>
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
-                                ${container.package_count || 0}
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
-                                ${container.total_quantity || 0}
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border);">
-                                ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border);">
-                                <span class="status-${container.status || 'beklemede'}">
-                                    ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
-                                </span>
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border);">
-                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
-                                    <i class="fas fa-eye"></i> Detay
-                                </button>
-                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
-                                    <i class="fas fa-plus"></i> Paket Ekle
-                                </button>
-                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
-                                    <i class="fas fa-ship"></i> Sevk Et
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            `;
-
-            folderContent.appendChild(table);
-            folderDiv.appendChild(folderHeader);
-            folderDiv.appendChild(folderContent);
-
-            // Folder toggle functionality
-            folderHeader.addEventListener('click', () => {
-                const isOpen = folderContent.style.display === 'block';
-                folderContent.style.display = isOpen ? 'none' : 'block';
-                const icon = folderHeader.querySelector('.fa-chevron-down');
-                icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
-            });
-
-            shippingFolders.appendChild(folderDiv);
-        });
-
-        console.log('Shipping table populated successfully with', Object.keys(customersMap).length, 'customer folders');
-
-    } catch (error) {
-        console.error('Error in populateShippingTable:', error);
-        const shippingFolders = document.getElementById('shippingFolders');
-        if (shippingFolders) {
-            shippingFolders.innerHTML = `
-                <div style="text-align:center; padding:40px; color:#dc3545;">
-                    <i class="fas fa-exclamation-triangle" style="font-size:48px; margin-bottom:20px;"></i>
-                    <h3>Sevkiyat verileri yüklenirken hata oluştu</h3>
-                    <p>${error.message}</p>
-                    <button onclick="populateShippingTable()" class="btn btn-primary" style="margin-top:15px;">
-                        <i class="fas fa-redo"></i> Tekrar Dene
-                    </button>
-                </div>
-            `;
-        }
-        showAlert('Sevkiyat tablosu yüklenirken hata oluştu: ' + error.message, 'error');
-    } finally {
-        isShippingTableLoading = false;
-    }
-}
-
-
-
-// Pagination buttons
-function renderPagination(totalCount, page) {
-    let paginationDiv = document.getElementById('pagination');
-    if (!paginationDiv) {
-        paginationDiv = document.createElement('div');
-        paginationDiv.id = 'pagination';
-        paginationDiv.style.textAlign = 'center';
-        paginationDiv.style.marginTop = '10px';
-        elements.shippingFolders.appendChild(paginationDiv);
-    }
-    paginationDiv.innerHTML = '';
-
-    const totalPages = Math.ceil(totalCount / pageSize);
-
-    if (page > 0) {
-        const prev = document.createElement('button');
-        prev.textContent = '◀ Geri';
-        prev.onclick = () => populateShippingTable(page - 1);
-        paginationDiv.appendChild(prev);
-    }
-
-    paginationDiv.append(` Sayfa ${page + 1} / ${totalPages} `);
-
-    if (page < totalPages - 1) {
-        const next = document.createElement('button');
-        next.textContent = 'İleri ▶';
-        next.onclick = () => populateShippingTable(page + 1);
-        paginationDiv.appendChild(next);
-    }
-}
-
-
-
-// Pagination state
-let currentPage = 0;
-const pageSize = 20; // number of containers per page
-
-let isShippingTableLoading = false;
-let lastShippingFetchTime = 0;
-
-async function populateShippingTable(page = 0) {
-    if (isShippingTableLoading) {
-        console.log('Shipping table already loading, skipping...');
-        return;
-    }
-
-    isShippingTableLoading = true;
-
-    try {
-        console.log('Populating shipping table...');
-
-        const shippingFolders = document.getElementById('shippingFolders');
-        if (!shippingFolders) {
-            console.error('shippingFolders element not found!');
-            return;
-        }
-
-        // Show loading state
-        shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666; font-size:16px;">Sevkiyat verileri yükleniyor...</div>';
-
-        let containers = [];
-        let packagesData = [];
-
-        // Get data based on current mode
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            console.log('Using Excel data for shipping');
-            
             // Use Excel data for containers
             const excelContainers = {};
             
@@ -3591,6 +3277,9 @@ function debouncedPopulateShippingTable() {
     shippingTableTimeout = setTimeout(() => populateShippingTable(currentPage), 300);
 }
 
+
+
+
 async function viewContainerDetails(containerId) {
     console.log('🔍 viewContainerDetails called with:', containerId);
     
@@ -3692,228 +3381,131 @@ async function viewContainerDetails(containerId) {
 
 
 
-  let isStockTableLoading = false;
+let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// Fixed populateStockTable function
-async function populateStockTable() {
-    if (isStockTableLoading) return;
-    
-    const now = Date.now();
-    if (now - lastStockFetchTime < 500) {
-        setTimeout(() => populateStockTable(), 500);
-        return;
-    }
-    
-    isStockTableLoading = true;
-    lastStockFetchTime = now;
-    
-    try {
-        console.log('Populating stock table...');
-        
-        const stockTableBody = document.getElementById('stockTableBody');
-        if (!stockTableBody) {
-            console.error('Stock table body not found');
-            return;
-        }
-        
-        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
-        
-        let stockData = [];
-        
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use mock stock data for Excel mode
-            stockData = [
-                { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK002', name: 'Büyük Havlu', quantity: 200, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK003', name: 'Nevresim', quantity: 85, unit: 'Adet', status: 'Az Stok', updated_at: new Date().toISOString() },
-                { code: 'STK004', name: 'Çarşaf', quantity: 300, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK005', name: 'Havlu', quantity: 25, unit: 'Adet', status: 'Kritik', updated_at: new Date().toISOString() }
-            ];
-            console.log('Using mock stock data for Excel mode');
-        } else {
-            // Use Supabase data
-            try {
-                const { data, error } = await supabase
-                    .from('stock_items')
-                    .select('*')
-                    .order('name', { ascending: true });
-                
-                if (error) throw error;
-                stockData = data || [];
-                console.log('Loaded stock data from Supabase:', stockData.length);
-            } catch (error) {
-                console.warn('Supabase stock fetch failed, using mock data:', error);
-                stockData = [
-                    { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() }
-                ];
-            }
-        }
-        
-        // Clear loading message
-        stockTableBody.innerHTML = '';
-        
-        if (stockData.length === 0) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verisi bulunamadı</td></tr>';
-            return;
-        }
-        
-        // Populate stock table
-        stockData.forEach(item => {
-            const row = document.createElement('tr');
-            
-            // Determine status class
-            let statusClass = 'status-stokta';
-            let statusText = 'Stokta';
-            
-            if (item.quantity <= 0) {
-                statusClass = 'status-kritik';
-                statusText = 'Tükendi';
-            } else if (item.quantity < 10) {
-                statusClass = 'status-az-stok';
-                statusText = 'Az Stok';
-            } else if (item.quantity < 50) {
-                statusClass = 'status-uyari';
-                statusText = 'Düşük';
-            }
-            
-            row.innerHTML = `
-                <td>${escapeHtml(item.code || 'N/A')}</td>
-                <td>${escapeHtml(item.name || 'N/A')}</td>
-                <td>${item.quantity || 0}</td>
-                <td>${escapeHtml(item.unit || 'Adet')}</td>
-                <td><span class="${statusClass}">${statusText}</span></td>
-                <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>
-                    <button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
-                </td>
-            `;
-            
-            stockTableBody.appendChild(row);
-        });
-        
-        console.log('Stock table populated with', stockData.length, 'items');
-        
-    } catch (error) {
-        console.error('Error in populateStockTable:', error);
-        const stockTableBody = document.getElementById('stockTableBody');
-        if (stockTableBody) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Stok verileri yüklenirken hata oluştu</td></tr>';
-        }
-        showAlert('Stok verileri yüklenirken hata oluştu', 'error');
-    } finally {
-        isStockTableLoading = false;
-    }
-}
-
-// Fixed populateReportsTable function
+// Enhanced populateReportsTable function
 async function populateReportsTable() {
     try {
-        console.log('Populating reports table...');
+        console.log('Populating reports table with daily Excel files...');
         
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (!reportsTableBody) {
-            console.error('Reports table body not found');
+        const reportsContainer = document.getElementById('reportsTab');
+        if (!reportsContainer) {
+            console.error('Reports container not found');
             return;
         }
         
-        reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
+        // Show loading state
+        reportsContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <h4>Raporlar yükleniyor...</h4>
+            </div>
+        `;
         
-        let reportsData = [];
+        // Get daily Excel files
+        const dailyFiles = ExcelStorage.getAvailableDailyFiles();
         
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Generate mock reports data for Excel mode
-            const today = new Date();
-            reportsData = [
-                {
-                    id: 1,
-                    report_date: today.toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 15,
-                    total_quantity: 245,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: today.toISOString()
-                },
-                {
-                    id: 2,
-                    report_date: new Date(today.setDate(today.getDate() - 1)).toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 12,
-                    total_quantity: 198,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: new Date(today.setDate(today.getDate() - 1)).toISOString()
-                }
-            ];
-            console.log('Using mock reports data for Excel mode');
-        } else {
-            // Use Supabase data
-            try {
-                const { data, error } = await supabase
-                    .from('reports')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(50);
-                
-                if (error) throw error;
-                reportsData = data || [];
-                console.log('Loaded reports data from Supabase:', reportsData.length);
-            } catch (error) {
-                console.warn('Supabase reports fetch failed, using mock data:', error);
-                reportsData = [
-                    {
-                        id: 1,
-                        report_date: new Date().toISOString(),
-                        report_type: 'Günlük Rapor',
-                        package_count: 15,
-                        total_quantity: 245,
-                        created_by: currentUser?.name || 'Sistem',
-                        created_at: new Date().toISOString()
-                    }
-                ];
-            }
-        }
+        let reportsHTML = `
+            <div style="margin-bottom: 20px;">
+                <h3><i class="fas fa-file-excel"></i> Günlük Excel Dosyaları</h3>
+                <p style="color: #666; font-size: 0.9rem;">Son 7 güne ait paket kayıtları</p>
+            </div>
+        `;
         
-        // Clear loading message
-        reportsTableBody.innerHTML = '';
-        
-        if (reportsData.length === 0) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Henüz rapor bulunmamaktadır</td></tr>';
-            return;
-        }
-        
-        // Populate reports table
-        reportsData.forEach(report => {
-            const row = document.createElement('tr');
-            
-            row.innerHTML = `
-                <td>${report.report_date ? new Date(report.report_date).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>${escapeHtml(report.report_type || 'N/A')}</td>
-                <td>${report.package_count || 0}</td>
-                <td>${report.total_quantity || 0}</td>
-                <td>${escapeHtml(report.created_by || 'N/A')}</td>
-                <td>
-                    <button onclick="viewReport(${report.id})" class="btn btn-primary btn-sm">Görüntüle</button>
-                    <button onclick="exportReport(${report.id})" class="btn btn-success btn-sm">Dışa Aktar</button>
-                </td>
+        if (dailyFiles.length === 0) {
+            reportsHTML += `
+                <div style="text-align: center; padding: 40px; color: #666; border: 2px dashed #ddd; border-radius: 8px;">
+                    <i class="fas fa-file-excel" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <h4>Henüz Excel dosyası bulunmamaktadır</h4>
+                    <p>Paket oluşturduğunuzda günlük Excel dosyaları burada görünecektir.</p>
+                </div>
             `;
+        } else {
+            dailyFiles.forEach(file => {
+                const isToday = file.date === ExcelStorage.getTodayDateString();
+                
+                reportsHTML += `
+                    <div class="daily-file-item" style="
+                        border: 1px solid ${isToday ? '#4CAF50' : '#ddd'};
+                        border-left: 4px solid ${isToday ? '#4CAF50' : '#2196F3'};
+                        padding: 16px;
+                        margin: 12px 0;
+                        border-radius: 6px;
+                        background: ${isToday ? '#f8fff8' : '#f9f9f9'};
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 8px 0; color: #333;">
+                                    <i class="fas fa-calendar-day"></i> ${file.displayDate}
+                                    ${isToday ? '<span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px;">Bugün</span>' : ''}
+                                </h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 0.9em;">
+                                    <div>
+                                        <strong>Paket Sayısı:</strong><br>
+                                        <span style="color: #2196F3; font-weight: bold;">${file.packageCount}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Toplam Adet:</strong><br>
+                                        <span style="color: #4CAF50; font-weight: bold;">${file.totalQuantity}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Dosya:</strong><br>
+                                        <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">${file.fileName}</code>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <button onclick="exportDailyFile('${file.date}')" 
+                                        class="btn btn-success btn-sm" 
+                                        style="white-space: nowrap;">
+                                    <i class="fas fa-download"></i> CSV İndir
+                                </button>
+                                <button onclick="viewDailyFile('${file.date}')" 
+                                        class="btn btn-primary btn-sm"
+                                        style="white-space: nowrap;">
+                                    <i class="fas fa-eye"></i> Görüntüle
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
             
-            reportsTableBody.appendChild(row);
-        });
+            // Add cleanup button
+            reportsHTML += `
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
+                    <button onclick="cleanupOldFiles()" 
+                            class="btn btn-warning btn-sm">
+                        <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
+                    </button>
+                    <small style="color: #666; margin-left: 12px;">Sadece son 7 günün dosyaları saklanır</small>
+                </div>
+            `;
+        }
         
-        console.log('Reports table populated with', reportsData.length, 'reports');
+        reportsContainer.innerHTML = reportsHTML;
+        console.log(`✅ Reports table populated with ${dailyFiles.length} daily files`);
         
     } catch (error) {
         console.error('Error in populateReportsTable:', error);
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (reportsTableBody) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">Raporlar yüklenirken hata oluştu</td></tr>';
+        const reportsContainer = document.getElementById('reportsTab');
+        if (reportsContainer) {
+            reportsContainer.innerHTML = `
+                <div style="text-align: center; color: #d32f2f; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                    <h4>Raporlar yüklenirken hata oluştu</h4>
+                    <p>${error.message}</p>
+                    <button onclick="populateReportsTable()" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Tekrar Dene
+                    </button>
+                </div>
+            `;
         }
-        showAlert('Raporlar yüklenirken hata oluştu', 'error');
     }
 }
-
 
 // Enhanced viewDailyFile function
 async function viewDailyFile(dateString) {
@@ -4406,6 +3998,7 @@ window.closeDailyFileModal = closeDailyFileModal;
 console.log('✅ Reports module loaded successfully');
 
 
+// Fixed populateStockTable function
 async function populateStockTable() {
     if (isStockTableLoading) return;
     
@@ -4427,8 +4020,7 @@ async function populateStockTable() {
             return;
         }
         
-        // Show loading state
-        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verileri yükleniyor...</td></tr>';
+        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
         
         let stockData = [];
         
@@ -4466,19 +4058,11 @@ async function populateStockTable() {
         stockTableBody.innerHTML = '';
         
         if (stockData.length === 0) {
-            stockTableBody.innerHTML = `
-                <tr>
-                    <td colspan="7" style="text-align:center; color:#666; padding:40px;">
-                        <i class="fas fa-boxes" style="font-size:48px; margin-bottom:16px; opacity:0.5;"></i>
-                        <h4>Stok verisi bulunamadı</h4>
-                        <p>Stok kaydı henüz eklenmemiş.</p>
-                    </td>
-                </tr>
-            `;
+            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verisi bulunamadı</td></tr>';
             return;
         }
         
-        // Populate stock table with better styling
+        // Populate stock table
         stockData.forEach(item => {
             const row = document.createElement('tr');
             
@@ -4490,28 +4074,22 @@ async function populateStockTable() {
                 statusClass = 'status-kritik';
                 statusText = 'Tükendi';
             } else if (item.quantity < 10) {
-                statusClass = 'status-kritik';
-                statusText = 'Kritik';
-            } else if (item.quantity < 50) {
                 statusClass = 'status-az-stok';
                 statusText = 'Az Stok';
+            } else if (item.quantity < 50) {
+                statusClass = 'status-uyari';
+                statusText = 'Düşük';
             }
             
             row.innerHTML = `
-                <td style="font-weight:500;">${escapeHtml(item.code || 'N/A')}</td>
+                <td>${escapeHtml(item.code || 'N/A')}</td>
                 <td>${escapeHtml(item.name || 'N/A')}</td>
-                <td style="text-align:center; font-weight:bold; color:#2196F3;">${item.quantity || 0}</td>
-                <td style="text-align:center;">${escapeHtml(item.unit || 'Adet')}</td>
-                <td style="text-align:center;">
-                    <span class="${statusClass}" style="padding:4px 12px; border-radius:12px; font-size:0.85em;">
-                        ${statusText}
-                    </span>
-                </td>
+                <td>${item.quantity || 0}</td>
+                <td>${escapeHtml(item.unit || 'Adet')}</td>
+                <td><span class="${statusClass}">${statusText}</span></td>
                 <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td style="text-align:center;">
-                    <button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">
-                        <i class="fas fa-edit"></i> Düzenle
-                    </button>
+                <td>
+                    <button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
                 </td>
             `;
             
@@ -4524,21 +4102,14 @@ async function populateStockTable() {
         console.error('Error in populateStockTable:', error);
         const stockTableBody = document.getElementById('stockTableBody');
         if (stockTableBody) {
-            stockTableBody.innerHTML = `
-                <tr>
-                    <td colspan="7" style="text-align:center; color:red; padding:40px;">
-                        <i class="fas fa-exclamation-triangle" style="font-size:48px; margin-bottom:16px;"></i>
-                        <h4>Stok verileri yüklenirken hata oluştu</h4>
-                        <p>${error.message}</p>
-                    </td>
-                </tr>
-            `;
+            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Stok verileri yüklenirken hata oluştu</td></tr>';
         }
         showAlert('Stok verileri yüklenirken hata oluştu', 'error');
     } finally {
         isStockTableLoading = false;
     }
 }
+
 // Fixed populateReportsTable function
 async function populateReportsTable() {
     try {
