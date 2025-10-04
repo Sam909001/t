@@ -2513,11 +2513,6 @@ function setupEnhancedSyncTriggers() {
 
 
 
-
-
-
-
-
 // Add to supabase.js - Better queue structure
 function enhanceSyncQueue() {
     // Convert existing queue to enhanced format if needed
@@ -3085,8 +3080,144 @@ async function populateShippingTable(page = 0) {
 
         console.log('Rendering containers:', containers.length);
 
-        // Rest of your existing container rendering code...
-        // ... [keep your existing container rendering logic here]
+         // Group containers by customer for folder view
+        const customersMap = {};
+        
+        containers.forEach(container => {
+            let customerName = 'Genel Sevkiyat';
+            
+            // Try to find customer name from packages
+            if (packagesData.length > 0) {
+                const containerPackages = packagesData.filter(p => p.container_id === container.id);
+                if (containerPackages.length > 0) {
+                    const customerNames = containerPackages.map(p => p.customers?.name).filter(Boolean);
+                    if (customerNames.length > 0) {
+                        customerName = [...new Set(customerNames)].join(', ');
+                    }
+                }
+            } else if (container.packages && container.packages.length > 0) {
+                // For Excel data
+                const customerNames = container.packages.map(p => p.customer_name).filter(Boolean);
+                if (customerNames.length > 0) {
+                    customerName = [...new Set(customerNames)].join(', ');
+                }
+            } else if (container.customer) {
+                customerName = container.customer;
+            }
+
+            if (!customersMap[customerName]) {
+                customersMap[customerName] = [];
+            }
+            customersMap[customerName].push(container);
+        });
+
+        // Render customer folders
+        Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'customer-folder';
+            folderDiv.style.marginBottom = '20px';
+            folderDiv.style.border = '1px solid var(--border)';
+            folderDiv.style.borderRadius = '8px';
+            folderDiv.style.overflow = 'hidden';
+
+            const folderHeader = document.createElement('div');
+            folderHeader.className = 'folder-header';
+            folderHeader.style.padding = '15px';
+            folderHeader.style.background = 'var(--light)';
+            folderHeader.style.cursor = 'pointer';
+            folderHeader.style.display = 'flex';
+            folderHeader.style.justifyContent = 'space-between';
+            folderHeader.style.alignItems = 'center';
+            
+            folderHeader.innerHTML = `
+                <div>
+                    <strong>${escapeHtml(customerName)}</strong>
+                    <span style="margin-left:10px; color:#666; font-size:0.9em;">
+                        (${customerContainers.length} konteyner)
+                    </span>
+                </div>
+                <div class="folder-toggle">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            `;
+
+            const folderContent = document.createElement('div');
+            folderContent.className = 'folder-content';
+            folderContent.style.padding = '0';
+            folderContent.style.display = 'none'; // Start collapsed
+
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.innerHTML = `
+                <thead>
+                    <tr style="background: var(--light);">
+                        <th style="padding:12px; border:1px solid var(--border); width:30px;">
+                            <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
+                        </th>
+                        <th style="padding:12px; border:1px solid var(--border);">Konteyner No</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Durum</th>
+                        <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${customerContainers.map(container => `
+                        <tr>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                <input type="checkbox" value="${container.id}" class="container-checkbox">
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <strong>${escapeHtml(container.container_no)}</strong>
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                ${container.package_count || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                ${container.total_quantity || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <span class="status-${container.status || 'beklemede'}">
+                                    ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                                </span>
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
+                                    <i class="fas fa-eye"></i> Detay
+                                </button>
+                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
+                                    <i class="fas fa-plus"></i> Paket Ekle
+                                </button>
+                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
+                                    <i class="fas fa-ship"></i> Sevk Et
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+
+            folderContent.appendChild(table);
+            folderDiv.appendChild(folderHeader);
+            folderDiv.appendChild(folderContent);
+
+            // Folder toggle functionality
+            folderHeader.addEventListener('click', () => {
+                const isOpen = folderContent.style.display === 'block';
+                folderContent.style.display = isOpen ? 'none' : 'block';
+                const icon = folderHeader.querySelector('.fa-chevron-down');
+                icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+            });
+
+            shippingFolders.appendChild(folderDiv);
+        });
+
+        console.log('Shipping table populated successfully with', Object.keys(customersMap).length, 'customer folders');
 
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
@@ -3208,6 +3339,50 @@ async function viewContainerDetails(containerId) {
     }
 }
 
+
+// Create new container function
+async function createNewContainer() {
+    try {
+        const containerNo = prompt('Yeni konteyner numarasını girin:');
+        if (!containerNo || containerNo.trim() === '') {
+            return;
+        }
+
+        const containerData = {
+            container_no: containerNo.trim(),
+            package_count: 0,
+            total_quantity: 0,
+            status: 'beklemede',
+            created_at: new Date().toISOString()
+        };
+
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            const { data, error } = await supabase
+                .from('containers')
+                .insert([containerData])
+                .select();
+
+            if (error) throw error;
+            
+            showAlert(`Konteyner oluşturuldu: ${containerNo}`, 'success');
+        } else {
+            // Excel mode - store in localStorage
+            const containers = JSON.parse(localStorage.getItem('proclean_containers') || '[]');
+            containerData.id = 'container-' + Date.now();
+            containers.push(containerData);
+            localStorage.setItem('proclean_containers', JSON.stringify(containers));
+            
+            showAlert(`Konteyner Excel modunda oluşturuldu: ${containerNo}`, 'success');
+        }
+
+        // Refresh shipping table
+        await populateShippingTable();
+
+    } catch (error) {
+        console.error('Error creating container:', error);
+        showAlert('Konteyner oluşturulurken hata oluştu: ' + error.message, 'error');
+    }
+}
 
 
 // Konteyner detay modalından sevk et
@@ -3870,7 +4045,6 @@ window.closeDailyFileModal = closeDailyFileModal;
 console.log('✅ Reports module loaded successfully');
 
 
-// Fixed populateStockTable function
 async function populateStockTable() {
     if (isStockTableLoading) return;
     
@@ -3892,7 +4066,8 @@ async function populateStockTable() {
             return;
         }
         
-        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
+        // Show loading state
+        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verileri yükleniyor...</td></tr>';
         
         let stockData = [];
         
@@ -3930,11 +4105,19 @@ async function populateStockTable() {
         stockTableBody.innerHTML = '';
         
         if (stockData.length === 0) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verisi bulunamadı</td></tr>';
+            stockTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; color:#666; padding:40px;">
+                        <i class="fas fa-boxes" style="font-size:48px; margin-bottom:16px; opacity:0.5;"></i>
+                        <h4>Stok verisi bulunamadı</h4>
+                        <p>Stok kaydı henüz eklenmemiş.</p>
+                    </td>
+                </tr>
+            `;
             return;
         }
         
-        // Populate stock table
+        // Populate stock table with better styling
         stockData.forEach(item => {
             const row = document.createElement('tr');
             
@@ -3946,22 +4129,28 @@ async function populateStockTable() {
                 statusClass = 'status-kritik';
                 statusText = 'Tükendi';
             } else if (item.quantity < 10) {
+                statusClass = 'status-kritik';
+                statusText = 'Kritik';
+            } else if (item.quantity < 50) {
                 statusClass = 'status-az-stok';
                 statusText = 'Az Stok';
-            } else if (item.quantity < 50) {
-                statusClass = 'status-uyari';
-                statusText = 'Düşük';
             }
             
             row.innerHTML = `
-                <td>${escapeHtml(item.code || 'N/A')}</td>
+                <td style="font-weight:500;">${escapeHtml(item.code || 'N/A')}</td>
                 <td>${escapeHtml(item.name || 'N/A')}</td>
-                <td>${item.quantity || 0}</td>
-                <td>${escapeHtml(item.unit || 'Adet')}</td>
-                <td><span class="${statusClass}">${statusText}</span></td>
+                <td style="text-align:center; font-weight:bold; color:#2196F3;">${item.quantity || 0}</td>
+                <td style="text-align:center;">${escapeHtml(item.unit || 'Adet')}</td>
+                <td style="text-align:center;">
+                    <span class="${statusClass}" style="padding:4px 12px; border-radius:12px; font-size:0.85em;">
+                        ${statusText}
+                    </span>
+                </td>
                 <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>
-                    <button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
+                <td style="text-align:center;">
+                    <button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">
+                        <i class="fas fa-edit"></i> Düzenle
+                    </button>
                 </td>
             `;
             
@@ -3974,14 +4163,21 @@ async function populateStockTable() {
         console.error('Error in populateStockTable:', error);
         const stockTableBody = document.getElementById('stockTableBody');
         if (stockTableBody) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Stok verileri yüklenirken hata oluştu</td></tr>';
+            stockTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; color:red; padding:40px;">
+                        <i class="fas fa-exclamation-triangle" style="font-size:48px; margin-bottom:16px;"></i>
+                        <h4>Stok verileri yüklenirken hata oluştu</h4>
+                        <p>${error.message}</p>
+                    </td>
+                </tr>
+            `;
         }
         showAlert('Stok verileri yüklenirken hata oluştu', 'error');
     } finally {
         isStockTableLoading = false;
     }
 }
-
 // Fixed populateReportsTable function
 async function populateReportsTable() {
     try {
