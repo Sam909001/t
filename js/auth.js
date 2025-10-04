@@ -1,4 +1,4 @@
-// FIXED: Kullanıcı girişi
+/// FIXED: Kullanıcı girişi
 let connectionTested = false; // Flag to prevent duplicate connection tests
 
 // FIXED: Kullanıcı girişi
