@@ -102,15 +102,13 @@ async function login() {
 }
 
 
-// Add to your existing auth.js file
-
 // Modify the handleLogin function to include remember me
+// In your auth.js - modify handleLogin function
 async function handleLogin() {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const rememberMe = document.getElementById('rememberMe')?.checked || false;
 
-    // Your existing validation
     if (!validateEmail(email) || !password) {
         showAlert('Lütfen geçerli e-posta ve şifre girin.', 'error');
         return;
@@ -119,7 +117,6 @@ async function handleLogin() {
     try {
         showAlert('Giriş yapılıyor...', 'info');
         
-        // Your existing login logic
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password
@@ -127,15 +124,14 @@ async function handleLogin() {
 
         if (error) throw error;
 
-        // Save credentials if remember me is checked
-        if (loginManager) {
-            loginManager.saveCredentials(email, rememberMe);
+        // Save credentials using the Electron-compatible manager
+        if (window.electronLoginManager) {
+            await electronLoginManager.saveCredentials(email, rememberMe);
             if (rememberMe) {
-                loginManager.enableAutoLogin();
+                await electronLoginManager.enableAutoLogin();
             }
         }
 
-        // Your existing success logic
         showAlert('Başarıyla giriş yapıldı!', 'success');
         switchToAppView();
         
@@ -145,21 +141,17 @@ async function handleLogin() {
     }
 }
 
-// Update logout function to handle remember me
+// Update logout function
 async function logoutWithConfirmation() {
     if (confirm('Çıkış yapmak istediğinizden emin misiniz?')) {
-        // Disable auto-login on logout
-        if (window.loginManager) {
-            loginManager.disableAutoLogin();
+        if (window.electronLoginManager) {
+            await electronLoginManager.disableAutoLogin();
         }
         
-        // Your existing logout logic
         await supabase.auth.signOut();
         switchToLoginView();
         showAlert('Başarıyla çıkış yapıldı.', 'info');
     }
-}
-
 
 // Excel modunda devam et
 function proceedWithExcelMode() {
