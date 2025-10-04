@@ -4555,11 +4555,11 @@ async function completePackage() {
 
     try {
         // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-        const workspaceId = window.workspaceManager.currentWorkspace.id;
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 9);
-        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-        const packageNo = `PKG-${workspaceId}-${timestamp}`;
+       const workspaceId = window.workspaceManager.currentWorkspace.id;
+const timestamp = Date.now();
+const random = Math.random().toString(36).substr(2, 9);
+const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+const packageNo = `PKG-${workspaceId}-${timestamp.toString().slice(-6)}-${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
