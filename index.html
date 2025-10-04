@@ -719,19 +719,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- 1. External libraries and database connection first -->
 <script src="js/passwordGuard.js"></script>
+            
 <script src="js/supabase.js"></script>
+            
 <!-- 2. UI functions (needed by other modules) -->
 <script src="js/ui.js"></script>
+            
 <!-- 3. PRINTER BEFORE AUTH (so it loads even if auth fails) -->
 <script src="js/printer.js"></script>
+            
 <!-- 4. Authentication (depends on supabase and ui) -->
 <script src="js/auth.js"></script>
 <!-- 5. Core application logic (depends on supabase, ui, auth) -->
 <script src="js/reports.js"></script>
+<script src="storage.js"></script>
 <script src="js/app.js"></script>
+            
 <!-- 6. Feature modules (depend on core functionality) -->
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script> 
+            
     <script>
 function getCustomEventListeners(element) {
     if (!element || typeof element.addEventListener !== 'function') {
