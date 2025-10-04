@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <input type="password" id="password" placeholder="Şifrenizi girin" required>
                 <div class="validation-error" id="passwordError">Şifre gereklidir</div>
             </div>
-            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
+            <button type="button" class="btn btn-primary" id="loginBtn" onclick="handleLogin()">Giriş Yap</button>
             <div style="margin-top: 1rem; text-align: center;">
                 <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
             </div>
