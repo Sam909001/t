@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <input type="password" id="password" placeholder="Şifrenizi girin" required>
                 <div class="validation-error" id="passwordError">Şifre gereklidir</div>
             </div>
-            <button type="button" class="btn btn-primary" id="loginBtn" onclick="handleLogin()">Giriş Yap</button>
+            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
             <div style="margin-top: 1rem; text-align: center;">
                 <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
             </div>
@@ -726,9 +726,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="js/printer.js"></script>
 <!-- 4. Authentication (depends on supabase and ui) -->
 <script src="js/auth.js"></script>
-<!-- Add this line after auth.js and before app.js -->
-<script src="js/savelogin.js"></script>
-<script src="js/login-fixes.js"></script>
 <!-- 5. Core application logic (depends on supabase, ui, auth) -->
 <script src="js/reports.js"></script>
 <script src="js/app.js"></script>
