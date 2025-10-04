@@ -277,7 +277,6 @@ toExcelFormat: function(packages) {
         created_at: pkg.created_at,
         updated_at: pkg.updated_at || new Date().toISOString(),
         workspace_id: pkg.workspace_id,
-        station_name: pkg.station_name,
         source: pkg.source || 'excel' // Preserve existing source
     }));
 },
@@ -988,7 +987,7 @@ class AtomicSyncManager {
             throw new Error('Cannot sync: No Supabase client or offline');
         }
 
-        const workspaceId = getCurrentWorkspaceId();
+        const workspaceId = 'Default';
         const workspaceOperations = excelSyncQueue.filter(op => 
             op.workspace_id === workspaceId && op.status !== 'success'
         );
@@ -1082,7 +1081,7 @@ class AtomicSyncManager {
                     .from('packages')
                     .update(operationData)
                     .eq('id', operationData.id)
-                    .eq('workspace_id', getCurrentWorkspaceId());
+                    .eq('workspace_id', 'Default';
                 break;
                 
             case 'delete':
@@ -1090,7 +1089,7 @@ class AtomicSyncManager {
                     .from('packages')
                     .delete()
                     .eq('id', operationData.id)
-                    .eq('workspace_id', getCurrentWorkspaceId());
+                    .eq('workspace_id', 'Default'());
                 break;
                 
             default:
@@ -1166,7 +1165,7 @@ async function syncExcelWithSupabase() {
 
 // Enhanced workspace data migration
 async function migrateExistingDataToWorkspace() {
-    const workspaceId = getCurrentWorkspaceId();
+    const workspaceId = 'Default';
     console.log('🔄 Checking for data migration to workspace:', workspaceId);
     
     try {
@@ -1573,7 +1572,7 @@ async function populatePackagesTable() {
         tableBody.innerHTML = '';
         if (totalPackagesElement) totalPackagesElement.textContent = '0';
 
-        const workspaceId = getCurrentWorkspaceId();
+        const workspaceId = 'Default';
         let packages = [];
 
         console.log(`📦 Loading packages for workspace: ${workspaceId}`);
