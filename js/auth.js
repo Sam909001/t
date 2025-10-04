@@ -193,6 +193,7 @@ async function logoutWithConfirmation() {
 } // FIXED: Added missing closing brace
 
 // Fixed: Upload Excel data to Supabase storage
+// Fixed: Upload Excel data to Supabase storage
 async function uploadExcelToSupabase(packages) {
     if (!supabase || !navigator.onLine) {
         console.log("Supabase not available, skipping upload");
@@ -200,26 +201,41 @@ async function uploadExcelToSupabase(packages) {
     }
 
     try {
-        // Use the existing ProfessionalExcelExport functionality
-        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
+        console.log("📤 Attempting to upload Excel to Supabase...");
+        
+        // Create basic Excel data structure
+        const excelData = packages.map(pkg => ({
+            'Paket ID': pkg.id || '',
+            'Müşteri': pkg.customer_name || '',
+            'Ürün': pkg.product_name || '',
+            'Miktar': pkg.quantity || '',
+            'Toplam Miktar': pkg.total_quantity || '',
+            'Durum': pkg.status || '',
+            'Oluşturulma Tarihi': pkg.created_at || '',
+            'Workspace': pkg.workspace || (getCurrentWorkspaceName ? getCurrentWorkspaceName() : 'unknown')
+        }));
+        
+        console.log("📊 Excel data prepared:", excelData.length, "rows");
         
         if (!excelData || excelData.length === 0) {
-            console.log("No data to upload");
+            console.log("❌ No data to upload");
             return false;
         }
 
-        // Create CSV content (more reliable than XLSX in browser)
+        // Create CSV content
         const headers = Object.keys(excelData[0]);
         const csvContent = [
             headers.join(','),
             ...excelData.map(row => 
                 headers.map(header => {
                     const value = row[header];
-                    // Escape commas and quotes
-                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
-                        return `"${value.replace(/"/g, '""')}"`;
+                    if (value === null || value === undefined) return '';
+                    const stringValue = String(value);
+                    // Escape commas, quotes, and newlines
+                    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                        return `"${stringValue.replace(/"/g, '""')}"`;
                     }
-                    return value;
+                    return stringValue;
                 }).join(',')
             )
         ].join('\n');
@@ -229,28 +245,28 @@ async function uploadExcelToSupabase(packages) {
             type: 'text/csv;charset=utf-8;' 
         });
 
-        // File name
+        // File name with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const fileName = `backup_${timestamp}.csv`;
+        const workspace = getCurrentWorkspaceName ? getCurrentWorkspaceName() : 'unknown';
+        const fileName = `backup_${workspace}_${timestamp}.csv`;
+
+        console.log("📁 Uploading to Supabase storage:", fileName);
 
         // Upload to Supabase storage
         const { data, error } = await supabase.storage
-            .from('reports') // Make sure this bucket exists!
+            .from('reports')
             .upload(fileName, blob);
 
         if (error) {
-            console.error("Supabase storage upload error:", error);
-            
-            // Fallback: Try to insert as records in a table
-            await uploadAsDatabaseRecords(packages, timestamp);
+            console.error("❌ Supabase storage upload error:", error);
             return false;
         }
 
-        console.log("Excel backup uploaded to Supabase storage:", fileName);
+        console.log("✅ Excel backup uploaded to Supabase storage:", fileName);
         return true;
         
     } catch (error) {
-        console.error("Supabase upload error:", error);
+        console.error("💥 Supabase upload error:", error);
         return false;
     }
 }
@@ -285,13 +301,28 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
 // Fixed: Send Excel file to Main PC via Electron network share
 async function sendExcelToMainPC(packages) {
     try {
+        console.log("🚀 Starting Excel transfer to Main PC...");
+        console.log("📦 Package count:", packages.length);
+
         // Create the Excel data
-        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
+        const excelData = packages.map(pkg => ({
+            'Paket ID': pkg.id || '',
+            'Müşteri': pkg.customer_name || '',
+            'Ürün': pkg.product_name || '',
+            'Miktar': pkg.quantity || '',
+            'Toplam Miktar': pkg.total_quantity || '',
+            'Durum': pkg.status || '',
+            'Oluşturulma Tarihi': pkg.created_at || '',
+            'Workspace': pkg.workspace || (getCurrentWorkspaceName ? getCurrentWorkspaceName() : 'unknown')
+        }));
         
         if (!excelData || excelData.length === 0) {
-            console.log("No data to send to main PC");
+            console.log("❌ No data to send to main PC");
+            showAlert("Gönderilecek Excel verisi bulunamadı", "warning");
             return false;
         }
+
+        console.log("📊 Excel data ready:", excelData.length, "rows");
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const fileName = `ProClean_Rapor_${timestamp}.xlsx`;
@@ -299,7 +330,17 @@ async function sendExcelToMainPC(packages) {
         // Try Electron network save first
         if (window.electronAPI) {
             console.log('🔄 Attempting network save via Electron...');
+            
+            // Test network connection first
+            try {
+                const networkTest = await window.electronAPI.testNetworkConnection();
+                console.log('🔍 Network test result:', networkTest.success ? '✅ SUCCESS' : '❌ FAILED');
+            } catch (testError) {
+                console.log('🔍 Network test unavailable:', testError);
+            }
+            
             const result = await window.electronAPI.saveExcelToNetwork(excelData, fileName);
+            console.log('📡 Network save result:', result);
             
             if (result.success) {
                 console.log('✅ Excel file sent to network share via Electron');
@@ -327,13 +368,25 @@ async function sendExcelToMainPC(packages) {
         } else {
             // Not in Electron - use browser download
             console.log('🌐 Not in Electron, using browser download');
-            ProfessionalExcelExport.exportToProfessionalExcel(packages, fileName);
+            // Create simple CSV download
+            const csvContent = "Paket ID,Müşteri,Ürün,Miktar,Durum\n" + 
+                packages.map(pkg => 
+                    `${pkg.id || ''},${pkg.customer_name || ''},${pkg.product_name || ''},${pkg.quantity || ''},${pkg.status || ''}`
+                ).join('\n');
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName.replace('.xlsx', '.csv');
+            a.click();
+            URL.revokeObjectURL(url);
+            
             showNetworkShareInstructions();
             return false;
         }
         
     } catch (err) {
-        console.error("Main PC transfer error:", err);
+        console.error("💥 Main PC transfer error:", err);
         showAlert("Ağ paylaşımı hatası: " + err.message, 'error');
         showNetworkShareInstructions();
         return false;
@@ -950,3 +1003,41 @@ WorkspaceManager.prototype.canPerformAction = async function(action) {
     // Then check user permissions
     return await UserManager.hasPermission(action);
 };
+
+
+
+// NEW: Test function to debug the transfer process
+async function testExcelTransfer() {
+    console.log("🧪 Testing Excel transfer flow...");
+    
+    // Create test data
+    const testPackages = [
+        {
+            id: 'test-1',
+            customer_name: 'Test Müşteri',
+            product_name: 'Test Ürün',
+            quantity: 5,
+            total_quantity: 10,
+            status: 'completed',
+            created_at: new Date().toISOString(),
+            workspace: (getCurrentWorkspaceName ? getCurrentWorkspaceName() : 'test')
+        }
+    ];
+    
+    console.log("1. Testing Supabase upload...");
+    const supabaseResult = await uploadExcelToSupabase(testPackages);
+    console.log("Supabase upload result:", supabaseResult);
+    
+    console.log("2. Testing Main PC transfer...");
+    const mainPCResult = await sendExcelToMainPC(testPackages);
+    console.log("Main PC transfer result:", mainPCResult);
+    
+    alert(`Test Results:\nSupabase: ${supabaseResult ? '✅' : '❌'}\nMain PC: ${mainPCResult ? '✅' : '❌'}`);
+}
+
+// Helper function if it doesn't exist
+if (typeof getCurrentWorkspaceName === 'undefined') {
+    function getCurrentWorkspaceName() {
+        return localStorage.getItem('current_workspace') || 'default';
+    }
+}
