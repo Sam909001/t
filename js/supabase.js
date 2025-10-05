@@ -20,10 +20,13 @@ let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
 
-// Excel local storage
+// Canonical Excel-mode flag: single source of truth
+// Initialize as boolean if not present
+window.isUsingExcel = window.isUsingExcel ?? false;
+
+// Excel local storage (workspace-scoped daily files)
 let excelPackages = [];
 let excelSyncQueue = [];
-let isUsingExcel = false;
 
 // Missing dependency placeholders
 if (typeof XLSX === 'undefined') {
@@ -2767,7 +2770,7 @@ async function populatePackagesTable() {
         console.log(`📦 Loading packages for workspace: ${workspaceId}`);
 
         // Get data based on current mode
-        if (isUsingExcel || !supabase || !navigator.onLine) {
+        if ((window.isUsingExcel === true) || !window.supabase || !navigator.onLine) {
             // Use Excel data filtered by workspace with additional safety
             packages = excelPackages.filter(pkg => {
                 const isValidWorkspace = pkg.workspace_id === workspaceId;
@@ -2795,8 +2798,7 @@ async function populatePackagesTable() {
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', getCurrentWorkspaceId()) // ADD THIS LINE
-                    .eq('workspace_id', workspaceId) // STRICT WORKSPACE FILTER
+                    .eq('workspace_id', workspaceId) // strict workspace filter
                     .order('created_at', { ascending: false });
 
                 if (error) {
@@ -2815,11 +2817,12 @@ async function populatePackagesTable() {
                     pkg.status === 'beklemede' && 
                     (!pkg.container_id || pkg.container_id === null)
                 );
-                isUsingExcel = true;
+                // Update canonical flag so other modules behave consistently
+                window.isUsingExcel = true;
             }
         }
 
-        // Rest of the function remains the same but with additional safety...
+        // If no packages to show
         if (!packages || packages.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = `<td colspan="8" style="text-align:center; color:#666;">
@@ -2841,7 +2844,7 @@ async function populatePackagesTable() {
             const row = document.createElement('tr');
             
             // Determine storage source
-            const isExcelPackage = pkg.source === 'excel' || pkg.id.includes('excel-') || pkg.id.includes('pkg-');
+            const isExcelPackage = pkg.source === 'excel' || pkg.id?.includes('excel-') || pkg.id?.includes('pkg-');
             const sourceIcon = isExcelPackage ? 
                 '<i class="fas fa-file-excel" title="Excel Kaynaklı" style="color: #217346;"></i>' :
                 '<i class="fas fa-database" title="Supabase Kaynaklı" style="color: #3ecf8e;"></i>';
@@ -2868,25 +2871,25 @@ async function populatePackagesTable() {
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-row.innerHTML = `
-    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-    </td>
-    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-    </td>
-    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-    <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
-    ${sourceIcon}
-    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
-        <i class="fas fa-print"></i>
-    </button>
-</td>
-`;
+            row.innerHTML = `
+                <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+                <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+                <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
+                <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+                </td>
+                <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+                </td>
+                <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    ${sourceIcon}
+                    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </td>
+            `;
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
             });
@@ -2907,7 +2910,6 @@ row.innerHTML = `
         packagesTableLoading = false;
     }
 }
-
 
 
 
@@ -3356,7 +3358,6 @@ async function viewContainerDetails(containerId) {
 let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// Enhanced populateReportsTable function
 async function populateReportsTable() {
     try {
         console.log('Populating reports table with daily Excel files...');
@@ -3385,79 +3386,220 @@ async function populateReportsTable() {
             </div>
         `;
         
-        if (dailyFiles.length === 0) {
-            reportsHTML += `
-                <div style="text-align: center; padding: 40px; color: #666; border: 2px dashed #ddd; border-radius: 8px;">
-                    <i class="fas fa-file-excel" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
-                    <h4>Henüz Excel dosyası bulunmamaktadır</h4>
-                    <p>Paket oluşturduğunuzda günlük Excel dosyaları burada görünecektir.</p>
-                </div>
-            `;
-        } else {
-            dailyFiles.forEach(file => {
-                const isToday = file.date === ExcelStorage.getTodayDateString();
-                
+        if ((window.isUsingExcel === true) || !window.supabase || !navigator.onLine) {
+            // Use Excel dailyFiles (already obtained above)
+            // If no dailyFiles, render the empty state
+            if (!dailyFiles || dailyFiles.length === 0) {
                 reportsHTML += `
-                    <div class="daily-file-item" style="
-                        border: 1px solid ${isToday ? '#4CAF50' : '#ddd'};
-                        border-left: 4px solid ${isToday ? '#4CAF50' : '#2196F3'};
-                        padding: 16px;
-                        margin: 12px 0;
-                        border-radius: 6px;
-                        background: ${isToday ? '#f8fff8' : '#f9f9f9'};
-                        transition: all 0.3s ease;
-                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="flex: 1;">
-                                <h4 style="margin: 0 0 8px 0; color: #333;">
-                                    <i class="fas fa-calendar-day"></i> ${file.displayDate}
-                                    ${isToday ? '<span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px;">Bugün</span>' : ''}
-                                </h4>
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 0.9em;">
-                                    <div>
-                                        <strong>Paket Sayısı:</strong><br>
-                                        <span style="color: #2196F3; font-weight: bold;">${file.packageCount}</span>
+                    <div style="text-align: center; padding: 40px; color: #666; border: 2px dashed #ddd; border-radius: 8px;">
+                        <i class="fas fa-file-excel" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                        <h4>Henüz Excel dosyası bulunmamaktadır</h4>
+                        <p>Paket oluşturduğunuzda günlük Excel dosyaları burada görünecektir.</p>
+                    </div>
+                `;
+            } else {
+                dailyFiles.forEach(file => {
+                    const isToday = file.date === ExcelStorage.getTodayDateString();
+                    
+                    reportsHTML += `
+                        <div class="daily-file-item" style="
+                            border: 1px solid ${isToday ? '#4CAF50' : '#ddd'};
+                            border-left: 4px solid ${isToday ? '#4CAF50' : '#2196F3'};
+                            padding: 16px;
+                            margin: 12px 0;
+                            border-radius: 6px;
+                            background: ${isToday ? '#f8fff8' : '#f9f9f9'};
+                            transition: all 0.3s ease;
+                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <h4 style="margin: 0 0 8px 0; color: #333;">
+                                        <i class="fas fa-calendar-day"></i> ${file.displayDate}
+                                        ${isToday ? '<span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px;">Bugün</span>' : ''}
+                                    </h4>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 0.9em;">
+                                        <div>
+                                            <strong>Paket Sayısı:</strong><br>
+                                            <span style="color: #2196F3; font-weight: bold;">${file.packageCount}</span>
+                                        </div>
+                                        <div>
+                                            <strong>Toplam Adet:</strong><br>
+                                            <span style="color: #4CAF50; font-weight: bold;">${file.totalQuantity}</span>
+                                        </div>
+                                        <div>
+                                            <strong>Dosya:</strong><br>
+                                            <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">${file.fileName}</code>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <strong>Toplam Adet:</strong><br>
-                                        <span style="color: #4CAF50; font-weight: bold;">${file.totalQuantity}</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <button onclick="exportDailyFile('${file.date}')" 
+                                            class="btn btn-success btn-sm" 
+                                            style="white-space: nowrap;">
+                                        <i class="fas fa-download"></i> CSV İndir
+                                    </button>
+                                    <button onclick="viewDailyFile('${file.date}')" 
+                                            class="btn btn-primary btn-sm"
+                                            style="white-space: nowrap;">
+                                        <i class="fas fa-eye"></i> Görüntüle
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                // Add cleanup button
+                reportsHTML += `
+                    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
+                        <button onclick="cleanupOldFiles()" 
+                                class="btn btn-warning btn-sm">
+                            <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
+                        </button>
+                        <small style="color: #666; margin-left: 12px;">Sadece son 7 günün dosyaları saklanır</small>
+                    </div>
+                `;
+            }
+        } else {
+            // We're online and connected to Supabase — try to fetch report metadata from Supabase 'reports' table
+            try {
+                const { data: supabaseReports, error } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+
+                if (!error && supabaseReports && supabaseReports.length > 0) {
+                    // Convert supabaseReports into consistent display objects (date, displayDate, packageCount, totalQuantity, fileName)
+                    const converted = supabaseReports.map(r => ({
+                        date: r.fileName || r.id || new Date(r.created_at).toISOString().split('T')[0],
+                        displayDate: r.date ? new Date(r.date).toLocaleDateString('tr-TR') : (r.created_at ? new Date(r.created_at).toLocaleDateString('tr-TR') : 'N/A'),
+                        packageCount: r.packageCount || r.package_count || 0,
+                        totalQuantity: r.totalQuantity || r.total_quantity || 0,
+                        fileName: r.fileName || `report_${r.id}`
+                    }));
+
+                    converted.forEach(file => {
+                        const isToday = file.date === ExcelStorage.getTodayDateString();
+                        reportsHTML += `
+                            <div class="daily-file-item" style="
+                                border: 1px solid ${isToday ? '#4CAF50' : '#ddd'};
+                                border-left: 4px solid ${isToday ? '#4CAF50' : '#2196F3'};
+                                padding: 16px;
+                                margin: 12px 0;
+                                border-radius: 6px;
+                                background: ${isToday ? '#f8fff8' : '#f9f9f9'};
+                            ">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="flex:1;">
+                                        <h4 style="margin:0 0 8px 0; color:#333;">
+                                            <i class="fas fa-calendar-day"></i> ${file.displayDate}
+                                        </h4>
+                                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+                                            <div><strong>Paket Sayısı:</strong><br><span style="color:#2196F3; font-weight:bold;">${file.packageCount}</span></div>
+                                            <div><strong>Toplam Adet:</strong><br><span style="color:#4CAF50; font-weight:bold;">${file.totalQuantity}</span></div>
+                                            <div><strong>Dosya:</strong><br><code style="background:#f0f0f0; padding:2px 6px; border-radius:3px;">${file.fileName}</code></div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <strong>Dosya:</strong><br>
-                                        <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">${file.fileName}</code>
+                                    <div style="display:flex; flex-direction:column; gap:8px;">
+                                        <button onclick="downloadReport('${file.fileName}')" class="btn btn-success btn-sm"><i class="fas fa-download"></i> İndir</button>
+                                        <button onclick="viewReport('${file.fileName}')" class="btn btn-primary btn-sm"><i class="fas fa-eye"></i> Görüntüle</button>
                                     </div>
                                 </div>
                             </div>
-                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <button onclick="exportDailyFile('${file.date}')" 
-                                        class="btn btn-success btn-sm" 
-                                        style="white-space: nowrap;">
-                                    <i class="fas fa-download"></i> CSV İndir
-                                </button>
-                                <button onclick="viewDailyFile('${file.date}')" 
-                                        class="btn btn-primary btn-sm"
-                                        style="white-space: nowrap;">
-                                    <i class="fas fa-eye"></i> Görüntüle
-                                </button>
+                        `;
+                    });
+                } else {
+                    // No supabase report rows found, fallback to dailyFiles UI using ExcelStorage
+                    if (!dailyFiles || dailyFiles.length === 0) {
+                        reportsHTML += `
+                            <div style="text-align: center; padding: 40px; color: #666; border: 2px dashed #ddd; border-radius: 8px;">
+                                <i class="fas fa-file-excel" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                                <h4>Henüz rapor verisi bulunmamaktadır</h4>
+                                <p>Raporlar Supabase'de henüz yok veya Excel günlük dosyaları boş.</p>
                             </div>
+                        `;
+                    } else {
+                        // Render Excel dailyFiles as above
+                        dailyFiles.forEach(file => {
+                            const isToday = file.date === ExcelStorage.getTodayDateString();
+                            reportsHTML += `
+                                <div class="daily-file-item" style="
+                                    border: 1px solid ${isToday ? '#4CAF50' : '#ddd'};
+                                    border-left: 4px solid ${isToday ? '#4CAF50' : '#2196F3'};
+                                    padding: 16px;
+                                    margin: 12px 0;
+                                    border-radius: 6px;
+                                    background: ${isToday ? '#f8fff8' : '#f9f9f9'};
+                                ">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <div style="flex:1;">
+                                            <h4 style="margin:0 0 8px 0; color:#333;">
+                                                <i class="fas fa-calendar-day"></i> ${file.displayDate}
+                                            </h4>
+                                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+                                                <div><strong>Paket Sayısı:</strong><br><span style="color:#2196F3; font-weight:bold;">${file.packageCount}</span></div>
+                                                <div><strong>Toplam Adet:</strong><br><span style="color:#4CAF50; font-weight:bold;">${file.totalQuantity}</span></div>
+                                                <div><strong>Dosya:</strong><br><code style="background:#f0f0f0; padding:2px 6px; border-radius:3px;">${file.fileName}</code></div>
+                                            </div>
+                                        </div>
+                                        <div style="display:flex; flex-direction:column; gap:8px;">
+                                            <button onclick="exportDailyFile('${file.date}')" class="btn btn-success btn-sm"><i class="fas fa-download"></i> CSV İndir</button>
+                                            <button onclick="viewDailyFile('${file.date}')" class="btn btn-primary btn-sm"><i class="fas fa-eye"></i> Görüntüle</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Supabase reports fetch failed:', err);
+                // Fallback to Excel dailyfiles UI
+                if (!dailyFiles || dailyFiles.length === 0) {
+                    reportsHTML += `
+                        <div style="text-align: center; padding: 40px; color: #666; border: 2px dashed #ddd; border-radius: 8px;">
+                            <i class="fas fa-file-excel" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                            <h4>Henüz rapor verisi bulunmamaktadır</h4>
+                            <p>Lütfen daha sonra tekrar deneyin.</p>
                         </div>
-                    </div>
-                `;
-            });
-            
-            // Add cleanup button
-            reportsHTML += `
-                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
-                    <button onclick="cleanupOldFiles()" 
-                            class="btn btn-warning btn-sm">
-                        <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
-                    </button>
-                    <small style="color: #666; margin-left: 12px;">Sadece son 7 günün dosyaları saklanır</small>
-                </div>
-            `;
+                    `;
+                } else {
+                    dailyFiles.forEach(file => {
+                        const isToday = file.date === ExcelStorage.getTodayDateString();
+                        reportsHTML += `
+                            <div class="daily-file-item" style="
+                                border: 1px solid ${isToday ? '#4CAF50' : '#ddd'};
+                                border-left: 4px solid ${isToday ? '#4CAF50' : '#2196F3'};
+                                padding: 16px;
+                                margin: 12px 0;
+                                border-radius: 6px;
+                                background: ${isToday ? '#f8fff8' : '#f9f9f9'};
+                            ">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="flex:1;">
+                                        <h4 style="margin:0 0 8px 0; color:#333;">
+                                            <i class="fas fa-calendar-day"></i> ${file.displayDate}
+                                        </h4>
+                                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+                                            <div><strong>Paket Sayısı:</strong><br><span style="color:#2196F3; font-weight:bold;">${file.packageCount}</span></div>
+                                            <div><strong>Toplam Adet:</strong><br><span style="color:#4CAF50; font-weight:bold;">${file.totalQuantity}</span></div>
+                                            <div><strong>Dosya:</strong><br><code style="background:#f0f0f0; padding:2px 6px; border-radius:3px;">${file.fileName}</code></div>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:8px;">
+                                        <button onclick="exportDailyFile('${file.date}')" class="btn btn-success btn-sm"><i class="fas fa-download"></i> CSV İndir</button>
+                                        <button onclick="viewDailyFile('${file.date}')" class="btn btn-primary btn-sm"><i class="fas fa-eye"></i> Görüntüle</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            }
         }
-        
+
         reportsContainer.innerHTML = reportsHTML;
         console.log(`✅ Reports table populated with ${dailyFiles.length} daily files`);
         
@@ -3476,211 +3618,6 @@ async function populateReportsTable() {
                 </div>
             `;
         }
-    }
-}
-
-// Enhanced viewDailyFile function
-async function viewDailyFile(dateString) {
-    try {
-        const fileName = `packages_${dateString}.json`;
-        const fileData = localStorage.getItem(fileName);
-        
-        if (!fileData) {
-            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
-            return;
-        }
-        
-        const packages = JSON.parse(fileData);
-        
-        // Remove existing modal if any
-        const existingModal = document.querySelector('.daily-file-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        // Create a modal to show file details
-        const modal = document.createElement('div');
-        modal.className = 'daily-file-modal';
-        modal.style.cssText = `
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%;
-            background: rgba(0,0,0,0.8); 
-            display: flex; 
-            justify-content: center;
-            align-items: center; 
-            z-index: 10000;
-            font-family: inherit;
-        `;
-        
-        modal.innerHTML = `
-            <div style="
-                background: white; 
-                padding: 24px; 
-                border-radius: 8px; 
-                max-width: 90%; 
-                max-height: 90%; 
-                width: 900px; 
-                overflow: hidden;
-                display: flex;
-                flex-direction: column;
-            ">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0;">
-                    <h3 style="margin: 0; color: #333;">
-                        <i class="fas fa-file-excel" style="color: #217346;"></i> 
-                        ${dateString} - Paket Detayları
-                    </h3>
-                    <button onclick="closeDailyFileModal()" 
-                            style="
-                                background: none; 
-                                border: none; 
-                                font-size: 24px; 
-                                cursor: pointer; 
-                                color: #666;
-                                padding: 0;
-                                width: 30px;
-                                height: 30px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                            ">
-                        ×
-                    </button>
-                </div>
-                
-                <div style="
-                    margin-bottom: 16px; 
-                    padding: 12px; 
-                    background: #f5f5f5; 
-                    border-radius: 4px;
-                    flex-shrink: 0;
-                ">
-                    <strong>Özet:</strong> 
-                    <span style="color: #2196F3; font-weight: bold;">${packages.length} paket</span>, 
-                    <span style="color: #4CAF50; font-weight: bold;">${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet</span>
-                </div>
-                
-                <div style="
-                    flex: 1; 
-                    overflow: auto; 
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                ">
-                    <table style="
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        font-size: 0.9em;
-                        min-width: 600px;
-                    ">
-                        <thead style="background: #f0f0f0; position: sticky; top: 0;">
-                            <tr>
-                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Paket No</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Müşteri</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Ürünler</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; text-align: center; background: #e0e0e0;">Adet</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Durum</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${packages.map(pkg => `
-                                <tr style="transition: background-color 0.2s ease;" 
-                                    onmouseover="this.style.backgroundColor='#f8f9fa'" 
-                                    onmouseout="this.style.backgroundColor='transparent'">
-                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 500;">${pkg.package_no || 'N/A'}</td>
-                                    <td style="padding: 10px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
-                                    <td style="padding: 10px; border: 1px solid #ddd; max-width: 250px; word-wrap: break-word;">
-                                        ${pkg.items_display || pkg.product || 'N/A'}
-                                    </td>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #2196F3;">
-                                        ${pkg.total_quantity || 0}
-                                    </td>
-                                    <td style="padding: 10px; border: 1px solid #ddd;">
-                                        <span style="
-                                            padding: 4px 8px;
-                                            border-radius: 12px;
-                                            font-size: 0.8em;
-                                            font-weight: 500;
-                                            ${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 
-                                                'background: #4CAF50; color: white;' : 
-                                                'background: #FF9800; color: white;'
-                                            }
-                                        ">
-                                            ${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 'Sevk Edildi' : 'Beklemede'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                            ${packages.length === 0 ? `
-                                <tr>
-                                    <td colspan="5" style="padding: 40px; text-align: center; color: #666; border: 1px solid #ddd;">
-                                        <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; opacity: 0.5;"></i><br>
-                                        Bu dosyada paket bulunmamaktadır
-                                    </td>
-                                </tr>
-                            ` : ''}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div style="
-                    margin-top: 16px; 
-                    text-align: center;
-                    flex-shrink: 0;
-                    padding-top: 16px;
-                    border-top: 1px solid #eee;
-                ">
-                    <button onclick="exportDailyFile('${dateString}')" 
-                            class="btn btn-success"
-                            style="margin-right: 8px;">
-                        <i class="fas fa-download"></i> CSV Olarak İndir
-                    </button>
-                    <button onclick="printDailyFile('${dateString}')" 
-                            class="btn btn-primary"
-                            style="margin-right: 8px;">
-                        <i class="fas fa-print"></i> Yazdır
-                    </button>
-                    <button onclick="closeDailyFileModal()" 
-                            class="btn btn-secondary">
-                        <i class="fas fa-times"></i> Kapat
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Close modal with Escape key
-        const closeModal = () => modal.remove();
-        const handleEscape = (e) => {
-            if (e.key === 'Escape') closeModal();
-        };
-        
-        document.addEventListener('keydown', handleEscape);
-        modal._handleEscape = handleEscape;
-        
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
-        
-    } catch (error) {
-        console.error('Error viewing daily file:', error);
-        showAlert('Dosya görüntülenirken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-// Close modal function
-function closeDailyFileModal() {
-    const modal = document.querySelector('.daily-file-modal');
-    if (modal) {
-        if (modal._handleEscape) {
-            document.removeEventListener('keydown', modal._handleEscape);
-        }
-        modal.remove();
     }
 }
 
