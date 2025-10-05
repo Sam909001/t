@@ -36,6 +36,42 @@ document.addEventListener("DOMContentLoaded", function() {
 
     </head>
 <body>
+
+    <!-- Add this to your header or navigation bar -->
+<div id="workspaceIndicator" class="workspace-indicator" style="
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+    margin-right: 10px;
+">
+    <i class="fas fa-desktop"></i>
+    İstasyon Seçiliyor...
+</div>
+
+<!-- Optional: Add printer indicator if needed -->
+<div id="printerIndicator" class="printer-indicator" style="
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #e8f5e8;
+    border: 1px solid #c3e6cb;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #155724;
+    margin-right: 10px;
+">
+    <i class="fas fa-print"></i>
+    Yazıcı: Hazırlanıyor...
+</div>
+    
     <!-- API Key Giriş Modalı -->
     <div class="api-key-modal" id="apiKeyModal">
         <div class="api-key-content">
