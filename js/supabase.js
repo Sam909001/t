@@ -133,8 +133,13 @@ class WorkspaceManager {
     
     // Set current workspace
     setCurrentWorkspace(workspace) {
-        this.currentWorkspace = workspace;
-        localStorage.setItem(this.workspaceKey, workspace.id);
+       // inside setCurrentWorkspace(workspace) { ... }
+this.currentWorkspace = workspace;
+localStorage.setItem(this.workspaceKey, workspace.id);
+
+// Persist that a selection has been made (prevent repeated prompts)
+localStorage.setItem('proclean_workspace_selected', 'true');
+window._workspaceSelectionShown = true;
         
         console.log('🎯 Current workspace set:', workspace.name);
         
@@ -398,17 +403,33 @@ async loadWorkspaceData() {
 }
 
 
-// Add this to supabase.js after workspace manager initialization
+// Only force workspace selection if the user/device hasn't chosen one yet
 document.addEventListener('DOMContentLoaded', async function() {
-    // Force workspace selection if none is selected
     setTimeout(async () => {
-        if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-            console.log('🔄 No workspace selected, forcing selection...');
-            await window.workspaceManager.showWorkspaceSelection();
-        }
-    }, 1000);
-});
+        try {
+            // If workspace already persisted, do not show
+            const alreadySelected = localStorage.getItem('proclean_workspace_selected') === 'true';
+            if (alreadySelected) {
+                // If it exists but workspaceManager not set, try to initialize silently
+                if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+                    await window.workspaceManager.loadWorkspaceData();
+                }
+                return;
+            }
 
+            // Avoid showing many times in same session
+            if (window._workspaceSelectionShown) return;
+
+            if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+                console.log('🔄 No workspace selected, asking user to choose (once)...');
+                window._workspaceSelectionShown = true;
+                await window.workspaceManager.showWorkspaceSelection();
+            }
+        } catch (err) {
+            console.error('Workspace selection guard error:', err);
+        }
+    }, 800);
+});
 
 
 // ==================== WORKSPACE UTILITIES ====================
