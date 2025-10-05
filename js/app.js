@@ -1,11 +1,40 @@
-// Top-level global function
-function initializePrinter() {
+// Top of app.js
+window.initializePrinter = function() {
     console.log("Printer initialized");
-    // Optional: create a dummy printer object if not using a real printer yet
-    if (typeof printer === 'undefined') {
+    if (typeof window.printer === 'undefined') {
         window.printer = { isConnected: true, serverUrl: 'Yerel Yazıcı' };
     }
-}
+};
+
+window.checkPrinterStatus = function() {
+    console.log('🔍 Checking printer status...');
+    
+    if (typeof window.printer === 'undefined') {
+        console.log('🔄 Printer not found, initializing...');
+        window.initializePrinter();
+    }
+
+    if (!window.printer) {
+        console.log('❌ Printer initialization failed');
+        showAlert('Yazıcı servisi başlatılamadı', 'error');
+        return false;
+    }
+
+    console.log(`📊 Printer status:`, {
+        defined: !!window.printer,
+        connected: window.printer.isConnected,
+        serverUrl: window.printer.serverUrl
+    });
+
+    const statusMessage = window.printer.isConnected ? 
+        `Yazıcı bağlı: ${window.printer.serverUrl || 'Yerel yazıcı'}` : 
+        'Yazıcı bağlı değil';
+
+    showAlert(`Yazıcı durumu: ${statusMessage}`, 
+              window.printer.isConnected ? 'success' : 'error');
+
+    return window.printer.isConnected;
+};
 
 
 // ============================================
