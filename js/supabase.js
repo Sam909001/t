@@ -2593,6 +2593,7 @@ function enhanceSyncQueue() {
 async function testConnection() {
     if (!supabase) {
         console.warn('Supabase client not initialized');
+        showAlert('Veritabanı bağlantısı hazır değil.', 'warning');
         return false;
     }
     
