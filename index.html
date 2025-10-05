@@ -52,51 +52,26 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
     </div>
 
-   <!-- Station Selection Screen -->
-<div class="login-container" id="loginScreen">
-    <div class="login-form">
-        <h1>ProClean - Çalışma İstasyonu</h1>
-        
-        <!-- Station Selection Section -->
-        <div class="form-group">
-            <label>Çalışma İstasyonu Seçin</label>
-            <div class="station-list-container">
-                <ul class="station-list" id="stationList">
-                    <li>Henüz istasyon yok. Yeni istasyon oluşturun.</li>
-                </ul>
-            </div>
-        </div>
-
-        <button type="button" class="btn btn-primary" id="createStationBtn" style="margin-bottom: 1rem;">
-            <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
-        </button>
-
-        <div style="margin-top: 1rem; text-align: center;">
-            <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
-        </div>
-    </div>
-</div>
-
-<!-- Station Creation Modal -->
-<div class="modal" id="stationModal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Yeni İstasyon Oluştur</h3>
-            <span class="close" onclick="hideStationModal()">&times;</span>
-        </div>
-        <div class="modal-body">
+    <div class="login-container" id="loginScreen">
+        <div class="login-form">
+            <h1>ProClean - Oturum Aç</h1>
             <div class="form-group">
-                <label for="stationNameInput">İstasyon Adı</label>
-                <input type="text" id="stationNameInput" placeholder="İstasyon adını girin" 
-                       style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;">
+                <label for="email">E-posta</label>
+                <input type="email" id="email" placeholder="E-posta adresinizi girin" required>
+                <div class="validation-error" id="emailError">Geçerli bir e-posta adresi girin</div>
             </div>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button id="confirmStationBtn" class="btn btn-primary" style="flex: 1;">Oluştur</button>
-                <button id="cancelStationBtn" class="btn btn-secondary" style="flex: 1;">İptal</button>
+            <div class="form-group">
+                <label for="password">Şifre</label>
+                <input type="password" id="password" placeholder="Şifrenizi girin" required>
+                <div class="validation-error" id="passwordError">Şifre gereklidir</div>
+            </div>
+            <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
+            <div style="margin-top: 1rem; text-align: center;">
+                <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
             </div>
         </div>
     </div>
-</div>
+
     <div class="app-container" id="appContainer" aria-hidden="true">
         <div class="app-header">
             <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
