@@ -3992,3 +3992,26 @@ async function selectStation(stationId) {
         showAlert('İstasyon seçilirken hata oluştu', 'error');
     }
 }
+
+
+// Function to show station modal
+function showStationModal() {
+    const modal = document.getElementById('stationModal');
+    const stationNameInput = document.getElementById('stationNameInput');
+    
+    if (modal && stationNameInput) {
+        modal.style.display = 'block';
+        stationNameInput.value = '';
+        setTimeout(() => {
+            stationNameInput.focus();
+        }, 100);
+    }
+}
+
+// Function to hide station modal
+function hideStationModal() {
+    const modal = document.getElementById('stationModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
