@@ -1068,11 +1068,15 @@ class UserManager {
     }
 }
 
-// Update login function to apply user permissions
+// FIXED: Update login function to apply user permissions without breaking parameters
 const originalLogin = login;
-login = async function() {
-    await originalLogin();
-    UserManager.applyUserPermissions();
+login = async function(emailParam = null, passwordParam = null) {
+    await originalLogin(emailParam, passwordParam);
+    
+    // Only apply permissions if login was successful
+    if (currentUser) {
+        UserManager.applyUserPermissions();
+    }
 };
 
 // Update workspace permissions to also check user permissions
@@ -1085,3 +1089,26 @@ WorkspaceManager.prototype.canPerformAction = async function(action) {
     // Then check user permissions
     return await UserManager.hasPermission(action);
 };
+
+
+
+// Add this function to check current UI state
+function debugUIState() {
+    const loginScreen = document.getElementById('loginScreen');
+    const appContainer = document.getElementById('appContainer');
+    
+    console.log("🔍 CURRENT UI STATE:", {
+        loginScreen: {
+            exists: !!loginScreen,
+            display: loginScreen ? loginScreen.style.display : 'N/A',
+            computedDisplay: loginScreen ? window.getComputedStyle(loginScreen).display : 'N/A'
+        },
+        appContainer: {
+            exists: !!appContainer,
+            display: appContainer ? appContainer.style.display : 'N/A',
+            computedDisplay: appContainer ? window.getComputedStyle(appContainer).display : 'N/A'
+        }
+    });
+}
+
+// Call this in console anytime: debugUIState()
