@@ -1118,7 +1118,7 @@ async function completePackage() {
         };
 
         // Save to database and Excel
-        if (supabase && navigator.onLine && !isUsingExcel) {
+          if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
                     .from('packages')
@@ -1127,27 +1127,35 @@ async function completePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                // Ensure the excel copy is saved and UI updates after the save completes
                 await saveToExcel(packageData);
-                
+
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
                 await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
             await saveToExcel(packageData);
             addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
 
         // Reset and refresh
         currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
+
+        // Immediately refresh UI — prefer event-driven update, but call explicitly to be safe
+        if (typeof populatePackagesTable === 'function') {
+            await populatePackagesTable();
+        }
+        if (typeof populateShippingTable === 'function') {
+            await populateShippingTable();
+        }
         updateStorageIndicator();
 
     } catch (error) {
