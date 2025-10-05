@@ -1311,37 +1311,52 @@ const ExcelStorage = {
         }
     },
     
-    // Write to today's file
-    writeFile: async function(data) {
+   // Write to today's file
+writeFile: async function(data) {
+    try {
+        const fileName = this.getCurrentFileName();
+        const enhancedData = data.map(pkg => ({
+            ...pkg,
+            // Ensure all necessary fields are included
+            customer_name: pkg.customer_name || 'Bilinmeyen Müşteri',
+            customer_code: pkg.customer_code || '',
+            items_display: pkg.items ? 
+                (Array.isArray(pkg.items) ? 
+                    pkg.items.map(item => `${item.name}: ${item.qty} adet`).join(', ') :
+                    Object.entries(pkg.items).map(([product, quantity]) => 
+                        `${product}: ${quantity} adet`
+                    ).join(', ')
+                ) : 'Ürün bilgisi yok',
+            export_timestamp: new Date().toISOString()
+        }));
+
+        // Persist daily file
+        localStorage.setItem(fileName, JSON.stringify(enhancedData));
+        // Also update the canonical current active file reference
+        localStorage.setItem('excelPackages_current', fileName);
+
+        // IMPORTANT: update the in-memory cache so the rest of app sees the new data
         try {
-            const fileName = this.getCurrentFileName();
-            const enhancedData = data.map(pkg => ({
-                ...pkg,
-                // Ensure all necessary fields are included
-                customer_name: pkg.customer_name || 'Bilinmeyen Müşteri',
-                customer_code: pkg.customer_code || '',
-                items_display: pkg.items ? 
-                    (Array.isArray(pkg.items) ? 
-                        pkg.items.map(item => `${item.name}: ${item.qty} adet`).join(', ') :
-                        Object.entries(pkg.items).map(([product, quantity]) => 
-                            `${product}: ${quantity} adet`
-                        ).join(', ')
-                    ) : 'Ürün bilgisi yok',
-                export_timestamp: new Date().toISOString()
-            }));
-            
-            localStorage.setItem(fileName, JSON.stringify(enhancedData));
-            
-            // Also update the current active file reference
-            localStorage.setItem('excelPackages_current', fileName);
-            
-            console.log(`💾 Saved ${enhancedData.length} records to ${fileName}`);
-            return true;
-        } catch (error) {
-            console.error('Excel write error:', error);
-            return false;
+            window.excelPackages = enhancedData;
+        } catch (e) {
+            console.warn('Could not set global excelPackages', e);
         }
-    },
+
+        // Dispatch event so UI modules can react immediately
+        try {
+            const evDetail = { fileName, count: enhancedData.length, source: 'ExcelStorage.writeFile' };
+            window.dispatchEvent(new CustomEvent('excelDataChanged', { detail: evDetail }));
+        } catch (e) {
+            console.warn('Failed to dispatch excelDataChanged event', e);
+        }
+
+        console.log(`💾 Saved ${enhancedData.length} records to ${fileName}`);
+        return true;
+    } catch (error) {
+        console.error('Excel write error:', error);
+        return false;
+    }
+},
     
     // Export daily file to downloadable format
 exportDailyFile: function(dateString) {
@@ -1430,26 +1445,26 @@ convertToCSV: function(data) {
 };
 
 // Excel.js library (simple implementation) - Enhanced with ExcelStorage functionality
+// Ensure ExcelJS.writeFile awaits ExcelStorage
 const ExcelJS = {
     readFile: async function() {
         try {
-            // Use the enhanced daily file system
             return await ExcelStorage.readFile();
         } catch (error) {
             console.error('Excel read error:', error);
             return [];
         }
     },
-    
+
     writeFile: async function(data) {
         try {
-            // Use the enhanced daily file system
             return await ExcelStorage.writeFile(data);
         } catch (error) {
             console.error('Excel write error:', error);
             return false;
         }
     },
+
     
    // Simple XLSX format simulation
 toExcelFormat: function(packages) {
@@ -1875,51 +1890,57 @@ async function initializeExcelStorage() {
     }
 }
 
-// REPLACE the existing saveToExcel function with this:
+// --- Inside supabase working(31).js ---
+// Replace/augment saveToExcel with the following version (keeps your logic, but dispatches event reliably):
+
 async function saveToExcel(packageData) {
     try {
-        // Enhanced package data with customer and product info
         const enhancedPackageData = {
             ...packageData,
-            // Ensure customer info is included
             customer_name: packageData.customer_name || selectedCustomer?.name || 'Bilinmeyen Müşteri',
             customer_code: selectedCustomer?.code || '',
-            // Ensure product/items info is properly formatted
             items: packageData.items || currentPackage.items || {},
-            // Add date info for daily file management
-            excel_export_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-            // Convert items to readable string for Excel
+            excel_export_date: new Date().toISOString().split('T')[0],
             items_display: packageData.items ? 
                 Object.entries(packageData.items).map(([product, quantity]) => 
                     `${product}: ${quantity} adet`
                 ).join(', ') : 'Ürün bilgisi yok',
-            // Add workspace info
             workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default',
             station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
         };
-        
+
         // Read current daily file
         const currentPackages = await ExcelJS.readFile();
-        
-        // Yeni paketi ekle veya güncelle
+
+        // Add or update
         const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
         if (existingIndex >= 0) {
             currentPackages[existingIndex] = enhancedPackageData;
         } else {
             currentPackages.push(enhancedPackageData);
         }
-        
-        // Save to daily file
+
+        // Save to daily file (await it)
         const success = await ExcelJS.writeFile(currentPackages);
-        
+
         if (success) {
-            // Global excelPackages değişkenini güncelle
-            excelPackages = currentPackages;
+            // Update the global variable (redundant with ExcelStorage but safe)
+            window.excelPackages = currentPackages;
             console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
+
+            // Fire event so UI will refresh immediately
+            try {
+                window.dispatchEvent(new CustomEvent('excelDataChanged', {
+                    detail: { packageId: enhancedPackageData.id, action: 'save', source: 'saveToExcel' }
+                }));
+            } catch (e) {
+                console.warn('excelDataChanged dispatch failed in saveToExcel', e);
+            }
+
             return true;
         }
         return false;
-        
+
     } catch (error) {
         console.error('Save to Excel error:', error);
         return false;
@@ -5683,3 +5704,30 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
+
+
+
+// --- Add a global listener so UI refreshes when the Excel daily file changes ---
+window.addEventListener('excelDataChanged', async (e) => {
+    try {
+        console.log('📣 excelDataChanged event received', e?.detail || {});
+        // Update storage indicator (if exists)
+        if (typeof updateStorageIndicator === 'function') {
+            try { updateStorageIndicator(); } catch (er) { console.warn('updateStorageIndicator failed', er); }
+        }
+
+        // Refresh the tables that depend on Excel in-memory data
+        if (typeof populatePackagesTable === 'function') {
+            try { await populatePackagesTable(); } catch (er) { console.warn('populatePackagesTable failed', er); }
+        }
+        if (typeof populateShippingTable === 'function') {
+            try { await populateShippingTable(); } catch (er) { console.warn('populateShippingTable failed', er); }
+        }
+        if (typeof populateStockTable === 'function') {
+            try { await populateStockTable(); } catch (er) { console.warn('populateStockTable failed', er); }
+        }
+
+    } catch (error) {
+        console.error('Error handling excelDataChanged event:', error);
+    }
+});
