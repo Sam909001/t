@@ -837,27 +837,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Save credentials securely if checked
-    loginBtn.addEventListener("click", async () => {
-        console.log("🔐 Manual login clicked");
-        const email = emailInput.value.trim();
-        const password = passwordInput.value.trim();
+   // Save credentials securely if checked - FIXED
+loginBtn.addEventListener("click", async () => {
+    console.log("🔐 Manual login clicked");
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
 
-        if (rememberCheckbox.checked && email && password) {
-            console.log("💾 Saving credentials to localStorage");
-            const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
-            const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+    if (rememberCheckbox.checked && email && password) {
+        console.log("💾 Saving credentials to localStorage");
+        const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
+        const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
 
-            localStorage.setItem("savedEmail", encEmail);
-            localStorage.setItem("savedPassword", encPassword);
-            localStorage.setItem("rememberMe", "true");
-        } else {
-            console.log("🗑️ Clearing saved credentials");
-            clearSavedCredentials();
-        }
+        localStorage.setItem("savedEmail", encEmail);
+        localStorage.setItem("savedPassword", encPassword);
+        localStorage.setItem("rememberMe", "true");
+    } else {
+        console.log("🗑️ Clearing saved credentials");
+        clearSavedCredentials();
+    }
 
-        // Perform actual login
+    // Call the main login function WITHOUT parameters so it reads from input fields
+    if (typeof login === 'function') {
+        console.log("✅ Calling main login function");
+        await login(); // ← No parameters!
+    } else {
+        console.error("❌ Main login function not found");
+        // Fallback to performLogin
         await performLogin(email, password);
-    });
+    }
+});
 
     // 🟢 Fast Login click handler
     fastLoginBtn.addEventListener("click", async () => {
