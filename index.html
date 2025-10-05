@@ -772,8 +772,10 @@ function getCustomEventListeners(element) {
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
-<script>
-// Secure Remember Me + Fast Login
+
+
+            <script>
+// Secure Remember Me + Fast Login - DEBUG VERSION
 document.addEventListener("DOMContentLoaded", () => {
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
@@ -783,18 +785,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const SECRET_KEY = "ProCleanAutoSecureKey2025";
 
+    console.log("🔄 Remember Me system initializing...");
+
     // Load saved encrypted credentials
     const encryptedEmail = localStorage.getItem("savedEmail");
     const encryptedPassword = localStorage.getItem("savedPassword");
     const remember = localStorage.getItem("rememberMe") === "true";
+
+    console.log("📦 Saved credentials found:", {
+        encryptedEmail: !!encryptedEmail,
+        encryptedPassword: !!encryptedPassword,
+        remember: remember
+    });
 
     let decryptedEmail = "";
     let decryptedPassword = "";
 
     if (remember && encryptedEmail && encryptedPassword) {
         try {
+            console.log("🔓 Attempting to decrypt credentials...");
             decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, SECRET_KEY).toString(CryptoJS.enc.Utf8);
             decryptedPassword = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+
+            console.log("🔍 Decrypted credentials:", {
+                email: decryptedEmail ? "***" + decryptedEmail.substring(5) : "empty",
+                password: decryptedPassword ? "***" + decryptedPassword.substring(5) : "empty"
+            });
 
             // Validate decrypted values
             if (decryptedEmail && decryptedPassword) {
@@ -805,25 +821,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // ✅ Show Fast Login button ONLY if we have valid credentials
                 fastLoginBtn.style.display = "inline-block";
+                console.log("✅ Fast login button ENABLED");
             } else {
-                // Clear invalid credentials
+                console.log("❌ Invalid decrypted credentials");
                 clearSavedCredentials();
             }
         } catch (err) {
-            console.error("Decryption error:", err);
+            console.error("❌ Decryption error:", err);
             clearSavedCredentials();
         }
     } else {
         // Hide fast login if no saved credentials
         fastLoginBtn.style.display = "none";
+        console.log("❌ No saved credentials found, fast login disabled");
     }
 
-    // Save credentials securely if checked - FIXED
+    // Save credentials securely if checked
     loginBtn.addEventListener("click", async () => {
+        console.log("🔐 Manual login clicked");
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
 
         if (rememberCheckbox.checked && email && password) {
+            console.log("💾 Saving credentials to localStorage");
             const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
             const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
 
@@ -831,6 +851,7 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.setItem("savedPassword", encPassword);
             localStorage.setItem("rememberMe", "true");
         } else {
+            console.log("🗑️ Clearing saved credentials");
             clearSavedCredentials();
         }
 
@@ -838,40 +859,51 @@ document.addEventListener("DOMContentLoaded", () => {
         await performLogin(email, password);
     });
 
-    // 🟢 Fast Login click handler - FIXED
+    // 🟢 Fast Login click handler
     fastLoginBtn.addEventListener("click", async () => {
+        console.log("🚀 Fast login button CLICKED");
+        console.log("🔍 Current decrypted values:", {
+            email: decryptedEmail ? "***" + decryptedEmail.substring(5) : "empty",
+            password: decryptedPassword ? "***" + decryptedPassword.substring(5) : "empty"
+        });
+
         if (!decryptedEmail || !decryptedPassword) {
+            console.log("❌ No decrypted credentials available");
             showAlert("Kayıtlı giriş bilgisi bulunamadı!", "error");
             clearSavedCredentials();
             fastLoginBtn.style.display = "none";
             return;
         }
 
-        console.log("🚀 Fast login with saved credentials:", decryptedEmail);
+        console.log("🎯 Attempting fast login with:", decryptedEmail);
         await performLogin(decryptedEmail, decryptedPassword);
     });
 
     // Clear saved credentials function
     function clearSavedCredentials() {
+        console.log("🧹 Clearing saved credentials");
         localStorage.removeItem("savedEmail");
         localStorage.removeItem("savedPassword");
         localStorage.setItem("rememberMe", "false");
         fastLoginBtn.style.display = "none";
+        decryptedEmail = "";
+        decryptedPassword = "";
     }
 
-    // REAL login logic - REPLACE with your actual login function
+    // REAL login logic
     async function performLogin(email, password) {
+        console.log("🔐 performLogin called with:", email);
         showAlert("Giriş yapılıyor...", "info");
 
         try {
-            // Use your existing login function from auth.js
+            // Check if your auth.js login function exists
             if (typeof login === 'function') {
+                console.log("✅ Using auth.js login function");
                 await login(email, password);
             } else {
-                // Fallback if login function doesn't exist
-                console.log("Login function not found, using fallback");
+                console.log("❌ auth.js login function not found, using fallback");
                 
-                // Simulate successful login
+                // Fallback login simulation
                 showAlert(`Hoşgeldiniz, ${email}`, "success");
                 
                 // Hide login screen and show app
@@ -879,17 +911,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById('appContainer').style.display = 'block';
                 document.getElementById('appContainer').setAttribute('aria-hidden', 'false');
                 
-                // Initialize app
+                console.log("✅ Login successful - app should be visible now");
+                
+                // Initialize app if function exists
                 if (typeof initializeApp === 'function') {
+                    console.log("🔄 Initializing app...");
                     initializeApp();
                 }
             }
         } catch (error) {
-            console.error("Login error:", error);
+            console.error("❌ Login error:", error);
             showAlert("Giriş başarısız! Lütfen bilgilerinizi kontrol edin.", "error");
             
             // Clear invalid credentials on failed login
             if (email === decryptedEmail) {
+                console.log("🗑️ Clearing invalid saved credentials");
                 clearSavedCredentials();
                 emailInput.value = '';
                 passwordInput.value = '';
@@ -899,12 +935,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Also hide fast login button when user manually changes credentials
     emailInput.addEventListener('input', () => {
+        console.log("📝 Email changed manually, hiding fast login");
         fastLoginBtn.style.display = 'none';
+        decryptedEmail = ""; // Clear the stored value
     });
     
     passwordInput.addEventListener('input', () => {
+        console.log("📝 Password changed manually, hiding fast login");
         fastLoginBtn.style.display = 'none';
+        decryptedPassword = ""; // Clear the stored value
     });
+
+    console.log("✅ Remember Me system initialized");
 });
 </script>
 </body>
