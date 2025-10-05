@@ -767,5 +767,41 @@ function getCustomEventListeners(element) {
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
+            <script>
+// Remember me feature for Electron & Web
+document.addEventListener("DOMContentLoaded", () => {
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const rememberCheckbox = document.getElementById("rememberMe");
+    const loginBtn = document.getElementById("loginBtn");
+
+    // Load saved credentials
+    const savedEmail = localStorage.getItem("savedEmail");
+    const savedPassword = localStorage.getItem("savedPassword");
+    const remember = localStorage.getItem("rememberMe") === "true";
+
+    if (remember && savedEmail && savedPassword) {
+        emailInput.value = savedEmail;
+        passwordInput.value = savedPassword;
+        rememberCheckbox.checked = true;
+    }
+
+    // Save credentials if checked on login
+    loginBtn.addEventListener("click", () => {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value.trim();
+
+        if (rememberCheckbox.checked) {
+            localStorage.setItem("savedEmail", email);
+            localStorage.setItem("savedPassword", password);
+            localStorage.setItem("rememberMe", "true");
+        } else {
+            localStorage.removeItem("savedEmail");
+            localStorage.removeItem("savedPassword");
+            localStorage.setItem("rememberMe", "false");
+        }
+    });
+});
+</script>
 </body>
 </html>
