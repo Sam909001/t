@@ -773,7 +773,7 @@ console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
 
             
-        <script>
+<script>
 // Secure Remember Me + Fast Login
 document.addEventListener("DOMContentLoaded", () => {
     const emailInput = document.getElementById("email");
@@ -835,25 +835,28 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // If you already have a login() or auth function, call it here:
         console.log("🚀 Fast login with saved credentials:", decryptedEmail);
 
         // Example placeholder (replace with your real login logic)
         await performLogin(decryptedEmail, decryptedPassword);
     });
 
-    // Example login logic (you can replace with your real login code)
+    // Example login logic (replace with your real login code)
     async function performLogin(email, password) {
         showAlert("Giriş yapılıyor...", "info");
 
         // Simulate async login
-       etTimeout(() => {
-    showAlert(`Hoşgeldiniz, ${email}`, "success");
-    const modal = document.getElementById("loginModal");
-    if (modal) modal.style.display = "none";
-   }, 800);
+        setTimeout(() => {
+            showAlert(`Hoşgeldiniz, ${email}`, "success");
+
+            // ✅ Option 1 fix (safe modal closing)
+            const modal = document.getElementById("loginModal");
+            if (modal) modal.style.display = "none";
+        }, 800);
+    }
 });
 </script>
+
 
 
 </body>
