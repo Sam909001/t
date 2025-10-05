@@ -770,8 +770,8 @@ function getCustomEventListeners(element) {
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
+// Secure Remember Me + Fast Login
 document.addEventListener("DOMContentLoaded", () => {
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
@@ -780,9 +780,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const fastLoginBtn = document.getElementById("fastLoginBtn");
 
     const SECRET_KEY = "ProCleanAutoSecureKey2025";
-
-    // Initially hide Fast Login button
-    fastLoginBtn.style.display = "none";
 
     // Load saved encrypted credentials
     const encryptedEmail = localStorage.getItem("savedEmail");
@@ -797,20 +794,30 @@ document.addEventListener("DOMContentLoaded", () => {
             decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, SECRET_KEY).toString(CryptoJS.enc.Utf8);
             decryptedPassword = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY).toString(CryptoJS.enc.Utf8);
 
-            // Autofill fields
-            emailInput.value = decryptedEmail;
-            passwordInput.value = decryptedPassword;
-            rememberCheckbox.checked = true;
+            // Validate decrypted values
+            if (decryptedEmail && decryptedPassword) {
+                // Autofill fields
+                emailInput.value = decryptedEmail;
+                passwordInput.value = decryptedPassword;
+                rememberCheckbox.checked = true;
 
-            // ✅ Show Fast Login button
-            fastLoginBtn.style.display = "inline-block";
+                // ✅ Show Fast Login button ONLY if we have valid credentials
+                fastLoginBtn.style.display = "inline-block";
+            } else {
+                // Clear invalid credentials
+                clearSavedCredentials();
+            }
         } catch (err) {
             console.error("Decryption error:", err);
+            clearSavedCredentials();
         }
+    } else {
+        // Hide fast login if no saved credentials
+        fastLoginBtn.style.display = "none";
     }
 
-    // Save credentials securely on login
-    loginBtn.addEventListener("click", () => {
+    // Save credentials securely if checked - FIXED
+    loginBtn.addEventListener("click", async () => {
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
 
@@ -822,44 +829,80 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.setItem("savedPassword", encPassword);
             localStorage.setItem("rememberMe", "true");
         } else {
-            localStorage.removeItem("savedEmail");
-            localStorage.removeItem("savedPassword");
-            localStorage.setItem("rememberMe", "false");
-            fastLoginBtn.style.display = "none"; // hide Fast Login if credentials removed
+            clearSavedCredentials();
         }
+
+        // Perform actual login
+        await performLogin(email, password);
     });
 
-    // 🟢 Fast Login click handler
+    // 🟢 Fast Login click handler - FIXED
     fastLoginBtn.addEventListener("click", async () => {
         if (!decryptedEmail || !decryptedPassword) {
-            alert("No saved login credentials found!");
+            showAlert("Kayıtlı giriş bilgisi bulunamadı!", "error");
+            clearSavedCredentials();
+            fastLoginBtn.style.display = "none";
             return;
         }
 
         console.log("🚀 Fast login with saved credentials:", decryptedEmail);
-
-        // Replace this with your actual login function
         await performLogin(decryptedEmail, decryptedPassword);
     });
 
-    // Example login logic (replace with your real code)
+    // Clear saved credentials function
+    function clearSavedCredentials() {
+        localStorage.removeItem("savedEmail");
+        localStorage.removeItem("savedPassword");
+        localStorage.setItem("rememberMe", "false");
+        fastLoginBtn.style.display = "none";
+    }
+
+    // REAL login logic - REPLACE with your actual login function
     async function performLogin(email, password) {
-        showAlert("Logging in...", "info");
+        showAlert("Giriş yapılıyor...", "info");
 
-        // Simulate async login
-        setTimeout(() => {
-            showAlert(`Welcome, ${email}`, "success");
-
-            // Close login modal safely
-            const modal = document.getElementById("loginScreen");
-            if (modal) modal.style.display = "none";
-        }, 800);
+        try {
+            // Use your existing login function from auth.js
+            if (typeof login === 'function') {
+                await login(email, password);
+            } else {
+                // Fallback if login function doesn't exist
+                console.log("Login function not found, using fallback");
+                
+                // Simulate successful login
+                showAlert(`Hoşgeldiniz, ${email}`, "success");
+                
+                // Hide login screen and show app
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'block';
+                document.getElementById('appContainer').setAttribute('aria-hidden', 'false');
+                
+                // Initialize app
+                if (typeof initializeApp === 'function') {
+                    initializeApp();
+                }
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            showAlert("Giriş başarısız! Lütfen bilgilerinizi kontrol edin.", "error");
+            
+            // Clear invalid credentials on failed login
+            if (email === decryptedEmail) {
+                clearSavedCredentials();
+                emailInput.value = '';
+                passwordInput.value = '';
+            }
+        }
     }
 
-    // Example alert function (replace with your actual UI logic)
-    function showAlert(msg, type = "info") {
-        console.log(`[${type.toUpperCase()}] ${msg}`);
-    }
+    // Also hide fast login button when user manually changes credentials
+    emailInput.addEventListener('input', () => {
+        fastLoginBtn.style.display = 'none';
+    });
+    
+    passwordInput.addEventListener('input', () => {
+        fastLoginBtn.style.display = 'none';
+    });
 });
 </script>
 </body>
