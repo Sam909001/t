@@ -143,32 +143,63 @@ async function logoutWithConfirmation() {
         const currentPackages = await ExcelJS.readFile();
         
         if (currentPackages.length > 0) {
-            // Upload to Supabase using professional export
-            await uploadExcelToSupabase(currentPackages);
+            // First: try to upload to Supabase
+            const uploadedToServer = await uploadExcelToSupabase(currentPackages);
+            if (uploadedToServer) {
+                // Notify server upload success
+                showAlert('Excel dosyası servere yüklendi.', 'success');
+            } else {
+                showAlert('Excel dosyası servere yüklenemedi.', 'error');
+            }
 
-            // Send to Main PC (browser download as fallback)
-            await sendExcelToMainPC(currentPackages);
-            
-            // LocalStorage backup
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const reportData = {
-                fileName: `rapor_${timestamp}.json`,
-                date: new Date().toISOString(),
-                packages: currentPackages,
-                packageCount: currentPackages.length,
-                totalQuantity: currentPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
-            };
-            
-            localStorage.setItem(`report_${timestamp}`, JSON.stringify(reportData));
+            // Second: try to send to main PC (network)
+            const sentToMainPC = await sendExcelToMainPC(currentPackages);
+            if (sentToMainPC) {
+                showAlert('Excel dosyası ana bilgisayara gönderildi.', 'success');
+            } else {
+                showAlert('Excel dosyası ana bilgisayara gönderilemedi. Manuel taşıma gerekli.', 'warning');
+            }
 
-            // Clear local Excel
-            await ExcelJS.writeFile([]);
-            excelPackages = [];
+            // If both actions succeeded, clear local Excel file
+            if (uploadedToServer && sentToMainPC) {
+                showAlert('Dosyalar temizleniyor ve çıkış yapılıyor.', 'info');
+                
+                // LocalStorage backup (still keep a time-stamped backup)
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const reportData = {
+                    fileName: `rapor_${timestamp}.json`,
+                    date: new Date().toISOString(),
+                    packages: currentPackages,
+                    packageCount: currentPackages.length,
+                    totalQuantity: currentPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
+                };
+                localStorage.setItem(`report_${timestamp}`, JSON.stringify(reportData));
 
-            showAlert("Excel dosyası başarıyla yedeklendi ve raporlara taşındı", "success");
+                // Clear local Excel
+                await ExcelJS.writeFile([]);
+                excelPackages = [];
+
+                showAlert('Yerel Excel dosyaları temizlendi.', 'success');
+            } else {
+                // At least preserve a backup; do NOT delete files if either action failed
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const reportData = {
+                    fileName: `rapor_backup_${timestamp}.json`,
+                    date: new Date().toISOString(),
+                    packages: currentPackages,
+                    packageCount: currentPackages.length,
+                    totalQuantity: currentPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0),
+                    uploadedToServer,
+                    sentToMainPC
+                };
+                localStorage.setItem(`report_backup_${timestamp}`, JSON.stringify(reportData));
+                showAlert('Dosyalar yerel olarak yedeklendi; otomatik silme yapılmadı.', 'warning');
+            }
+        } else {
+            showAlert('Yedeklenecek Excel verisi bulunamadı.', 'info');
         }
 
-        // Perform logout
+        // Perform logout after attempting above actions
         await performLogout();
 
     } catch (error) {
@@ -219,6 +250,7 @@ async function uploadExcelToSupabase(packages) {
         const fileName = `backup_${timestamp}.csv`;
 
         // Upload to Supabase storage
+        // Use upsert behavior: if file exists, overwrite (some clients use upsert flag)
         const { data, error } = await supabase.storage
             .from('reports') // Make sure this bucket exists!
             .upload(fileName, blob);
@@ -227,7 +259,11 @@ async function uploadExcelToSupabase(packages) {
             console.error("Supabase storage upload error:", error);
             
             // Fallback: Try to insert as records in a table
-            await uploadAsDatabaseRecords(packages, timestamp);
+            const dbResult = await uploadAsDatabaseRecords(packages, timestamp);
+            if (dbResult) {
+                showAlert('Excel dosyası veritabanına yedeklendi (fallback).', 'info');
+                return true;
+            }
             return false;
         }
 
@@ -267,11 +303,10 @@ async function uploadAsDatabaseRecords(packages, timestamp) {
     }
 }
 
-// Fixed: Send Excel file to Main PC via Electron network share
-// Fixed: Send Excel file to Main PC via Electron network share
+// Fixed: Send Excel file to Main PC via Electron network share, WebDAV, backend or fallback to download
 async function sendExcelToMainPC(packages) {
     try {
-        // Create the Excel data
+        // Create the Excel data (professional)
         const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
         
         if (!excelData || excelData.length === 0) {
@@ -282,35 +317,51 @@ async function sendExcelToMainPC(packages) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const fileName = `ProClean_Rapor_${timestamp}.xlsx`;
 
-        // Try Electron network save first
+        // 1) Try Electron network save first
         if (window.electronAPI) {
-            console.log('🔄 Attempting network save via Electron...');
-            const result = await window.electronAPI.saveExcelToNetwork(excelData, fileName);
-            
-            if (result.success) {
-                console.log('✅ Excel file sent to network share via Electron');
-                showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
-                return true;
-            } else {
-                console.log('❌ Network save failed, trying local save...');
+            try {
+                console.log('🔄 Attempting network save via Electron...');
+                const result = await window.electronAPI.saveExcelToNetwork(excelData, fileName);
                 
-                // Fallback: Save locally and show instructions
-                const localResult = await window.electronAPI.saveExcelLocal(excelData, fileName);
-                if (localResult.success) {
-                    showAlert(`Excel dosyası kaydedildi: ${localResult.path}`, 'info');
-                    showNetworkShareInstructions(localResult.path);
+                if (result && result.success) {
+                    console.log('✅ Excel file sent to network share via Electron');
+                    showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
+                    return true;
                 } else {
-                    showNetworkShareInstructions();
+                    console.log('❌ Electron network save failed or returned false, trying fallback methods...');
                 }
-                return false;
+            } catch (e) {
+                console.warn('Electron network save exception:', e);
             }
-        } else {
-            // Not in Electron - use browser download
-            console.log('🌐 Not in Electron, using browser download');
-            ProfessionalExcelExport.exportToProfessionalExcel(packages, fileName);
-            showNetworkShareInstructions();
-            return false;
         }
+
+        // 2) Try WebDAV attempts (if some WebDAV service exposes the share)
+        try {
+            const webdavOk = await sendViaWebDAV(excelData, packages);
+            if (webdavOk) {
+                // sendViaWebDAV already shows success alert
+                return true;
+            }
+        } catch (e) {
+            console.warn('WebDAV attempt failed:', e);
+        }
+
+        // 3) Try backend endpoint that can write to network share
+        try {
+            const fetchOk = await sendViaFetch(excelData, packages);
+            if (fetchOk) {
+                return true;
+            }
+        } catch (e) {
+            console.warn('Backend send attempt failed:', e);
+        }
+
+        // 4) Final fallback: Browser download (user must manually copy to share)
+        console.log('🌐 Not in Electron or remote save failed, using browser download');
+        ProfessionalExcelExport.exportToProfessionalExcel(packages, fileName);
+        showNetworkShareInstructions();
+        showAlert('Excel dosyası indirildi; lütfen ana bilgisayara manuel olarak taşıyın.', 'warning');
+        return false;
         
     } catch (err) {
         console.error("Main PC transfer error:", err);
@@ -319,6 +370,7 @@ async function sendExcelToMainPC(packages) {
         return false;
     }
 }
+
 // Method 1: WebDAV approach for Windows shares
 async function sendViaWebDAV(excelData, packages) {
     try {
@@ -344,12 +396,10 @@ async function sendViaWebDAV(excelData, packages) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const fileName = `ProClean_Rapor_${timestamp}.csv`;
         
-        // WebDAV URL format for Windows share
-        // Replace with your actual network path
+        // WebDAV URL format for Windows share - replace with correct reachable URLs
         const webdavUrls = [
             `http://MAIN-PC/SharedReports/${fileName}`,
-            `http://192.168.1.100/SharedReports/${fileName}`, // Use actual IP
-            `file://///MAIN-PC/SharedReports/${fileName}`
+            `http://192.168.1.100/SharedReports/${fileName}`
         ];
 
         for (const url of webdavUrls) {
@@ -366,7 +416,7 @@ async function sendViaWebDAV(excelData, packages) {
 
                 if (response.ok) {
                     console.log("File sent to main PC via WebDAV:", url);
-                    showAlert(`Dosya ana bilgisayara gönderildi: ${fileName}`, 'success');
+                    showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
                     return true;
                 }
             } catch (e) {
@@ -381,7 +431,7 @@ async function sendViaWebDAV(excelData, packages) {
     }
 }
 
-// Method 2: Fetch API with authentication
+// Method 2: Fetch API with authentication (backend-assisted)
 async function sendViaFetch(excelData, packages) {
     try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -405,7 +455,7 @@ async function sendViaFetch(excelData, packages) {
         if (response.ok) {
             const result = await response.json();
             console.log("File sent via backend API:", result);
-            showAlert(`Dosya ana bilgisayara gönderildi: ${fileName}`, 'success');
+            showAlert(`Excel dosyası ana bilgisayara gönderildi: ${fileName}`, 'success');
             return true;
         }
         
@@ -416,8 +466,7 @@ async function sendViaFetch(excelData, packages) {
     }
 }
 
-// Method 3: Show instructions for manual network share setup
-// Enhanced network instructions
+// Method 3: Show instructions for manual network share setup (unchanged)
 function showNetworkShareInstructions(filePath = null) {
     const instructions = filePath ? `
         AĞ PAYLAŞIMINA MANUEL TAŞIMA GEREKİYOR
@@ -477,7 +526,7 @@ async function downloadExcelForManualTransfer() {
     }
 }
 
-// Simplified and more reliable performLogout
+// Simplified and more reliable performLogout (unchanged)
 async function performLogout() {
     console.log('🔧 performLogout called');
     
