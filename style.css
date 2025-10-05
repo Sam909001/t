@@ -2128,3 +2128,58 @@ body.modal-open {
         color: #f1f1f1;
     }
 }
+
+
+
+
+/* Station List Styles */
+.station-list-container {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    background: #f9f9f9;
+    margin-bottom: 1rem;
+}
+
+.station-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.station-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
+}
+
+.station-item:hover {
+    background-color: #f0f0f0;
+}
+
+.station-item:last-child {
+    border-bottom: none;
+}
+
+.station-name {
+    font-weight: 500;
+}
+
+.select-station-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.select-station-btn:hover {
+    background: #218838;
+}
