@@ -3327,54 +3327,149 @@ function updateContainerSelection() {
 
 // ==================== REAL DATA COLLECTION FUNCTIONS ====================
 
-// ✅ FUNCTION: Get all packages (real data only)
+// ✅ FUNCTION: Get all packages (real data only) - MODIFIED VERSION
 async function getAllPackages() {
     try {
-        // Try multiple sources for REAL data
+        console.log('📦 getAllPackages() called - searching for package data...');
+        
+        // 1. First check if we already have packages in memory
         if (window.packages && Array.isArray(window.packages) && window.packages.length > 0) {
+            console.log(`✅ Found ${window.packages.length} packages in window.packages`);
             return window.packages;
         }
         
-        // Try to get from Excel data (real packages)
+        let foundPackages = [];
+        
+        // 2. Try to get from Excel data (real packages)
         try {
-            const excelPackages = await ExcelJS.readFile();
-            if (excelPackages && excelPackages.length > 0) {
-                return excelPackages;
+            console.log('🔍 Searching Excel for packages...');
+            if (typeof ExcelJS !== 'undefined' && typeof ExcelJS.readFile === 'function') {
+                const excelPackages = await ExcelJS.readFile();
+                if (excelPackages && Array.isArray(excelPackages) && excelPackages.length > 0) {
+                    console.log(`✅ Found ${excelPackages.length} packages in Excel`);
+                    foundPackages = excelPackages;
+                } else {
+                    console.log('ℹ️ Excel file exists but contains no packages or empty array');
+                }
+            } else {
+                console.log('ℹ️ ExcelJS not available');
             }
         } catch (excelError) {
-            console.log('No Excel packages found:', excelError);
+            console.log('❌ Excel read error:', excelError.message);
         }
         
-        // Try localStorage
-        const localData = localStorage.getItem('proclean_packages') || 
-                         localStorage.getItem('packages') ||
-                         localStorage.getItem('excelData');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
+        // 3. If no Excel data, try localStorage with multiple keys
+        if (foundPackages.length === 0) {
+            console.log('🔍 Searching localStorage for packages...');
+            const storageKeys = [
+                'proclean_packages', 
+                'packages',
+                'excelData',
+                'excelPackages',
+                'proclean_excel_data',
+                'todays_packages'
+            ];
+            
+            for (const key of storageKeys) {
+                try {
+                    const localData = localStorage.getItem(key);
+                    if (localData) {
+                        const parsed = JSON.parse(localData);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            console.log(`✅ Found ${parsed.length} packages in localStorage (key: ${key})`);
+                            foundPackages = parsed;
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    console.log(`❌ Error parsing localStorage key ${key}:`, e.message);
+                }
             }
         }
         
-        // Try Supabase if available
-        if (supabase && !isUsingExcel) {
-            const { data, error } = await supabase
-                .from('packages')
-                .select('*')
-                .order('created_at', { ascending: false });
-                
-            if (!error && data && data.length > 0) {
-                return data;
+        // 4. Try Supabase if available and online
+        if (foundPackages.length === 0 && supabase && navigator.onLine) {
+            try {
+                console.log('🔍 Searching Supabase for packages...');
+                const { data, error } = await supabase
+                    .from('packages')
+                    .select('*, customers(name, code)')
+                    .order('created_at', { ascending: false })
+                    .limit(1000); // Limit for safety
+                    
+                if (!error && data && data.length > 0) {
+                    console.log(`✅ Found ${data.length} packages in Supabase`);
+                    foundPackages = data;
+                    
+                    // Cache in memory for future use
+                    window.packages = data;
+                } else if (error) {
+                    console.log('❌ Supabase error:', error.message);
+                }
+            } catch (supabaseError) {
+                console.log('❌ Supabase connection error:', supabaseError.message);
             }
         }
         
-        console.log('❌ No real packages found, returning empty array');
-        return []; // Return empty instead of sample data
+        // 5. Final fallback - check if we have any packages in current session
+        if (foundPackages.length === 0) {
+            // Check for packages created in current session but not saved yet
+            const currentSessionPackages = getCurrentSessionPackages();
+            if (currentSessionPackages.length > 0) {
+                console.log(`✅ Found ${currentSessionPackages.length} packages in current session`);
+                foundPackages = currentSessionPackages;
+            }
+        }
+        
+        // 6. If still no data, provide helpful empty state
+        if (foundPackages.length === 0) {
+            console.log('ℹ️ No package data found in any source. Application will start fresh.');
+            
+            // Create a helpful empty state message for UI
+            foundPackages = []; // Return empty array
+            
+            // You can optionally add a sample package for demonstration:
+            // foundPackages = getSamplePackagesForDemo();
+        } else {
+            // Cache the found packages in memory
+            window.packages = foundPackages;
+        }
+        
+        console.log(`📦 getAllPackages() returning ${foundPackages.length} packages`);
+        return foundPackages;
         
     } catch (error) {
-        console.error('Error in getAllPackages:', error);
-        return []; // Return empty instead of sample data
+        console.error('❌ Critical error in getAllPackages:', error);
+        
+        // Emergency fallback - return empty array but log extensively
+        showAlert('Paket verileri yüklenirken hata oluştu, boş liste döndürülüyor', 'warning');
+        return [];
+    }
+}
+
+// Helper function to get packages from current session
+function getCurrentSessionPackages() {
+    try {
+        const sessionPackages = [];
+        
+        // Check if we have any packages in the current package builder
+        if (currentPackage && currentPackage.items && Object.keys(currentPackage.items).length > 0) {
+            sessionPackages.push({
+                id: 'current-session-' + Date.now(),
+                package_no: 'YENI-PAKET',
+                customer_name: selectedCustomer?.name || 'Müşteri Seçilmedi',
+                items: currentPackage.items,
+                total_quantity: Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0),
+                status: 'taslak',
+                created_at: new Date().toISOString(),
+                is_draft: true
+            });
+        }
+        
+        return sessionPackages;
+    } catch (error) {
+        console.error('Error getting session packages:', error);
+        return [];
     }
 }
 
@@ -3873,3 +3968,36 @@ window.getAllReports = getAllReports;
 window.getProductType = getProductType;
 
 console.log('✅ Fixed data collection functions loaded - No fake data');
+
+
+
+
+// Debug function to check all data sources
+async function debugDataSources() {
+    console.log('=== DATA SOURCES DEBUG ===');
+    
+    // Check Excel
+    try {
+        const excelData = await ExcelJS.readFile();
+        console.log('Excel packages:', excelData?.length || 0);
+    } catch (e) {
+        console.log('Excel error:', e.message);
+    }
+    
+    // Check localStorage
+    const keys = ['proclean_packages', 'packages', 'excelData', 'excelPackages'];
+    keys.forEach(key => {
+        const data = localStorage.getItem(key);
+        console.log(`${key}:`, data ? JSON.parse(data).length : 'empty');
+    });
+    
+    // Check memory
+    console.log('window.packages:', window.packages?.length || 0);
+    
+    // Test the function
+    const result = await getAllPackages();
+    console.log('getAllPackages result:', result.length);
+}
+
+// Call this to test
+// debugDataSources();
