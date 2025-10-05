@@ -1330,9 +1330,7 @@ async function collectAllAppData() {
         customers: [],
         packages: [],
         containers: [],
-        stock: [],
         personnel: [],
-        reports: [],
         shipping: [],
         users: [],
         auditLogs: []
@@ -1385,24 +1383,6 @@ async function collectAllAppData() {
                 shipped_at: container.shipped_at
             }));
         }
-
-        // 5. Export Stock Items
-        const stockTable = document.getElementById('stockTableBody');
-        if (stockTable) {
-            const stockRows = Array.from(stockTable.querySelectorAll('tr'));
-            allData.stock = stockRows.map(tr => {
-                const tds = tr.querySelectorAll('td');
-                return {
-                    code: tds[0]?.textContent.trim(),
-                    name: tds[1]?.textContent.trim(),
-                    quantity: parseInt(tds[2]?.textContent) || 0,
-                    unit: tds[3]?.textContent.trim(),
-                    category: tds[4]?.textContent.trim(),
-                    critical_level: parseInt(tds[5]?.textContent) || 0
-                };
-            }).filter(item => item.code && item.name);
-        }
-
         // 6. Export Personnel
         const personnelSelect = document.getElementById('personnelSelect');
         if (personnelSelect) {
@@ -1451,18 +1431,6 @@ async function collectAllAppData() {
                     .limit(100); // Limit for safety
                 if (users) allData.users = users;
 
-                // Export reports data
-                const { data: reports } = await supabase
-                    .from('reports')
-                    .select('*')
-                    .limit(50);
-                if (reports) allData.reports = reports;
-
-            } catch (dbError) {
-                console.warn('Database export limited:', dbError);
-                allData.databaseExport = 'partial - some tables unavailable';
-            }
-        }
 
         // 10. Export UI State and Statistics
         allData.uiState = {
