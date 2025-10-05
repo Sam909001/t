@@ -20,8 +20,8 @@ let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
 
-// Canonical Excel-mode flag: single source of truth
-// Initialize as boolean if not present
+// Canonical Excel-mode flag — single source of truth for all modules.
+// Initialize as boolean if not present (do NOT redeclare `let isUsingExcel` elsewhere).
 window.isUsingExcel = window.isUsingExcel ?? false;
 
 // Excel local storage (workspace-scoped daily files)
