@@ -1,9 +1,10 @@
 // FIXED: Kullanıcı girişi
 let connectionTested = false; // Flag to prevent duplicate connection tests
 
-async function login() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
+async function login(emailParam = null, passwordParam = null) {
+    // Use parameters if provided, otherwise get from input fields
+    const email = emailParam || document.getElementById('email').value;
+    const password = passwordParam || document.getElementById('password').value;
 
     // ✅ Check if Supabase is initialized
     if (!supabase) {
@@ -11,12 +12,24 @@ async function login() {
         return;
     }
 
-    // Form doğrulama
-    if (!validateForm([
-        { id: 'email', errorId: 'emailError', type: 'email', required: true },
-        { id: 'password', errorId: 'passwordError', type: 'text', required: true }
-    ])) {
-        return;
+    // Form doğrulama - only validate if using input fields
+    if (!emailParam && !passwordParam) {
+        if (!validateForm([
+            { id: 'email', errorId: 'emailError', type: 'email', required: true },
+            { id: 'password', errorId: 'passwordError', type: 'text', required: true }
+        ])) {
+            return;
+        }
+    } else {
+        // Validate parameters directly
+        if (!email || !password) {
+            showAlert('E-posta ve şifre gereklidir', 'error');
+            return;
+        }
+        if (!isValidEmail(email)) {
+            showAlert('Geçerli bir e-posta adresi girin', 'error');
+            return;
+        }
     }
 
     const loginBtn = document.getElementById('loginBtn');
@@ -104,6 +117,11 @@ async function login() {
     }
 }
 
+// Add this helper function for email validation
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
 // Excel modunda devam et
 function proceedWithExcelMode() {
     isUsingExcel = true;
