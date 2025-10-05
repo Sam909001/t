@@ -1,8 +1,7 @@
 /// Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-// Use API key directly from script/localStorage. Replace 'REPLACE_WITH_YOUR_ANON_KEY' with your real anon key.
 // Prefer stored key in localStorage for deployments where you set it once:
-let SUPABASE_ANON_KEY = localStorage.getItem('procleanApiKey') || 'REPLACE_WITH_YOUR_ANON_KEY';
+let SUPABASE_ANON_KEY = localStorage.getItem('procleanApiKey') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
 let supabase = null;
 
 // Global state variables
