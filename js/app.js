@@ -1,11 +1,16 @@
-// Add this at the very start of your app, before any other initialization
+// Top-level global function
+function initializePrinter() {
+    console.log("Printer initialized");
+    // Optional: create a dummy printer object if not using a real printer yet
+    if (typeof printer === 'undefined') {
+        window.printer = { isConnected: true, serverUrl: 'Yerel Yazıcı' };
+    }
+}
+
 
 // ============================================
 // 1. STORAGE INITIALIZATION
 // ============================================
-
-// Load storage wrapper (include the storage.js file in your HTML first)
-// <script src="storage.js"></script>
 
 async function initializeApp() {
   console.log('🚀 Initializing app...');
@@ -140,15 +145,6 @@ async function initApp() {
         } else {
             console.log('🌐 Running in Web Browser environment');
             window.isElectronApp = false;
-        }
-
-
-       // === NEW: Initialize printer here ===
-        if (typeof initializePrinter === 'function') {
-            console.log('🔄 Initializing printer...');
-            initializePrinter();
-        } else {
-            console.warn('⚠️ initializePrinter function is not defined!');
         }
 
       
@@ -1644,6 +1640,7 @@ function checkPrinterStatus() {
     
     return printer.isConnected;
 }
+
 
 
 
