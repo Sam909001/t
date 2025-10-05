@@ -1311,41 +1311,47 @@ const ExcelStorage = {
         }
     },
     
-   // Write to today's file
+  // Write to today's file
 writeFile: async function(data) {
     try {
         const fileName = this.getCurrentFileName();
-        const enhancedData = data.map(pkg => ({
+        const enhancedData = (data || []).map(pkg => ({
             ...pkg,
-            // Ensure all necessary fields are included
             customer_name: pkg.customer_name || 'Bilinmeyen Müşteri',
             customer_code: pkg.customer_code || '',
             items_display: pkg.items ? 
                 (Array.isArray(pkg.items) ? 
                     pkg.items.map(item => `${item.name}: ${item.qty} adet`).join(', ') :
-                    Object.entries(pkg.items).map(([product, quantity]) => 
-                        `${product}: ${quantity} adet`
-                    ).join(', ')
-                ) : 'Ürün bilgisi yok',
+                    Object.entries(pkg.items).map(([product, quantity]) => `${product}: ${quantity} adet`).join(', ')
+                ) : (pkg.items_display || 'Ürün bilgisi yok'),
             export_timestamp: new Date().toISOString()
         }));
 
         // Persist daily file
         localStorage.setItem(fileName, JSON.stringify(enhancedData));
-        // Also update the canonical current active file reference
         localStorage.setItem('excelPackages_current', fileName);
 
-        // IMPORTANT: update the in-memory cache so the rest of app sees the new data
+        // Update in-memory cache so UI code reads newest data
         try {
             window.excelPackages = enhancedData;
         } catch (e) {
             console.warn('Could not set global excelPackages', e);
         }
 
-        // Dispatch event so UI modules can react immediately
+        // Also keep window.packages consistent when running in Excel mode
         try {
-            const evDetail = { fileName, count: enhancedData.length, source: 'ExcelStorage.writeFile' };
-            window.dispatchEvent(new CustomEvent('excelDataChanged', { detail: evDetail }));
+            if (!window.packages || window.isUsingExcel) {
+                window.packages = enhancedData.slice(); // clone
+            }
+        } catch (e) {
+            console.warn('Could not set window.packages', e);
+        }
+
+        // Dispatch event so UI can refresh immediately
+        try {
+            window.dispatchEvent(new CustomEvent('excelDataChanged', {
+                detail: { fileName, count: enhancedData.length, source: 'ExcelStorage.writeFile' }
+            }));
         } catch (e) {
             console.warn('Failed to dispatch excelDataChanged event', e);
         }
@@ -1891,28 +1897,25 @@ async function initializeExcelStorage() {
 }
 
 // --- Inside supabase working(31).js ---
-// Replace/augment saveToExcel with the following version (keeps your logic, but dispatches event reliably):
-
 async function saveToExcel(packageData) {
     try {
         const enhancedPackageData = {
             ...packageData,
             customer_name: packageData.customer_name || selectedCustomer?.name || 'Bilinmeyen Müşteri',
-            customer_code: selectedCustomer?.code || '',
+            customer_code: selectedCustomer?.code || packageData.customer_code || '',
             items: packageData.items || currentPackage.items || {},
             excel_export_date: new Date().toISOString().split('T')[0],
-            items_display: packageData.items ? 
-                Object.entries(packageData.items).map(([product, quantity]) => 
-                    `${product}: ${quantity} adet`
-                ).join(', ') : 'Ürün bilgisi yok',
+            items_display: packageData.items ?
+                Object.entries(packageData.items).map(([product, quantity]) => `${product}: ${quantity} adet`).join(', ')
+                : (packageData.items_display || 'Ürün bilgisi yok'),
             workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default',
             station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
         };
 
-        // Read current daily file
-        const currentPackages = await ExcelJS.readFile();
+        // Read current daily file (always await)
+        const currentPackages = Array.isArray(await ExcelJS.readFile()) ? await ExcelJS.readFile() : [];
 
-        // Add or update
+        // Add or update entry
         const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
         if (existingIndex >= 0) {
             currentPackages[existingIndex] = enhancedPackageData;
@@ -1920,27 +1923,35 @@ async function saveToExcel(packageData) {
             currentPackages.push(enhancedPackageData);
         }
 
-        // Save to daily file (await it)
+        // Save to daily file and await result
         const success = await ExcelJS.writeFile(currentPackages);
 
         if (success) {
-            // Update the global variable (redundant with ExcelStorage but safe)
-            window.excelPackages = currentPackages;
-            console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
+            // Update global caches immediately
+            try {
+                window.excelPackages = currentPackages.slice();
+                // Keep window.packages in sync when operating in Excel mode
+                if (window.isUsingExcel) {
+                    window.packages = currentPackages.slice();
+                }
+            } catch (e) {
+                console.warn('Failed to update global package caches in saveToExcel', e);
+            }
 
-            // Fire event so UI will refresh immediately
+            // Dispatch a single event for other modules/UI to update
             try {
                 window.dispatchEvent(new CustomEvent('excelDataChanged', {
-                    detail: { packageId: enhancedPackageData.id, action: 'save', source: 'saveToExcel' }
+                    detail: { id: enhancedPackageData.id, action: 'save', source: 'saveToExcel' }
                 }));
             } catch (e) {
                 console.warn('excelDataChanged dispatch failed in saveToExcel', e);
             }
 
+            console.log('Package saved to daily file:', enhancedPackageData.package_no);
             return true;
         }
-        return false;
 
+        return false;
     } catch (error) {
         console.error('Save to Excel error:', error);
         return false;
