@@ -5620,39 +5620,3 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
-
-
-
-function debugTabVisibility() {
-    console.log('=== TAB VISIBILITY DEBUG ===');
-    
-    // Check all tab panes
-    document.querySelectorAll('.tab-pane').forEach(pane => {
-        const id = pane.id;
-        const isActive = pane.classList.contains('active');
-        const display = window.getComputedStyle(pane).display;
-        const visibility = window.getComputedStyle(pane).visibility;
-        const opacity = window.getComputedStyle(pane).opacity;
-        
-        console.log(`Tab Pane: ${id}`);
-        console.log(`  - Active class: ${isActive}`);
-        console.log(`  - Display: ${display}`);
-        console.log(`  - Visibility: ${visibility}`);
-        console.log(`  - Opacity: ${opacity}`);
-        console.log(`  - Children count: ${pane.children.length}`);
-    });
-    
-    // Check table bodies
-    ['shippingTableBody', 'stockTableBody'].forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            console.log(`Table body ${id}: ${element.innerHTML.length} characters`);
-            console.log(`  - Row count: ${element.querySelectorAll('tr').length}`);
-        } else {
-            console.error(`❌ Element not found: ${id}`);
-        }
-    });
-}
-
-// Run this after clicking a tab
-// debugTabVisibility();
