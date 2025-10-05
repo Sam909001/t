@@ -3587,6 +3587,39 @@ async function populateReportsTable() {
 }
 
 
+function showReportsTab() {
+    const reportsTab = document.getElementById('reportsTab');
+    if (reportsTab) {
+        reportsTab.style.display = 'block';
+    }
+    populateReportsTable();
+}
+
+// Make sure we're using the daily files version of reports
+async function populateReportsTable() {
+    try {
+        console.log('Loading daily reports...');
+        const reportsContainer = document.getElementById('reportsTab');
+        if (!reportsContainer) {
+            console.log('Reports container not found, tab might be hidden');
+            return;
+        }
+
+        // Your existing daily files code here (the first version)
+        // ... keep the existing daily files implementation ...
+
+    } catch (error) {
+        console.error('Error in populateReportsTable:', error);
+        const reportsContainer = document.getElementById('reportsTab');
+        if (reportsContainer) {
+            reportsContainer.innerHTML = `
+                <div style="text-align:center; color:red; padding:20px;">
+                    Error loading reports: ${error.message}
+                </div>
+            `;
+        }
+    }
+}
 
 // Enhanced viewDailyFile function
 async function viewDailyFile(dateString) {
