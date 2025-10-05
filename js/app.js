@@ -1,6 +1,13 @@
+// CHANGE FROM:
+window.initializePrinter = function() {
 
-
-
+// TO:
+function initializePrinter() {
+    console.log("Printer initialized");
+    if (typeof window.printer === 'undefined') {
+        window.printer = { isConnected: true, serverUrl: 'Yerel Yazıcı' };
+    }
+}
 
 // ============================================
 // 1. STORAGE INITIALIZATION
@@ -695,80 +702,35 @@ function scheduleDailyClear() {
     }, msUntilMidnight);
 }
 
-/// Main initialization
-// Main initialization - FIXED VERSION
+// Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
     try {
-        // Initialize elements FIRST
-        if (typeof initializeElementsObject === 'function') {
-            initializeElementsObject();
+        // Initialize workspace system FIRST
+        if (!window.workspaceManager) {
+            window.workspaceManager = new WorkspaceManager();
         }
-
-        // Initialize API and auth BEFORE station management
+        await window.workspaceManager.initialize();
+        
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
+        
+        // Initialize elements
+        initializeElementsObject();
+        
+        // Initialize workspace-aware UI
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
+        
+        // Setup event listeners
+        setupEventListeners();
+        
+        // API key initialization - ADD AWAIT HERE
         await initializeApiAndAuth();
         
-        // Check if user is already authenticated
-        const savedSession = await StorageManager.getItem('supabase_session');
-        const isAuthenticated = savedSession && savedSession.access_token;
-
-        if (isAuthenticated) {
-            console.log('✅ User is authenticated, proceeding to station selection');
-            // User is logged in, check station
-            await initializeStationManagement();
-            
-            const currentStationId = await StorageManager.getItem('current_workstation_id');
-            const stations = await StorageManager.getItem('proclean_stations') || [];
-            const currentStation = stations.find(s => s.id === currentStationId);
-
-            if (currentStation) {
-                // Station exists, show main app
-                window.CURRENT_WORKSTATION = currentStation;
-                console.log('✅ Current workstation:', currentStation.name);
-                
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'flex';
-              
-                // Initialize workspace system
-                if (!window.workspaceManager) {
-                    window.workspaceManager = new WorkspaceManager();
-                }
-                await window.workspaceManager.initialize();
-                
-                console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-                
-                // Initialize workspace-aware UI
-                if (typeof initializeWorkspaceUI === 'function') {
-                    initializeWorkspaceUI();
-                }
-                if (typeof setupWorkspaceAwareUI === 'function') {
-                    setupWorkspaceAwareUI();
-                }
-                
-                // Setup event listeners
-                setupEventListeners();
-                
-                // Initialize settings
-                if (typeof initializeSettings === 'function') {
-                    initializeSettings();
-                }
-                
-                console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
-            } else {
-                // No station selected, show station selection
-                console.log('⚠️ No workstation selected - showing station selection');
-                document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('appContainer').style.display = 'none';
-                await populateStationList();
-            }
-        } else {
-            // User not authenticated, show login/station screen
-            console.log('⚠️ User not authenticated - showing login/station screen');
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('appContainer').style.display = 'none';
-            await populateStationList();
-        }
+        // Initialize settings
+        initializeSettings();
         
+        console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
@@ -1800,220 +1762,5 @@ window.deleteReport = async function(fileName) {
     } catch (error) {
         console.error('Delete report error:', error);
         showAlert('Silme hatası', 'error');
-    }
-}
-
-
-
-
- // ============================================
-// STATION MANAGEMENT FUNCTIONS - Add to ui.js
-// ============================================
-
-// Function to initialize station management
-async function initializeStationManagement() {
-    const createStationBtn = document.getElementById('createStationBtn');
-    
-    if (createStationBtn) {
-        createStationBtn.addEventListener('click', createNewStation);
-        console.log('✅ Create station button listener added');
-    }
-
-    // Setup station modal listeners
-    setupStationModalListeners();
-}
-
-// Function to setup station modal event listeners
-function setupStationModalListeners() {
-    const confirmBtn = document.getElementById('confirmStationBtn');
-    const cancelBtn = document.getElementById('cancelStationBtn');
-    const closeBtn = document.querySelector('#stationModal .close');
-    const stationNameInput = document.getElementById('stationNameInput');
-    
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', () => {
-            const stationName = stationNameInput?.value || '';
-            createStationWithName(stationName);
-        });
-    }
-    
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', hideStationModal);
-    }
-    
-    if (closeBtn) {
-        closeBtn.addEventListener('click', hideStationModal);
-    }
-    
-    // Enter key support
-    if (stationNameInput) {
-        stationNameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const stationName = stationNameInput.value || '';
-                createStationWithName(stationName);
-            }
-        });
-    }
-    
-    // Click outside to close
-    const modal = document.getElementById('stationModal');
-    if (modal) {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                hideStationModal();
-            }
-        });
-    }
-}
-
-// Function to create new station
-async function createNewStation() {
-    try {
-        showStationModal();
-    } catch (error) {
-        console.error('Station creation error:', error);
-        showAlert('İstasyon oluşturulurken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-// Function to show station modal
-function showStationModal() {
-    const modal = document.getElementById('stationModal');
-    const stationNameInput = document.getElementById('stationNameInput');
-    
-    if (modal && stationNameInput) {
-        modal.style.display = 'block';
-        stationNameInput.value = '';
-        setTimeout(() => {
-            stationNameInput.focus();
-        }, 100);
-    } else {
-        console.error('Station modal elements not found');
-        // Fallback: use prompt
-        const stationName = prompt('Yeni istasyon adını girin:');
-        if (stationName) {
-            createStationWithName(stationName);
-        }
-    }
-}
-
-// Function to hide station modal
-function hideStationModal() {
-    const modal = document.getElementById('stationModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-// Function to create station with name
-async function createStationWithName(stationName) {
-    if (!stationName || stationName.trim() === '') {
-        showAlert('İstasyon adı boş olamaz', 'error');
-        return;
-    }
-
-    try {
-        // Generate a unique station ID
-        const stationId = 'station-' + Date.now();
-        const stationNameClean = stationName.trim();
-        
-        // Create station object
-        const newStation = {
-            id: stationId,
-            name: stationNameClean,
-            created_at: new Date().toISOString(),
-            type: 'packaging',
-            permissions: ['create_package', 'view_packages', 'scan_items']
-        };
-
-        // Save to storage
-        const existingStations = await StorageManager.getItem('proclean_stations') || [];
-        const updatedStations = [...existingStations, newStation];
-        
-        await StorageManager.setItem('proclean_stations', updatedStations);
-        
-        // Set as current workstation
-        await StorageManager.setItem('current_workstation_id', stationId);
-        window.CURRENT_WORKSTATION = newStation;
-        
-        showAlert(`"${stationNameClean}" istasyonu oluşturuldu!`, 'success');
-        
-        // Hide modal
-        hideStationModal();
-        
-        // Hide station selection and show main app
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'flex';
-        
-        // Initialize the main app
-        if (typeof initApp === 'function') {
-            await initApp();
-        }
-        
-    } catch (error) {
-        console.error('Station creation error:', error);
-        showAlert('İstasyon oluşturulurken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-// Function to populate station list
-async function populateStationList() {
-    try {
-        const stationList = document.getElementById('stationList');
-        if (!stationList) {
-            console.log('Station list element not found');
-            return;
-        }
-
-        const stations = await StorageManager.getItem('proclean_stations') || [];
-
-        if (stations.length === 0) {
-            stationList.innerHTML = '<li>Henüz istasyon yok. Yeni istasyon oluşturun.</li>';
-            return;
-        }
-
-        stationList.innerHTML = stations.map(station => `
-            <li class="station-item" data-station-id="${station.id}">
-                <span class="station-name">${station.name}</span>
-                <button class="select-station-btn" onclick="selectStation('${station.id}')">Seç</button>
-            </li>
-        `).join('');
-        
-        console.log(`✅ Loaded ${stations.length} stations`);
-        
-    } catch (error) {
-        console.error('Error populating station list:', error);
-    }
-}
-
-// Function to select a station
-async function selectStation(stationId) {
-    try {
-        const stations = await StorageManager.getItem('proclean_stations') || [];
-        const station = stations.find(s => s.id === stationId);
-        
-        if (!station) {
-            showAlert('İstasyon bulunamadı', 'error');
-            return;
-        }
-
-        // Set as current workstation
-        window.CURRENT_WORKSTATION = station;
-        await StorageManager.setItem('current_workstation_id', stationId);
-        
-        showAlert(`"${station.name}" istasyonuna geçildi`, 'success');
-        
-        // Hide station selection and show main app
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'flex';
-        
-        // Initialize the main app
-        if (typeof initApp === 'function') {
-            await initApp();
-        }
-        
-    } catch (error) {
-        console.error('Station selection error:', error);
-        showAlert('İstasyon seçilirken hata oluştu', 'error');
     }
 }
