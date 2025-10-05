@@ -1,20 +1,7 @@
 // FIXED: Kullanıcı girişi
 let connectionTested = false; // Flag to prevent duplicate connection tests
 
-// FIXED: Kullanıcı girişi
 async function login() {
-    // Supabase client'ı kontrol et ve gerekirse başlat
-    if (!supabase) {
-        const client = initializeSupabase();
-        if (!client) {
-            showAlert('Supabase bağlantısı yok. Excel modunda devam ediliyor.', 'warning');
-            // Excel modunda devam et
-            isUsingExcel = true;
-            proceedWithExcelMode();
-            return;
-        }
-    }
-
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
@@ -37,11 +24,7 @@ async function login() {
         });
 
         if (error) {
-            // Giriş başarısız olursa Excel modunda devam et
-            console.warn('Login failed, continuing with Excel mode:', error.message);
-            showAlert('Giriş başarısız. Excel modunda devam ediliyor.', 'warning');
-            isUsingExcel = true;
-            proceedWithExcelMode();
+            showAlert('Giriş başarısız: ' + error.message, 'error');
             return;
         }
 
@@ -85,21 +68,18 @@ async function login() {
             updateStorageIndicator();
 
         } else {
-            showAlert('Giriş başarısız. Excel modunda devam ediliyor.', 'warning');
-            isUsingExcel = true;
-            proceedWithExcelMode();
+            showAlert('Giriş başarısız.', 'error');
         }
 
     } catch (e) {
         console.error('Login error:', e);
-        showAlert('Giriş sırasında bir hata oluştu. Excel modunda devam ediliyor.', 'warning');
-        isUsingExcel = true;
-        proceedWithExcelMode();
+        showAlert('Giriş sırasında bir hata oluştu.', 'error');
     } finally {
         loginBtn.disabled = false;
         loginBtn.textContent = 'Giriş Yap';
     }
 }
+
 
 // Excel modunda devam et
 function proceedWithExcelMode() {
