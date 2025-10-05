@@ -141,7 +141,17 @@ async function initApp() {
             console.log('🌐 Running in Web Browser environment');
             window.isElectronApp = false;
         }
-        
+
+
+       // === NEW: Initialize printer here ===
+        if (typeof initializePrinter === 'function') {
+            console.log('🔄 Initializing printer...');
+            initializePrinter();
+        } else {
+            console.warn('⚠️ initializePrinter function is not defined!');
+        }
+
+      
         // 3. Initialize workspace-aware UI
         if (typeof initializeWorkspaceUI === 'function') {
             initializeWorkspaceUI();
@@ -1634,18 +1644,6 @@ function checkPrinterStatus() {
     
     return printer.isConnected;
 }
-
-
-function checkPrinterStatus() {
-    initializePrinter(); // ✅ This works even if function is below
-    console.log("Checking printer...");
-}
-
-function initializePrinter() {
-    console.log("Printer initialized");
-}
-
-checkPrinterStatus();
 
 
 
