@@ -695,6 +695,8 @@ function scheduleDailyClear() {
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
     try {
+       // === ADD STATION MANAGEMENT HERE ===
+        await initializeStationManagement();
         // Initialize workspace system FIRST
         if (!window.workspaceManager) {
             window.workspaceManager = new WorkspaceManager();
@@ -1754,3 +1756,21 @@ window.deleteReport = async function(fileName) {
     }
 }
 
+
+
+
+  async function initializeStationManagement() {
+    const createStationBtn = document.getElementById('createStationBtn');
+    
+    if (createStationBtn) {
+        createStationBtn.addEventListener('click', createNewStation);
+        console.log('✅ Create station button listener added');
+    } else {
+        console.log('ℹ️ Create station button not found (might be on different screen)');
+    }
+
+    // Populate station list if we're on login screen
+    if (document.getElementById('loginScreen')?.style.display !== 'none') {
+        await populateStationList();
+    }
+}
