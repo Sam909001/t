@@ -133,13 +133,8 @@ class WorkspaceManager {
     
     // Set current workspace
     setCurrentWorkspace(workspace) {
-       // inside setCurrentWorkspace(workspace) { ... }
-this.currentWorkspace = workspace;
-localStorage.setItem(this.workspaceKey, workspace.id);
-
-// Persist that a selection has been made (prevent repeated prompts)
-localStorage.setItem('proclean_workspace_selected', 'true');
-window._workspaceSelectionShown = true;
+        this.currentWorkspace = workspace;
+        localStorage.setItem(this.workspaceKey, workspace.id);
         
         console.log('🎯 Current workspace set:', workspace.name);
         
@@ -403,33 +398,17 @@ async loadWorkspaceData() {
 }
 
 
-// Only force workspace selection if the user/device hasn't chosen one yet
+// Add this to supabase.js after workspace manager initialization
 document.addEventListener('DOMContentLoaded', async function() {
+    // Force workspace selection if none is selected
     setTimeout(async () => {
-        try {
-            // If workspace already persisted, do not show
-            const alreadySelected = localStorage.getItem('proclean_workspace_selected') === 'true';
-            if (alreadySelected) {
-                // If it exists but workspaceManager not set, try to initialize silently
-                if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-                    await window.workspaceManager.loadWorkspaceData();
-                }
-                return;
-            }
-
-            // Avoid showing many times in same session
-            if (window._workspaceSelectionShown) return;
-
-            if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-                console.log('🔄 No workspace selected, asking user to choose (once)...');
-                window._workspaceSelectionShown = true;
-                await window.workspaceManager.showWorkspaceSelection();
-            }
-        } catch (err) {
-            console.error('Workspace selection guard error:', err);
+        if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+            console.log('🔄 No workspace selected, forcing selection...');
+            await window.workspaceManager.showWorkspaceSelection();
         }
-    }, 800);
+    }, 1000);
 });
+
 
 
 // ==================== WORKSPACE UTILITIES ====================
@@ -1311,58 +1290,37 @@ const ExcelStorage = {
         }
     },
     
-  // Write to today's file
-writeFile: async function(data) {
-    try {
-        const fileName = this.getCurrentFileName();
-        const enhancedData = (data || []).map(pkg => ({
-            ...pkg,
-            customer_name: pkg.customer_name || 'Bilinmeyen Müşteri',
-            customer_code: pkg.customer_code || '',
-            items_display: pkg.items ? 
-                (Array.isArray(pkg.items) ? 
-                    pkg.items.map(item => `${item.name}: ${item.qty} adet`).join(', ') :
-                    Object.entries(pkg.items).map(([product, quantity]) => `${product}: ${quantity} adet`).join(', ')
-                ) : (pkg.items_display || 'Ürün bilgisi yok'),
-            export_timestamp: new Date().toISOString()
-        }));
-
-        // Persist daily file
-        localStorage.setItem(fileName, JSON.stringify(enhancedData));
-        localStorage.setItem('excelPackages_current', fileName);
-
-        // Update in-memory cache so UI code reads newest data
+    // Write to today's file
+    writeFile: async function(data) {
         try {
-            window.excelPackages = enhancedData;
-        } catch (e) {
-            console.warn('Could not set global excelPackages', e);
-        }
-
-        // Also keep window.packages consistent when running in Excel mode
-        try {
-            if (!window.packages || window.isUsingExcel) {
-                window.packages = enhancedData.slice(); // clone
-            }
-        } catch (e) {
-            console.warn('Could not set window.packages', e);
-        }
-
-        // Dispatch event so UI can refresh immediately
-        try {
-            window.dispatchEvent(new CustomEvent('excelDataChanged', {
-                detail: { fileName, count: enhancedData.length, source: 'ExcelStorage.writeFile' }
+            const fileName = this.getCurrentFileName();
+            const enhancedData = data.map(pkg => ({
+                ...pkg,
+                // Ensure all necessary fields are included
+                customer_name: pkg.customer_name || 'Bilinmeyen Müşteri',
+                customer_code: pkg.customer_code || '',
+                items_display: pkg.items ? 
+                    (Array.isArray(pkg.items) ? 
+                        pkg.items.map(item => `${item.name}: ${item.qty} adet`).join(', ') :
+                        Object.entries(pkg.items).map(([product, quantity]) => 
+                            `${product}: ${quantity} adet`
+                        ).join(', ')
+                    ) : 'Ürün bilgisi yok',
+                export_timestamp: new Date().toISOString()
             }));
-        } catch (e) {
-            console.warn('Failed to dispatch excelDataChanged event', e);
+            
+            localStorage.setItem(fileName, JSON.stringify(enhancedData));
+            
+            // Also update the current active file reference
+            localStorage.setItem('excelPackages_current', fileName);
+            
+            console.log(`💾 Saved ${enhancedData.length} records to ${fileName}`);
+            return true;
+        } catch (error) {
+            console.error('Excel write error:', error);
+            return false;
         }
-
-        console.log(`💾 Saved ${enhancedData.length} records to ${fileName}`);
-        return true;
-    } catch (error) {
-        console.error('Excel write error:', error);
-        return false;
-    }
-},
+    },
     
     // Export daily file to downloadable format
 exportDailyFile: function(dateString) {
@@ -1451,26 +1409,26 @@ convertToCSV: function(data) {
 };
 
 // Excel.js library (simple implementation) - Enhanced with ExcelStorage functionality
-// Ensure ExcelJS.writeFile awaits ExcelStorage
 const ExcelJS = {
     readFile: async function() {
         try {
+            // Use the enhanced daily file system
             return await ExcelStorage.readFile();
         } catch (error) {
             console.error('Excel read error:', error);
             return [];
         }
     },
-
+    
     writeFile: async function(data) {
         try {
+            // Use the enhanced daily file system
             return await ExcelStorage.writeFile(data);
         } catch (error) {
             console.error('Excel write error:', error);
             return false;
         }
     },
-
     
    // Simple XLSX format simulation
 toExcelFormat: function(packages) {
@@ -1834,16 +1792,7 @@ async function uploadExcelToSupabase(packages) {
 
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
-async function initializeSupabase() {
-    // ✅ ADD THIS: Load saved API key from storage if not set
-    if (!SUPABASE_ANON_KEY) {
-        const savedApiKey = await StorageManager.getItem('procleanApiKey');
-        if (savedApiKey) {
-            SUPABASE_ANON_KEY = savedApiKey;
-            console.log('Saved API key loaded from storage');
-        }
-    }
-    
+function initializeSupabase() {
     // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
     if (supabase && SUPABASE_ANON_KEY) {
         return supabase;
@@ -1896,62 +1845,51 @@ async function initializeExcelStorage() {
     }
 }
 
-// --- Inside supabase working(31).js ---
+// REPLACE the existing saveToExcel function with this:
 async function saveToExcel(packageData) {
     try {
+        // Enhanced package data with customer and product info
         const enhancedPackageData = {
             ...packageData,
+            // Ensure customer info is included
             customer_name: packageData.customer_name || selectedCustomer?.name || 'Bilinmeyen Müşteri',
-            customer_code: selectedCustomer?.code || packageData.customer_code || '',
+            customer_code: selectedCustomer?.code || '',
+            // Ensure product/items info is properly formatted
             items: packageData.items || currentPackage.items || {},
-            excel_export_date: new Date().toISOString().split('T')[0],
-            items_display: packageData.items ?
-                Object.entries(packageData.items).map(([product, quantity]) => `${product}: ${quantity} adet`).join(', ')
-                : (packageData.items_display || 'Ürün bilgisi yok'),
+            // Add date info for daily file management
+            excel_export_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            // Convert items to readable string for Excel
+            items_display: packageData.items ? 
+                Object.entries(packageData.items).map(([product, quantity]) => 
+                    `${product}: ${quantity} adet`
+                ).join(', ') : 'Ürün bilgisi yok',
+            // Add workspace info
             workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default',
             station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
         };
-
-        // Read current daily file (always await)
-        const currentPackages = Array.isArray(await ExcelJS.readFile()) ? await ExcelJS.readFile() : [];
-
-        // Add or update entry
+        
+        // Read current daily file
+        const currentPackages = await ExcelJS.readFile();
+        
+        // Yeni paketi ekle veya güncelle
         const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
         if (existingIndex >= 0) {
             currentPackages[existingIndex] = enhancedPackageData;
         } else {
             currentPackages.push(enhancedPackageData);
         }
-
-        // Save to daily file and await result
+        
+        // Save to daily file
         const success = await ExcelJS.writeFile(currentPackages);
-
+        
         if (success) {
-            // Update global caches immediately
-            try {
-                window.excelPackages = currentPackages.slice();
-                // Keep window.packages in sync when operating in Excel mode
-                if (window.isUsingExcel) {
-                    window.packages = currentPackages.slice();
-                }
-            } catch (e) {
-                console.warn('Failed to update global package caches in saveToExcel', e);
-            }
-
-            // Dispatch a single event for other modules/UI to update
-            try {
-                window.dispatchEvent(new CustomEvent('excelDataChanged', {
-                    detail: { id: enhancedPackageData.id, action: 'save', source: 'saveToExcel' }
-                }));
-            } catch (e) {
-                console.warn('excelDataChanged dispatch failed in saveToExcel', e);
-            }
-
-            console.log('Package saved to daily file:', enhancedPackageData.package_no);
+            // Global excelPackages değişkenini güncelle
+            excelPackages = currentPackages;
+            console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
             return true;
         }
-
         return false;
+        
     } catch (error) {
         console.error('Save to Excel error:', error);
         return false;
@@ -2595,10 +2533,8 @@ function enhanceSyncQueue() {
     }
 }
 
-
-
-// Updated version with StorageManager
-async function saveApiKey() {
+// FIXED: API anahtarını kaydet ve istemciyi başlat
+function saveApiKey() {
     const apiKey = document.getElementById('apiKeyInput').value.trim();
     if (!apiKey) {
         showAlert('Lütfen bir API anahtarı girin', 'error');
@@ -2610,9 +2546,7 @@ async function saveApiKey() {
     
     // Yeni API key'i ayarla
     SUPABASE_ANON_KEY = apiKey;
-    
-    // ✅ CHANGED: Use StorageManager instead of localStorage
-    await StorageManager.setItem('procleanApiKey', apiKey);
+    localStorage.setItem('procleanApiKey', apiKey);
     
     // Yeni client oluştur
     const newClient = initializeSupabase();
@@ -4805,7 +4739,7 @@ async function sendToRamp(containerNo = null) {
         }
 
         // Update Excel packages locally
-        elStylePackageIds.length > 0) {
+        if (excelStylePackageIds.length > 0) {
             const currentPackages = await ExcelJS.readFile();
             const updatedPackages = currentPackages.map(pkg => {
                 if (excelStylePackageIds.includes(pkg.id)) {
@@ -4818,26 +4752,16 @@ async function sendToRamp(containerNo = null) {
                 }
                 return pkg;
             });
-
-            // Write and await
+            
             await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
-            // Keep in-memory cache updated
-            try {
-                window.excelPackages = updatedPackages;
-                if (window.isUsingExcel) window.packages = updatedPackages.slice();
-            } catch (e) { /* ignore */ }
-
-            // Dispatch event so UI will update immediately
-            try {
-                window.dispatchEvent(new CustomEvent('excelDataChanged', {
-                    detail: { ids: excelStylePackageIds, action: 'sendToRamp' }
-                }));
-            } catch (e) { console.warn(e); }
+            excelPackages = updatedPackages;
         }
 
-        // Refresh tables explicitly (safe)
-        if (typeof populatePackagesTable === 'function') await populatePackagesTable();
-        if (typeof populateShippingTable === 'function') await populateShippingTable();
+        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        
+        // Refresh tables
+        await populatePackagesTable();
+        await populateShippingTable();
         
     } catch (error) {
         console.error('Error sending to ramp:', error);
@@ -5725,48 +5649,3 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
-
-
-
-// --- Add a global listener so UI refreshes when the Excel daily file changes ---
-window.addEventListener('excelDataChanged', async (e) => {
-    try {
-        console.log('📣 excelDataChanged event received', e?.detail || {});
-        // Update storage indicator (if exists)
-        if (typeof updateStorageIndicator === 'function') {
-            try { updateStorageIndicator(); } catch (er) { console.warn('updateStorageIndicator failed', er); }
-        }
-
-        // Refresh the tables that depend on Excel in-memory data
-        if (typeof populatePackagesTable === 'function') {
-            try { await populatePackagesTable(); } catch (er) { console.warn('populatePackagesTable failed', er); }
-        }
-        if (typeof populateShippingTable === 'function') {
-            try { await populateShippingTable(); } catch (er) { console.warn('populateShippingTable failed', er); }
-        }
-        if (typeof populateStockTable === 'function') {
-            try { await populateStockTable(); } catch (er) { console.warn('populateStockTable failed', er); }
-        }
-
-    } catch (error) {
-        console.error('Error handling excelDataChanged event:', error);
-    }
-});
-
-
-
-// Central listener so UI updates when the daily file changes
-if (!window._excelDataChangedHandlerRegistered) {
-    window.addEventListener('excelDataChanged', async (e) => {
-        console.log('📣 excelDataChanged received:', e?.detail || {});
-        try {
-            if (typeof updateStorageIndicator === 'function') updateStorageIndicator();
-        } catch (err) { /* ignore */ }
-
-        // Refresh key tables
-        try { if (typeof populatePackagesTable === 'function') await populatePackagesTable(); } catch (err) { console.warn(err); }
-        try { if (typeof populateShippingTable === 'function') await populateShippingTable(); } catch (err) { console.warn(err); }
-        try { if (typeof populateStockTable === 'function') await populateStockTable(); } catch (err) { console.warn(err); }
-    });
-    window._excelDataChangedHandlerRegistered = true;
-}
