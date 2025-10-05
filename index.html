@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <!-- ✅ Local libraries -->
 <script src="libs/JsBarcode.all.min.js"></script>
@@ -768,34 +769,47 @@ window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
             <script>
-// Remember me feature for Electron & Web
+// Secure Remember Me System (AES Encrypted)
 document.addEventListener("DOMContentLoaded", () => {
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
     const rememberCheckbox = document.getElementById("rememberMe");
     const loginBtn = document.getElementById("loginBtn");
 
-    // Load saved credentials
-    const savedEmail = localStorage.getItem("savedEmail");
-    const savedPassword = localStorage.getItem("savedPassword");
+    // Your secret encryption key (you can change it anytime)
+    const SECRET_KEY = "ProCleanAutoSecureKey2025";
+
+    // Load saved credentials if exist
+    const encryptedEmail = localStorage.getItem("savedEmail");
+    const encryptedPassword = localStorage.getItem("savedPassword");
     const remember = localStorage.getItem("rememberMe") === "true";
 
-    if (remember && savedEmail && savedPassword) {
-        emailInput.value = savedEmail;
-        passwordInput.value = savedPassword;
-        rememberCheckbox.checked = true;
+    if (remember && encryptedEmail && encryptedPassword) {
+        try {
+            const decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+            const decryptedPassword = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+            emailInput.value = decryptedEmail;
+            passwordInput.value = decryptedPassword;
+            rememberCheckbox.checked = true;
+        } catch (err) {
+            console.error("🔒 Decryption error:", err);
+        }
     }
 
-    // Save credentials if checked on login
+    // Save credentials securely if checked
     loginBtn.addEventListener("click", () => {
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
 
-        if (rememberCheckbox.checked) {
-            localStorage.setItem("savedEmail", email);
-            localStorage.setItem("savedPassword", password);
+        if (rememberCheckbox.checked && email && password) {
+            const encryptedEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
+            const encryptedPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+
+            localStorage.setItem("savedEmail", encryptedEmail);
+            localStorage.setItem("savedPassword", encryptedPassword);
             localStorage.setItem("rememberMe", "true");
         } else {
+            // Clear if unchecked
             localStorage.removeItem("savedEmail");
             localStorage.removeItem("savedPassword");
             localStorage.setItem("rememberMe", "false");
@@ -803,5 +817,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 </script>
+
 </body>
 </html>
