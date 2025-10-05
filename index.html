@@ -847,11 +847,11 @@ document.addEventListener("DOMContentLoaded", () => {
         showAlert("Giriş yapılıyor...", "info");
 
         // Simulate async login
-        setTimeout(() => {
-            showAlert(`Hoşgeldiniz, ${email}`, "success");
-            document.getElementById("loginModal").style.display = "none";
-        }, 800);
-    }
+       etTimeout(() => {
+    showAlert(`Hoşgeldiniz, ${email}`, "success");
+    const modal = document.getElementById("loginModal");
+    if (modal) modal.style.display = "none";
+   }, 800);
 });
 </script>
 
