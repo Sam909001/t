@@ -2152,3 +2152,22 @@ body.modal-open {
 .tab[style*="display: none"] {
     background-color: red !important;
 }
+
+/* Force tabs to be visible */
+.tabs {
+    display: flex !important;
+    visibility: visible !important;
+}
+
+.tab {
+    display: block !important;
+    visibility: visible !important;
+}
+
+.tab-pane {
+    display: none !important;
+}
+
+.tab-pane.active {
+    display: block !important;
+}
