@@ -1845,35 +1845,103 @@ async function uploadExcelToSupabase(packages) {
 
 
 
-// FIXED: Supabase istemcisini başlat - Singleton pattern ile
-// FIXED: Supabase istemcisini başlat - Simplified with hardcoded key
-function initializeSupabase() {
-    // If client already exists and is valid, return it
-    if (supabase && SUPABASE_ANON_KEY) {
-        return supabase;
-    }
-    
-    // Validate the hardcoded key
-    if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM') {
-        console.error('❌ Supabase API key not configured. Please set SUPABASE_ANON_KEY with your actual key.');
-        isUsingExcel = true;
-        showAlert('Supabase bağlantısı yapılandırılmamış. Excel modunda çalışılıyor.', 'warning');
+// REPLACE existing initializeSupabase with this more robust implementation
+async function initializeSupabase() {
+    // Return existing client if already initialized
+    if (supabase) return supabase;
+
+    // Basic validation of config
+    if (!SUPABASE_URL) {
+        console.error('❌ SUPABASE_URL is not set.');
+        showAlert('Supabase URL yapılandırılmadı. Lütfen SUPABASE_URL ayarını kontrol edin.', 'error');
         return null;
     }
-    
+    if (!SUPABASE_ANON_KEY) {
+        console.error('❌ SUPABASE_ANON_KEY is not set.');
+        showAlert('Supabase API anahtarı yapılandırılmamış. Lütfen SUPABASE_ANON_KEY ayarını kontrol edin.', 'error');
+        isUsingExcel = true;
+        return null;
+    }
+
+    // Detect obvious placeholder (adjust or remove this string if you intend to use a key equal to it)
+    const PLACEHOLDER = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
+    if (SUPABASE_ANON_KEY === PLACEHOLDER || SUPABASE_ANON_KEY.toLowerCase().includes('your') || SUPABASE_ANON_KEY.length < 30) {
+        console.error('❌ Supabase API key not configured or looks like a placeholder. Please set SUPABASE_ANON_KEY with your actual key.');
+        showAlert('Supabase API anahtarı yapılandırılmamış veya geçersiz. Excel moduna geçiliyor.', 'warning');
+        isUsingExcel = true;
+        return null;
+    }
+
+    // Find createClient function in common forms
+    let createClientFn = null;
+
+    // If supabase-js was loaded as window.supabase with createClient
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+        createClientFn = window.supabase.createClient.bind(window.supabase);
+    }
+
+    // If bundler exposes createClient globally (rare in your setup)
+    if (!createClientFn && typeof createClient === 'function') {
+        createClientFn = createClient;
+    }
+
+    // Fallback attempt: try another common name
+    if (!createClientFn && typeof supabaseCreateClient === 'function') {
+        createClientFn = supabaseCreateClient;
+    }
+
+    // If still not found, attempt to load the CDN once (best-effort)
+    if (!createClientFn) {
+        console.error('❌ Supabase client library (supabase-js) not detected. Attempting to load CDN (one-time).');
+        showAlert('Supabase JS kütüphanesi yüklenmedi. Deneniyor (CDN).', 'info');
+
+        try {
+            await new Promise((resolve, reject) => {
+                const url = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js';
+                if (document.querySelector(`script[src="${url}"]`)) {
+                    // script present already but createClient unavailable
+                    return reject(new Error('CDN script already present but createClient not exposed'));
+                }
+                const s = document.createElement('script');
+                s.src = url;
+                s.async = true;
+                s.onload = () => {
+                    if (window.supabase && typeof window.supabase.createClient === 'function') {
+                        createClientFn = window.supabase.createClient.bind(window.supabase);
+                        resolve();
+                    } else {
+                        reject(new Error('Loaded supabase-js but createClient still not available'));
+                    }
+                };
+                s.onerror = () => reject(new Error('Failed to load supabase-js from CDN'));
+                document.head.appendChild(s);
+            });
+        } catch (cdnError) {
+            console.warn('CDN load attempt failed:', cdnError);
+        }
+    }
+
+    if (!createClientFn) {
+        console.error('❌ Could not find createClient function for supabase-js.');
+        showAlert('Supabase başlatılamadı (kütüphane bulunamadı). Excel moduna geçiliyor.', 'error');
+        isUsingExcel = true;
+        return null;
+    }
+
+    // Create the client
     try {
-        // Global supabase değişkenine ata
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('✅ Supabase client initialized successfully with hardcoded key');
+        supabase = createClientFn(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('✅ Supabase client initialized successfully');
         isUsingExcel = false;
         return supabase;
-    } catch (error) {
-        console.error('❌ Supabase initialization error:', error);
+    } catch (err) {
+        console.error('❌ Supabase initialization error:', err);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
         isUsingExcel = true;
         return null;
     }
 }
+
 
 async function initializeExcelStorage() {
     try {
