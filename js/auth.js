@@ -1,93 +1,46 @@
 // FIXED: Kullanıcı girişi
 let connectionTested = false; // Flag to prevent duplicate connection tests
 
-async function login(emailParam = null, passwordParam = null) {
-    console.log("🔐 LOGIN FUNCTION START - Parameters:", { emailParam, passwordParam });
-    
-    // Use parameters if provided, otherwise get from input fields
-    const email = emailParam || document.getElementById('email').value;
-    const password = passwordParam || document.getElementById('password').value;
+async function login() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
 
-    console.log("🔐 FINAL CREDENTIALS:", { 
-        email: email ? "***" + email.substring(3) : "empty", 
-        password: password ? "***" + password.substring(3) : "empty" 
-    });
-
-    // ✅ Check if Supabase is initialized
+    // ✅ ADD THIS: Check if Supabase is initialized
     if (!supabase) {
-        console.error("❌ Supabase not initialized");
         showAlert('Sistem başlatılıyor, lütfen bekleyin...', 'error');
-        return false;
+        return;
     }
-    console.log("✅ Supabase initialized");
 
-    // Form doğrulama - only validate if using input fields
-    if (!emailParam && !passwordParam) {
-        console.log("🔐 Validating form inputs");
-        if (!validateForm([
-            { id: 'email', errorId: 'emailError', type: 'email', required: true },
-            { id: 'password', errorId: 'passwordError', type: 'text', required: true }
-        ])) {
-            console.error("❌ Form validation failed");
-            return false;
-        }
-        console.log("✅ Form validation passed");
-    } else {
-        // Validate parameters directly
-        console.log("🔐 Validating parameters directly");
-        if (!email || !password) {
-            console.error("❌ Parameter validation failed - missing email or password");
-            showAlert('E-posta ve şifre gereklidir', 'error');
-            return false;
-        }
-        if (!isValidEmail(email)) {
-            console.error("❌ Parameter validation failed - invalid email");
-            showAlert('Geçerli bir e-posta adresi girin', 'error');
-            return false;
-        }
-        console.log("✅ Parameter validation passed");
+    // Form doğrulama
+    if (!validateForm([
+        { id: 'email', errorId: 'emailError', type: 'email', required: true },
+        { id: 'password', errorId: 'passwordError', type: 'text', required: true }
+    ])) {
+        return;
     }
 
     const loginBtn = document.getElementById('loginBtn');
     loginBtn.disabled = true;
     loginBtn.textContent = 'Giriş yapılıyor...';
-    console.log("✅ Login button state updated");
 
     try {
-        console.log("🔐 Attempting Supabase authentication...");
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
         });
 
-        console.log("🔐 Supabase response:", { 
-            hasData: !!data, 
-            hasUser: !!(data && data.user),
-            hasError: !!error,
-            error: error ? error.message : 'none'
-        });
-
         if (error) {
-            console.error("❌ Supabase auth error:", error);
             showAlert('Giriş başarısız: ' + error.message, 'error');
-            return false;
+            return;
         }
 
         if (data.user && data.user.email) {
-            console.log("✅ User authenticated:", data.user.email);
-            
             // Kullanıcı rolünü al
-            console.log("🔐 Fetching user role...");
             const { data: userData, error: userError } = await supabase
                 .from('personnel')
                 .select('role, name')
                 .eq('email', data.user.email)
                 .single();
-
-            console.log("🔐 User role response:", { 
-                userData, 
-                userError: userError ? userError.message : 'none' 
-            });
 
             currentUser = {
                 email: data.user.email,
@@ -96,107 +49,42 @@ async function login(emailParam = null, passwordParam = null) {
                 role: userData?.role || 'operator'
             };
 
-            console.log("🔐 Current user set:", currentUser);
-
             const userRoleElement = document.getElementById('userRole');
             if (userRoleElement) {
-                userRoleElement.textContent =
+                userRoleElement.textContent = 
                     `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
-                console.log("✅ User role updated in UI");
-            } else {
-                console.warn("⚠️ User role element not found");
             }
 
             // Rol bazlı yetkilendirme
             if (typeof applyRoleBasedPermissions === 'function') {
-                console.log("🔐 Applying role-based permissions");
                 applyRoleBasedPermissions(currentUser.role);
-            } else {
-                console.warn("⚠️ applyRoleBasedPermissions function not found");
             }
 
             showAlert('Giriş başarılı!', 'success');
-            console.log("✅ Success alert shown");
-
-            // ✅ Remember Me / Fast Login logic
-            const rememberCheckbox = document.getElementById('rememberMe');
-            if (rememberCheckbox && rememberCheckbox.checked) {
-                console.log("💾 Saving credentials for remember me");
-                const SECRET_KEY = "ProCleanAutoSecureKey2025";
-
-                const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
-                const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
-
-                localStorage.setItem("savedEmail", encEmail);
-                localStorage.setItem("savedPassword", encPassword);
-                localStorage.setItem("rememberMe", "true");
-                console.log("✅ Credentials saved");
-            } else {
-                console.log("🗑️ Not saving credentials");
-                localStorage.removeItem("savedEmail");
-                localStorage.removeItem("savedPassword");
-                localStorage.setItem("rememberMe", "false");
-            }
-
-            console.log("🔄 Switching to app interface...");
-            const loginScreen = document.getElementById('loginScreen');
-            const appContainer = document.getElementById('appContainer');
-            
-            console.log("🔐 UI Elements:", {
-                loginScreen: !!loginScreen,
-                appContainer: !!appContainer,
-                loginScreenDisplay: loginScreen ? loginScreen.style.display : 'not found',
-                appContainerDisplay: appContainer ? appContainer.style.display : 'not found'
-            });
-
-            if (loginScreen && appContainer) {
-                loginScreen.style.display = 'none';
-                appContainer.style.display = 'flex';
-                console.log("✅ UI switched to app");
-                
-                // Force a reflow and check
-                setTimeout(() => {
-                    console.log("🔐 Final UI State:", {
-                        loginScreenDisplay: loginScreen.style.display,
-                        appContainerDisplay: appContainer.style.display
-                    });
-                }, 100);
-            } else {
-                console.error("❌ UI elements not found for switching");
-            }
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'flex';
 
             // Test connection only once after login
             if (!connectionTested) {
-                console.log("🔐 Testing connection...");
                 await testConnection();
                 connectionTested = true;
             }
 
             // Storage indicator'ı güncelle
-            if (typeof updateStorageIndicator === 'function') {
-                updateStorageIndicator();
-                console.log("✅ Storage indicator updated");
-            }
-
-            console.log("✅ LOGIN COMPLETED SUCCESSFULLY");
-            return true;
+            updateStorageIndicator();
 
         } else {
-            console.error("❌ No user data returned from Supabase");
             showAlert('Giriş başarısız.', 'error');
-            return false;
         }
 
     } catch (e) {
-        console.error('❌ Login error:', e);
+        console.error('Login error:', e);
         showAlert('Giriş sırasında bir hata oluştu.', 'error');
-        return false;
     } finally {
         loginBtn.disabled = false;
         loginBtn.textContent = 'Giriş Yap';
-        console.log("✅ Login button reset");
     }
-} 
+}
 
 // Excel modunda devam et
 function proceedWithExcelMode() {
@@ -1071,15 +959,11 @@ class UserManager {
     }
 }
 
-// FIXED: Update login function to apply user permissions without breaking parameters
+// Update login function to apply user permissions
 const originalLogin = login;
-login = async function(emailParam = null, passwordParam = null) {
-    await originalLogin(emailParam, passwordParam);
-    
-    // Only apply permissions if login was successful
-    if (currentUser) {
-        UserManager.applyUserPermissions();
-    }
+login = async function() {
+    await originalLogin();
+    UserManager.applyUserPermissions();
 };
 
 // Update workspace permissions to also check user permissions
@@ -1092,26 +976,3 @@ WorkspaceManager.prototype.canPerformAction = async function(action) {
     // Then check user permissions
     return await UserManager.hasPermission(action);
 };
-
-
-
-// Add this function to check current UI state
-function debugUIState() {
-    const loginScreen = document.getElementById('loginScreen');
-    const appContainer = document.getElementById('appContainer');
-    
-    console.log("🔍 CURRENT UI STATE:", {
-        loginScreen: {
-            exists: !!loginScreen,
-            display: loginScreen ? loginScreen.style.display : 'N/A',
-            computedDisplay: loginScreen ? window.getComputedStyle(loginScreen).display : 'N/A'
-        },
-        appContainer: {
-            exists: !!appContainer,
-            display: appContainer ? appContainer.style.display : 'N/A',
-            computedDisplay: appContainer ? window.getComputedStyle(appContainer).display : 'N/A'
-        }
-    });
-}
-
-// Call this in console anytime: debugUIState()
