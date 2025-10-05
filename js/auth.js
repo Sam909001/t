@@ -5,6 +5,12 @@ async function login() {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
+    // ✅ ADD THIS: Check if Supabase is initialized
+    if (!supabase) {
+        showAlert('Sistem başlatılıyor, lütfen bekleyin...', 'error');
+        return;
+    }
+
     // Form doğrulama
     if (!validateForm([
         { id: 'email', errorId: 'emailError', type: 'email', required: true },
@@ -79,7 +85,6 @@ async function login() {
         loginBtn.textContent = 'Giriş Yap';
     }
 }
-
 
 // Excel modunda devam et
 function proceedWithExcelMode() {
