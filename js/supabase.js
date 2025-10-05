@@ -52,6 +52,41 @@ if (typeof emailjs === 'undefined') {
     };
 }
 
+
+
+// Add this to your supabase.js file around line 50 (after global variables)
+function diagnoseTabs() {
+    console.log('🔍 Diagnosing tabs...');
+    
+    const expectedTabs = ['packages', 'shipping', 'stock', 'reports', 'settings'];
+    const foundTabs = [];
+    
+    expectedTabs.forEach(tabName => {
+        const tabElement = document.querySelector(`[data-tab="${tabName}"]`);
+        const contentElement = document.getElementById(`${tabName}Tab`);
+        
+        console.log(`📁 ${tabName}:`, {
+            tabButton: !!tabElement,
+            tabContent: !!contentElement,
+            tabButtonElement: tabElement,
+            contentElement: contentElement
+        });
+        
+        if (tabElement && contentElement) {
+            foundTabs.push(tabName);
+        }
+    });
+    
+    console.log('✅ Found tabs:', foundTabs);
+    return foundTabs;
+}
+
+// Call this after DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(diagnoseTabs, 1000);
+});
+
+
 // Add this RIGHT AFTER the existing global variables (around line 25)
 // ==================== WORKSPACE MANAGEMENT ====================
 class WorkspaceManager {
@@ -2982,7 +3017,7 @@ async function calculateTotalQuantity(packageIds) {
 
         
 
-  // Pagination state
+ // Pagination state
 let currentPage = 0;
 const pageSize = 20; // number of containers per page
 
@@ -3300,7 +3335,6 @@ function debouncedPopulateShippingTable() {
 
 
 
-
 async function viewContainerDetails(containerId) {
     console.log('🔍 viewContainerDetails called with:', containerId);
     
@@ -3402,10 +3436,44 @@ async function viewContainerDetails(containerId) {
 
 
 
-let isStockTableLoading = false;
+        
+        // Konteyner ara
+        function searchContainers() {
+            const searchTerm = elements.containerSearch.value.toLowerCase();
+            const folders = document.querySelectorAll('.customer-folder');
+            
+            folders.forEach(folder => {
+                const containerRows = folder.querySelectorAll('tbody tr');
+                let hasVisibleRows = false;
+                
+                containerRows.forEach(row => {
+                    const containerNo = row.cells[1].textContent.toLowerCase();
+                    if (containerNo.includes(searchTerm)) {
+                        row.style.display = '';
+                        hasVisibleRows = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                // Eğer bu klasörde görünebilir satır yoksa, klasörü gizle
+                const folderHeader = folder.querySelector('.folder-header');
+                if (hasVisibleRows) {
+                    folder.style.display = 'block';
+                    folderHeader.style.display = 'flex';
+                } else {
+                    folder.style.display = 'none';
+                }
+            });
+        }
+
+
+
+
+  let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// Enhanced populateReportsTable function
+// REPLACE the populateReportsTable function with this:
 async function populateReportsTable() {
     try {
         console.log('Populating reports table with daily Excel files...');
@@ -3415,14 +3483,6 @@ async function populateReportsTable() {
             console.error('Reports container not found');
             return;
         }
-        
-        // Show loading state
-        reportsContainer.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #666;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
-                <h4>Raporlar yükleniyor...</h4>
-            </div>
-        `;
         
         // Get daily Excel files
         const dailyFiles = ExcelStorage.getAvailableDailyFiles();
@@ -3454,10 +3514,8 @@ async function populateReportsTable() {
                         margin: 12px 0;
                         border-radius: 6px;
                         background: ${isToday ? '#f8fff8' : '#f9f9f9'};
-                        transition: all 0.3s ease;
-                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                    ">
+                        <div style="display: flex; justify-content: between; align-items: center;">
                             <div style="flex: 1;">
                                 <h4 style="margin: 0 0 8px 0; color: #333;">
                                     <i class="fas fa-calendar-day"></i> ${file.displayDate}
@@ -3479,7 +3537,7 @@ async function populateReportsTable() {
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <button onclick="exportDailyFile('${file.date}')" 
+                                <button onclick="ExcelStorage.exportDailyFile('${file.date}')" 
                                         class="btn btn-success btn-sm" 
                                         style="white-space: nowrap;">
                                     <i class="fas fa-download"></i> CSV İndir
@@ -3498,7 +3556,7 @@ async function populateReportsTable() {
             // Add cleanup button
             reportsHTML += `
                 <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
-                    <button onclick="cleanupOldFiles()" 
+                    <button onclick="ExcelStorage.cleanupOldFiles(); populateReportsTable();" 
                             class="btn btn-warning btn-sm">
                         <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
                     </button>
@@ -3527,6 +3585,8 @@ async function populateReportsTable() {
         }
     }
 }
+
+
 
 // Enhanced viewDailyFile function
 async function viewDailyFile(dateString) {
@@ -4131,6 +4191,69 @@ async function populateStockTable() {
     }
 }
 
+
+
+// Add these stock functions after populateStockTable()
+async function editStockItem(stockCode) {
+    try {
+        // Get current stock item
+        let stockItem;
+        
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Find in mock data
+            stockItem = { code: stockCode, name: 'Product', quantity: 0, unit: 'Adet' };
+        } else {
+            const { data, error } = await supabase
+                .from('stock_items')
+                .select('*')
+                .eq('code', stockCode)
+                .single();
+                
+            if (error) throw error;
+            stockItem = data;
+        }
+        
+        // Show edit dialog
+        const newQuantity = prompt(`Edit ${stockItem.name} quantity:`, stockItem.quantity);
+        if (newQuantity === null) return;
+        
+        const quantity = parseInt(newQuantity);
+        if (isNaN(quantity) || quantity < 0) {
+            showAlert('Please enter a valid quantity', 'error');
+            return;
+        }
+        
+        // Update stock
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            const { error } = await supabase
+                .from('stock_items')
+                .update({ quantity: quantity, updated_at: new Date().toISOString() })
+                .eq('code', stockCode);
+                
+            if (error) throw error;
+        }
+        
+        showAlert(`Stock updated: ${stockItem.name} = ${quantity}`, 'success');
+        await populateStockTable();
+        
+    } catch (error) {
+        console.error('Error editing stock:', error);
+        showAlert('Error updating stock: ' + error.message, 'error');
+    }
+}
+
+function showStockTab() {
+    // Make sure stock tab is visible
+    const stockTab = document.getElementById('stockTab');
+    if (stockTab) {
+        stockTab.style.display = 'block';
+    }
+    populateStockTable();
+}
+
+
+
+
 // Fixed populateReportsTable function
 async function populateReportsTable() {
     try {
@@ -4239,14 +4362,6 @@ async function populateReportsTable() {
 }
 
 
-
-
-
-// Add missing stock edit function
-function editStockItem(stockCode) {
-    showAlert(`Stok düzenleme: ${stockCode}`, 'info');
-    // Implement stock editing logic here
-}
 
 // Add loadReports function for the reports tab
 async function loadReports() {
@@ -4918,6 +5033,8 @@ async function sendToRamp(containerNo = null) {
         function filterShipping() {
             populateShippingTable();
         }
+
+
 
 
 // Enhanced reports functionality
