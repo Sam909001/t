@@ -1636,6 +1636,16 @@ function checkPrinterStatus() {
 }
 
 
+function checkPrinterStatus() {
+    initializePrinter(); // ✅ This works even if function is below
+    console.log("Checking printer...");
+}
+
+function initializePrinter() {
+    console.log("Printer initialized");
+}
+
+checkPrinterStatus();
 
 
 
