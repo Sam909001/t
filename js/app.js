@@ -486,6 +486,7 @@ function switchTab(tabName) {
 
 
 
+
 function closeAllModals() {
     document.getElementById('customerModal').style.display = 'none';
     document.getElementById('allCustomersModal').style.display = 'none';
