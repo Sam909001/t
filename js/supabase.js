@@ -1,7 +1,8 @@
-/// Supabase initialization - Hardcoded API Key
+/// Supabase initialization - Varsayılan değerler
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-// Hardcoded API key - replace with your actual anon/public key
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM;
+// Use API key directly from script/localStorage. Replace 'REPLACE_WITH_YOUR_ANON_KEY' with your real anon key.
+// Prefer stored key in localStorage for deployments where you set it once:
+let SUPABASE_ANON_KEY = localStorage.getItem('procleanApiKey') || 'REPLACE_WITH_YOUR_ANON_KEY';
 let supabase = null;
 
 // Global state variables
@@ -53,42 +54,6 @@ if (typeof emailjs === 'undefined') {
     };
 }
 
-
-
-// Add this to your supabase.js file around line 50 (after global variables)
-function diagnoseTabs() {
-    console.log('🔍 Diagnosing tabs...');
-    
-    const expectedTabs = ['packages', 'shipping', 'stock', 'reports', 'settings'];
-    const foundTabs = [];
-    
-    expectedTabs.forEach(tabName => {
-        const tabElement = document.querySelector(`[data-tab="${tabName}"]`);
-        const contentElement = document.getElementById(`${tabName}Tab`);
-        
-        console.log(`📁 ${tabName}:`, {
-            tabButton: !!tabElement,
-            tabContent: !!contentElement,
-            tabButtonElement: tabElement,
-            contentElement: contentElement
-        });
-        
-        if (tabElement && contentElement) {
-            foundTabs.push(tabName);
-        }
-    });
-    
-    console.log('✅ Found tabs:', foundTabs);
-    return foundTabs;
-}
-
-// Call this after DOM loads
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(diagnoseTabs, 1000);
-});
-
-
-// Add this RIGHT AFTER the existing global variables (around line 25)
 // ==================== WORKSPACE MANAGEMENT ====================
 class WorkspaceManager {
     constructor() {
@@ -438,29 +403,32 @@ async loadWorkspaceData() {
 }
 
 
-// Auto-initialize Supabase when the script loads
+// Only force workspace selection if the user/device hasn't chosen one yet
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Initializing application...');
-    
-    // Initialize Supabase automatically
-    initializeSupabase();
-    
-    // Test connection
     setTimeout(async () => {
-        await testConnection();
-    }, 1000);
-    
-    // Initialize workspace system
-    if (window.workspaceManager) {
-        await window.workspaceManager.initialize();
-    }
-    
-    // Load initial data
-    await initializeExcelStorage();
-    await populateCustomers();
-    await populatePackagesTable();
-    
-    console.log('✅ Application initialized successfully');
+        try {
+            // If workspace already persisted, do not show
+            const alreadySelected = localStorage.getItem('proclean_workspace_selected') === 'true';
+            if (alreadySelected) {
+                // If it exists but workspaceManager not set, try to initialize silently
+                if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+                    await window.workspaceManager.loadWorkspaceData();
+                }
+                return;
+            }
+
+            // Avoid showing many times in same session
+            if (window._workspaceSelectionShown) return;
+
+            if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+                console.log('🔄 No workspace selected, asking user to choose (once)...');
+                window._workspaceSelectionShown = true;
+                await window.workspaceManager.showWorkspaceSelection();
+            }
+        } catch (err) {
+            console.error('Workspace selection guard error:', err);
+        }
+    }, 800);
 });
 
 
@@ -1780,168 +1748,50 @@ const ProfessionalExcelExport = {
     }
 };
 
-// Also update the upload function to use simplified columns
-async function uploadExcelToSupabase(packages) {
-    if (!supabase || !navigator.onLine) {
-        console.log("Supabase not available, skipping upload");
-        return false;
-    }
-
-    try {
-        // Use the SIMPLIFIED ProfessionalExcelExport functionality
-        const excelData = ProfessionalExcelExport.convertToProfessionalExcel(packages);
-        
-        if (!excelData || excelData.length === 0) {
-            console.log("No data to upload");
-            return false;
-        }
-
-        // Create CSV content with simplified columns
-        const headers = Object.keys(excelData[0]);
-        const csvContent = [
-            headers.join(','),
-            ...excelData.map(row => 
-                headers.map(header => {
-                    const value = row[header];
-                    // Escape commas and quotes
-                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
-                        return `"${value.replace(/"/g, '""')}"`;
-                    }
-                    return value;
-                }).join(',')
-            )
-        ].join('\n');
-
-        // Create blob with BOM for Excel compatibility
-        const blob = new Blob(['\uFEFF' + csvContent], { 
-            type: 'text/csv;charset=utf-8;' 
-        });
-
-        // File name
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const fileName = `backup_${timestamp}.csv`;
-
-        // Upload to Supabase storage
-        const { data, error } = await supabase.storage
-            .from('reports')
-            .upload(fileName, blob);
-
-        if (error) {
-            console.error("Supabase storage upload error:", error);
-            
-            // Fallback: Try to insert as records in a table
-            await uploadAsDatabaseRecords(packages, timestamp);
-            return false;
-        }
-
-        console.log("Excel backup uploaded to Supabase storage:", fileName);
-        return true;
-        
-    } catch (error) {
-        console.error("Supabase upload error:", error);
-        return false;
-    }
-}
-
-
-
-// REPLACE existing initializeSupabase with this more robust implementation
-async function initializeSupabase() {
-    // Return existing client if already initialized
-    if (supabase) return supabase;
-
-    // Basic validation of config
-    if (!SUPABASE_URL) {
-        console.error('❌ SUPABASE_URL is not set.');
-        showAlert('Supabase URL yapılandırılmadı. Lütfen SUPABASE_URL ayarını kontrol edin.', 'error');
-        return null;
-    }
-    if (!SUPABASE_ANON_KEY) {
-        console.error('❌ SUPABASE_ANON_KEY is not set.');
-        showAlert('Supabase API anahtarı yapılandırılmamış. Lütfen SUPABASE_ANON_KEY ayarını kontrol edin.', 'error');
-        isUsingExcel = true;
-        return null;
-    }
-
-    // Detect obvious placeholder (adjust or remove this string if you intend to use a key equal to it)
-    const PLACEHOLDER = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
-    if (SUPABASE_ANON_KEY === PLACEHOLDER || SUPABASE_ANON_KEY.toLowerCase().includes('your') || SUPABASE_ANON_KEY.length < 30) {
-        console.error('❌ Supabase API key not configured or looks like a placeholder. Please set SUPABASE_ANON_KEY with your actual key.');
-        showAlert('Supabase API anahtarı yapılandırılmamış veya geçersiz. Excel moduna geçiliyor.', 'warning');
-        isUsingExcel = true;
-        return null;
-    }
-
-    // Find createClient function in common forms
-    let createClientFn = null;
-
-    // If supabase-js was loaded as window.supabase with createClient
-    if (window.supabase && typeof window.supabase.createClient === 'function') {
-        createClientFn = window.supabase.createClient.bind(window.supabase);
-    }
-
-    // If bundler exposes createClient globally (rare in your setup)
-    if (!createClientFn && typeof createClient === 'function') {
-        createClientFn = createClient;
-    }
-
-    // Fallback attempt: try another common name
-    if (!createClientFn && typeof supabaseCreateClient === 'function') {
-        createClientFn = supabaseCreateClient;
-    }
-
-    // If still not found, attempt to load the CDN once (best-effort)
-    if (!createClientFn) {
-        console.error('❌ Supabase client library (supabase-js) not detected. Attempting to load CDN (one-time).');
-        showAlert('Supabase JS kütüphanesi yüklenmedi. Deneniyor (CDN).', 'info');
-
-        try {
-            await new Promise((resolve, reject) => {
-                const url = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js';
-                if (document.querySelector(`script[src="${url}"]`)) {
-                    // script present already but createClient unavailable
-                    return reject(new Error('CDN script already present but createClient not exposed'));
-                }
-                const s = document.createElement('script');
-                s.src = url;
-                s.async = true;
-                s.onload = () => {
-                    if (window.supabase && typeof window.supabase.createClient === 'function') {
-                        createClientFn = window.supabase.createClient.bind(window.supabase);
-                        resolve();
-                    } else {
-                        reject(new Error('Loaded supabase-js but createClient still not available'));
-                    }
-                };
-                s.onerror = () => reject(new Error('Failed to load supabase-js from CDN'));
-                document.head.appendChild(s);
-            });
-        } catch (cdnError) {
-            console.warn('CDN load attempt failed:', cdnError);
-        }
-    }
-
-    if (!createClientFn) {
-        console.error('❌ Could not find createClient function for supabase-js.');
-        showAlert('Supabase başlatılamadı (kütüphane bulunamadı). Excel moduna geçiliyor.', 'error');
-        isUsingExcel = true;
-        return null;
-    }
-
-    // Create the client
-    try {
-        supabase = createClientFn(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('✅ Supabase client initialized successfully');
-        isUsingExcel = false;
+// INITIALIZE SUPABASE - uses direct key (from localStorage or hardcoded above)
+// Singleton pattern with safe fallback to Excel mode if no key
+function initializeSupabase() {
+    // If client already created and API key exists, return it
+    if (supabase && SUPABASE_ANON_KEY) {
         return supabase;
-    } catch (err) {
-        console.error('❌ Supabase initialization error:', err);
+    }
+    
+    if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'REPLACE_WITH_YOUR_ANON_KEY') {
+        console.warn('Supabase API key is not set. Running in Excel (offline) mode.');
+        isUsingExcel = true;
+        showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
+        return null;
+    }
+    
+    try {
+        // If a global supabase factory exists, prefer it; otherwise create minimal wrapper
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else if (typeof createClient === 'function') {
+            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else {
+            // Try to use @supabase/supabase-js if loaded as supabaseClient
+            if (window.SupabaseClient) {
+                supabase = new window.SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                console.warn('Supabase client factory not found - supabase operations will fail if attempted');
+                supabase = null;
+            }
+        }
+        if (supabase) {
+            console.log('Supabase client initialized successfully');
+            isUsingExcel = false;
+            return supabase;
+        } else {
+            throw new Error('Supabase client creation returned null');
+        }
+    } catch (error) {
+        console.error('Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
         isUsingExcel = true;
         return null;
     }
 }
-
 
 async function initializeExcelStorage() {
     try {
@@ -2655,13 +2505,45 @@ function enhanceSyncQueue() {
     }
 }
 
+// FIXED: API anahtarını kaydet ve istemciyi başlat
+function saveApiKey() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    if (!apiKey) {
+        showAlert('Lütfen bir API anahtarı girin', 'error');
+        return;
+    }
+    
+    // Eski client'ı temizle
+    supabase = null;
+    
+    // Yeni API key'i ayarla
+    SUPABASE_ANON_KEY = apiKey;
+    localStorage.setItem('procleanApiKey', apiKey);
+    
+    // Yeni client oluştur
+    const newClient = initializeSupabase();
+    
+    if (newClient) {
+        document.getElementById('apiKeyModal').style.display = 'none';
+        showAlert('API anahtarı kaydedildi', 'success');
+        testConnection();
+        
+        // Çevrimiçi olunca senkronize et
+        setTimeout(syncExcelWithSupabase, 2000);
+    }
+}
 
+        
+let connectionAlertShown = false; // Prevent duplicate success alert
 
-// FIXED: Supabase bağlantısını test et - Simplified
+// FIXED: Supabase bağlantısını test et
 async function testConnection() {
     if (!supabase) {
-        console.warn('Supabase client not initialized');
-        showAlert('Veritabanı bağlantısı hazır değil.', 'warning');
+        console.warn('Supabase client not initialized for connection test');
+        if (!connectionAlertShown) {
+            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
+            connectionAlertShown = true; // mark as shown to avoid repeating
+        }
         return false;
     }
     
@@ -2669,16 +2551,25 @@ async function testConnection() {
         const { data, error } = await supabase.from('customers').select('*').limit(1);
         if (error) throw error;
         
-        console.log('✅ Supabase connection test successful');
-        showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
+        console.log('Supabase connection test successful:', data);
+        
+        if (!connectionAlertShown) {
+            showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
+            connectionAlertShown = true; // ensure alert shows only once
+        }
+
         return true;
-    } catch (error) {
-        console.error('❌ Supabase connection test failed:', error);
-        showAlert('Veritabanına bağlanılamıyor. Excel modunda çalışılıyor.', 'warning');
-        isUsingExcel = true;
+    } catch (e) {
+        console.error('Supabase connection test failed:', e.message);
+        if (!connectionAlertShown) {
+            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
+            connectionAlertShown = true;
+        }
         return false;
     }
 }
+
+
 
 
  // Çevrimdışı destek
@@ -3042,7 +2933,7 @@ async function calculateTotalQuantity(packageIds) {
 
         
 
- // Pagination state
+  // Pagination state
 let currentPage = 0;
 const pageSize = 20; // number of containers per page
 
@@ -3360,6 +3251,7 @@ function debouncedPopulateShippingTable() {
 
 
 
+
 async function viewContainerDetails(containerId) {
     console.log('🔍 viewContainerDetails called with:', containerId);
     
@@ -3461,44 +3353,10 @@ async function viewContainerDetails(containerId) {
 
 
 
-        
-        // Konteyner ara
-        function searchContainers() {
-            const searchTerm = elements.containerSearch.value.toLowerCase();
-            const folders = document.querySelectorAll('.customer-folder');
-            
-            folders.forEach(folder => {
-                const containerRows = folder.querySelectorAll('tbody tr');
-                let hasVisibleRows = false;
-                
-                containerRows.forEach(row => {
-                    const containerNo = row.cells[1].textContent.toLowerCase();
-                    if (containerNo.includes(searchTerm)) {
-                        row.style.display = '';
-                        hasVisibleRows = true;
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-                
-                // Eğer bu klasörde görünebilir satır yoksa, klasörü gizle
-                const folderHeader = folder.querySelector('.folder-header');
-                if (hasVisibleRows) {
-                    folder.style.display = 'block';
-                    folderHeader.style.display = 'flex';
-                } else {
-                    folder.style.display = 'none';
-                }
-            });
-        }
-
-
-
-
-  let isStockTableLoading = false;
+let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// REPLACE the populateReportsTable function with this:
+// Enhanced populateReportsTable function
 async function populateReportsTable() {
     try {
         console.log('Populating reports table with daily Excel files...');
@@ -3508,6 +3366,14 @@ async function populateReportsTable() {
             console.error('Reports container not found');
             return;
         }
+        
+        // Show loading state
+        reportsContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <h4>Raporlar yükleniyor...</h4>
+            </div>
+        `;
         
         // Get daily Excel files
         const dailyFiles = ExcelStorage.getAvailableDailyFiles();
@@ -3539,8 +3405,10 @@ async function populateReportsTable() {
                         margin: 12px 0;
                         border-radius: 6px;
                         background: ${isToday ? '#f8fff8' : '#f9f9f9'};
-                    ">
-                        <div style="display: flex; justify-content: between; align-items: center;">
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="flex: 1;">
                                 <h4 style="margin: 0 0 8px 0; color: #333;">
                                     <i class="fas fa-calendar-day"></i> ${file.displayDate}
@@ -3562,7 +3430,7 @@ async function populateReportsTable() {
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <button onclick="ExcelStorage.exportDailyFile('${file.date}')" 
+                                <button onclick="exportDailyFile('${file.date}')" 
                                         class="btn btn-success btn-sm" 
                                         style="white-space: nowrap;">
                                     <i class="fas fa-download"></i> CSV İndir
@@ -3581,7 +3449,7 @@ async function populateReportsTable() {
             // Add cleanup button
             reportsHTML += `
                 <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
-                    <button onclick="ExcelStorage.cleanupOldFiles(); populateReportsTable();" 
+                    <button onclick="cleanupOldFiles()" 
                             class="btn btn-warning btn-sm">
                         <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
                     </button>
@@ -3605,41 +3473,6 @@ async function populateReportsTable() {
                     <button onclick="populateReportsTable()" class="btn btn-primary">
                         <i class="fas fa-redo"></i> Tekrar Dene
                     </button>
-                </div>
-            `;
-        }
-    }
-}
-
-
-function showReportsTab() {
-    const reportsTab = document.getElementById('reportsTab');
-    if (reportsTab) {
-        reportsTab.style.display = 'block';
-    }
-    populateReportsTable();
-}
-
-// Make sure we're using the daily files version of reports
-async function populateReportsTable() {
-    try {
-        console.log('Loading daily reports...');
-        const reportsContainer = document.getElementById('reportsTab');
-        if (!reportsContainer) {
-            console.log('Reports container not found, tab might be hidden');
-            return;
-        }
-
-        // Your existing daily files code here (the first version)
-        // ... keep the existing daily files implementation ...
-
-    } catch (error) {
-        console.error('Error in populateReportsTable:', error);
-        const reportsContainer = document.getElementById('reportsTab');
-        if (reportsContainer) {
-            reportsContainer.innerHTML = `
-                <div style="text-align:center; color:red; padding:20px;">
-                    Error loading reports: ${error.message}
                 </div>
             `;
         }
@@ -4249,69 +4082,6 @@ async function populateStockTable() {
     }
 }
 
-
-
-// Add these stock functions after populateStockTable()
-async function editStockItem(stockCode) {
-    try {
-        // Get current stock item
-        let stockItem;
-        
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Find in mock data
-            stockItem = { code: stockCode, name: 'Product', quantity: 0, unit: 'Adet' };
-        } else {
-            const { data, error } = await supabase
-                .from('stock_items')
-                .select('*')
-                .eq('code', stockCode)
-                .single();
-                
-            if (error) throw error;
-            stockItem = data;
-        }
-        
-        // Show edit dialog
-        const newQuantity = prompt(`Edit ${stockItem.name} quantity:`, stockItem.quantity);
-        if (newQuantity === null) return;
-        
-        const quantity = parseInt(newQuantity);
-        if (isNaN(quantity) || quantity < 0) {
-            showAlert('Please enter a valid quantity', 'error');
-            return;
-        }
-        
-        // Update stock
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            const { error } = await supabase
-                .from('stock_items')
-                .update({ quantity: quantity, updated_at: new Date().toISOString() })
-                .eq('code', stockCode);
-                
-            if (error) throw error;
-        }
-        
-        showAlert(`Stock updated: ${stockItem.name} = ${quantity}`, 'success');
-        await populateStockTable();
-        
-    } catch (error) {
-        console.error('Error editing stock:', error);
-        showAlert('Error updating stock: ' + error.message, 'error');
-    }
-}
-
-function showStockTab() {
-    // Make sure stock tab is visible
-    const stockTab = document.getElementById('stockTab');
-    if (stockTab) {
-        stockTab.style.display = 'block';
-    }
-    populateStockTable();
-}
-
-
-
-
 // Fixed populateReportsTable function
 async function populateReportsTable() {
     try {
@@ -4420,6 +4190,14 @@ async function populateReportsTable() {
 }
 
 
+
+
+
+// Add missing stock edit function
+function editStockItem(stockCode) {
+    showAlert(`Stok düzenleme: ${stockCode}`, 'info');
+    // Implement stock editing logic here
+}
 
 // Add loadReports function for the reports tab
 async function loadReports() {
@@ -5091,8 +4869,6 @@ async function sendToRamp(containerNo = null) {
         function filterShipping() {
             populateShippingTable();
         }
-
-
 
 
 // Enhanced reports functionality
