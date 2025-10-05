@@ -1247,7 +1247,8 @@ function isValidEmail(email) {
     return re.test(String(email).toLowerCase());
 }
 // Elementleri bir defa tanımla
-const elements = {};
+window.elements = window.elements || {};
+const elements = window.elements;
 
 // Enhanced Excel Storage with Proper Daily Files
 const ExcelStorage = {
