@@ -1,3 +1,6 @@
+// FIXED: Kullanıcı girişi
+let connectionTested = false; // Flag to prevent duplicate connection tests
+
 async function login(emailParam = null, passwordParam = null) {
     console.log("🔐 LOGIN FUNCTION START - Parameters:", { emailParam, passwordParam });
     
