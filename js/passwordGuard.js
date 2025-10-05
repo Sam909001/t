@@ -42,12 +42,6 @@ class PasswordGuard {
                     
                     <p style="margin-bottom: 1rem;"><strong>${actionName}</strong> işlemi için şifre gerekiyor.</p>
                     
-                    <div style="background: #f8f9fa; padding: 0.8rem; border-radius: 4px; margin: 1rem 0; font-size: 0.9rem;">
-                        <div style="text-align: center;">
-                            <span>Gerekli şifre: </span>
-                            <strong>${this.getPasswordHint(actionType)}</strong>
-                        </div>
-                    </div>
                     
                     <input type="password" id="passwordInput" 
                            style="width: 100%; padding: 12px; margin: 1rem 0; border: 2px solid #ddd; border-radius: 4px; font-size: 1rem;"
