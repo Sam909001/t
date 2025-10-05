@@ -405,34 +405,34 @@ async loadWorkspaceData() {
 }
 
 
-// Only force workspace selection if the user/device hasn't chosen one yet
+// ==================== [ FIXED WORKSPACE SELECTION GUARD ] ====================
+// Only force workspace selection if the user is logged in AND has no current workspace loaded.
 document.addEventListener('DOMContentLoaded', async function() {
     setTimeout(async () => {
         try {
-            // If workspace already persisted, do not show
-            const alreadySelected = localStorage.getItem('proclean_workspace_selected') === 'true';
-            if (alreadySelected) {
-                // If it exists but workspaceManager not set, try to initialize silently
-                if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-                    await window.workspaceManager.loadWorkspaceData();
-                }
-                return;
-            }
+            // Check if the user is currently logged in (currentUser is not null)
+            // AND if the WorkspaceManager has failed to load a workspace.
+            // Note: window.workspaceManager.currentWorkspace will be set if a workspace was loaded from localStorage.
+            if (window.currentUser && window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+                
+                // Avoid showing many times in the same session
+                if (window._workspaceSelectionShown) return;
 
-            // Avoid showing many times in same session
-            if (window._workspaceSelectionShown) return;
-
-            if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-                console.log('🔄 No workspace selected, asking user to choose (once)...');
+                console.log('🔄 User logged in but no workspace selected/loaded. Asking user to choose (once)...');
                 window._workspaceSelectionShown = true;
-                await window.workspaceManager.showWorkspaceSelection();
+                
+                // This call only forces the modal if currentWorkspace is null
+                await window.workspaceManager.showWorkspaceSelection(); 
+
+                // After successful selection in the modal, the modal's save function 
+                // MUST set window.workspaceManager.currentWorkspace and call loadWorkspaceData().
             }
         } catch (err) {
             console.error('Workspace selection guard error:', err);
         }
     }, 800);
 });
-
+// ==============================================================================
 
 
 // ==================== WORKSPACE UTILITIES ====================
