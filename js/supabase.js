@@ -4805,7 +4805,7 @@ async function sendToRamp(containerNo = null) {
         }
 
         // Update Excel packages locally
-        if (excelStylePackageIds.length > 0) {
+        elStylePackageIds.length > 0) {
             const currentPackages = await ExcelJS.readFile();
             const updatedPackages = currentPackages.map(pkg => {
                 if (excelStylePackageIds.includes(pkg.id)) {
@@ -4818,16 +4818,26 @@ async function sendToRamp(containerNo = null) {
                 }
                 return pkg;
             });
-            
+
+            // Write and await
             await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
-            excelPackages = updatedPackages;
+            // Keep in-memory cache updated
+            try {
+                window.excelPackages = updatedPackages;
+                if (window.isUsingExcel) window.packages = updatedPackages.slice();
+            } catch (e) { /* ignore */ }
+
+            // Dispatch event so UI will update immediately
+            try {
+                window.dispatchEvent(new CustomEvent('excelDataChanged', {
+                    detail: { ids: excelStylePackageIds, action: 'sendToRamp' }
+                }));
+            } catch (e) { console.warn(e); }
         }
 
-        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
-        
-        // Refresh tables
-        await populatePackagesTable();
-        await populateShippingTable();
+        // Refresh tables explicitly (safe)
+        if (typeof populatePackagesTable === 'function') await populatePackagesTable();
+        if (typeof populateShippingTable === 'function') await populateShippingTable();
         
     } catch (error) {
         console.error('Error sending to ramp:', error);
@@ -5742,3 +5752,21 @@ window.addEventListener('excelDataChanged', async (e) => {
         console.error('Error handling excelDataChanged event:', error);
     }
 });
+
+
+
+// Central listener so UI updates when the daily file changes
+if (!window._excelDataChangedHandlerRegistered) {
+    window.addEventListener('excelDataChanged', async (e) => {
+        console.log('📣 excelDataChanged received:', e?.detail || {});
+        try {
+            if (typeof updateStorageIndicator === 'function') updateStorageIndicator();
+        } catch (err) { /* ignore */ }
+
+        // Refresh key tables
+        try { if (typeof populatePackagesTable === 'function') await populatePackagesTable(); } catch (err) { console.warn(err); }
+        try { if (typeof populateShippingTable === 'function') await populateShippingTable(); } catch (err) { console.warn(err); }
+        try { if (typeof populateStockTable === 'function') await populateStockTable(); } catch (err) { console.warn(err); }
+    });
+    window._excelDataChangedHandlerRegistered = true;
+}
