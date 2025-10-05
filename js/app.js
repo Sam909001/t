@@ -1,14 +1,3 @@
-// CHANGE FROM:
-window.initializePrinter = function() {
-
-// TO:
-function initializePrinter() {
-    console.log("Printer initialized");
-    if (typeof window.printer === 'undefined') {
-        window.printer = { isConnected: true, serverUrl: 'Yerel Yazıcı' };
-    }
-}
-
 // ============================================
 // 1. STORAGE INITIALIZATION
 // ============================================
