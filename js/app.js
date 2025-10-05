@@ -1639,37 +1639,77 @@ async function completePackageWithRecovery() {
 
 
 
-function checkPrinterStatus() {
-    console.log('🔍 Checking printer status...');
-    
-    // Initialize printer if not already done
-    if (typeof printer === 'undefined') {
-        console.log('🔄 Printer not found, initializing...');
-        initializePrinter();
-    }
-    
-    if (!printer) {
-        console.log('❌ Printer initialization failed');
-        showAlert('Yazıcı servisi başlatılamadı', 'error');
+// Unified printer status update function
+async function checkPrinterStatusAndUpdateUI() {
+    const indicator = document.getElementById('printer-indicator') || document.getElementById('printer-indicator') || document.getElementById('printerIndicator');
+    const printerText = document.getElementById('printer-text') || document.querySelector('#printer-status #printer-text') || document.getElementById('printer-text');
+
+    try {
+        if (!window.workspaceManager) {
+            if (indicator) indicator.textContent = 'Yazıcı bilinmiyor';
+            if (printerText) printerText.textContent = 'İstasyon seçilmedi';
+            return false;
+        }
+
+        const printerConfig = window.workspaceManager.getCurrentPrinterConfig ? window.workspaceManager.getCurrentPrinterConfig() : null;
+
+        // Show checking
+        if (indicator) indicator.innerHTML = '<i class="fas fa-print"></i>';
+        if (printerText) printerText.textContent = 'Yazıcı kontrol ediliyor...';
+
+        // Attempt to test workstation printer (this is implemented in workspace manager)
+        let ok = false;
+        if (typeof window.workspaceManager?.testCurrentPrinter === 'function') {
+            ok = await window.workspaceManager.testCurrentPrinter();
+        } else {
+            // Fallback: check if window.printer exists
+            ok = !!(window.printer && window.printer.isConnected);
+        }
+
+        if (ok) {
+            if (indicator) {
+                indicator.innerHTML = '<i class="fas fa-print" style="color:#2ecc71"></i>';
+                indicator.title = (printerConfig?.name || 'Yerel Yazıcı') + ' - Bağlı';
+            }
+            if (printerText) printerText.textContent = `Yazıcı: ${printerConfig?.name || 'Bağlı'}`;
+            return true;
+        } else {
+            if (indicator) {
+                indicator.innerHTML = '<i class="fas fa-print" style="color:#e74c3c"></i>';
+                indicator.title = `Yazıcı bulunamadı`;
+            }
+            if (printerText) printerText.textContent = 'Yazıcı bağlanamadı';
+            return false;
+        }
+    } catch (err) {
+        console.error('checkPrinterStatusAndUpdateUI error:', err);
+        if (indicator) indicator.innerHTML = '<i class="fas fa-print" style="color:#e74c3c"></i>';
+        if (printerText) printerText.textContent = 'Yazıcı kontrol hatası';
         return false;
     }
-    
-    console.log(`📊 Printer status:`, {
-        defined: !!printer,
-        connected: printer.isConnected,
-        serverUrl: printer.serverUrl
-    });
-    
-    const statusMessage = printer.isConnected ? 
-        `Yazıcı bağlı: ${printer.serverUrl || 'Yerel yazıcı'}` : 
-        'Yazıcı bağlı değil';
-    
-    showAlert(`Yazıcı durumu: ${statusMessage}`, 
-              printer.isConnected ? 'success' : 'error');
-    
-    return printer.isConnected;
 }
 
+// Wire button and initial state at DOMContentLoaded (guarded)
+document.addEventListener('DOMContentLoaded', function() {
+    // Attach test button
+    const testBtn = document.getElementById('test-printer');
+    if (testBtn) {
+        testBtn.removeEventListener('click', window._procleanPrinterTestHandler);
+        window._procleanPrinterTestHandler = async function(e) {
+            testBtn.disabled = true;
+            testBtn.textContent = 'Test Ediliyor...';
+            await checkPrinterStatusAndUpdateUI();
+            testBtn.disabled = false;
+            testBtn.textContent = 'Test Printer';
+        };
+        testBtn.addEventListener('click', window._procleanPrinterTestHandler);
+    }
+
+    // Run initial check after short delay (so workspace selection can finish)
+    setTimeout(() => {
+        checkPrinterStatusAndUpdateUI();
+    }, 1200);
+});
 
 
 
