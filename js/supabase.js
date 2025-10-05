@@ -190,7 +190,8 @@ window._workspaceSelectionShown = true;
     }
     
     // Update UI to show current workspace
-   updateWorkspaceUI() {
+  // Update UI to show current workspace - ENHANCED VERSION
+updateWorkspaceUI() {
     const workspaceIndicator = document.getElementById('workspaceIndicator');
     
     if (workspaceIndicator && this.currentWorkspace) {
@@ -202,9 +203,15 @@ window._workspaceSelectionShown = true;
             <span class="workspace-type">${typeLabel}</span>
         `;
         workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
+        workspaceIndicator.style.display = 'inline-flex';
         console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
     } else {
         console.warn('⚠️ Workspace indicator element not found or workspace is null');
+        
+        // Create the element if it doesn't exist
+        if (!workspaceIndicator) {
+            this.createWorkspaceIndicator();
+        }
     }
     
     // Update document title
@@ -213,6 +220,51 @@ window._workspaceSelectionShown = true;
     }
 }
 
+// Create workspace indicator if it doesn't exist
+createWorkspaceIndicator() {
+    const indicator = document.createElement('div');
+    indicator.id = 'workspaceIndicator';
+    indicator.className = 'workspace-indicator';
+    indicator.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #495057;
+        margin-right: 10px;
+        cursor: pointer;
+    `;
+    
+    indicator.innerHTML = `
+        <i class="fas fa-desktop"></i>
+        İstasyon Seçiliyor...
+    `;
+    
+    // Add click handler to change workspace
+    indicator.onclick = () => this.showWorkspaceSelection();
+    
+    // Try to add to common locations
+    const header = document.querySelector('header');
+    const nav = document.querySelector('nav');
+    const mainContainer = document.querySelector('.main-container');
+    
+    if (header) {
+        header.prepend(indicator);
+    } else if (nav) {
+        nav.prepend(indicator);
+    } else if (mainContainer) {
+        mainContainer.prepend(indicator);
+    } else {
+        document.body.prepend(indicator);
+    }
+    
+    console.log('✅ Created workspace indicator element');
+}
 
     
     
