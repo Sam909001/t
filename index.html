@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <!-- ✅ Local libraries -->
 <script src="libs/JsBarcode.all.min.js"></script>
@@ -771,10 +770,8 @@ function getCustomEventListeners(element) {
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
-
-            
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
-// Secure Remember Me + Fast Login
 document.addEventListener("DOMContentLoaded", () => {
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
@@ -783,6 +780,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const fastLoginBtn = document.getElementById("fastLoginBtn");
 
     const SECRET_KEY = "ProCleanAutoSecureKey2025";
+
+    // Initially hide Fast Login button
+    fastLoginBtn.style.display = "none";
 
     // Load saved encrypted credentials
     const encryptedEmail = localStorage.getItem("savedEmail");
@@ -809,7 +809,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Save credentials securely if checked
+    // Save credentials securely on login
     loginBtn.addEventListener("click", () => {
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
@@ -825,39 +825,42 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.removeItem("savedEmail");
             localStorage.removeItem("savedPassword");
             localStorage.setItem("rememberMe", "false");
+            fastLoginBtn.style.display = "none"; // hide Fast Login if credentials removed
         }
     });
 
     // 🟢 Fast Login click handler
     fastLoginBtn.addEventListener("click", async () => {
         if (!decryptedEmail || !decryptedPassword) {
-            alert("Kayıtlı giriş bilgisi bulunamadı!");
+            alert("No saved login credentials found!");
             return;
         }
 
         console.log("🚀 Fast login with saved credentials:", decryptedEmail);
 
-        // Example placeholder (replace with your real login logic)
+        // Replace this with your actual login function
         await performLogin(decryptedEmail, decryptedPassword);
     });
 
-    // Example login logic (replace with your real login code)
+    // Example login logic (replace with your real code)
     async function performLogin(email, password) {
-        showAlert("Giriş yapılıyor...", "info");
+        showAlert("Logging in...", "info");
 
         // Simulate async login
         setTimeout(() => {
-            showAlert(`Hoşgeldiniz, ${email}`, "success");
+            showAlert(`Welcome, ${email}`, "success");
 
-            // ✅ Option 1 fix (safe modal closing)
+            // Close login modal safely
             const modal = document.getElementById("loginScreen");
-           if (modal) modal.style.display = "none";
+            if (modal) modal.style.display = "none";
         }, 800);
+    }
+
+    // Example alert function (replace with your actual UI logic)
+    function showAlert(msg, type = "info") {
+        console.log(`[${type.toUpperCase()}] ${msg}`);
     }
 });
 </script>
-
-
-
 </body>
 </html>
