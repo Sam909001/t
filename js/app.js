@@ -1,10 +1,13 @@
-// Top of app.js - Make sure this exists
+// CHANGE FROM:
 window.initializePrinter = function() {
+
+// TO:
+function initializePrinter() {
     console.log("Printer initialized");
     if (typeof window.printer === 'undefined') {
         window.printer = { isConnected: true, serverUrl: 'Yerel Yazıcı' };
     }
-};
+}
 
 // ============================================
 // 1. STORAGE INITIALIZATION
@@ -1608,36 +1611,40 @@ async function completePackageWithRecovery() {
 
 
 
+// CHANGE FROM:
 window.checkPrinterStatus = function() {
+
+// TO:
+function checkPrinterStatus() {
     console.log('🔍 Checking printer status...');
     
-    // FIX: Use window.initializePrinter instead of initializePrinter
+    // Initialize printer if not already done
     if (typeof window.printer === 'undefined') {
         console.log('🔄 Printer not found, initializing...');
-        window.initializePrinter(); // FIX: Added window. prefix
+        initializePrinter(); // Also change this to not use window.
     }
-
+    
     if (!window.printer) {
         console.log('❌ Printer initialization failed');
         showAlert('Yazıcı servisi başlatılamadı', 'error');
         return false;
     }
-
+    
     console.log(`📊 Printer status:`, {
         defined: !!window.printer,
         connected: window.printer.isConnected,
         serverUrl: window.printer.serverUrl
     });
-
+    
     const statusMessage = window.printer.isConnected ? 
         `Yazıcı bağlı: ${window.printer.serverUrl || 'Yerel yazıcı'}` : 
         'Yazıcı bağlı değil';
-
+    
     showAlert(`Yazıcı durumu: ${statusMessage}`, 
               window.printer.isConnected ? 'success' : 'error');
-
+    
     return window.printer.isConnected;
-};
+}
 
 
 
