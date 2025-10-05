@@ -1,3 +1,67 @@
+// Ensure a global elements object exists and initialize it once
+if (!window.elements) window.elements = {};
+if (!window._elementsInitialized) {
+    document.addEventListener('DOMContentLoaded', function() {
+        // initializeElementsObject returns a map and sets elements[...] entries
+        try {
+            // Call the existing helper if available
+            if (typeof initializeElementsObject === 'function') {
+                window.elements = initializeElementsObject();
+            } else if (typeof initializeElements === 'function') {
+                // fallback to older function name if present
+                window.elements = initializeElements();
+            } else {
+                // Best-effort single element mapping
+                window.elements = initializeElements ? initializeElements() : window.elements || {};
+            }
+        } catch (err) {
+            console.error('Failed to initialize elements:', err);
+        }
+        window._elementsInitialized = true;
+
+        // Attach a single, robust tab click handler AFTER elements exist
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.removeEventListener('click', window._procleanTabHandler);
+        });
+        window._procleanTabHandler = function (e) {
+            const tabName = this.getAttribute('data-tab');
+            if (!tabName) return;
+            // Use the canonical switchTab function; it's defined in app.js
+            if (typeof switchTab === 'function') {
+                switchTab(tabName);
+            } else {
+                // Fallback: manually show/hide panes
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                const pane = document.getElementById(tabName + 'Tab');
+                if (pane) pane.classList.add('active');
+                this.classList.add('active');
+            }
+
+            // Trigger the correct populate* after tab change
+            switch (tabName) {
+                case 'stock':
+                    if (typeof populateStockTable === 'function') populateStockTable();
+                    break;
+                case 'reports':
+                    if (typeof populateReportsTable === 'function') populateReportsTable();
+                    break;
+                case 'shipping':
+                    if (typeof populateShippingTable === 'function') populateShippingTable();
+                    break;
+                case 'packaging':
+                    if (typeof populatePackagesTable === 'function') populatePackagesTable();
+                    break;
+            }
+        };
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', window._procleanTabHandler);
+        });
+    });
+}
+
+
+
 // 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
 function initializeElements() {
     const elementIds = ['loginScreen', 'appContainer', 'customerSelect'];
