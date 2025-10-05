@@ -812,27 +812,53 @@ function setupEventListeners() {
 }
 
 async function initializeApiAndAuth() {
-    // Initialize Supabase directly with hardcoded keys
-    const client = await initializeSupabase();
-    
-    if (client) {
-        setupAuthListener();
-        console.log('✅ Supabase client initialized');
+    try {
+        console.log('🔄 Initializing Supabase connection...');
         
-        // Try to restore saved session
-        const sessionRestored = await restoreUserSession();
+        // Initialize Supabase
+        const client = await initializeSupabase();
         
-        if (sessionRestored) {
-            console.log('User session restored, auto-login successful');
+        if (client) {
+            console.log('✅ Supabase client initialized successfully');
+            setupAuthListener();
+            
+            // Try to restore saved session
+            const sessionRestored = await restoreUserSession();
+            
+            if (sessionRestored) {
+                console.log('✅ User session restored, auto-login successful');
+                showAlert('Oturum geri yüklendi!', 'success');
+            } else {
+                console.log('ℹ️ No valid session, user needs to login');
+                // Make sure login form is visible
+                showLoginForm();
+            }
         } else {
-            console.log('No valid session, user needs to login');
+            console.error('❌ Supabase initialization failed');
+            
+            // Fallback to offline mode
+            showAlert('Çevrimdışı moda geçiliyor... Local verilerle çalışabilirsiniz.', 'warning');
+            
+            // Show login form anyway for UI consistency
+            showLoginForm();
         }
-    } else {
-        console.error('❌ Supabase initialization failed');
-        showAlert('Veritabanı bağlantısı kurulamadı', 'error');
+    } catch (error) {
+        console.error('❌ Error in initializeApiAndAuth:', error);
+        showAlert('Sistem başlatılırken hata oluştu: ' + error.message, 'error');
+        
+        // Fallback - show login form
+        showLoginForm();
     }
 }
 
+// Add this helper function
+function showLoginForm() {
+    const loginSection = document.getElementById('loginSection');
+    const mainApp = document.getElementById('mainApp');
+    
+    if (loginSection) loginSection.style.display = 'block';
+    if (mainApp) mainApp.style.display = 'none';
+}
 
 // State management functions
 function saveAppState() {
