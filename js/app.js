@@ -696,55 +696,74 @@ function scheduleDailyClear() {
 }
 
 /// Main initialization
-// Main initialization - CORRECTED VERSION
+// Main initialization - FIXED VERSION
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
     try {
-        // Initialize station management FIRST
-        await initializeStationManagement();
-
-        // Check if we have a station selected
-        const currentStationId = await StorageManager.getItem('current_workstation_id');
-        const stations = await StorageManager.getItem('proclean_stations') || [];
-        const currentStation = stations.find(s => s.id === currentStationId);
-
-        if (currentStation) {
-            // Station exists, proceed with normal app initialization
-            window.CURRENT_WORKSTATION = currentStation;
-            console.log('✅ Current workstation:', currentStation.name);
-            
-            // Hide login, show app
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
-          
-            // Initialize workspace system
-            if (!window.workspaceManager) {
-                window.workspaceManager = new WorkspaceManager();
-            }
-            await window.workspaceManager.initialize();
-            
-            console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-            
-            // Initialize elements
+        // Initialize elements FIRST
+        if (typeof initializeElementsObject === 'function') {
             initializeElementsObject();
+        }
+
+        // Initialize API and auth BEFORE station management
+        await initializeApiAndAuth();
+        
+        // Check if user is already authenticated
+        const savedSession = await StorageManager.getItem('supabase_session');
+        const isAuthenticated = savedSession && savedSession.access_token;
+
+        if (isAuthenticated) {
+            console.log('✅ User is authenticated, proceeding to station selection');
+            // User is logged in, check station
+            await initializeStationManagement();
             
-            // Initialize workspace-aware UI
-            initializeWorkspaceUI();
-            setupWorkspaceAwareUI();
-            
-            // Setup event listeners
-            setupEventListeners();
-            
-            // API key initialization
-            await initializeApiAndAuth();
-            
-            // Initialize settings
-            initializeSettings();
-            
-            console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
+            const currentStationId = await StorageManager.getItem('current_workstation_id');
+            const stations = await StorageManager.getItem('proclean_stations') || [];
+            const currentStation = stations.find(s => s.id === currentStationId);
+
+            if (currentStation) {
+                // Station exists, show main app
+                window.CURRENT_WORKSTATION = currentStation;
+                console.log('✅ Current workstation:', currentStation.name);
+                
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
+              
+                // Initialize workspace system
+                if (!window.workspaceManager) {
+                    window.workspaceManager = new WorkspaceManager();
+                }
+                await window.workspaceManager.initialize();
+                
+                console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
+                
+                // Initialize workspace-aware UI
+                if (typeof initializeWorkspaceUI === 'function') {
+                    initializeWorkspaceUI();
+                }
+                if (typeof setupWorkspaceAwareUI === 'function') {
+                    setupWorkspaceAwareUI();
+                }
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                // Initialize settings
+                if (typeof initializeSettings === 'function') {
+                    initializeSettings();
+                }
+                
+                console.log('✅ ProClean fully initialized for workspace:', window.workspaceManager.currentWorkspace.name);
+            } else {
+                // No station selected, show station selection
+                console.log('⚠️ No workstation selected - showing station selection');
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('appContainer').style.display = 'none';
+                await populateStationList();
+            }
         } else {
-            // No station selected, show station selection
-            console.log('⚠️ No workstation selected - showing station selection');
+            // User not authenticated, show login/station screen
+            console.log('⚠️ User not authenticated - showing login/station screen');
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('appContainer').style.display = 'none';
             await populateStationList();
