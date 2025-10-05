@@ -1,41 +1,10 @@
-// Top of app.js
+// Top of app.js - Make sure this exists
 window.initializePrinter = function() {
     console.log("Printer initialized");
     if (typeof window.printer === 'undefined') {
         window.printer = { isConnected: true, serverUrl: 'Yerel Yazıcı' };
     }
 };
-
-window.checkPrinterStatus = function() {
-    console.log('🔍 Checking printer status...');
-    
-    if (typeof window.printer === 'undefined') {
-        console.log('🔄 Printer not found, initializing...');
-        window.initializePrinter();
-    }
-
-    if (!window.printer) {
-        console.log('❌ Printer initialization failed');
-        showAlert('Yazıcı servisi başlatılamadı', 'error');
-        return false;
-    }
-
-    console.log(`📊 Printer status:`, {
-        defined: !!window.printer,
-        connected: window.printer.isConnected,
-        serverUrl: window.printer.serverUrl
-    });
-
-    const statusMessage = window.printer.isConnected ? 
-        `Yazıcı bağlı: ${window.printer.serverUrl || 'Yerel yazıcı'}` : 
-        'Yazıcı bağlı değil';
-
-    showAlert(`Yazıcı durumu: ${statusMessage}`, 
-              window.printer.isConnected ? 'success' : 'error');
-
-    return window.printer.isConnected;
-};
-
 
 // ============================================
 // 1. STORAGE INITIALIZATION
@@ -1639,37 +1608,36 @@ async function completePackageWithRecovery() {
 
 
 
-function checkPrinterStatus() {
+window.checkPrinterStatus = function() {
     console.log('🔍 Checking printer status...');
     
-    // Initialize printer if not already done
-    if (typeof printer === 'undefined') {
+    // FIX: Use window.initializePrinter instead of initializePrinter
+    if (typeof window.printer === 'undefined') {
         console.log('🔄 Printer not found, initializing...');
-        initializePrinter();
+        window.initializePrinter(); // FIX: Added window. prefix
     }
-    
-    if (!printer) {
+
+    if (!window.printer) {
         console.log('❌ Printer initialization failed');
         showAlert('Yazıcı servisi başlatılamadı', 'error');
         return false;
     }
-    
-    console.log(`📊 Printer status:`, {
-        defined: !!printer,
-        connected: printer.isConnected,
-        serverUrl: printer.serverUrl
-    });
-    
-    const statusMessage = printer.isConnected ? 
-        `Yazıcı bağlı: ${printer.serverUrl || 'Yerel yazıcı'}` : 
-        'Yazıcı bağlı değil';
-    
-    showAlert(`Yazıcı durumu: ${statusMessage}`, 
-              printer.isConnected ? 'success' : 'error');
-    
-    return printer.isConnected;
-}
 
+    console.log(`📊 Printer status:`, {
+        defined: !!window.printer,
+        connected: window.printer.isConnected,
+        serverUrl: window.printer.serverUrl
+    });
+
+    const statusMessage = window.printer.isConnected ? 
+        `Yazıcı bağlı: ${window.printer.serverUrl || 'Yerel yazıcı'}` : 
+        'Yazıcı bağlı değil';
+
+    showAlert(`Yazıcı durumu: ${statusMessage}`, 
+              window.printer.isConnected ? 'success' : 'error');
+
+    return window.printer.isConnected;
+};
 
 
 
