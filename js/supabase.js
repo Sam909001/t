@@ -1,6 +1,7 @@
-/// Supabase initialization - Varsayılan değerler
+/// Supabase initialization - Hardcoded API Key
 const SUPABASE_URL = 'https://viehnigcbosgsxgehgnn.supabase.co';
-let SUPABASE_ANON_KEY = null;
+// Hardcoded API key - replace with your actual anon/public key
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM';
 let supabase = null;
 
 // Global state variables
@@ -51,6 +52,41 @@ if (typeof emailjs === 'undefined') {
         }
     };
 }
+
+
+
+// Add this to your supabase.js file around line 50 (after global variables)
+function diagnoseTabs() {
+    console.log('🔍 Diagnosing tabs...');
+    
+    const expectedTabs = ['packages', 'shipping', 'stock', 'reports', 'settings'];
+    const foundTabs = [];
+    
+    expectedTabs.forEach(tabName => {
+        const tabElement = document.querySelector(`[data-tab="${tabName}"]`);
+        const contentElement = document.getElementById(`${tabName}Tab`);
+        
+        console.log(`📁 ${tabName}:`, {
+            tabButton: !!tabElement,
+            tabContent: !!contentElement,
+            tabButtonElement: tabElement,
+            contentElement: contentElement
+        });
+        
+        if (tabElement && contentElement) {
+            foundTabs.push(tabName);
+        }
+    });
+    
+    console.log('✅ Found tabs:', foundTabs);
+    return foundTabs;
+}
+
+// Call this after DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(diagnoseTabs, 1000);
+});
+
 
 // Add this RIGHT AFTER the existing global variables (around line 25)
 // ==================== WORKSPACE MANAGEMENT ====================
@@ -133,8 +169,12 @@ class WorkspaceManager {
     
     // Set current workspace
     setCurrentWorkspace(workspace) {
-        this.currentWorkspace = workspace;
-        localStorage.setItem(this.workspaceKey, workspace.id);
+       this.currentWorkspace = workspace;
+localStorage.setItem(this.workspaceKey, workspace.id);
+
+// Persist that a selection has been made (prevent repeated prompts)
+localStorage.setItem('proclean_workspace_selected', 'true');
+window._workspaceSelectionShown = true;
         
         console.log('🎯 Current workspace set:', workspace.name);
         
@@ -398,15 +438,29 @@ async loadWorkspaceData() {
 }
 
 
-// Add this to supabase.js after workspace manager initialization
+// Auto-initialize Supabase when the script loads
 document.addEventListener('DOMContentLoaded', async function() {
-    // Force workspace selection if none is selected
+    console.log('🚀 Initializing application...');
+    
+    // Initialize Supabase automatically
+    initializeSupabase();
+    
+    // Test connection
     setTimeout(async () => {
-        if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-            console.log('🔄 No workspace selected, forcing selection...');
-            await window.workspaceManager.showWorkspaceSelection();
-        }
+        await testConnection();
     }, 1000);
+    
+    // Initialize workspace system
+    if (window.workspaceManager) {
+        await window.workspaceManager.initialize();
+    }
+    
+    // Load initial data
+    await initializeExcelStorage();
+    await populateCustomers();
+    await populatePackagesTable();
+    
+    console.log('✅ Application initialized successfully');
 });
 
 
@@ -1792,31 +1846,31 @@ async function uploadExcelToSupabase(packages) {
 
 
 // FIXED: Supabase istemcisini başlat - Singleton pattern ile
+// FIXED: Supabase istemcisini başlat - Simplified with hardcoded key
 function initializeSupabase() {
-    // Eğer client zaten oluşturulmuşsa ve API key geçerliyse, mevcut olanı döndür
+    // If client already exists and is valid, return it
     if (supabase && SUPABASE_ANON_KEY) {
         return supabase;
     }
     
-    if (!SUPABASE_ANON_KEY) {
-        console.warn('Supabase API key not set, showing modal');
-        showApiKeyModal();
+    // Validate the hardcoded key
+    if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZWhuaWdjYm9zZ3N4Z2VoZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1Mzg3MzgsImV4cCI6MjA3MzExNDczOH0.iZX8Z5mUjHc_LZpmH5EtFe0C7k4A_1zX8UoM7iDs5FM') {
+        console.error('❌ Supabase API key not configured. Please set SUPABASE_ANON_KEY with your actual key.');
         isUsingExcel = true;
-        showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
+        showAlert('Supabase bağlantısı yapılandırılmamış. Excel modunda çalışılıyor.', 'warning');
         return null;
     }
     
     try {
         // Global supabase değişkenine ata
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized successfully');
+        console.log('✅ Supabase client initialized successfully with hardcoded key');
         isUsingExcel = false;
         return supabase;
     } catch (error) {
-        console.error('Supabase initialization error:', error);
+        console.error('❌ Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
         isUsingExcel = true;
-        showApiKeyModal();
         return null;
     }
 }
@@ -2533,45 +2587,12 @@ function enhanceSyncQueue() {
     }
 }
 
-// FIXED: API anahtarını kaydet ve istemciyi başlat
-function saveApiKey() {
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    if (!apiKey) {
-        showAlert('Lütfen bir API anahtarı girin', 'error');
-        return;
-    }
-    
-    // Eski client'ı temizle
-    supabase = null;
-    
-    // Yeni API key'i ayarla
-    SUPABASE_ANON_KEY = apiKey;
-    localStorage.setItem('procleanApiKey', apiKey);
-    
-    // Yeni client oluştur
-    const newClient = initializeSupabase();
-    
-    if (newClient) {
-        document.getElementById('apiKeyModal').style.display = 'none';
-        showAlert('API anahtarı kaydedildi', 'success');
-        testConnection();
-        
-        // Çevrimiçi olunca senkronize et
-        setTimeout(syncExcelWithSupabase, 2000);
-    }
-}
 
-        
-let connectionAlertShown = false; // Prevent duplicate success alert
 
-// FIXED: Supabase bağlantısını test et
+// FIXED: Supabase bağlantısını test et - Simplified
 async function testConnection() {
     if (!supabase) {
-        console.warn('Supabase client not initialized for connection test');
-        if (!connectionAlertShown) {
-            showAlert('Supabase istemcisi başlatılmadı. Lütfen API anahtarını girin.', 'error');
-            connectionAlertShown = true; // mark as shown to avoid repeating
-        }
+        console.warn('Supabase client not initialized');
         return false;
     }
     
@@ -2579,25 +2600,16 @@ async function testConnection() {
         const { data, error } = await supabase.from('customers').select('*').limit(1);
         if (error) throw error;
         
-        console.log('Supabase connection test successful:', data);
-        
-        if (!connectionAlertShown) {
-            showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
-            connectionAlertShown = true; // ensure alert shows only once
-        }
-
+        console.log('✅ Supabase connection test successful');
+        showAlert('Veritabanı bağlantısı başarılı!', 'success', 3000);
         return true;
-    } catch (e) {
-        console.error('Supabase connection test failed:', e.message);
-        if (!connectionAlertShown) {
-            showAlert('Veritabanına bağlanılamıyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.', 'error');
-            connectionAlertShown = true;
-        }
+    } catch (error) {
+        console.error('❌ Supabase connection test failed:', error);
+        showAlert('Veritabanına bağlanılamıyor. Excel modunda çalışılıyor.', 'warning');
+        isUsingExcel = true;
         return false;
     }
 }
-
-
 
 
  // Çevrimdışı destek
@@ -2961,7 +2973,7 @@ async function calculateTotalQuantity(packageIds) {
 
         
 
-  // Pagination state
+ // Pagination state
 let currentPage = 0;
 const pageSize = 20; // number of containers per page
 
@@ -3279,7 +3291,6 @@ function debouncedPopulateShippingTable() {
 
 
 
-
 async function viewContainerDetails(containerId) {
     console.log('🔍 viewContainerDetails called with:', containerId);
     
@@ -3381,10 +3392,44 @@ async function viewContainerDetails(containerId) {
 
 
 
-let isStockTableLoading = false;
+        
+        // Konteyner ara
+        function searchContainers() {
+            const searchTerm = elements.containerSearch.value.toLowerCase();
+            const folders = document.querySelectorAll('.customer-folder');
+            
+            folders.forEach(folder => {
+                const containerRows = folder.querySelectorAll('tbody tr');
+                let hasVisibleRows = false;
+                
+                containerRows.forEach(row => {
+                    const containerNo = row.cells[1].textContent.toLowerCase();
+                    if (containerNo.includes(searchTerm)) {
+                        row.style.display = '';
+                        hasVisibleRows = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                // Eğer bu klasörde görünebilir satır yoksa, klasörü gizle
+                const folderHeader = folder.querySelector('.folder-header');
+                if (hasVisibleRows) {
+                    folder.style.display = 'block';
+                    folderHeader.style.display = 'flex';
+                } else {
+                    folder.style.display = 'none';
+                }
+            });
+        }
+
+
+
+
+  let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// Enhanced populateReportsTable function
+// REPLACE the populateReportsTable function with this:
 async function populateReportsTable() {
     try {
         console.log('Populating reports table with daily Excel files...');
@@ -3394,14 +3439,6 @@ async function populateReportsTable() {
             console.error('Reports container not found');
             return;
         }
-        
-        // Show loading state
-        reportsContainer.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #666;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
-                <h4>Raporlar yükleniyor...</h4>
-            </div>
-        `;
         
         // Get daily Excel files
         const dailyFiles = ExcelStorage.getAvailableDailyFiles();
@@ -3433,10 +3470,8 @@ async function populateReportsTable() {
                         margin: 12px 0;
                         border-radius: 6px;
                         background: ${isToday ? '#f8fff8' : '#f9f9f9'};
-                        transition: all 0.3s ease;
-                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                    ">
+                        <div style="display: flex; justify-content: between; align-items: center;">
                             <div style="flex: 1;">
                                 <h4 style="margin: 0 0 8px 0; color: #333;">
                                     <i class="fas fa-calendar-day"></i> ${file.displayDate}
@@ -3458,7 +3493,7 @@ async function populateReportsTable() {
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <button onclick="exportDailyFile('${file.date}')" 
+                                <button onclick="ExcelStorage.exportDailyFile('${file.date}')" 
                                         class="btn btn-success btn-sm" 
                                         style="white-space: nowrap;">
                                     <i class="fas fa-download"></i> CSV İndir
@@ -3477,7 +3512,7 @@ async function populateReportsTable() {
             // Add cleanup button
             reportsHTML += `
                 <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #ddd;">
-                    <button onclick="cleanupOldFiles()" 
+                    <button onclick="ExcelStorage.cleanupOldFiles(); populateReportsTable();" 
                             class="btn btn-warning btn-sm">
                         <i class="fas fa-broom"></i> 7 Günden Eski Dosyaları Temizle
                     </button>
@@ -3501,6 +3536,41 @@ async function populateReportsTable() {
                     <button onclick="populateReportsTable()" class="btn btn-primary">
                         <i class="fas fa-redo"></i> Tekrar Dene
                     </button>
+                </div>
+            `;
+        }
+    }
+}
+
+
+function showReportsTab() {
+    const reportsTab = document.getElementById('reportsTab');
+    if (reportsTab) {
+        reportsTab.style.display = 'block';
+    }
+    populateReportsTable();
+}
+
+// Make sure we're using the daily files version of reports
+async function populateReportsTable() {
+    try {
+        console.log('Loading daily reports...');
+        const reportsContainer = document.getElementById('reportsTab');
+        if (!reportsContainer) {
+            console.log('Reports container not found, tab might be hidden');
+            return;
+        }
+
+        // Your existing daily files code here (the first version)
+        // ... keep the existing daily files implementation ...
+
+    } catch (error) {
+        console.error('Error in populateReportsTable:', error);
+        const reportsContainer = document.getElementById('reportsTab');
+        if (reportsContainer) {
+            reportsContainer.innerHTML = `
+                <div style="text-align:center; color:red; padding:20px;">
+                    Error loading reports: ${error.message}
                 </div>
             `;
         }
@@ -4110,6 +4180,69 @@ async function populateStockTable() {
     }
 }
 
+
+
+// Add these stock functions after populateStockTable()
+async function editStockItem(stockCode) {
+    try {
+        // Get current stock item
+        let stockItem;
+        
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Find in mock data
+            stockItem = { code: stockCode, name: 'Product', quantity: 0, unit: 'Adet' };
+        } else {
+            const { data, error } = await supabase
+                .from('stock_items')
+                .select('*')
+                .eq('code', stockCode)
+                .single();
+                
+            if (error) throw error;
+            stockItem = data;
+        }
+        
+        // Show edit dialog
+        const newQuantity = prompt(`Edit ${stockItem.name} quantity:`, stockItem.quantity);
+        if (newQuantity === null) return;
+        
+        const quantity = parseInt(newQuantity);
+        if (isNaN(quantity) || quantity < 0) {
+            showAlert('Please enter a valid quantity', 'error');
+            return;
+        }
+        
+        // Update stock
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            const { error } = await supabase
+                .from('stock_items')
+                .update({ quantity: quantity, updated_at: new Date().toISOString() })
+                .eq('code', stockCode);
+                
+            if (error) throw error;
+        }
+        
+        showAlert(`Stock updated: ${stockItem.name} = ${quantity}`, 'success');
+        await populateStockTable();
+        
+    } catch (error) {
+        console.error('Error editing stock:', error);
+        showAlert('Error updating stock: ' + error.message, 'error');
+    }
+}
+
+function showStockTab() {
+    // Make sure stock tab is visible
+    const stockTab = document.getElementById('stockTab');
+    if (stockTab) {
+        stockTab.style.display = 'block';
+    }
+    populateStockTable();
+}
+
+
+
+
 // Fixed populateReportsTable function
 async function populateReportsTable() {
     try {
@@ -4218,14 +4351,6 @@ async function populateReportsTable() {
 }
 
 
-
-
-
-// Add missing stock edit function
-function editStockItem(stockCode) {
-    showAlert(`Stok düzenleme: ${stockCode}`, 'info');
-    // Implement stock editing logic here
-}
 
 // Add loadReports function for the reports tab
 async function loadReports() {
@@ -4897,6 +5022,8 @@ async function sendToRamp(containerNo = null) {
         function filterShipping() {
             populateShippingTable();
         }
+
+
 
 
 // Enhanced reports functionality
