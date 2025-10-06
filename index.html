@@ -850,14 +850,11 @@ document.addEventListener("DOMContentLoaded", () => {
             showAlert(`Hoşgeldiniz, ${email}`, "success");
 
             // ✅ Option 1 fix (safe modal closing)
-            const modal = document.getElementById("loginModal");
-            if (modal) modal.style.display = "none";
+            const modal = document.getElementById("loginScreen");
+           if (modal) modal.style.display = "none";
         }, 800);
     }
 });
 </script>
-
-
-
 </body>
 </html>
