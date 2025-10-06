@@ -4,79 +4,88 @@ let connectionTested = false; // Flag to prevent duplicate connection tests
 async function login() {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
-
-    // ✅ ADD THIS: Check if Supabase is initialized
+    const rememberMe = document.getElementById('rememberMe')?.checked || false; // ADD THIS
+    
+    // Check if Supabase is initialized
     if (!supabase) {
         showAlert('Sistem başlatılıyor, lütfen bekleyin...', 'error');
         return;
     }
-
-    // Form doğrulama
+    
+    // Form validation
     if (!validateForm([
         { id: 'email', errorId: 'emailError', type: 'email', required: true },
         { id: 'password', errorId: 'passwordError', type: 'text', required: true }
     ])) {
         return;
     }
-
+    
     const loginBtn = document.getElementById('loginBtn');
     loginBtn.disabled = true;
     loginBtn.textContent = 'Giriş yapılıyor...';
-
+    
     try {
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
         });
-
+        
         if (error) {
             showAlert('Giriş başarısız: ' + error.message, 'error');
             return;
         }
-
+        
         if (data.user && data.user.email) {
-            // Kullanıcı rolünü al
+            // Get user role
             const { data: userData, error: userError } = await supabase
                 .from('personnel')
                 .select('role, name')
                 .eq('email', data.user.email)
                 .single();
-
+            
             currentUser = {
                 email: data.user.email,
                 uid: data.user.id,
                 name: userData?.name || data.user.email.split('@')[0],
                 role: userData?.role || 'operator'
             };
-
+            
             const userRoleElement = document.getElementById('userRole');
             if (userRoleElement) {
                 userRoleElement.textContent = 
                     `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
             }
-
-            // Rol bazlı yetkilendirme
+            
+            // Apply role-based permissions
             if (typeof applyRoleBasedPermissions === 'function') {
                 applyRoleBasedPermissions(currentUser.role);
             }
-
+            
+            // ADD THIS: Save credentials if remember me is checked
+            if (typeof saveAccountCredentials === 'function') {
+                await saveAccountCredentials(email, password, rememberMe);
+            }
+            
+            // ADD THIS: Save session
+            if (typeof saveUserSession === 'function') {
+                await saveUserSession(data.session);
+            }
+            
             showAlert('Giriş başarılı!', 'success');
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
-
+            
             // Test connection only once after login
             if (!connectionTested) {
                 await testConnection();
                 connectionTested = true;
             }
-
-            // Storage indicator'ı güncelle
+            
+            // Update storage indicator
             updateStorageIndicator();
-
         } else {
             showAlert('Giriş başarısız.', 'error');
         }
-
     } catch (e) {
         console.error('Login error:', e);
         showAlert('Giriş sırasında bir hata oluştu.', 'error');
