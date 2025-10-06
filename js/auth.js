@@ -5,7 +5,7 @@ async function login() {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
-    // ✅ ADD THIS: Check if Supabase is initialized
+    // ✅ Check if Supabase is initialized
     if (!supabase) {
         showAlert('Sistem başlatılıyor, lütfen bekleyin...', 'error');
         return;
@@ -51,7 +51,7 @@ async function login() {
 
             const userRoleElement = document.getElementById('userRole');
             if (userRoleElement) {
-                userRoleElement.textContent = 
+                userRoleElement.textContent =
                     `${currentUser.role === 'admin' ? 'Yönetici' : 'Operatör'}: ${currentUser.name}`;
             }
 
@@ -61,6 +61,24 @@ async function login() {
             }
 
             showAlert('Giriş başarılı!', 'success');
+
+            // ✅ Remember Me / Fast Login logic
+            const rememberCheckbox = document.getElementById('rememberMe');
+            if (rememberCheckbox && rememberCheckbox.checked) {
+                const SECRET_KEY = "ProCleanAutoSecureKey2025";
+
+                const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
+                const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+
+                localStorage.setItem("savedEmail", encEmail);
+                localStorage.setItem("savedPassword", encPassword);
+                localStorage.setItem("rememberMe", "true");
+            } else {
+                localStorage.removeItem("savedEmail");
+                localStorage.removeItem("savedPassword");
+                localStorage.setItem("rememberMe", "false");
+            }
+
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
 
@@ -85,6 +103,7 @@ async function login() {
         loginBtn.textContent = 'Giriş Yap';
     }
 }
+
 
 // Excel modunda devam et
 function proceedWithExcelMode() {
