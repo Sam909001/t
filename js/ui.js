@@ -626,49 +626,6 @@ function addManualProduct() {
 }
 
 
-// Open Extra Modal
-function openExtraModal() {
-    const modal = document.getElementById('extraModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
-}
-
-// Close Extra Modal (Your original function)
-function closeExtraModal() {
-    const modal = document.getElementById('extraModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-// =======================================================
-// ✅ NEW: Add the Outside Click Listener
-// =======================================================
-
-document.addEventListener('DOMContentLoaded', function() {
-    const extraModal = document.getElementById('extraModal');
-
-    if (extraModal) {
-        // We listen for a click on the modal itself.
-        // The modal's style must cover the entire screen for this to work.
-        extraModal.addEventListener('click', function(event) {
-            
-            // CRITICAL CHECK:
-            // event.target is the specific element clicked.
-            // If the element clicked is the modal's outer container (extraModal), 
-            // but NOT one of its children, we close the modal.
-            if (event.target === extraModal) {
-                console.log('Modal background clicked. Closing modal.');
-                closeExtraModal();
-            }
-        });
-    }
-});
-
-// Make sure your functions are globally accessible
-window.openExtraModal = openExtraModal;
-window.closeExtraModal = closeExtraModal;
 
 
 // Settings functions
@@ -3907,3 +3864,48 @@ window.getAllReports = getAllReports;
 window.getProductType = getProductType;
 
 console.log('✅ Fixed data collection functions loaded - No fake data');
+
+
+// Open Extra Modal
+function openExtraModal() {
+    const modal = document.getElementById('extraModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+// Close Extra Modal (Your original function)
+function closeExtraModal() {
+    const modal = document.getElementById('extraModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// =======================================================
+// ✅ NEW: Add the Outside Click Listener
+// =======================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    const extraModal = document.getElementById('extraModal');
+
+    if (extraModal) {
+        // We listen for a click on the modal itself.
+        // The modal's style must cover the entire screen for this to work.
+        extraModal.addEventListener('click', function(event) {
+            
+            // CRITICAL CHECK:
+            // event.target is the specific element clicked.
+            // If the element clicked is the modal's outer container (extraModal), 
+            // but NOT one of its children, we close the modal.
+            if (event.target === extraModal) {
+                console.log('Modal background clicked. Closing modal.');
+                closeExtraModal();
+            }
+        });
+    }
+});
+
+// Make sure your functions are globally accessible
+window.openExtraModal = openExtraModal;
+window.closeExtraModal = closeExtraModal;
