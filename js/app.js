@@ -448,14 +448,11 @@ async function deleteContainer() {
     }
 }
 
-// Replace the current switchTab function with this enhanced version
 function switchTab(tabName) {
-    console.log('Switching to tab:', tabName);
-    
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.classList.remove('active');
-        pane.style.display = 'none';
+        pane.style.display = 'none'; // ← ADD THIS
     });
     
     // Deactivate all tabs
@@ -470,47 +467,26 @@ function switchTab(tabName) {
     if (selectedTab && selectedPane) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
-        selectedPane.style.display = 'block';
+        selectedPane.style.display = 'block'; // ← ADD THIS
         
         console.log(`✅ Activated tab: ${tabName}`);
         
-        // Load data when tab is clicked with error handling
+        // Load data
         setTimeout(() => {
-            try {
-                switch(tabName) {
-                    case 'shipping':
-                        if (typeof populateShippingTable === 'function') {
-                            populateShippingTable();
-                        } else {
-                            console.error('populateShippingTable function not found');
-                        }
-                        break;
-                    case 'stock':
-                        if (typeof populateStockTable === 'function') {
-                            populateStockTable();
-                        } else {
-                            console.error('populateStockTable function not found');
-                        }
-                        break;
-                    case 'reports':
-                        if (typeof populateReportsTable === 'function') {
-                            populateReportsTable();
-                        } else {
-                            console.error('populateReportsTable function not found');
-                        }
-                        break;
-                }
-            } catch (error) {
-                console.error(`Error loading ${tabName} tab:`, error);
+            switch(tabName) {
+                case 'shipping':
+                    populateShippingTable();
+                    break;
+                case 'stock':
+                    populateStockTable();
+                    break;
+                case 'reports':
+                    populateReportsTable();
+                    break;
             }
         }, 100);
-    } else {
-        console.error(`Tab elements not found for: ${tabName}`);
-        console.log('Selected tab:', selectedTab);
-        console.log('Selected pane:', selectedPane);
     }
 }
-
 
 
 function closeAllModals() {
