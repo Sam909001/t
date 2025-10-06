@@ -2961,41 +2961,11 @@ async function populateShippingTable(page = 0) {
 
         let containers = [];
         let packagesData = [];
+        let dataSource = '';
 
-        // Get data based on current mode
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            console.log('Using Excel data for shipping');
-            
-            // Use Excel data for containers
-            const excelContainers = {};
-            
-            // Group packages by container
-            excelPackages.forEach(pkg => {
-                if (pkg.container_id) {
-                    if (!excelContainers[pkg.container_id]) {
-                        excelContainers[pkg.container_id] = {
-                            id: pkg.container_id,
-                            container_no: pkg.container_id,
-                            packages: [],
-                            package_count: 0,
-                            total_quantity: 0,
-                            status: pkg.status || 'beklemede',
-                            created_at: pkg.created_at
-                        };
-                    }
-                    excelContainers[pkg.container_id].packages.push(pkg);
-                    excelContainers[pkg.container_id].package_count++;
-                    excelContainers[pkg.container_id].total_quantity += pkg.total_quantity || 0;
-                }
-            });
-            
-            containers = Object.values(excelContainers);
-            console.log('Excel containers found:', containers.length);
-            
-        } else {
-            console.log('Using Supabase data for shipping');
-            
-            // Use Supabase data
+        // TRY SUPABASE FIRST
+        if (supabase && navigator.onLine) {
+            console.log('🔄 Trying Supabase data for shipping...');
             try {
                 const { data: supabaseContainers, error } = await supabase
                     .from('containers')
@@ -3008,7 +2978,7 @@ async function populateShippingTable(page = 0) {
                 }
 
                 containers = supabaseContainers || [];
-                console.log('Supabase containers loaded:', containers.length);
+                console.log('✅ Supabase containers loaded:', containers.length);
 
                 // Get packages for these containers if we have containers
                 if (containers.length > 0) {
@@ -3019,14 +2989,53 @@ async function populateShippingTable(page = 0) {
                         .in('container_id', containerIds);
                     
                     packagesData = supabasePackages || [];
-                    console.log('Packages for containers loaded:', packagesData.length);
+                    console.log('✅ Packages for containers loaded:', packagesData.length);
                 }
 
+                dataSource = 'supabase';
+                console.log('🎯 Using Supabase data for shipping');
+
             } catch (supabaseError) {
-                console.error('Supabase shipping data error:', supabaseError);
-                // Fallback to empty array
-                containers = [];
+                console.error('❌ Supabase failed, falling back to Excel:', supabaseError);
+                // Fall back to Excel data
+                dataSource = 'excel';
             }
+        } else {
+            console.log('🌐 Offline or no Supabase, using Excel data');
+            dataSource = 'excel';
+        }
+
+        // IF SUPABASE FAILED OR OFFLINE, USE EXCEL DATA
+        if (dataSource === 'excel') {
+            console.log('📁 Using Excel data for shipping');
+            
+            // Use Excel data for containers
+            const excelContainers = {};
+            
+            // Group packages by container
+            if (window.excelPackages && window.excelPackages.length > 0) {
+                window.excelPackages.forEach(pkg => {
+                    if (pkg.container_id) {
+                        if (!excelContainers[pkg.container_id]) {
+                            excelContainers[pkg.container_id] = {
+                                id: pkg.container_id,
+                                container_no: pkg.container_id,
+                                packages: [],
+                                package_count: 0,
+                                total_quantity: 0,
+                                status: pkg.status || 'beklemede',
+                                created_at: pkg.created_at
+                            };
+                        }
+                        excelContainers[pkg.container_id].packages.push(pkg);
+                        excelContainers[pkg.container_id].package_count++;
+                        excelContainers[pkg.container_id].total_quantity += pkg.total_quantity || 0;
+                    }
+                });
+            }
+            
+            containers = Object.values(excelContainers);
+            console.log('📦 Excel containers found:', containers.length);
         }
 
         // Clear loading message
@@ -3079,6 +3088,21 @@ async function populateShippingTable(page = 0) {
             customersMap[customerName].push(container);
         });
 
+        // Add data source indicator
+        const sourceIndicator = document.createElement('div');
+        sourceIndicator.style.padding = '8px 16px';
+        sourceIndicator.style.background = dataSource === 'supabase' ? '#e8f5e8' : '#fff3cd';
+        sourceIndicator.style.border = dataSource === 'supabase' ? '1px solid #4CAF50' : '1px solid #ffc107';
+        sourceIndicator.style.borderRadius = '4px';
+        sourceIndicator.style.marginBottom = '16px';
+        sourceIndicator.style.fontSize = '0.9em';
+        sourceIndicator.innerHTML = `
+            <i class="fas ${dataSource === 'supabase' ? 'fa-database' : 'fa-file-excel'}"></i>
+            Veri kaynağı: ${dataSource === 'supabase' ? 'Supabase (Çevrimiçi)' : 'Excel (Yerel)'}
+            ${dataSource === 'excel' ? '<span style="color: #856404;">- Çevrimdışı mod</span>' : ''}
+        `;
+        shippingFolders.appendChild(sourceIndicator);
+
         // Render customer folders
         Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
             const folderDiv = document.createElement('div');
@@ -3112,7 +3136,7 @@ async function populateShippingTable(page = 0) {
             const folderContent = document.createElement('div');
             folderContent.className = 'folder-content';
             folderContent.style.padding = '0';
-            folderContent.style.display = 'none'; // Start collapsed
+            folderContent.style.display = 'none';
 
             const table = document.createElement('table');
             table.style.width = '100%';
@@ -3185,7 +3209,7 @@ async function populateShippingTable(page = 0) {
             shippingFolders.appendChild(folderDiv);
         });
 
-        console.log('Shipping table populated successfully with', Object.keys(customersMap).length, 'customer folders');
+        console.log(`✅ Shipping table populated successfully with ${Object.keys(customersMap).length} customer folders (Source: ${dataSource})`);
 
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
@@ -3207,7 +3231,6 @@ async function populateShippingTable(page = 0) {
         isShippingTableLoading = false;
     }
 }
-
 
 
 // Pagination buttons
@@ -3994,20 +4017,11 @@ async function populateStockTable() {
         stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
         
         let stockData = [];
-        
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use mock stock data for Excel mode
-            stockData = [
-                { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK002', name: 'Büyük Havlu', quantity: 200, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK003', name: 'Nevresim', quantity: 85, unit: 'Adet', status: 'Az Stok', updated_at: new Date().toISOString() },
-                { code: 'STK004', name: 'Çarşaf', quantity: 300, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK005', name: 'Havlu', quantity: 25, unit: 'Adet', status: 'Kritik', updated_at: new Date().toISOString() }
-            ];
-            console.log('Using mock stock data for Excel mode');
-        } else {
-            // Use Supabase data
+        let dataSource = '';
+
+        // TRY SUPABASE FIRST
+        if (supabase && navigator.onLine) {
+            console.log('🔄 Trying Supabase data for stock...');
             try {
                 const { data, error } = await supabase
                     .from('stock_items')
@@ -4015,21 +4029,54 @@ async function populateStockTable() {
                     .order('name', { ascending: true });
                 
                 if (error) throw error;
+                
                 stockData = data || [];
-                console.log('Loaded stock data from Supabase:', stockData.length);
+                dataSource = 'supabase';
+                console.log('✅ Supabase stock data loaded:', stockData.length);
+                
             } catch (error) {
-                console.warn('Supabase stock fetch failed, using mock data:', error);
-                stockData = [
-                    { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() }
-                ];
+                console.error('❌ Supabase stock failed, falling back to mock data:', error);
+                dataSource = 'excel';
             }
+        } else {
+            console.log('🌐 Offline or no Supabase, using mock data');
+            dataSource = 'excel';
+        }
+
+        // IF SUPABASE FAILED, USE MOCK DATA
+        if (dataSource === 'excel') {
+            console.log('📁 Using mock stock data');
+            stockData = [
+                { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
+                { code: 'STK002', name: 'Büyük Havlu', quantity: 200, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
+                { code: 'STK003', name: 'Nevresim', quantity: 85, unit: 'Adet', status: 'Az Stok', updated_at: new Date().toISOString() },
+                { code: 'STK004', name: 'Çarşaf', quantity: 300, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
+                { code: 'STK005', name: 'Havlu', quantity: 25, unit: 'Adet', status: 'Kritik', updated_at: new Date().toISOString() }
+            ];
         }
         
         // Clear loading message
         stockTableBody.innerHTML = '';
         
+        // Add data source indicator
+        const sourceRow = document.createElement('tr');
+        sourceRow.innerHTML = `
+            <td colspan="7" style="
+                background: ${dataSource === 'supabase' ? '#e8f5e8' : '#fff3cd'};
+                border: 1px solid ${dataSource === 'supabase' ? '#4CAF50' : '#ffc107'};
+                padding: 8px;
+                text-align: center;
+                font-size: 0.9em;
+            ">
+                <i class="fas ${dataSource === 'supabase' ? 'fa-database' : 'fa-file-excel'}"></i>
+                Veri kaynağı: ${dataSource === 'supabase' ? 'Supabase (Çevrimiçi)' : 'Örnek Veri (Yerel)'}
+                ${dataSource === 'excel' ? '<span style="color: #856404;">- Çevrimdışı mod</span>' : ''}
+            </td>
+        `;
+        stockTableBody.appendChild(sourceRow);
+        
         if (stockData.length === 0) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verisi bulunamadı</td></tr>';
+            stockTableBody.innerHTML += '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verisi bulunamadı</td></tr>';
             return;
         }
         
@@ -4067,7 +4114,7 @@ async function populateStockTable() {
             stockTableBody.appendChild(row);
         });
         
-        console.log('Stock table populated with', stockData.length, 'items');
+        console.log(`✅ Stock table populated with ${stockData.length} items (Source: ${dataSource})`);
         
     } catch (error) {
         console.error('Error in populateStockTable:', error);
@@ -4081,48 +4128,31 @@ async function populateStockTable() {
     }
 }
 
-// Fixed populateReportsTable function
+
 async function populateReportsTable() {
     try {
         console.log('Populating reports table...');
         
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (!reportsTableBody) {
-            console.error('Reports table body not found');
+        const reportsContainer = document.getElementById('reportsTab');
+        if (!reportsContainer) {
+            console.error('Reports container not found');
             return;
         }
         
-        reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
+        // Show loading state
+        reportsContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <h4>Raporlar yükleniyor...</h4>
+            </div>
+        `;
         
         let reportsData = [];
-        
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Generate mock reports data for Excel mode
-            const today = new Date();
-            reportsData = [
-                {
-                    id: 1,
-                    report_date: today.toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 15,
-                    total_quantity: 245,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: today.toISOString()
-                },
-                {
-                    id: 2,
-                    report_date: new Date(today.setDate(today.getDate() - 1)).toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 12,
-                    total_quantity: 198,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: new Date(today.setDate(today.getDate() - 1)).toISOString()
-                }
-            ];
-            console.log('Using mock reports data for Excel mode');
-        } else {
-            // Use Supabase data
+        let dataSource = '';
+
+        // TRY SUPABASE FIRST FOR REPORTS
+        if (supabase && navigator.onLine) {
+            console.log('🔄 Trying Supabase data for reports...');
             try {
                 const { data, error } = await supabase
                     .from('reports')
@@ -4131,60 +4161,155 @@ async function populateReportsTable() {
                     .limit(50);
                 
                 if (error) throw error;
+                
                 reportsData = data || [];
-                console.log('Loaded reports data from Supabase:', reportsData.length);
+                dataSource = 'supabase';
+                console.log('✅ Supabase reports loaded:', reportsData.length);
+                
             } catch (error) {
-                console.warn('Supabase reports fetch failed, using mock data:', error);
-                reportsData = [
-                    {
-                        id: 1,
-                        report_date: new Date().toISOString(),
-                        report_type: 'Günlük Rapor',
-                        package_count: 15,
-                        total_quantity: 245,
-                        created_by: currentUser?.name || 'Sistem',
-                        created_at: new Date().toISOString()
-                    }
-                ];
+                console.error('❌ Supabase reports failed, falling back to Excel files:', error);
+                dataSource = 'excel';
             }
+        } else {
+            console.log('🌐 Offline or no Supabase, using Excel files');
+            dataSource = 'excel';
         }
-        
-        // Clear loading message
-        reportsTableBody.innerHTML = '';
+
+        // IF SUPABASE FAILED OR NO DATA, USE EXCEL FILES
+        if (dataSource === 'excel' || reportsData.length === 0) {
+            console.log('📁 Using Excel files for reports');
+            const dailyFiles = ExcelStorage.getAvailableDailyFiles();
+            reportsData = dailyFiles.map(file => ({
+                report_type: 'Günlük Excel Raporu',
+                report_date: file.date,
+                package_count: file.packageCount,
+                total_quantity: file.totalQuantity,
+                created_by: 'Sistem',
+                created_at: file.date,
+                fileName: file.fileName,
+                displayDate: file.displayDate,
+                isExcelFile: true
+            }));
+        }
+
+        let reportsHTML = `
+            <div style="margin-bottom: 20px;">
+                <h3><i class="fas fa-chart-bar"></i> Raporlar</h3>
+                <div style="
+                    background: ${dataSource === 'supabase' ? '#e8f5e8' : '#fff3cd'};
+                    border: 1px solid ${dataSource === 'supabase' ? '#4CAF50' : '#ffc107'};
+                    padding: 12px;
+                    border-radius: 4px;
+                    margin-bottom: 16px;
+                    font-size: 0.9em;
+                ">
+                    <i class="fas ${dataSource === 'supabase' ? 'fa-database' : 'fa-file-excel'}"></i>
+                    Veri kaynağı: ${dataSource === 'supabase' ? 'Supabase (Çevrimiçi)' : 'Excel Dosyaları (Yerel)'}
+                    ${dataSource === 'excel' ? '<span style="color: #856404;">- Çevrimdışı mod</span>' : ''}
+                </div>
+            </div>
+        `;
         
         if (reportsData.length === 0) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Henüz rapor bulunmamaktadır</td></tr>';
-            return;
+            reportsHTML += `
+                <div style="text-align: center; padding: 40px; color: #666; border: 2px dashed #ddd; border-radius: 8px;">
+                    <i class="fas fa-file-excel" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <h4>Henüz rapor bulunmamaktadır</h4>
+                    <p>Paket oluşturduğunuzda raporlar burada görünecektir.</p>
+                </div>
+            `;
+        } else {
+            reportsData.forEach(report => {
+                const isToday = report.report_date === ExcelStorage.getTodayDateString();
+                const isExcelFile = report.isExcelFile;
+                
+                reportsHTML += `
+                    <div class="report-item" style="
+                        border: 1px solid ${isToday ? '#4CAF50' : '#ddd'};
+                        border-left: 4px solid ${isExcelFile ? '#2196F3' : (isToday ? '#4CAF50' : '#9C27B0')};
+                        padding: 16px;
+                        margin: 12px 0;
+                        border-radius: 6px;
+                        background: ${isToday ? '#f8fff8' : '#f9f9f9'};
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';" 
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 8px 0; color: #333;">
+                                    <i class="fas ${isExcelFile ? 'fa-file-excel' : 'fa-chart-bar'}"></i> 
+                                    ${escapeHtml(report.report_type || 'Rapor')}
+                                    ${isToday ? '<span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px;">Bugün</span>' : ''}
+                                    ${isExcelFile ? '<span style="background: #2196F3; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 8px;">Excel</span>' : ''}
+                                </h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 0.9em;">
+                                    <div>
+                                        <strong>Tarih:</strong><br>
+                                        <span style="color: #666;">${report.displayDate || (report.report_date ? new Date(report.report_date).toLocaleDateString('tr-TR') : 'N/A')}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Paket Sayısı:</strong><br>
+                                        <span style="color: #2196F3; font-weight: bold;">${report.package_count || 0}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Toplam Adet:</strong><br>
+                                        <span style="color: #4CAF50; font-weight: bold;">${report.total_quantity || 0}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Oluşturan:</strong><br>
+                                        <span style="color: #666;">${escapeHtml(report.created_by || 'Sistem')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                ${isExcelFile ? `
+                                    <button onclick="exportDailyFile('${report.report_date}')" 
+                                            class="btn btn-success btn-sm" 
+                                            style="white-space: nowrap;">
+                                        <i class="fas fa-download"></i> CSV İndir
+                                    </button>
+                                    <button onclick="viewDailyFile('${report.report_date}')" 
+                                            class="btn btn-primary btn-sm"
+                                            style="white-space: nowrap;">
+                                        <i class="fas fa-eye"></i> Görüntüle
+                                    </button>
+                                ` : `
+                                    <button onclick="viewReport(${report.id})" 
+                                            class="btn btn-primary btn-sm"
+                                            style="white-space: nowrap;">
+                                        <i class="fas fa-eye"></i> Görüntüle
+                                    </button>
+                                    <button onclick="downloadReport(${report.id})" 
+                                            class="btn btn-success btn-sm" 
+                                            style="white-space: nowrap;">
+                                        <i class="fas fa-download"></i> İndir
+                                    </button>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
         }
         
-        // Populate reports table
-        reportsData.forEach(report => {
-            const row = document.createElement('tr');
-            
-            row.innerHTML = `
-                <td>${report.report_date ? new Date(report.report_date).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>${escapeHtml(report.report_type || 'N/A')}</td>
-                <td>${report.package_count || 0}</td>
-                <td>${report.total_quantity || 0}</td>
-                <td>${escapeHtml(report.created_by || 'N/A')}</td>
-                <td>
-                    <button onclick="viewReport(${report.id})" class="btn btn-primary btn-sm">Görüntüle</button>
-                    <button onclick="exportReport(${report.id})" class="btn btn-success btn-sm">Dışa Aktar</button>
-                </td>
-            `;
-            
-            reportsTableBody.appendChild(row);
-        });
-        
-        console.log('Reports table populated with', reportsData.length, 'reports');
+        reportsContainer.innerHTML = reportsHTML;
+        console.log(`✅ Reports table populated with ${reportsData.length} reports (Source: ${dataSource})`);
         
     } catch (error) {
         console.error('Error in populateReportsTable:', error);
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (reportsTableBody) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">Raporlar yüklenirken hata oluştu</td></tr>';
+        const reportsContainer = document.getElementById('reportsTab');
+        if (reportsContainer) {
+            reportsContainer.innerHTML = `
+                <div style="text-align: center; color: #d32f2f; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                    <h4>Raporlar yüklenirken hata oluştu</h4>
+                    <p>${error.message}</p>
+                    <button onclick="populateReportsTable()" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Tekrar Dene
+                    </button>
+                </div>
+            `;
         }
-        showAlert('Raporlar yüklenirken hata oluştu', 'error');
     }
 }
 
