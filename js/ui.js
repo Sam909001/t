@@ -19,47 +19,8 @@ if (!window._elementsInitialized) {
         }
         window._elementsInitialized = true;
 
-        // Attach a single, robust tab click handler AFTER elements exist
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.removeEventListener('click', window._procleanTabHandler);
-        });
-        window._procleanTabHandler = function (e) {
-            const tabName = this.getAttribute('data-tab');
-            if (!tabName) return;
-            // Use the canonical switchTab function; it's defined in app.js
-            if (typeof switchTab === 'function') {
-                switchTab(tabName);
-            } else {
-                // Fallback: manually show/hide panes
-                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                const pane = document.getElementById(tabName + 'Tab');
-                if (pane) pane.classList.add('active');
-                this.classList.add('active');
-            }
-
-            // Trigger the correct populate* after tab change
-            switch (tabName) {
-                case 'stock':
-                    if (typeof populateStockTable === 'function') populateStockTable();
-                    break;
-                case 'reports':
-                    if (typeof populateReportsTable === 'function') populateReportsTable();
-                    break;
-                case 'shipping':
-                    if (typeof populateShippingTable === 'function') populateShippingTable();
-                    break;
-                case 'packaging':
-                    if (typeof populatePackagesTable === 'function') populatePackagesTable();
-                    break;
-            }
-        };
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', window._procleanTabHandler);
-        });
-    });
-}
-
+       
+       
 
 
 // 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
@@ -2243,29 +2204,38 @@ class EventListenerManager {
             }
         });
         
-        // Tab system
-        document.querySelectorAll('.tab').forEach(tab => {
-            this.addListener(tab, 'click', function() {
-                const tabName = this.getAttribute('data-tab');
-                if (tabName) switchTab(tabName);
-            });
-        });
-        
-        // Close modal when clicking outside
-        this.addListener(window, 'click', function(event) {
-            if (event.target === document.getElementById('settingsModal')) {
-                closeSettingsModal();
-            }
-        });
-        
-        // Online/offline detection
-        this.addListener(window, 'online', this.handleOnlineStatus);
-        this.addListener(window, 'offline', this.handleOfflineStatus);
-        
-        // Barcode scanner (single instance)
-        this.setupBarcodeScanner();
+       // Remove all existing handlers first
+document.querySelectorAll('.tab').forEach(tab => {
+    const oldHandler = tab._procleanHandler;
+    if (oldHandler) {
+        tab.removeEventListener('click', oldHandler);
     }
+});
 
+// Create single handler
+const tabHandler = function(e) {
+    const tabName = this.getAttribute('data-tab');
+    switchTab(tabName);
+    
+    // Trigger data load based on tab
+    switch(tabName) {
+        case 'stock':
+            populateStockTable();
+            break;
+        case 'shipping':
+            populateShippingTable();
+            break;
+        case 'reports':
+            populateReportsTable();
+            break;
+    }
+};
+
+// Attach handler to each tab
+document.querySelectorAll('.tab').forEach(tab => {
+    tab._procleanHandler = tabHandler;
+    tab.addEventListener('click', tabHandler);
+});
     // Add listener with tracking
     addListener(elementOrId, event, handler) {
         const element = typeof elementOrId === 'string' 
@@ -4022,4 +3992,133 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+
+async function populateStockTable() {
+    const stockTableBody = document.getElementById('stockTableBody');
+    
+    if (!stockTableBody) {
+        console.error('❌ Stock table body not found');
+        return;
+    }
+    
+    // Show loading state
+    stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Yükleniyor...</td></tr>';
+    
+    try {
+        // Query Supabase for stock items
+        const { data: stockItems, error } = await supabase
+            .from('stock_items')
+            .select('*')
+            .order('code', { ascending: true });
+        
+        if (error) throw error;
+        
+        // Check if empty
+        if (!stockItems || stockItems.length === 0) {
+            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">Stokta ürün bulunamadı</td></tr>';
+            return;
+        }
+        
+        // Populate table
+        stockTableBody.innerHTML = stockItems.map(item => {
+            const status = item.quantity === 0 ? 'Tükendi' : 
+                          item.quantity < 10 ? 'Az Stok' : 
+                          item.quantity < 50 ? 'Düşük' : 'Stokta';
+            const statusClass = item.quantity === 0 ? 'status-kritik' : 
+                               item.quantity < 10 ? 'status-az-stok' : 
+                               item.quantity < 50 ? 'status-uyari' : 'status-stokta';
+            
+            return `
+                <tr>
+                    <td>${item.code || '-'}</td>
+                    <td>${item.name || '-'}</td>
+                    <td>${item.quantity || 0}</td>
+                    <td>${item.unit || 'adet'}</td>
+                    <td><span class="${statusClass}">${status}</span></td>
+                    <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editStockItem('${item.code}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        console.log(`✅ Stock table populated with ${stockItems.length} items`);
+        
+    } catch (error) {
+        console.error('❌ Error loading stock:', error);
+        stockTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Hata: ${error.message}</td></tr>`;
+        showAlert('Stok verileri yüklenemedi: ' + error.message, 'error');
+    }
+}
+
+
+async function populateShippingTable() {
+    const shippingFolders = document.getElementById('shippingFolders');
+    
+    if (!shippingFolders) {
+        console.error('❌ Shipping folders container not found');
+        return;
+    }
+    
+    // Show loading
+    shippingFolders.innerHTML = '<div style="text-align:center; padding:2rem;">Yükleniyor...</div>';
+    
+    try {
+        // Query containers from Supabase
+        const { data: containers, error } = await supabase
+            .from('containers')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (!containers || containers.length === 0) {
+            shippingFolders.innerHTML = '<div style="text-align:center; padding:2rem; color:#666;">Sevkiyat bulunamadı</div>';
+            return;
+        }
+        
+        // Group by status
+        const grouped = containers.reduce((acc, container) => {
+            const status = container.status || 'beklemede';
+            if (!acc[status]) acc[status] = [];
+            acc[status].push(container);
+            return acc;
+        }, {});
+        
+        // Render containers
+        shippingFolders.innerHTML = Object.entries(grouped).map(([status, items]) => `
+            <div class="shipping-group">
+                <h3>${status === 'beklemede' ? 'Bekleyen Sevkiyatlar' : 
+                      status === 'sevk-edildi' ? 'Sevk Edilenler' : status}</h3>
+                <div class="container-list">
+                    ${items.map(container => `
+                        <div class="container-card" onclick="viewContainerDetails('${container.container_no}')">
+                            <div class="container-header">
+                                <strong>${container.container_no}</strong>
+                                <span class="status-${status}">${status}</span>
+                            </div>
+                            <div class="container-info">
+                                <div>Müşteri: ${container.customer || '-'}</div>
+                                <div>Paket: ${container.package_count || 0}</div>
+                                <div>Toplam: ${container.total_quantity || 0}</div>
+                                <div>Tarih: ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : '-'}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+        
+        console.log(`✅ Shipping table populated with ${containers.length} containers`);
+        
+    } catch (error) {
+        console.error('❌ Error loading shipping:', error);
+        shippingFolders.innerHTML = `<div style="text-align:center; padding:2rem; color:red;">Hata: ${error.message}</div>`;
+        showAlert('Sevkiyat verileri yüklenemedi: ' + error.message, 'error');
+    }
+}
+
 
