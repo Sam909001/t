@@ -448,10 +448,14 @@ async function deleteContainer() {
     }
 }
 
+// Replace the current switchTab function with this enhanced version
 function switchTab(tabName) {
+    console.log('Switching to tab:', tabName);
+    
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.classList.remove('active');
+        pane.style.display = 'none';
     });
     
     // Deactivate all tabs
@@ -459,31 +463,53 @@ function switchTab(tabName) {
         tab.classList.remove('active');
     });
     
-    // Activate selected tab
+    // Activate selected tab and pane
     const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
     const selectedPane = document.getElementById(`${tabName}Tab`);
     
     if (selectedTab && selectedPane) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
+        selectedPane.style.display = 'block';
         
-        // Load data when tab is clicked
+        console.log(`✅ Activated tab: ${tabName}`);
+        
+        // Load data when tab is clicked with error handling
         setTimeout(() => {
-            switch(tabName) {
-                case 'shipping':
-                    populateShippingTable();
-                    break;
-                case 'stock':
-                    populateStockTable();
-                    break;
-                case 'reports':
-                    populateReportsTable();
-                    break;
+            try {
+                switch(tabName) {
+                    case 'shipping':
+                        if (typeof populateShippingTable === 'function') {
+                            populateShippingTable();
+                        } else {
+                            console.error('populateShippingTable function not found');
+                        }
+                        break;
+                    case 'stock':
+                        if (typeof populateStockTable === 'function') {
+                            populateStockTable();
+                        } else {
+                            console.error('populateStockTable function not found');
+                        }
+                        break;
+                    case 'reports':
+                        if (typeof populateReportsTable === 'function') {
+                            populateReportsTable();
+                        } else {
+                            console.error('populateReportsTable function not found');
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error(`Error loading ${tabName} tab:`, error);
             }
         }, 100);
+    } else {
+        console.error(`Tab elements not found for: ${tabName}`);
+        console.log('Selected tab:', selectedTab);
+        console.log('Selected pane:', selectedPane);
     }
 }
-
 
 
 
