@@ -448,7 +448,14 @@ async function deleteContainer() {
     }
 }
 
+
+
+window.switchTab = switchTab;
+
+// FIXED switchTab FUNCTION
 function switchTab(tabName) {
+    console.log('🔄 Switching to tab:', tabName);
+    
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.classList.remove('active');
@@ -467,27 +474,38 @@ function switchTab(tabName) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
         
-        // Load data when tab is clicked
-        setTimeout(() => {
-            switch(tabName) {
-                case 'shipping':
-                    populateShippingTable();
-                    break;
-                case 'stock':
-                    populateStockTable();
-                    break;
-                case 'reports':
-                    populateReportsTable();
-                    break;
+        // FORCE RELOAD data when tab is clicked
+        setTimeout(async () => {
+            try {
+                switch(tabName) {
+                    case 'shipping':
+                        console.log('📦 Loading shipping data...');
+                        await populateShippingTable();
+                        break;
+                    case 'stock':
+                        console.log('📦 Loading stock data...');
+                        await populateStockTable();
+                        break;
+                    case 'reports':
+                        console.log('📊 Loading reports data...');
+                        await populateReportsTable();
+                        break;
+                    case 'packaging':
+                        console.log('📦 Loading packaging data...');
+                        await populatePackagesTable();
+                        break;
+                }
+                console.log('✅ Tab data loaded successfully:', tabName);
+            } catch (error) {
+                console.error('❌ Error loading tab data:', error);
+                showAlert('Veri yüklenirken hata oluştu: ' + error.message, 'error');
             }
         }, 100);
+    } else {
+        console.error('❌ Tab not found:', tabName);
     }
 }
 
-
-
-// Make sure switchTab is globally available
-window.switchTab = switchTab;
 
 
 
