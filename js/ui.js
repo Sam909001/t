@@ -768,14 +768,6 @@ function addManualProduct() {
     closeManualModal();
 }
 
-// 🟢 Close modal when clicking outside content
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('manualModal');
-    if (modal && event.target === modal) {
-        modal.style.display = 'none';
-    }
-});
-
 
 
 // Open Extra Modal
@@ -793,14 +785,6 @@ function closeExtraModal() {
         modal.style.display = 'none';
     }
 }
-
-// 🟢 Close modal if user clicks outside of it
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('extraModal');
-    if (modal && event.target === modal) {
-        modal.style.display = 'none';
-    }
-});
 
 // ---------------- LOAD SETTINGS ----------------
 function loadPrinterSettings(settings) {
@@ -868,6 +852,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 testBtn.textContent = originalText;
             }
         });
+    }
+});
+
+// 🟢 Close any modal if user clicks outside
+window.addEventListener('click', function(event) {
+    const modals = ['manualModal', 'extraModal', 'quantityModal', 'settingsModal'];
+    for (const id of modals) {
+        const modal = document.getElementById(id);
+        if (modal && event.target === modal) {
+            modal.style.display = 'none';
+        }
     }
 });
 
