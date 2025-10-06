@@ -5563,3 +5563,16 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
+
+
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        console.log('DOM fully loaded, initializing tables...');
+        await populateReportsTable();
+        await populateStockTable();
+        await populateShippingTable();
+    } catch (err) {
+        console.error('Error populating tables on DOM ready:', err);
+    }
+});
