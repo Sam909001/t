@@ -1810,3 +1810,24 @@ window.deleteReport = async function(fileName) {
     }
 }
 
+
+
+function debugTabs() {
+    console.log('=== TAB DEBUG INFO ===');
+    console.log('shippingFolders:', document.getElementById('shippingFolders'));
+    console.log('stockTableBody:', document.getElementById('stockTableBody'));
+    console.log('reportsTableBody:', document.getElementById('reportsTableBody'));
+    console.log('isUsingExcel:', isUsingExcel);
+    console.log('supabase:', !!supabase);
+    console.log('navigator.onLine:', navigator.onLine);
+    
+    // Test each populate function
+    setTimeout(() => populateShippingTable(), 100);
+    setTimeout(() => populateStockTable(), 200);
+    setTimeout(() => populateReportsTable(), 300);
+}
+
+// Call this after page loads to check tab status
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(debugTabs, 2000);
+});
