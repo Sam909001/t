@@ -4008,3 +4008,56 @@ window.populateShippingFolders = populateShippingFolders;
 window.populateReportsTable = populateReportsTable; // (Also good practice to check this one)
 
 console.log('✅ Fixed data collection functions loaded - No fake data');
+
+
+
+// 🌀 Refresh Excel Info
+document.getElementById("refreshExcelBtn")?.addEventListener("click", async () => {
+    showAlert("Excel bilgileri yenileniyor...", "info");
+
+    try {
+        if (typeof ExcelStorage !== "undefined" && ExcelStorage.readFile) {
+            const packages = await ExcelStorage.readFile(); // re-read from current file
+            excelPackages = packages;
+            showAlert(`Excel bilgileri güncellendi (${packages.length} kayıt)`, "success");
+            console.log("🔁 Excel refreshed:", packages);
+        } else {
+            showAlert("ExcelStorage tanımlı değil!", "error");
+        }
+    } catch (err) {
+        console.error("Excel refresh failed:", err);
+        showAlert("Excel yenileme hatası!", "error");
+    }
+});
+
+
+// 🧹 Clear Excel Data (session only)
+document.getElementById("clearExcelBtn")?.addEventListener("click", () => {
+    const confirmClear = confirm("Tüm Excel bilgilerini geçici olarak silmek istiyor musunuz?");
+    if (!confirmClear) return;
+
+    try {
+        // Clear current in-memory and local cache (but not file)
+        excelPackages = [];
+        if (window.ExcelStorage && ExcelStorage.clearCache) ExcelStorage.clearCache();
+        localStorage.removeItem("excelCache");
+        sessionStorage.removeItem("excelCache");
+
+        showAlert("Excel bilgileri temizlendi (geçici).", "warning");
+        console.log("🧹 Excel data cleared for this session");
+    } catch (err) {
+        console.error("Error clearing Excel session:", err);
+        showAlert("Excel temizleme hatası!", "error");
+    }
+});
+
+
+ExcelStorage.clearCache = function() {
+    try {
+        localStorage.removeItem("excelCache");
+        sessionStorage.removeItem("excelCache");
+        console.log("ExcelStorage cache cleared.");
+    } catch (err) {
+        console.error("Failed to clear ExcelStorage cache:", err);
+    }
+};
