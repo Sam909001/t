@@ -448,14 +448,7 @@ async function deleteContainer() {
     }
 }
 
-
-
-window.switchTab = switchTab;
-
-// FIXED switchTab FUNCTION
 function switchTab(tabName) {
-    console.log('🔄 Switching to tab:', tabName);
-    
     // Hide all tab panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.classList.remove('active');
@@ -474,35 +467,20 @@ function switchTab(tabName) {
         selectedTab.classList.add('active');
         selectedPane.classList.add('active');
         
-        // FORCE RELOAD data when tab is clicked
-        setTimeout(async () => {
-            try {
-                switch(tabName) {
-                    case 'shipping':
-                        console.log('📦 Loading shipping data...');
-                        await populateShippingTable();
-                        break;
-                    case 'stock':
-                        console.log('📦 Loading stock data...');
-                        await populateStockTable();
-                        break;
-                    case 'reports':
-                        console.log('📊 Loading reports data...');
-                        await populateReportsTable();
-                        break;
-                    case 'packaging':
-                        console.log('📦 Loading packaging data...');
-                        await populatePackagesTable();
-                        break;
-                }
-                console.log('✅ Tab data loaded successfully:', tabName);
-            } catch (error) {
-                console.error('❌ Error loading tab data:', error);
-                showAlert('Veri yüklenirken hata oluştu: ' + error.message, 'error');
+        // Load data when tab is clicked
+        setTimeout(() => {
+            switch(tabName) {
+                case 'shipping':
+                    populateShippingTable();
+                    break;
+                case 'stock':
+                    populateStockTable();
+                    break;
+                case 'reports':
+                    populateReportsTable();
+                    break;
             }
         }, 100);
-    } else {
-        console.error('❌ Tab not found:', tabName);
     }
 }
 
@@ -1828,24 +1806,3 @@ window.deleteReport = async function(fileName) {
     }
 }
 
-
-
-function debugTabs() {
-    console.log('=== TAB DEBUG INFO ===');
-    console.log('shippingFolders:', document.getElementById('shippingFolders'));
-    console.log('stockTableBody:', document.getElementById('stockTableBody'));
-    console.log('reportsTableBody:', document.getElementById('reportsTableBody'));
-    console.log('isUsingExcel:', isUsingExcel);
-    console.log('supabase:', !!supabase);
-    console.log('navigator.onLine:', navigator.onLine);
-    
-    // Test each populate function
-    setTimeout(() => populateShippingTable(), 100);
-    setTimeout(() => populateStockTable(), 200);
-    setTimeout(() => populateReportsTable(), 300);
-}
-
-// Call this after page loads to check tab status
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(debugTabs, 2000);
-});
