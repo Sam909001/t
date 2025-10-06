@@ -1806,3 +1806,183 @@ window.deleteReport = async function(fileName) {
     }
 }
 
+
+// ==================== REMEMBER ME FUNCTIONS ====================
+// Add at the end of app.js
+
+// Save account credentials
+async function saveAccountCredentials(email, password, rememberMe) {
+    if (!rememberMe) return;
+    
+    try {
+        const savedAccounts = await StorageManager.getItem('saved_accounts') || [];
+        const existingIndex = savedAccounts.findIndex(acc => acc.email === email);
+        const encodedPassword = btoa(password);
+        
+        const accountData = {
+            email: email,
+            password: encodedPassword,
+            lastLogin: new Date().toISOString(),
+            avatar: email.charAt(0).toUpperCase()
+        };
+        
+        if (existingIndex >= 0) {
+            savedAccounts[existingIndex] = accountData;
+        } else {
+            savedAccounts.push(accountData);
+        }
+        
+        if (savedAccounts.length > 5) {
+            savedAccounts.shift();
+        }
+        
+        await StorageManager.setItem('saved_accounts', savedAccounts);
+        console.log('Account credentials saved');
+    } catch (error) {
+        console.error('Failed to save credentials:', error);
+    }
+}
+
+// Load and display saved accounts
+async function loadSavedAccounts() {
+    try {
+        const savedAccounts = await StorageManager.getItem('saved_accounts') || [];
+        
+        if (savedAccounts.length === 0) {
+            document.getElementById('savedAccountsSection').style.display = 'none';
+            document.getElementById('manualLoginSection').style.display = 'block';
+            return;
+        }
+        
+        const accountsList = document.getElementById('savedAccountsList');
+        accountsList.innerHTML = '';
+        
+        savedAccounts.forEach((account) => {
+            const accountItem = document.createElement('div');
+            accountItem.className = 'saved-account-item';
+            
+            const lastLoginDate = new Date(account.lastLogin);
+            const lastLoginText = formatRelativeTime(lastLoginDate);
+            
+            accountItem.innerHTML = `
+                <div class="saved-account-info" onclick="quickLogin('${account.email}')">
+                    <div class="account-avatar">${account.avatar}</div>
+                    <div class="account-details">
+                        <span class="account-email">${account.email}</span>
+                        <span class="account-last-login">Son giriş: ${lastLoginText}</span>
+                    </div>
+                </div>
+                <button class="account-remove" onclick="removeSavedAccount('${account.email}', event)">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            accountsList.appendChild(accountItem);
+        });
+        
+        document.getElementById('savedAccountsSection').style.display = 'block';
+        document.getElementById('manualLoginSection').style.display = 'none';
+        document.getElementById('showSavedAccountsBtn').style.display = 'block';
+        
+    } catch (error) {
+        console.error('Failed to load saved accounts:', error);
+    }
+}
+
+// Quick login
+async function quickLogin(email) {
+    try {
+        const savedAccounts = await StorageManager.getItem('saved_accounts') || [];
+        const account = savedAccounts.find(acc => acc.email === email);
+        
+        if (!account) {
+            showAlert('Hesap bulunamadı', 'error');
+            return;
+        }
+        
+        const password = atob(account.password);
+        showAlert('Giriş yapılıyor...', 'info');
+        
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+        
+        if (error) throw error;
+        
+        if (data) {
+            account.lastLogin = new Date().toISOString();
+            await StorageManager.setItem('saved_accounts', savedAccounts);
+            await saveUserSession(data.session);
+            
+            showAlert('Giriş başarılı!', 'success');
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'flex';
+        }
+        
+    } catch (error) {
+        console.error('Quick login error:', error);
+        showAlert('Giriş başarısız: ' + error.message, 'error');
+    }
+}
+
+// Remove saved account
+async function removeSavedAccount(email, event) {
+    event.stopPropagation();
+    
+    if (!confirm(`${email} hesabını kayıtlı hesaplardan kaldırmak istediğinize emin misiniz?`)) {
+        return;
+    }
+    
+    try {
+        const savedAccounts = await StorageManager.getItem('saved_accounts') || [];
+        const filtered = savedAccounts.filter(acc => acc.email !== email);
+        await StorageManager.setItem('saved_accounts', filtered);
+        showAlert('Hesap kaldırıldı', 'success');
+        await loadSavedAccounts();
+    } catch (error) {
+        console.error('Failed to remove account:', error);
+        showAlert('Hesap kaldırılamadı', 'error');
+    }
+}
+
+// Show manual login
+function showManualLogin() {
+    document.getElementById('savedAccountsSection').style.display = 'none';
+    document.getElementById('manualLoginSection').style.display = 'block';
+}
+
+// Show saved accounts
+function showSavedAccounts() {
+    loadSavedAccounts();
+}
+
+// Toggle password visibility
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('passwordToggleIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.className = 'fas fa-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.className = 'fas fa-eye';
+    }
+}
+
+// Format relative time
+function formatRelativeTime(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Az önce';
+    if (diffMins < 60) return `${diffMins} dakika önce`;
+    if (diffHours < 24) return `${diffHours} saat önce`;
+    if (diffDays < 7) return `${diffDays} gün önce`;
+    
+    return date.toLocaleDateString('tr-TR');
+}
