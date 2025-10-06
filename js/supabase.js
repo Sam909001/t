@@ -155,11 +155,9 @@ window._workspaceSelectionShown = true;
     }
     
     // Update UI to show current workspace
-  updateWorkspaceUI() {
+   updateWorkspaceUI() {
     const workspaceIndicator = document.getElementById('workspaceIndicator');
-    const printerIndicator = document.getElementById('printerIndicator');
     
-    // Update workspace indicator
     if (workspaceIndicator && this.currentWorkspace) {
         const typeLabel = this.getWorkspaceTypeLabel(this.currentWorkspace);
         
@@ -168,24 +166,18 @@ window._workspaceSelectionShown = true;
             ${this.currentWorkspace.name}
             <span class="workspace-type">${typeLabel}</span>
         `;
-        workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name} (${typeLabel})`;
-        workspaceIndicator.style.display = 'inline-flex';
-        
+        workspaceIndicator.title = `Çalışma İstasyonu: ${this.currentWorkspace.name}`;
         console.log('✅ Workspace UI updated:', this.currentWorkspace.name);
-    } else if (workspaceIndicator) {
-        // No workspace selected
-        workspaceIndicator.innerHTML = `
-            <i class="fas fa-desktop"></i> 
-            İstasyon Seçilmedi
-            <span class="workspace-type">Tıklayın</span>
-        `;
-        workspaceIndicator.title = 'Çalışma istasyonu seçmek için tıklayın';
-        workspaceIndicator.style.display = 'inline-flex';
     } else {
-        console.warn('⚠️ Workspace indicator element not found');
-        // Create the element if it doesn't exist
-        this.createWorkspaceIndicator();
+        console.warn('⚠️ Workspace indicator element not found or workspace is null');
     }
+    
+    // Update document title
+    if (this.currentWorkspace) {
+        document.title = `ProClean - ${this.currentWorkspace.name}`;
+    }
+}
+
 
     
     
