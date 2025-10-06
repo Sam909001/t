@@ -2225,3 +2225,27 @@ body.modal-open {
 .password-toggle:hover {
     color: #333;
 }
+
+
+
+/* Temporary debug styles - add to your CSS file */
+.customer-folder {
+    border: 2px solid red !important; /* Debug border */
+}
+
+.folder-content {
+    display: block !important; /* Force show all content */
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+table {
+    border: 1px solid blue !important; /* Debug table borders */
+}
+
+td, th {
+    border: 1px solid green !important; /* Debug cell borders */
+    padding: 8px !important;
+    background: white !important;
+    color: black !important;
+}
