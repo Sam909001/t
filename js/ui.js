@@ -4061,3 +4061,48 @@ ExcelStorage.clearCache = function() {
         console.error("Failed to clear ExcelStorage cache:", err);
     }
 };
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    const refreshBtn = document.getElementById("refreshExcelBtn");
+    const clearBtn = document.getElementById("clearExcelBtn");
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", async () => {
+            console.log("🔁 Güncelle clicked");
+            showAlert("Excel bilgileri yenileniyor...", "info");
+
+            try {
+                if (typeof ExcelStorage?.readFile === "function") {
+                    await ExcelStorage.readFile();
+                    showAlert("Excel başarıyla güncellendi.", "success");
+                } else {
+                    showAlert("ExcelStorage.readFile() fonksiyonu bulunamadı.", "error");
+                }
+            } catch (error) {
+                console.error("Güncelleme hatası:", error);
+                showAlert("Excel güncelleme hatası.", "error");
+            }
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", async () => {
+            console.log("🧹 Temizle clicked");
+            showAlert("Excel verileri temizleniyor...", "info");
+
+            try {
+                if (typeof ExcelStorage?.clear === "function") {
+                    await ExcelStorage.clear();
+                    showAlert("Excel verileri başarıyla temizlendi.", "success");
+                } else {
+                    showAlert("ExcelStorage.clear() fonksiyonu bulunamadı.", "error");
+                }
+            } catch (error) {
+                console.error("Temizleme hatası:", error);
+                showAlert("Excel temizleme hatası.", "error");
+            }
+        });
+    }
+});
+
