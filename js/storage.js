@@ -123,3 +123,95 @@ const WorkstationStorage = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { StorageManager, WorkstationStorage };
 }
+
+
+
+// ==================== REMEMBER ME STORAGE ====================
+// Add to the end of storage.js
+
+const RememberMeStorage = {
+  // Save account credentials
+  async saveAccount(email, password) {
+    try {
+      const accounts = await this.getAccounts();
+      const existingIndex = accounts.findIndex(acc => acc.email === email);
+      
+      const accountData = {
+        email: email,
+        password: btoa(password), // Simple encoding
+        lastLogin: new Date().toISOString(),
+        avatar: email.charAt(0).toUpperCase()
+      };
+      
+      if (existingIndex >= 0) {
+        accounts[existingIndex] = accountData;
+      } else {
+        accounts.push(accountData);
+      }
+      
+      // Keep only last 5 accounts
+      if (accounts.length > 5) {
+        accounts.shift();
+      }
+      
+      await StorageManager.setItem('saved_accounts', accounts);
+      console.log('Account saved:', email);
+      return true;
+    } catch (error) {
+      console.error('Save account error:', error);
+      return false;
+    }
+  },
+  
+  // Get all saved accounts
+  async getAccounts() {
+    try {
+      return await StorageManager.getItem('saved_accounts') || [];
+    } catch (error) {
+      console.error('Get accounts error:', error);
+      return [];
+    }
+  },
+  
+  // Get specific account
+  async getAccount(email) {
+    const accounts = await this.getAccounts();
+    return accounts.find(acc => acc.email === email);
+  },
+  
+  // Remove account
+  async removeAccount(email) {
+    try {
+      const accounts = await this.getAccounts();
+      const filtered = accounts.filter(acc => acc.email !== email);
+      await StorageManager.setItem('saved_accounts', filtered);
+      console.log('Account removed:', email);
+      return true;
+    } catch (error) {
+      console.error('Remove account error:', error);
+      return false;
+    }
+  },
+  
+  // Update last login time
+  async updateLastLogin(email) {
+    try {
+      const accounts = await this.getAccounts();
+      const account = accounts.find(acc => acc.email === email);
+      
+      if (account) {
+        account.lastLogin = new Date().toISOString();
+        await StorageManager.setItem('saved_accounts', accounts);
+      }
+    } catch (error) {
+      console.error('Update last login error:', error);
+    }
+  }
+};
+
+// Export if using modules
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { StorageManager, WorkstationStorage, RememberMeStorage };
+}
+
+console.log('✅ Storage modules loaded: StorageManager, WorkstationStorage, RememberMeStorage');
