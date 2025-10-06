@@ -197,16 +197,21 @@ body {
     overflow: hidden; 
 }
 
+/* FIXED Tab Pane Styles */
 .tab-pane { 
     display: none; 
     height: calc(100vh - 200px); 
     overflow: auto; 
+    opacity: 1 !important; /* Force visibility */
+    visibility: visible !important; /* Force visibility */
+    position: relative !important; /* Ensure proper stacking */
 }
 
 .tab-pane.active { 
-    display: block; 
+    display: block !important; /* Force display */
+    opacity: 1 !important;
+    visibility: visible !important;
 }
-
 .packaging-header { 
     display: flex; 
     justify-content: space-between; 
@@ -2227,25 +2232,3 @@ body.modal-open {
 }
 
 
-
-/* Temporary debug styles - add to your CSS file */
-.customer-folder {
-    border: 2px solid red !important; /* Debug border */
-}
-
-.folder-content {
-    display: block !important; /* Force show all content */
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-table {
-    border: 1px solid blue !important; /* Debug table borders */
-}
-
-td, th {
-    border: 1px solid green !important; /* Debug cell borders */
-    padding: 8px !important;
-    background: white !important;
-    color: black !important;
-}
