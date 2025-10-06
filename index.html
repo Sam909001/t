@@ -36,6 +36,21 @@ document.addEventListener("DOMContentLoaded", function() {
 
     </head>
 <body>
+    <!-- API Key Giriş Modalı -->
+    <div class="api-key-modal" id="apiKeyModal">
+        <div class="api-key-content">
+            <h2>Supabase API Anahtarı Gerekli</h2>
+            <p>Uygulamayı kullanabilmek için geçerli bir Supabase API anahtarı girmeniz gerekiyor.</p>
+            <input type="text" id="apiKeyInput" class="api-key-input" placeholder="Supabase API Anahtarınızı girin">
+            <div class="quantity-buttons">
+                <button type="button" class="btn btn-primary" onclick="saveApiKey()">Kaydet</button>
+                <button type="button" class="btn btn-secondary" onclick="showApiKeyHelp()">Yardım</button>
+            </div>
+            <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                API anahtarını nasıl alacağınızı bilmiyorsanız "Yardım" butonuna tıklayın.
+            </p>
+        </div>
+    </div>
 
     <div class="login-container" id="loginScreen">
         <div class="login-form">
@@ -51,6 +66,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 <div class="validation-error" id="passwordError">Şifre gereklidir</div>
             </div>
             <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
+            <div style="margin-top: 1rem; text-align: center;">
+                <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
+            </div>
         </div>
     </div>
 
@@ -613,6 +631,10 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="settings-section">
             <h3>Veri Yönetimi</h3>
             
+            <div class="settings-option">
+                <label>Supabase API Anahtarı</label>
+                <button class="btn btn-warning" onclick="changeApiKeyWithAuth()">API Anahtarını Değiştir</button>
+            </div>
             
             <div class="settings-option">
                 <label>Veri Yedekleme</label>
