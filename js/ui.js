@@ -597,15 +597,25 @@ function confirmQuantity() {
 }
         
 function openManualEntry() {
-    document.getElementById('manualModal').style.display = 'flex';
-    document.getElementById('manualProduct').focus();
+    const modal = document.getElementById('manualModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.getElementById('manualProduct').focus();
+    }
 }
-        
+
+function closeManualModal() {
+    const modal = document.getElementById('manualModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 function addManualProduct() {
     const product = document.getElementById('manualProduct').value.trim();
     const quantity = parseInt(document.getElementById('manualQuantity').value);
 
-    // Form doğrulama
+    // Form validation
     if (!validateForm([
         { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
         { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
@@ -619,11 +629,20 @@ function addManualProduct() {
 
     showAlert(`${product}: ${quantity} adet eklendi`, 'success');
     
-    // Clear form
+    // Clear form and close modal
     document.getElementById('manualProduct').value = '';
     document.getElementById('manualQuantity').value = '';
     closeManualModal();
 }
+
+// 🟢 Close modal when clicking outside content
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('manualModal');
+    if (modal && event.target === modal) {
+        modal.style.display = 'none';
+    }
+});
+
 
 
 // Open Extra Modal
