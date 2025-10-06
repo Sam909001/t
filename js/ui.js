@@ -628,13 +628,27 @@ function addManualProduct() {
 
 // Open Extra Modal
 function openExtraModal() {
-    document.getElementById('extraModal').style.display = 'block';
+    const modal = document.getElementById('extraModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
 }
 
 // Close Extra Modal
 function closeExtraModal() {
-    document.getElementById('extraModal').style.display = 'none';
+    const modal = document.getElementById('extraModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
+
+// 🟢 Close modal if user clicks outside of it
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('extraModal');
+    if (modal && event.target === modal) {
+        modal.style.display = 'none';
+    }
+});
 
 
 // Settings functions
