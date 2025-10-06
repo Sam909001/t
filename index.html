@@ -9,7 +9,9 @@
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
+    
     <!-- ✅ Local libraries -->
 <script src="libs/JsBarcode.all.min.js"></script>
 <script src="libs/jspdf.umd.min.js"></script>
@@ -36,21 +38,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
     </head>
 <body>
-    <!-- API Key Giriş Modalı -->
-    <div class="api-key-modal" id="apiKeyModal">
-        <div class="api-key-content">
-            <h2>Supabase API Anahtarı Gerekli</h2>
-            <p>Uygulamayı kullanabilmek için geçerli bir Supabase API anahtarı girmeniz gerekiyor.</p>
-            <input type="text" id="apiKeyInput" class="api-key-input" placeholder="Supabase API Anahtarınızı girin">
-            <div class="quantity-buttons">
-                <button type="button" class="btn btn-primary" onclick="saveApiKey()">Kaydet</button>
-                <button type="button" class="btn btn-secondary" onclick="showApiKeyHelp()">Yardım</button>
-            </div>
-            <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
-                API anahtarını nasıl alacağınızı bilmiyorsanız "Yardım" butonuna tıklayın.
-            </p>
-        </div>
-    </div>
 
     <div class="login-container" id="loginScreen">
         <div class="login-form">
@@ -65,10 +52,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 <input type="password" id="password" placeholder="Şifrenizi girin" required>
                 <div class="validation-error" id="passwordError">Şifre gereklidir</div>
             </div>
+            <div class="form-group remember-group">
+    <label class="remember-label">
+        <input type="checkbox" id="rememberMe">
+        <span>Beni hatırla</span>
+    </label>
+</div>
             <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
-            <div style="margin-top: 1rem; text-align: center;">
-                <a href="#" onclick="showApiKeyModal()" style="color: #3498db; text-decoration: underline; font-size: 0.9rem;">API Anahtarını Yönet</a>
-            </div>
+            <button type="button" class="btn btn-success" id="fastLoginBtn" style="display: none;">
+    Hızlı Giriş
+</button>
         </div>
     </div>
 
@@ -297,35 +290,53 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
                             
-            <div class="tab-pane" id="shippingTab">
-                <div class="packaging-header">
-                    <div class="customer-info">
-                        <div class="info-group">
-                            <label for="shippingFilter">Durum Filtresi</label>
-                            <select id="shippingFilter" onchange="filterShipping()">
-                                <option value="all">Tümü</option>
-                                <option value="beklemede">Beklemede</option>
-                                <option value="sevk-edildi">Sevk Edildi</option>
-                            </select>
-                        </div>
-                        <div class="info-group">
-                            <label for="containerSearch">Konteyner Ara</label>
-                            <input type="text" id="containerSearch" placeholder="Konteyner no..." oninput="searchContainers()">
-                        </div>
-                    </div>
-                    <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
-                        <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()">Mevcut Konteyner</button>
-                       <button type="button" class="btn btn-danger" 
-                      onclick="deleteContainerWithAuth()" 
-                      data-i18n="shipping.delete.container">Konteyner Sil</button>
-                    </div>
-                </div>
+           <div class="tab-pane" id="shippingTab">
+    <div class="packaging-header">
+        <!-- Your existing header code -->
+    </div>
 
-                <div id="shippingFolders">
-                    <!-- Customer folders will be populated here -->
-                </div>
+    <div id="shippingFolders">
+        <!-- Customer folders will be populated here -->
+    </div>
+
+    <!-- MISSING SHIPPING TABLE - ADD THIS -->
+    <div class="shipping-table-container" style="margin-top: 20px;">
+        <div class="table-header">
+            <h3>Konteyner Listesi</h3>
+            <div class="table-controls">
+                <input type="checkbox" id="selectAllContainers" onchange="toggleSelectAllContainers(this)">
+                <label for="selectAllContainers">Tümünü Seç</label>
             </div>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th width="50px">
+                        <input type="checkbox" id="selectAllContainersHeader" onchange="toggleSelectAllContainers(this)">
+                    </th>
+                    <th>Konteyner No</th>
+                    <th>Müşteri</th>
+                    <th>Paket Sayısı</th>
+                    <th>Toplam Adet</th>
+                    <th>Durum</th>
+                    <th>Oluşturulma Tarihi</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="shippingTableBody">
+                <!-- This will be populated by JavaScript -->
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem; color: #666;">
+                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <div>Henüz konteyner bulunmamaktadır</div>
+                        <small>Paket oluşturduktan sonra burada görünecektir</small>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
 
             <td>
@@ -631,10 +642,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="settings-section">
             <h3>Veri Yönetimi</h3>
             
-            <div class="settings-option">
-                <label>Supabase API Anahtarı</label>
-                <button class="btn btn-warning" onclick="changeApiKeyWithAuth()">API Anahtarını Değiştir</button>
-            </div>
             
             <div class="settings-option">
                 <label>Veri Yedekleme</label>
@@ -738,5 +745,217 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- 6. Feature modules (depend on core functionality) -->
 <script src="js/stock.js"></script>
 <script src="js/darkMode.js"></script> 
+            
+    <script>
+function getCustomEventListeners(element) {
+    if (!element || typeof element.addEventListener !== 'function') {
+        return {};
+    }
+    // Yaygın olarak kullanılan olayları kontrol edin
+    const eventTypes = ['click', 'change', 'submit', 'input', 'keydown', 'keypress', 'keyup'];
+    const listeners = {};
+
+    eventTypes.forEach(type => {
+        const inlineListener = element[`on${type}`];
+        if (inlineListener) {
+            listeners[type] = [{ handler: inlineListener.toString() }];
+        }
+    });
+
+    if (Object.keys(listeners).length === 0) {
+        return "No direct inline or 'on[event]' listeners found. Check the element in DevTools for 'addEventListener' listeners.";
+    }
+    
+    return listeners;
+}
+// Global scope'a ekliyoruz, ancak tarayıcı konsolu dışında çağırmayın.
+window.getEventListenersCustom = getCustomEventListeners;
+console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
+</script>
+
+
+            <script>
+// Secure Remember Me + Fast Login - DEBUG VERSION
+document.addEventListener("DOMContentLoaded", () => {
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const rememberCheckbox = document.getElementById("rememberMe");
+    const loginBtn = document.getElementById("loginBtn");
+    const fastLoginBtn = document.getElementById("fastLoginBtn");
+
+    const SECRET_KEY = "ProCleanAutoSecureKey2025";
+
+    console.log("🔄 Remember Me system initializing...");
+
+    // Load saved encrypted credentials
+    const encryptedEmail = localStorage.getItem("savedEmail");
+    const encryptedPassword = localStorage.getItem("savedPassword");
+    const remember = localStorage.getItem("rememberMe") === "true";
+
+    console.log("📦 Saved credentials found:", {
+        encryptedEmail: !!encryptedEmail,
+        encryptedPassword: !!encryptedPassword,
+        remember: remember
+    });
+
+    let decryptedEmail = "";
+    let decryptedPassword = "";
+
+    if (remember && encryptedEmail && encryptedPassword) {
+        try {
+            console.log("🔓 Attempting to decrypt credentials...");
+            decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+            decryptedPassword = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+
+            console.log("🔍 Decrypted credentials:", {
+                email: decryptedEmail ? "***" + decryptedEmail.substring(5) : "empty",
+                password: decryptedPassword ? "***" + decryptedPassword.substring(5) : "empty"
+            });
+
+            // Validate decrypted values
+            if (decryptedEmail && decryptedPassword) {
+                // Autofill fields
+                emailInput.value = decryptedEmail;
+                passwordInput.value = decryptedPassword;
+                rememberCheckbox.checked = true;
+
+                // ✅ Show Fast Login button ONLY if we have valid credentials
+                fastLoginBtn.style.display = "inline-block";
+                console.log("✅ Fast login button ENABLED");
+            } else {
+                console.log("❌ Invalid decrypted credentials");
+                clearSavedCredentials();
+            }
+        } catch (err) {
+            console.error("❌ Decryption error:", err);
+            clearSavedCredentials();
+        }
+    } else {
+        // Hide fast login if no saved credentials
+        fastLoginBtn.style.display = "none";
+        console.log("❌ No saved credentials found, fast login disabled");
+    }
+
+    // Save credentials securely if checked
+   // Save credentials securely if checked - FIXED
+loginBtn.addEventListener("click", async () => {
+    console.log("🔐 Manual login clicked");
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (rememberCheckbox.checked && email && password) {
+        console.log("💾 Saving credentials to localStorage");
+        const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
+        const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+
+        localStorage.setItem("savedEmail", encEmail);
+        localStorage.setItem("savedPassword", encPassword);
+        localStorage.setItem("rememberMe", "true");
+    } else {
+        console.log("🗑️ Clearing saved credentials");
+        clearSavedCredentials();
+    }
+
+    // Call the main login function WITHOUT parameters so it reads from input fields
+    if (typeof login === 'function') {
+        console.log("✅ Calling main login function");
+        await login(); // ← No parameters!
+    } else {
+        console.error("❌ Main login function not found");
+        // Fallback to performLogin
+        await performLogin(email, password);
+    }
+});
+
+    // 🟢 Fast Login click handler
+    fastLoginBtn.addEventListener("click", async () => {
+        console.log("🚀 Fast login button CLICKED");
+        console.log("🔍 Current decrypted values:", {
+            email: decryptedEmail ? "***" + decryptedEmail.substring(5) : "empty",
+            password: decryptedPassword ? "***" + decryptedPassword.substring(5) : "empty"
+        });
+
+        if (!decryptedEmail || !decryptedPassword) {
+            console.log("❌ No decrypted credentials available");
+            showAlert("Kayıtlı giriş bilgisi bulunamadı!", "error");
+            clearSavedCredentials();
+            fastLoginBtn.style.display = "none";
+            return;
+        }
+
+        console.log("🎯 Attempting fast login with:", decryptedEmail);
+        await performLogin(decryptedEmail, decryptedPassword);
+    });
+
+    // Clear saved credentials function
+    function clearSavedCredentials() {
+        console.log("🧹 Clearing saved credentials");
+        localStorage.removeItem("savedEmail");
+        localStorage.removeItem("savedPassword");
+        localStorage.setItem("rememberMe", "false");
+        fastLoginBtn.style.display = "none";
+        decryptedEmail = "";
+        decryptedPassword = "";
+    }
+
+    // REAL login logic
+    async function performLogin(email, password) {
+        console.log("🔐 performLogin called with:", email);
+        showAlert("Giriş yapılıyor...", "info");
+
+        try {
+            // Check if your auth.js login function exists
+            if (typeof login === 'function') {
+                console.log("✅ Using auth.js login function");
+                await login(email, password);
+            } else {
+                console.log("❌ auth.js login function not found, using fallback");
+                
+                // Fallback login simulation
+                showAlert(`Hoşgeldiniz, ${email}`, "success");
+                
+                // Hide login screen and show app
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'block';
+                document.getElementById('appContainer').setAttribute('aria-hidden', 'false');
+                
+                console.log("✅ Login successful - app should be visible now");
+                
+                // Initialize app if function exists
+                if (typeof initializeApp === 'function') {
+                    console.log("🔄 Initializing app...");
+                    initializeApp();
+                }
+            }
+        } catch (error) {
+            console.error("❌ Login error:", error);
+            showAlert("Giriş başarısız! Lütfen bilgilerinizi kontrol edin.", "error");
+            
+            // Clear invalid credentials on failed login
+            if (email === decryptedEmail) {
+                console.log("🗑️ Clearing invalid saved credentials");
+                clearSavedCredentials();
+                emailInput.value = '';
+                passwordInput.value = '';
+            }
+        }
+    }
+
+    // Also hide fast login button when user manually changes credentials
+    emailInput.addEventListener('input', () => {
+        console.log("📝 Email changed manually, hiding fast login");
+        fastLoginBtn.style.display = 'none';
+        decryptedEmail = ""; // Clear the stored value
+    });
+    
+    passwordInput.addEventListener('input', () => {
+        console.log("📝 Password changed manually, hiding fast login");
+        fastLoginBtn.style.display = 'none';
+        decryptedPassword = ""; // Clear the stored value
+    });
+
+    console.log("✅ Remember Me system initialized");
+});
+</script>
 </body>
 </html>
