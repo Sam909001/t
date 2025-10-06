@@ -771,10 +771,122 @@ console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
 
 
-async function login() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    // ... rest of the Supabase sign-in logic
-}
+            <script>
+// Secure Remember Me + Unified Login
+document.addEventListener("DOMContentLoaded", () => {
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const rememberCheckbox = document.getElementById("rememberMe");
+    const loginBtn = document.getElementById("loginBtn");
+    
+    // NOTE: fastLoginBtn is removed from DOM and code
+    // You should remove the fastLoginBtn element from your HTML structure as well.
+
+    const SECRET_KEY = "ProCleanAutoSecureKey2025";
+
+    // Ensure showAlert is defined (if not defined elsewhere)
+    if (typeof showAlert !== 'function') {
+        window.showAlert = (msg, type = 'info') => { console.log(`[ALERT] [${type.toUpperCase()}] ${msg}`); };
+    }
+
+    // Clear saved credentials function
+    function clearSavedCredentials() {
+        console.log("🧹 Clearing saved credentials");
+        localStorage.removeItem("savedEmail");
+        localStorage.removeItem("savedPassword");
+        localStorage.setItem("rememberMe", "false");
+    }
+    window.clearSavedCredentials = clearSavedCredentials;
+
+    console.log("🔄 Remember Me system initializing...");
+
+    // 1. LOAD SAVED CREDENTIALS
+    const encryptedEmail = localStorage.getItem("savedEmail");
+    const encryptedPassword = localStorage.getItem("savedPassword");
+    const remember = localStorage.getItem("rememberMe") === "true";
+
+    if (remember && encryptedEmail && encryptedPassword) {
+        try {
+            const decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+            const decryptedPassword = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+
+            // Autofill fields
+            if (decryptedEmail && decryptedPassword) {
+                emailInput.value = decryptedEmail;
+                passwordInput.value = decryptedPassword;
+                rememberCheckbox.checked = true;
+                console.log("✅ Credentials pre-filled for fast login.");
+            } else {
+                clearSavedCredentials();
+            }
+        } catch (err) {
+            console.error("❌ Decryption error:", err);
+            clearSavedCredentials();
+        }
+    } else {
+        console.log("❌ No saved credentials found.");
+    }
+
+    // ====================================================================
+    // 2. UNIFIED LOGIN HANDLER (loginBtn)
+    // ====================================================================
+    loginBtn.addEventListener("click", async () => {
+        console.log("🔐 Login button clicked (Unified Handler)");
+        const email = emailInput.value.trim();
+        const password = passwordInput.value.trim();
+
+        if (!email || !password) {
+            showAlert("Lütfen e-posta ve şifrenizi girin.", "warning");
+            return;
+        }
+
+        // --- Credential Saving Logic ---
+        if (rememberCheckbox.checked) {
+            console.log("💾 Saving credentials to localStorage");
+            const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
+            const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+
+            localStorage.setItem("savedEmail", encEmail);
+            localStorage.setItem("savedPassword", encPassword);
+            localStorage.setItem("rememberMe", "true");
+        } else {
+            console.log("🗑️ Clearing saved credentials");
+            clearSavedCredentials();
+        }
+
+        // --- Core Login Call ---
+        // Call the main login function (from auth.js)
+        // It reads email/password from input fields, which are already populated.
+        if (typeof login === 'function') {
+            // Note: If fields were pre-filled, this is the "Fast Login"
+            showAlert("Giriş yapılıyor...", "info");
+            await login(); // <-- CORRECT: No parameters
+        } else {
+            console.error("❌ Main login function not found!");
+            showAlert("Ana giriş fonksiyonu yüklenmedi. Hata!", "error");
+        }
+    });
+
+    // ====================================================================
+    // 3. INPUT CHANGE HANDLERS (Still needed for security)
+    // ====================================================================
+
+    // Clear saved state if user manually changes credentials after pre-fill
+    const clearOnInput = () => {
+        // Only clear if the user changes the field from its pre-filled state
+        const savedEmail = localStorage.getItem("savedEmail");
+        if (savedEmail) {
+            console.log("📝 Credentials changed manually, clearing saved state.");
+            clearSavedCredentials();
+        }
+    };
+    
+    emailInput.addEventListener('input', clearOnInput);
+    passwordInput.addEventListener('input', clearOnInput);
+
+    console.log("✅ Remember Me system initialized with unified login.");
+});
+</script>
+
 </body>
 </html>
