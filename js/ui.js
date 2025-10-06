@@ -625,20 +625,15 @@ function addManualProduct() {
     closeManualModal();
 }
 
+
 // Open Extra Modal
 function openExtraModal() {
-    const modal = document.getElementById('extraModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
+    document.getElementById('extraModal').style.display = 'block';
 }
 
 // Close Extra Modal
 function closeExtraModal() {
-    const modal = document.getElementById('extraModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    document.getElementById('extraModal').style.display = 'none';
 }
 
 
