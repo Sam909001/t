@@ -19,8 +19,47 @@ if (!window._elementsInitialized) {
         }
         window._elementsInitialized = true;
 
-       
-       
+        // Attach a single, robust tab click handler AFTER elements exist
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.removeEventListener('click', window._procleanTabHandler);
+        });
+        window._procleanTabHandler = function (e) {
+            const tabName = this.getAttribute('data-tab');
+            if (!tabName) return;
+            // Use the canonical switchTab function; it's defined in app.js
+            if (typeof switchTab === 'function') {
+                switchTab(tabName);
+            } else {
+                // Fallback: manually show/hide panes
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                const pane = document.getElementById(tabName + 'Tab');
+                if (pane) pane.classList.add('active');
+                this.classList.add('active');
+            }
+
+            // Trigger the correct populate* after tab change
+            switch (tabName) {
+                case 'stock':
+                    if (typeof populateStockTable === 'function') populateStockTable();
+                    break;
+                case 'reports':
+                    if (typeof populateReportsTable === 'function') populateReportsTable();
+                    break;
+                case 'shipping':
+                    if (typeof populateShippingTable === 'function') populateShippingTable();
+                    break;
+                case 'packaging':
+                    if (typeof populatePackagesTable === 'function') populatePackagesTable();
+                    break;
+            }
+        };
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', window._procleanTabHandler);
+        });
+    });
+}
+
 
 
 // 3. ELEMENT EXISTENCE VALIDATION - ADD THIS AT THE BEGINNING
@@ -2204,38 +2243,29 @@ class EventListenerManager {
             }
         });
         
-       // Remove all existing handlers first
-document.querySelectorAll('.tab').forEach(tab => {
-    const oldHandler = tab._procleanHandler;
-    if (oldHandler) {
-        tab.removeEventListener('click', oldHandler);
+        // Tab system
+        document.querySelectorAll('.tab').forEach(tab => {
+            this.addListener(tab, 'click', function() {
+                const tabName = this.getAttribute('data-tab');
+                if (tabName) switchTab(tabName);
+            });
+        });
+        
+        // Close modal when clicking outside
+        this.addListener(window, 'click', function(event) {
+            if (event.target === document.getElementById('settingsModal')) {
+                closeSettingsModal();
+            }
+        });
+        
+        // Online/offline detection
+        this.addListener(window, 'online', this.handleOnlineStatus);
+        this.addListener(window, 'offline', this.handleOfflineStatus);
+        
+        // Barcode scanner (single instance)
+        this.setupBarcodeScanner();
     }
-});
 
-// Create single handler
-const tabHandler = function(e) {
-    const tabName = this.getAttribute('data-tab');
-    switchTab(tabName);
-    
-    // Trigger data load based on tab
-    switch(tabName) {
-        case 'stock':
-            populateStockTable();
-            break;
-        case 'shipping':
-            populateShippingTable();
-            break;
-        case 'reports':
-            populateReportsTable();
-            break;
-    }
-};
-
-// Attach handler to each tab
-document.querySelectorAll('.tab').forEach(tab => {
-    tab._procleanHandler = tabHandler;
-    tab.addEventListener('click', tabHandler);
-});
     // Add listener with tracking
     addListener(elementOrId, event, handler) {
         const element = typeof elementOrId === 'string' 
@@ -3165,6 +3195,89 @@ async function completePackage() {
     }
 }
 
+// Reports tab functionality fixes
+async function populateReportsTable() {
+    const reportsTableBody = document.getElementById('reportsTableBody');
+    
+    if (!reportsTableBody) {
+        console.error('Reports table body not found');
+        return;
+    }
+    
+    try {
+        showAlert('Raporlar yükleniyor...', 'info', 1000);
+        
+        let reports = [];
+        
+        // Get reports from localStorage
+        const localReports = Object.keys(localStorage)
+            .filter(key => key.startsWith('report_'))
+            .map(key => {
+                try {
+                    return JSON.parse(localStorage.getItem(key));
+                } catch (e) {
+                    return null;
+                }
+            })
+            .filter(report => report !== null);
+        
+        reports = localReports;
+        
+        // Also get from Supabase if available
+        if (supabase && navigator.onLine) {
+            const { data: supabaseReports, error } = await supabase
+                .from('reports')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (!error && supabaseReports) {
+                reports = [...reports, ...supabaseReports];
+            }
+        }
+        
+        // Sort by date
+        reports.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+        
+        if (reports.length === 0) {
+            reportsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Henüz rapor yok</td></tr>';
+            return;
+        }
+        
+        // Populate table with real data
+        reportsTableBody.innerHTML = reports.map(report => {
+            const reportDate = report.date || report.created_at;
+            const fileName = report.fileName || 'Rapor';
+            const packageCount = report.packageCount || 0;
+            const totalQuantity = report.totalQuantity || 0;
+            
+            return `
+                <tr>
+                    <td>${new Date(reportDate).toLocaleDateString('tr-TR')}</td>
+                    <td>${fileName}</td>
+                    <td>${packageCount}</td>
+                    <td>${totalQuantity}</td>
+                    <td>
+                        <button onclick="viewReport('${fileName}')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> Görüntüle
+                        </button>
+                        <button onclick="downloadReport('${fileName}')" class="btn btn-sm btn-success">
+                            <i class="fas fa-download"></i> İndir
+                        </button>
+                        <button onclick="deleteReport('${fileName}')" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash"></i> Sil
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        showAlert('Raporlar yüklenirken hata oluştu', 'error');
+        reportsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: red;">Raporlar yüklenirken hata oluştu</td></tr>';
+    }
+}
+
 async function viewReport(reportId) {
     try {
         const fileName = `report_${reportId}`;
@@ -3888,107 +4001,5 @@ window.getAllCustomers = getAllCustomers;
 window.getAllShippingData = getAllShippingData;
 window.getAllReports = getAllReports;
 window.getProductType = getProductType;
-// ui (34).js - Add these lines to your existing global export block
-// (The lines below assume you have functions named this in ui.js)
-window.populateStockTable = populateStockTable;
-window.populateShippingFolders = populateShippingFolders;
-window.populateReportsTable = populateReportsTable; // (Also good practice to check this one)
 
 console.log('✅ Fixed data collection functions loaded - No fake data');
-
-
-
-// 🌀 Refresh Excel Info
-document.getElementById("refreshExcelBtn")?.addEventListener("click", async () => {
-    showAlert("Excel bilgileri yenileniyor...", "info");
-
-    try {
-        if (typeof ExcelStorage !== "undefined" && ExcelStorage.readFile) {
-            const packages = await ExcelStorage.readFile(); // re-read from current file
-            excelPackages = packages;
-            showAlert(`Excel bilgileri güncellendi (${packages.length} kayıt)`, "success");
-            console.log("🔁 Excel refreshed:", packages);
-        } else {
-            showAlert("ExcelStorage tanımlı değil!", "error");
-        }
-    } catch (err) {
-        console.error("Excel refresh failed:", err);
-        showAlert("Excel yenileme hatası!", "error");
-    }
-});
-
-
-// 🧹 Clear Excel Data (session only)
-document.getElementById("clearExcelBtn")?.addEventListener("click", () => {
-    const confirmClear = confirm("Tüm Excel bilgilerini geçici olarak silmek istiyor musunuz?");
-    if (!confirmClear) return;
-
-    try {
-        // Clear current in-memory and local cache (but not file)
-        excelPackages = [];
-        if (window.ExcelStorage && ExcelStorage.clearCache) ExcelStorage.clearCache();
-        localStorage.removeItem("excelCache");
-        sessionStorage.removeItem("excelCache");
-
-        showAlert("Excel bilgileri temizlendi (geçici).", "warning");
-        console.log("🧹 Excel data cleared for this session");
-    } catch (err) {
-        console.error("Error clearing Excel session:", err);
-        showAlert("Excel temizleme hatası!", "error");
-    }
-});
-
-
-ExcelStorage.clearCache = function() {
-    try {
-        localStorage.removeItem("excelCache");
-        sessionStorage.removeItem("excelCache");
-        console.log("ExcelStorage cache cleared.");
-    } catch (err) {
-        console.error("Failed to clear ExcelStorage cache:", err);
-    }
-};
-
-
-document.addEventListener("DOMContentLoaded", () => {
-    const refreshBtn = document.getElementById("refreshExcelBtn");
-    const clearBtn = document.getElementById("clearExcelBtn");
-
-    if (refreshBtn) {
-        refreshBtn.addEventListener("click", async () => {
-            console.log("🔁 Güncelle clicked");
-            showAlert("Excel bilgileri yenileniyor...", "info");
-
-            try {
-                if (typeof ExcelStorage?.readFile === "function") {
-                    await ExcelStorage.readFile();
-                    showAlert("Excel başarıyla güncellendi.", "success");
-                } else {
-                    showAlert("ExcelStorage.readFile() fonksiyonu bulunamadı.", "error");
-                }
-            } catch (error) {
-                console.error("Güncelleme hatası:", error);
-                showAlert("Excel güncelleme hatası.", "error");
-            }
-        });
-    }
-
-    if (clearBtn) {
-        clearBtn.addEventListener("click", async () => {
-            console.log("🧹 Temizle clicked");
-            showAlert("Excel verileri temizleniyor...", "info");
-
-            try {
-                if (typeof ExcelStorage?.clear === "function") {
-                    await ExcelStorage.clear();
-                    showAlert("Excel verileri başarıyla temizlendi.", "success");
-                } else {
-                    showAlert("ExcelStorage.clear() fonksiyonu bulunamadı.", "error");
-                }
-            } catch (error) {
-                console.error("Temizleme hatası:", error);
-                showAlert("Excel temizleme hatası.", "error");
-            }
-        });
-    }
-});
