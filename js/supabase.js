@@ -2939,39 +2939,34 @@ const pageSize = 20; // number of containers per page
 let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
 
+// ========================
+// Populate Shipping Table
+// ========================
 async function populateShippingTable(page = 0) {
-    if (isShippingTableLoading) {
-        console.log('Shipping table already loading, skipping...');
-        return;
-    }
-
+    if (isShippingTableLoading) return;
     isShippingTableLoading = true;
 
+    const shippingFolders = document.getElementById('shippingFolders');
+    if (!shippingFolders) return;
+
+    shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">Sevkiyat verileri yükleniyor...</div>';
+
+    let containers = [];
+    let packagesData = [];
+
     try {
-        console.log('Populating shipping table...');
-
-        const shippingFolders = document.getElementById('shippingFolders');
-        if (!shippingFolders) {
-            console.error('shippingFolders element not found!');
-            return;
-        }
-
-        shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666; font-size:16px;">Sevkiyat verileri yükleniyor...</div>';
-
-        let containers = [];
-        let packagesData = [];
-
-        // --- Try Supabase first ---
-        if (supabase && navigator.onLine) {
+        if (navigator.onLine && supabase) {
+            // Try Supabase first
             try {
-                const { data: supabaseContainers, error } = await supabase
+                const { data: supabaseContainers, error: containerError } = await supabase
                     .from('containers')
                     .select('*')
                     .order('created_at', { ascending: false });
 
-                if (!error && supabaseContainers?.length) {
-                    containers = supabaseContainers;
+                if (containerError) throw containerError;
+                containers = supabaseContainers || [];
 
+                if (containers.length > 0) {
                     const containerIds = containers.map(c => c.id);
                     const { data: supabasePackages } = await supabase
                         .from('packages')
@@ -2979,45 +2974,44 @@ async function populateShippingTable(page = 0) {
                         .in('container_id', containerIds);
 
                     packagesData = supabasePackages || [];
-                    console.log('Supabase containers and packages loaded:', containers.length, packagesData.length);
                 }
-            } catch (err) {
-                console.warn('Supabase fetch failed, falling back to Excel:', err);
+
+                console.log('Supabase shipping loaded:', containers.length, packagesData.length);
+            } catch (supabaseError) {
+                console.warn('Supabase fetch failed, falling back to Excel:', supabaseError);
             }
         }
 
-        // --- Fallback to Excel ---
-        if (containers.length === 0 || isUsingExcel) {
+        // Fallback to Excel/mock if no Supabase data
+        if ((!containers || containers.length === 0) || isUsingExcel || !navigator.onLine) {
             console.log('Using Excel data for shipping');
+
             const excelContainers = {};
-
             excelPackages.forEach(pkg => {
-                if (!pkg.container_id) return;
-
-                if (!excelContainers[pkg.container_id]) {
-                    excelContainers[pkg.container_id] = {
-                        id: pkg.container_id,
-                        container_no: pkg.container_id,
-                        packages: [],
-                        package_count: 0,
-                        total_quantity: 0,
-                        status: pkg.status || 'beklemede',
-                        created_at: pkg.created_at
-                    };
+                if (pkg.container_id) {
+                    if (!excelContainers[pkg.container_id]) {
+                        excelContainers[pkg.container_id] = {
+                            id: pkg.container_id,
+                            container_no: pkg.container_id,
+                            packages: [],
+                            package_count: 0,
+                            total_quantity: 0,
+                            status: pkg.status || 'beklemede',
+                            created_at: pkg.created_at
+                        };
+                    }
+                    excelContainers[pkg.container_id].packages.push(pkg);
+                    excelContainers[pkg.container_id].package_count++;
+                    excelContainers[pkg.container_id].total_quantity += pkg.total_quantity || 0;
                 }
-
-                excelContainers[pkg.container_id].packages.push(pkg);
-                excelContainers[pkg.container_id].package_count++;
-                excelContainers[pkg.container_id].total_quantity += pkg.total_quantity || 0;
             });
-
             containers = Object.values(excelContainers);
             console.log('Excel containers found:', containers.length);
         }
 
-        // --- Render UI ---
         shippingFolders.innerHTML = '';
-        if (!containers.length) {
+
+        if (!containers || containers.length === 0) {
             shippingFolders.innerHTML = `
                 <div style="text-align:center; padding:60px; color:#666;">
                     <i class="fas fa-box-open" style="font-size:48px; margin-bottom:20px; opacity:0.5;"></i>
@@ -3031,21 +3025,20 @@ async function populateShippingTable(page = 0) {
             return;
         }
 
+        // Render containers grouped by customer
         const customersMap = {};
         containers.forEach(container => {
             let customerName = 'Genel Sevkiyat';
-
             if (packagesData.length > 0) {
                 const containerPackages = packagesData.filter(p => p.container_id === container.id);
                 const names = containerPackages.map(p => p.customers?.name).filter(Boolean);
-                if (names.length) customerName = [...new Set(names)].join(', ');
-            } else if (container.packages?.length) {
+                if (names.length > 0) customerName = [...new Set(names)].join(', ');
+            } else if (container.packages && container.packages.length > 0) {
                 const names = container.packages.map(p => p.customer_name).filter(Boolean);
-                if (names.length) customerName = [...new Set(names)].join(', ');
+                if (names.length > 0) customerName = [...new Set(names)].join(', ');
             } else if (container.customer) {
                 customerName = container.customer;
             }
-
             if (!customersMap[customerName]) customersMap[customerName] = [];
             customersMap[customerName].push(container);
         });
@@ -3066,7 +3059,6 @@ async function populateShippingTable(page = 0) {
             folderHeader.style.display = 'flex';
             folderHeader.style.justifyContent = 'space-between';
             folderHeader.style.alignItems = 'center';
-
             folderHeader.innerHTML = `
                 <div>
                     <strong>${escapeHtml(customerName)}</strong>
@@ -3074,15 +3066,13 @@ async function populateShippingTable(page = 0) {
                         (${customerContainers.length} konteyner)
                     </span>
                 </div>
-                <div class="folder-toggle">
-                    <i class="fas fa-chevron-down"></i>
-                </div>
+                <div class="folder-toggle"><i class="fas fa-chevron-down"></i></div>
             `;
 
             const folderContent = document.createElement('div');
             folderContent.className = 'folder-content';
-            folderContent.style.padding = '0';
             folderContent.style.display = 'none';
+            folderContent.style.padding = '0';
 
             const table = document.createElement('table');
             table.style.width = '100%';
@@ -3139,6 +3129,7 @@ async function populateShippingTable(page = 0) {
                     `).join('')}
                 </tbody>
             `;
+
             folderContent.appendChild(table);
             folderDiv.appendChild(folderHeader);
             folderDiv.appendChild(folderContent);
@@ -3152,27 +3143,15 @@ async function populateShippingTable(page = 0) {
             shippingFolders.appendChild(folderDiv);
         });
 
-        console.log('Shipping table populated successfully with', Object.keys(customersMap).length, 'customer folders');
+        console.log('Shipping table populated successfully');
     } catch (error) {
         console.error('Error in populateShippingTable:', error);
-        const shippingFolders = document.getElementById('shippingFolders');
-        if (shippingFolders) {
-            shippingFolders.innerHTML = `
-                <div style="text-align:center; padding:40px; color:#dc3545;">
-                    <i class="fas fa-exclamation-triangle" style="font-size:48px; margin-bottom:20px;"></i>
-                    <h3>Sevkiyat verileri yüklenirken hata oluştu</h3>
-                    <p>${error.message}</p>
-                    <button onclick="populateShippingTable()" class="btn btn-primary" style="margin-top:15px;">
-                        <i class="fas fa-redo"></i> Tekrar Dene
-                    </button>
-                </div>
-            `;
-        }
-        showAlert('Sevkiyat tablosu yüklenirken hata oluştu: ' + error.message, 'error');
+        shippingFolders.innerHTML = `<div style="text-align:center; color:red; padding:40px;">Hata: ${error.message}</div>`;
     } finally {
         isShippingTableLoading = false;
     }
 }
+
 
 
 
@@ -3967,48 +3946,33 @@ console.log('✅ Reports module loaded successfully');
 
 async function populateStockTable() {
     if (isStockTableLoading) return;
-
-    const now = Date.now();
-    if (now - lastStockFetchTime < 500) {
-        setTimeout(() => populateStockTable(), 500);
-        return;
-    }
-
     isStockTableLoading = true;
-    lastStockFetchTime = now;
+
+    const stockTableBody = document.getElementById('stockTableBody');
+    if (!stockTableBody) return;
+
+    stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
+
+    let stockData = [];
 
     try {
-        console.log('Populating stock table...');
-
-        const stockTableBody = document.getElementById('stockTableBody');
-        if (!stockTableBody) {
-            console.error('Stock table body not found');
-            return;
-        }
-
-        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
-
-        let stockData = [];
-
-        // --- Try Supabase first ---
-        if (supabase && navigator.onLine) {
+        if (navigator.onLine && supabase) {
             try {
                 const { data, error } = await supabase
                     .from('stock_items')
                     .select('*')
                     .order('name', { ascending: true });
 
-                if (!error && data?.length) {
-                    stockData = data;
-                    console.log('Loaded stock data from Supabase:', stockData.length);
-                }
-            } catch (err) {
-                console.warn('Supabase stock fetch failed, falling back to Excel/mock:', err);
+                if (error) throw error;
+                stockData = data || [];
+                console.log('Loaded stock data from Supabase:', stockData.length);
+            } catch (supabaseError) {
+                console.warn('Supabase stock fetch failed, falling back to Excel/mock:', supabaseError);
             }
         }
 
-        // --- Fallback to Excel/mock ---
-        if (stockData.length === 0 || isUsingExcel) {
+        // Fallback to Excel/mock if Supabase fails or offline
+        if (stockData.length === 0 || isUsingExcel || !navigator.onLine) {
             console.log('Using mock stock data for Excel mode');
             stockData = [
                 { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
@@ -4027,8 +3991,6 @@ async function populateStockTable() {
         }
 
         stockData.forEach(item => {
-            const row = document.createElement('tr');
-
             let statusClass = 'status-stokta';
             let statusText = 'Stokta';
 
@@ -4043,6 +4005,7 @@ async function populateStockTable() {
                 statusText = 'Düşük';
             }
 
+            const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${escapeHtml(item.code || 'N/A')}</td>
                 <td>${escapeHtml(item.name || 'N/A')}</td>
@@ -4050,132 +4013,121 @@ async function populateStockTable() {
                 <td>${escapeHtml(item.unit || 'Adet')}</td>
                 <td><span class="${statusClass}">${statusText}</span></td>
                 <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>
-                    <button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
-                </td>
+                <td><button onclick="editStockItem('${item.code}')" class="btn btn-primary btn-sm">Düzenle</button></td>
             `;
-
             stockTableBody.appendChild(row);
         });
 
         console.log('Stock table populated with', stockData.length, 'items');
+
     } catch (error) {
         console.error('Error in populateStockTable:', error);
-        const stockTableBody = document.getElementById('stockTableBody');
-        if (stockTableBody) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Stok verileri yüklenirken hata oluştu</td></tr>';
-        }
-        showAlert('Stok verileri yüklenirken hata oluştu', 'error');
+        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Stok verileri yüklenirken hata oluştu</td></tr>';
     } finally {
         isStockTableLoading = false;
     }
 }
 
 
-// Fixed populateReportsTable function
 async function populateReportsTable() {
     try {
         console.log('Populating reports table...');
-        
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (!reportsTableBody) {
-            console.error('Reports table body not found');
-            return;
-        }
-        
-        reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
-        
+
+        const reportsContainer = document.getElementById('reportsTab');
+        if (!reportsContainer) return;
+
+        reportsContainer.innerHTML = `
+            <div style="text-align:center; padding:40px; color:#666;">
+                <i class="fas fa-spinner fa-spin" style="font-size:48px; margin-bottom:16px;"></i>
+                <h4>Raporlar yükleniyor...</h4>
+            </div>
+        `;
+
         let reportsData = [];
-        
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Generate mock reports data for Excel mode
-            const today = new Date();
-            reportsData = [
-                {
-                    id: 1,
-                    report_date: today.toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 15,
-                    total_quantity: 245,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: today.toISOString()
-                },
-                {
-                    id: 2,
-                    report_date: new Date(today.setDate(today.getDate() - 1)).toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 12,
-                    total_quantity: 198,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: new Date(today.setDate(today.getDate() - 1)).toISOString()
-                }
-            ];
-            console.log('Using mock reports data for Excel mode');
-        } else {
-            // Use Supabase data
+
+        if (navigator.onLine && supabase) {
             try {
                 const { data, error } = await supabase
                     .from('reports')
                     .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(50);
-                
+                    .order('created_at', { ascending: false });
+
                 if (error) throw error;
                 reportsData = data || [];
-                console.log('Loaded reports data from Supabase:', reportsData.length);
-            } catch (error) {
-                console.warn('Supabase reports fetch failed, using mock data:', error);
-                reportsData = [
-                    {
-                        id: 1,
-                        report_date: new Date().toISOString(),
-                        report_type: 'Günlük Rapor',
-                        package_count: 15,
-                        total_quantity: 245,
-                        created_by: currentUser?.name || 'Sistem',
-                        created_at: new Date().toISOString()
-                    }
-                ];
+                console.log('Loaded reports from Supabase:', reportsData.length);
+            } catch (supabaseError) {
+                console.warn('Supabase reports fetch failed, falling back to Excel:', supabaseError);
             }
         }
-        
-        // Clear loading message
-        reportsTableBody.innerHTML = '';
-        
+
+        // Fallback to Excel if no Supabase data or offline
+        if (reportsData.length === 0 || isUsingExcel || !navigator.onLine) {
+            console.log('Using Excel data for reports');
+            const dailyFiles = ExcelStorage.getAvailableDailyFiles() || [];
+            reportsData = dailyFiles.map(file => ({
+                displayDate: file.displayDate,
+                packageCount: file.packageCount,
+                totalQuantity: file.totalQuantity,
+                fileName: file.fileName,
+                date: file.date
+            }));
+        }
+
+        // Render
         if (reportsData.length === 0) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Henüz rapor bulunmamaktadır</td></tr>';
+            reportsContainer.innerHTML = `
+                <div style="text-align:center; padding:40px; color:#666; border:2px dashed #ddd; border-radius:8px;">
+                    <i class="fas fa-file-excel" style="font-size:48px; margin-bottom:16px; opacity:0.5;"></i>
+                    <h4>Henüz rapor bulunmamaktadır</h4>
+                </div>
+            `;
             return;
         }
-        
-        // Populate reports table
-        reportsData.forEach(report => {
-            const row = document.createElement('tr');
-            
-            row.innerHTML = `
-                <td>${report.report_date ? new Date(report.report_date).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>${escapeHtml(report.report_type || 'N/A')}</td>
-                <td>${report.package_count || 0}</td>
-                <td>${report.total_quantity || 0}</td>
-                <td>${escapeHtml(report.created_by || 'N/A')}</td>
-                <td>
-                    <button onclick="viewReport(${report.id})" class="btn btn-primary btn-sm">Görüntüle</button>
-                    <button onclick="exportReport(${report.id})" class="btn btn-success btn-sm">Dışa Aktar</button>
-                </td>
+
+        let html = `<div style="margin-bottom:20px;"><h3><i class="fas fa-file-excel"></i> Günlük Raporlar</h3></div>`;
+
+        reportsData.forEach(file => {
+            const isToday = file.date === ExcelStorage.getTodayDateString();
+            html += `
+                <div class="daily-file-item" style="
+                    border:1px solid ${isToday ? '#4CAF50' : '#ddd'};
+                    border-left:4px solid ${isToday ? '#4CAF50' : '#2196F3'};
+                    padding:16px;
+                    margin:12px 0;
+                    border-radius:6px;
+                    background:${isToday ? '#f8fff8' : '#f9f9f9'};
+                    transition: all 0.3s ease;
+                ">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="flex:1;">
+                            <h4 style="margin:0 0 8px 0; color:#333;">
+                                <i class="fas fa-calendar-day"></i> ${file.displayDate}
+                                ${isToday ? '<span style="background:#4CAF50;color:white;padding:2px 8px;border-radius:12px;font-size:0.8em;margin-left:8px;">Bugün</span>' : ''}
+                            </h4>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; font-size:0.9em;">
+                                <div><strong>Paket Sayısı:</strong><br><span style="color:#2196F3;font-weight:bold;">${file.packageCount}</span></div>
+                                <div><strong>Toplam Adet:</strong><br><span style="color:#4CAF50;font-weight:bold;">${file.totalQuantity}</span></div>
+                                <div><strong>Dosya:</strong><br><code style="background:#f0f0f0;padding:2px 6px;border-radius:3px;">${file.fileName}</code></div>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <button onclick="exportDailyFile('${file.date}')" class="btn btn-success btn-sm"><i class="fas fa-download"></i> CSV İndir</button>
+                            <button onclick="viewDailyFile('${file.date}')" class="btn btn-primary btn-sm"><i class="fas fa-eye"></i> Görüntüle</button>
+                        </div>
+                    </div>
+                </div>
             `;
-            
-            reportsTableBody.appendChild(row);
         });
-        
+
+        reportsContainer.innerHTML = html;
         console.log('Reports table populated with', reportsData.length, 'reports');
-        
+
     } catch (error) {
         console.error('Error in populateReportsTable:', error);
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (reportsTableBody) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">Raporlar yüklenirken hata oluştu</td></tr>';
+        const reportsContainer = document.getElementById('reportsTab');
+        if (reportsContainer) {
+            reportsContainer.innerHTML = `<div style="text-align:center; color:red; padding:40px;">Hata: ${error.message}</div>`;
         }
-        showAlert('Raporlar yüklenirken hata oluştu', 'error');
     }
 }
 
