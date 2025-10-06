@@ -3579,47 +3579,98 @@ async function getAllStock() {
     }
 }
 
-// ✅ FUNCTION: Get all shipping data (real data only)
+// ✅ FIXED: Get all shipping data (real data only)
 async function getAllShippingData() {
+    console.log('🔄 getAllShippingData() called');
+    
     try {
-        // Try to get REAL shipping data
-        if (window.shippingData && Array.isArray(window.shippingData) && window.shippingData.length > 0) {
-            return window.shippingData;
+        // FIRST: Try to get from current window state (most reliable)
+        if (window.containers && Array.isArray(window.containers) && window.containers.length > 0) {
+            console.log(`✅ Found ${window.containers.length} containers in window.containers`);
+            return window.containers;
         }
         
-        // Try localStorage
-        const localData = localStorage.getItem('proclean_shipping') || 
-                         localStorage.getItem('shippingData') ||
-                         localStorage.getItem('containerData');
-        
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
+        // SECOND: Try to extract from existing DOM (fallback)
+        const shippingFolders = document.getElementById('shippingFolders');
+        if (shippingFolders && shippingFolders.innerHTML.includes('customer-folder')) {
+            console.log('✅ Found existing shipping data in DOM');
+            
+            // Extract containers from existing DOM structure
+            const containers = extractContainersFromDOM();
+            if (containers.length > 0) {
+                console.log(`✅ Extracted ${containers.length} containers from DOM`);
+                return containers;
             }
         }
         
-        // Try Supabase if available
+        // THIRD: Try Supabase
         if (supabase && !isUsingExcel) {
+            console.log('🔄 Trying Supabase for containers...');
             const { data, error } = await supabase
-                .from('shipping')
+                .from('containers')
                 .select('*')
                 .order('created_at', { ascending: false });
                 
             if (!error && data && data.length > 0) {
+                console.log(`✅ Found ${data.length} containers from Supabase`);
+                window.containers = data; // Cache for future use
                 return data;
+            } else if (error) {
+                console.warn('Supabase containers error:', error);
             }
         }
         
-        console.log('❌ No real shipping data found');
-        return []; // Return empty instead of sample data
+        console.log('❌ No containers found through any method');
+        return [];
         
     } catch (error) {
         console.error('Error in getAllShippingData:', error);
-        return []; // Return empty instead of sample data
+        return [];
     }
 }
 
+// Helper function to extract containers from existing DOM
+function extractContainersFromDOM() {
+    const containers = [];
+    const customerFolders = document.querySelectorAll('.customer-folder');
+    
+    customerFolders.forEach(folder => {
+        const containerRows = folder.querySelectorAll('tbody tr');
+        
+        containerRows.forEach(row => {
+            const checkbox = row.querySelector('.container-checkbox');
+            const containerNo = row.querySelector('td:nth-child(2) strong')?.textContent;
+            const packageCount = row.querySelector('td:nth-child(3)')?.textContent;
+            const totalQuantity = row.querySelector('td:nth-child(4)')?.textContent;
+            const date = row.querySelector('td:nth-child(5)')?.textContent;
+            const statusElement = row.querySelector('td:nth-child(6) span');
+            const status = statusElement?.className.includes('sevk-edildi') ? 'sevk-edildi' : 'beklemede';
+            
+            if (containerNo && checkbox) {
+                containers.push({
+                    id: checkbox.value,
+                    container_no: containerNo,
+                    package_count: parseInt(packageCount) || 0,
+                    total_quantity: parseInt(totalQuantity) || 0,
+                    status: status,
+                    customer: folder.querySelector('strong')?.textContent || 'Unknown',
+                    created_at: date ? convertToISODate(date) : new Date().toISOString()
+                });
+            }
+        });
+    });
+    
+    return containers;
+}
+
+// Helper to convert DD.MM.YYYY to ISO date
+function convertToISODate(dateString) {
+    const parts = dateString.split('.');
+    if (parts.length === 3) {
+        return `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}T00:00:00.000Z`;
+    }
+    return new Date().toISOString();
+}
 // ✅ FUNCTION: Get all reports (real data only)
 async function getAllReports() {
     try {
