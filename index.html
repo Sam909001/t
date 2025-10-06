@@ -774,7 +774,7 @@ console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
 
 
-            <script>
+    <script>
 // Secure Remember Me + Fast Login - DEBUG VERSION
 document.addEventListener("DOMContentLoaded", () => {
     const emailInput = document.getElementById("email");
@@ -785,6 +785,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const SECRET_KEY = "ProCleanAutoSecureKey2025";
 
+    // Ensure showAlert is defined (assuming it's global, but good practice to define a fallback)
+    if (typeof showAlert !== 'function') {
+        window.showAlert = (msg, type = 'info') => { console.log(`[ALERT] [${type.toUpperCase()}] ${msg}`); };
+    }
+    
+    // Clear saved credentials function
+    function clearSavedCredentials() {
+        console.log("🧹 Clearing saved credentials");
+        localStorage.removeItem("savedEmail");
+        localStorage.removeItem("savedPassword");
+        localStorage.setItem("rememberMe", "false");
+        fastLoginBtn.style.display = "none";
+        // Resetting the values used by the fast login button
+        window._decryptedEmail = "";
+        window._decryptedPassword = "";
+    }
+    window.clearSavedCredentials = clearSavedCredentials; // Make it globally available if needed
+
     console.log("🔄 Remember Me system initializing...");
 
     // Load saved encrypted credentials
@@ -792,31 +810,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const encryptedPassword = localStorage.getItem("savedPassword");
     const remember = localStorage.getItem("rememberMe") === "true";
 
-    console.log("📦 Saved credentials found:", {
-        encryptedEmail: !!encryptedEmail,
-        encryptedPassword: !!encryptedPassword,
-        remember: remember
-    });
-
-    let decryptedEmail = "";
-    let decryptedPassword = "";
+    // Use global window variables to store credentials for fast login access
+    window._decryptedEmail = "";
+    window._decryptedPassword = "";
 
     if (remember && encryptedEmail && encryptedPassword) {
         try {
             console.log("🔓 Attempting to decrypt credentials...");
-            decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, SECRET_KEY).toString(CryptoJS.enc.Utf8);
-            decryptedPassword = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY).toString(CryptoJS.enc.Utf8);
-
-            console.log("🔍 Decrypted credentials:", {
-                email: decryptedEmail ? "***" + decryptedEmail.substring(5) : "empty",
-                password: decryptedPassword ? "***" + decryptedPassword.substring(5) : "empty"
-            });
+            window._decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+            window._decryptedPassword = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY).toString(CryptoJS.enc.Utf8);
 
             // Validate decrypted values
-            if (decryptedEmail && decryptedPassword) {
+            if (window._decryptedEmail && window._decryptedPassword) {
                 // Autofill fields
-                emailInput.value = decryptedEmail;
-                passwordInput.value = decryptedPassword;
+                emailInput.value = window._decryptedEmail;
+                passwordInput.value = window._decryptedPassword;
                 rememberCheckbox.checked = true;
 
                 // ✅ Show Fast Login button ONLY if we have valid credentials
@@ -836,125 +844,90 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("❌ No saved credentials found, fast login disabled");
     }
 
-    // Save credentials securely if checked
-   // Save credentials securely if checked - FIXED
-loginBtn.addEventListener("click", async () => {
-    console.log("🔐 Manual login clicked");
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
+    // ====================================================================
+    // 1. MANUAL LOGIN HANDLER (loginBtn)
+    // ====================================================================
+    loginBtn.addEventListener("click", async () => {
+        console.log("🔐 Manual login clicked");
+        const email = emailInput.value.trim();
+        const password = passwordInput.value.trim();
 
-    if (rememberCheckbox.checked && email && password) {
-        console.log("💾 Saving credentials to localStorage");
-        const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
-        const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+        if (rememberCheckbox.checked && email && password) {
+            console.log("💾 Saving credentials to localStorage");
+            const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
+            const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
 
-        localStorage.setItem("savedEmail", encEmail);
-        localStorage.setItem("savedPassword", encPassword);
-        localStorage.setItem("rememberMe", "true");
-    } else {
-        console.log("🗑️ Clearing saved credentials");
-        clearSavedCredentials();
-    }
+            localStorage.setItem("savedEmail", encEmail);
+            localStorage.setItem("savedPassword", encPassword);
+            localStorage.setItem("rememberMe", "true");
+        } else {
+            console.log("🗑️ Clearing saved credentials");
+            clearSavedCredentials();
+        }
 
-    // Call the main login function WITHOUT parameters so it reads from input fields
-    if (typeof login === 'function') {
-        console.log("✅ Calling main login function");
-        await login(); // ← No parameters!
-    } else {
-        console.error("❌ Main login function not found");
-        // Fallback to performLogin
-        await performLogin(email, password);
-    }
-});
+        // Call the main login function (from auth.js)
+        // It reads email/password from input fields, which are already populated.
+        if (typeof login === 'function') {
+            console.log("✅ Calling main login function (auth.js)");
+            await login(); // <--- CORRECT: No parameters
+        } else {
+            console.error("❌ Main login function not found!");
+            showAlert("Ana giriş fonksiyonu yüklenmedi. Hata!", "error");
+        }
+    });
 
-    // 🟢 Fast Login click handler
+    // ====================================================================
+    // 2. FAST LOGIN HANDLER (fastLoginBtn)
+    // ====================================================================
     fastLoginBtn.addEventListener("click", async () => {
         console.log("🚀 Fast login button CLICKED");
-        console.log("🔍 Current decrypted values:", {
-            email: decryptedEmail ? "***" + decryptedEmail.substring(5) : "empty",
-            password: decryptedPassword ? "***" + decryptedPassword.substring(5) : "empty"
-        });
 
-        if (!decryptedEmail || !decryptedPassword) {
+        if (!window._decryptedEmail || !window._decryptedPassword) {
             console.log("❌ No decrypted credentials available");
             showAlert("Kayıtlı giriş bilgisi bulunamadı!", "error");
             clearSavedCredentials();
-            fastLoginBtn.style.display = "none";
             return;
         }
 
-        console.log("🎯 Attempting fast login with:", decryptedEmail);
-        await performLogin(decryptedEmail, decryptedPassword);
+        showAlert("Hızlı giriş yapılıyor...", "info");
+
+        // Set the input fields with the decrypted credentials (Autofill already did this, but we ensure it)
+        emailInput.value = window._decryptedEmail;
+        passwordInput.value = window._decryptedPassword;
+        rememberCheckbox.checked = true; // Ensure the checkbox is checked
+
+        // Call the main login function (from auth.js)
+        // It will now read the pre-filled fields.
+        if (typeof login === 'function') {
+            console.log("✅ Calling main login function for fast login");
+            await login(); // <--- CORRECT: No parameters
+        } else {
+            console.error("❌ Main login function not found!");
+            showAlert("Ana giriş fonksiyonu yüklenmedi. Hata!", "error");
+        }
     });
 
-    // Clear saved credentials function
-    function clearSavedCredentials() {
-        console.log("🧹 Clearing saved credentials");
-        localStorage.removeItem("savedEmail");
-        localStorage.removeItem("savedPassword");
-        localStorage.setItem("rememberMe", "false");
-        fastLoginBtn.style.display = "none";
-        decryptedEmail = "";
-        decryptedPassword = "";
-    }
-
-    // REAL login logic
-    async function performLogin(email, password) {
-        console.log("🔐 performLogin called with:", email);
-        showAlert("Giriş yapılıyor...", "info");
-
-        try {
-            // Check if your auth.js login function exists
-            if (typeof login === 'function') {
-                console.log("✅ Using auth.js login function");
-                await login(email, password);
-            } else {
-                console.log("❌ auth.js login function not found, using fallback");
-                
-                // Fallback login simulation
-                showAlert(`Hoşgeldiniz, ${email}`, "success");
-                
-                // Hide login screen and show app
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'block';
-                document.getElementById('appContainer').setAttribute('aria-hidden', 'false');
-                
-                console.log("✅ Login successful - app should be visible now");
-                
-                // Initialize app if function exists
-                if (typeof initializeApp === 'function') {
-                    console.log("🔄 Initializing app...");
-                    initializeApp();
-                }
-            }
-        } catch (error) {
-            console.error("❌ Login error:", error);
-            showAlert("Giriş başarısız! Lütfen bilgilerinizi kontrol edin.", "error");
-            
-            // Clear invalid credentials on failed login
-            if (email === decryptedEmail) {
-                console.log("🗑️ Clearing invalid saved credentials");
-                clearSavedCredentials();
-                emailInput.value = '';
-                passwordInput.value = '';
-            }
-        }
-    }
+    // ====================================================================
+    // 3. INPUT CHANGE HANDLERS
+    // ====================================================================
 
     // Also hide fast login button when user manually changes credentials
     emailInput.addEventListener('input', () => {
         console.log("📝 Email changed manually, hiding fast login");
-        fastLoginBtn.style.display = 'none';
-        decryptedEmail = ""; // Clear the stored value
+        clearSavedCredentials(); // This clears the flag/localStorage and hides the button
     });
     
     passwordInput.addEventListener('input', () => {
         console.log("📝 Password changed manually, hiding fast login");
-        fastLoginBtn.style.display = 'none';
-        decryptedPassword = ""; // Clear the stored value
+        clearSavedCredentials(); // This clears the flag/localStorage and hides the button
     });
 
-    console.log("✅ Remember Me system initialized");
+    // ====================================================================
+    // 4. MOCK FUNCTION REMOVED
+    // ====================================================================
+    // NOTE: The redundant 'performLogin' function was removed from this final code.
+
+    console.log("✅ Remember Me system fully initialized");
 });
 </script>
 </body>
