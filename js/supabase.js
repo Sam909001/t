@@ -5487,35 +5487,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-
-// Add this to your DOMContentLoaded event
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log('Initializing tabs...');
-    
-    // Initialize each tab
-    initializeReportsTab();
-    initializeStockTab();
-    initializeShippingTab();
-    
-    // Set up tab switch handlers
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', function() {
-        const tabName = this.getAttribute('data-tab');
-        showTab(tabName);
-      });
-    });
-    
-    // Show initial tab
-    const activeTab = document.querySelector('.tab.active');
-    if (activeTab) {
-      showTab(activeTab.getAttribute('data-tab'));
-    }
-  } catch (err) {
-    console.error('Tab initialization error:', err);
-  }
-});
-
 // Add initialization functions for missing tabs
 function initializeStockTab() {
   const stockTab = document.querySelector('[data-tab="stock"]');
