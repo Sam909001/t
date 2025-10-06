@@ -132,27 +132,39 @@ class WorkspaceManager {
     }
     
     // Set current workspace
-    setCurrentWorkspace(workspace) {
-       this.currentWorkspace = workspace;
-localStorage.setItem(this.workspaceKey, workspace.id);
-
-// Persist that a selection has been made (prevent repeated prompts)
-localStorage.setItem('proclean_workspace_selected', 'true');
-window._workspaceSelectionShown = true;
-        
-        console.log('🎯 Current workspace set:', workspace.name);
-        
-        // Update UI to show current workspace
-        this.updateWorkspaceUI();
-        
-        // Initialize workspace-specific storage
-        this.initializeWorkspaceStorage();
-        
-        // Notify about workspace change
-        if (this.onWorkspaceChange) {
-            this.onWorkspaceChange();
-        }
+   // Set current workspace
+setCurrentWorkspace(workspace) {
+    if (!workspace) {
+        console.error('❌ Cannot set null workspace');
+        return;
     }
+    
+    this.currentWorkspace = workspace;
+    
+    // Set BOTH persistence flags
+    localStorage.setItem(this.workspaceKey, workspace.id);
+    localStorage.setItem('proclean_workspace_selected', 'true');
+    
+    // Set session flag
+    window._workspaceSelectionShown = true;
+    
+    console.log('🎯 Current workspace set:', workspace.name);
+    console.log('💾 Persistence set:', {
+        workspaceKey: this.workspaceKey,
+        workspaceSelected: 'true'
+    });
+    
+    // Update UI to show current workspace
+    this.updateWorkspaceUI();
+    
+    // Initialize workspace-specific storage
+    this.initializeWorkspaceStorage();
+    
+    // Notify about workspace change
+    if (this.onWorkspaceChange) {
+        this.onWorkspaceChange();
+    }
+}
     
     // Update UI to show current workspace
    updateWorkspaceUI() {
@@ -403,31 +415,29 @@ async loadWorkspaceData() {
 
 
 // Only force workspace selection if the user/device hasn't chosen one yet
+// ==================== SIMPLIFIED INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', async function() {
-    setTimeout(async () => {
-        try {
-            // If workspace already persisted, do not show
-            const alreadySelected = localStorage.getItem('proclean_workspace_selected') === 'true';
-            if (alreadySelected) {
-                // If it exists but workspaceManager not set, try to initialize silently
-                if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-                    await window.workspaceManager.loadWorkspaceData();
-                }
-                return;
-            }
-
-            // Avoid showing many times in same session
-            if (window._workspaceSelectionShown) return;
-
-            if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
-                console.log('🔄 No workspace selected, asking user to choose (once)...');
-                window._workspaceSelectionShown = true;
-                await window.workspaceManager.showWorkspaceSelection();
-            }
-        } catch (err) {
-            console.error('Workspace selection guard error:', err);
-        }
-    }, 800);
+    console.log('🚀 Initializing workspace system...');
+    
+    // Initialize workspace manager FIRST
+    await window.workspaceManager.initialize();
+    
+    // Only show selection if NO workspace is set and never shown before
+    const hasSelectedWorkspace = window.workspaceManager.currentWorkspace !== null;
+    const alreadyShown = localStorage.getItem('proclean_workspace_selected') === 'true';
+    
+    console.log('📊 Workspace state:', {
+        hasSelectedWorkspace,
+        alreadyShown,
+        currentWorkspace: window.workspaceManager.currentWorkspace
+    });
+    
+    if (!hasSelectedWorkspace && !alreadyShown) {
+        console.log('🔄 Showing workspace selection (first time)');
+        await window.workspaceManager.showWorkspaceSelection();
+    } else {
+        console.log('✅ Workspace already selected, skipping modal');
+    }
 });
 
 
