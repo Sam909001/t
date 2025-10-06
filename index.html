@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <!-- ✅ Local libraries -->
 <script src="libs/JsBarcode.all.min.js"></script>
@@ -51,16 +50,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <input type="password" id="password" placeholder="Şifrenizi girin" required>
                 <div class="validation-error" id="passwordError">Şifre gereklidir</div>
             </div>
-            <div class="form-group remember-group">
-    <label class="remember-label">
-        <input type="checkbox" id="rememberMe">
-        <span>Beni hatırla</span>
-    </label>
-</div>
             <button type="button" class="btn btn-primary" id="loginBtn">Giriş Yap</button>
-            <button type="button" class="btn btn-success" id="fastLoginBtn" style="display: none;">
-    Hızlı Giriş
-</button>
         </div>
     </div>
 
@@ -289,53 +279,35 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
                             
-           <div class="tab-pane" id="shippingTab">
-    <div class="packaging-header">
-        <!-- Your existing header code -->
-    </div>
+            <div class="tab-pane" id="shippingTab">
+                <div class="packaging-header">
+                    <div class="customer-info">
+                        <div class="info-group">
+                            <label for="shippingFilter">Durum Filtresi</label>
+                            <select id="shippingFilter" onchange="filterShipping()">
+                                <option value="all">Tümü</option>
+                                <option value="beklemede">Beklemede</option>
+                                <option value="sevk-edildi">Sevk Edildi</option>
+                            </select>
+                        </div>
+                        <div class="info-group">
+                            <label for="containerSearch">Konteyner Ara</label>
+                            <input type="text" id="containerSearch" placeholder="Konteyner no..." oninput="searchContainers()">
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
+                        <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()">Mevcut Konteyner</button>
+                       <button type="button" class="btn btn-danger" 
+                      onclick="deleteContainerWithAuth()" 
+                      data-i18n="shipping.delete.container">Konteyner Sil</button>
+                    </div>
+                </div>
 
-    <div id="shippingFolders">
-        <!-- Customer folders will be populated here -->
-    </div>
-
-    <!-- MISSING SHIPPING TABLE - ADD THIS -->
-    <div class="shipping-table-container" style="margin-top: 20px;">
-        <div class="table-header">
-            <h3>Konteyner Listesi</h3>
-            <div class="table-controls">
-                <input type="checkbox" id="selectAllContainers" onchange="toggleSelectAllContainers(this)">
-                <label for="selectAllContainers">Tümünü Seç</label>
+                <div id="shippingFolders">
+                    <!-- Customer folders will be populated here -->
+                </div>
             </div>
-        </div>
-        
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th width="50px">
-                        <input type="checkbox" id="selectAllContainersHeader" onchange="toggleSelectAllContainers(this)">
-                    </th>
-                    <th>Konteyner No</th>
-                    <th>Müşteri</th>
-                    <th>Paket Sayısı</th>
-                    <th>Toplam Adet</th>
-                    <th>Durum</th>
-                    <th>Oluşturulma Tarihi</th>
-                    <th>İşlemler</th>
-                </tr>
-            </thead>
-            <tbody id="shippingTableBody">
-                <!-- This will be populated by JavaScript -->
-                <tr>
-                    <td colspan="8" style="text-align: center; padding: 2rem; color: #666;">
-                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                        <div>Henüz konteyner bulunmamaktadır</div>
-                        <small>Paket oluşturduktan sonra burada görünecektir</small>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
 
 
             <td>
@@ -770,91 +742,6 @@ function getCustomEventListeners(element) {
 // Global scope'a ekliyoruz, ancak tarayıcı konsolu dışında çağırmayın.
 window.getEventListenersCustom = getCustomEventListeners;
 console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
-</script>
-
-            
-<script>
-// Secure Remember Me + Fast Login
-document.addEventListener("DOMContentLoaded", () => {
-    const emailInput = document.getElementById("email");
-    const passwordInput = document.getElementById("password");
-    const rememberCheckbox = document.getElementById("rememberMe");
-    const loginBtn = document.getElementById("loginBtn");
-    const fastLoginBtn = document.getElementById("fastLoginBtn");
-
-    const SECRET_KEY = "ProCleanAutoSecureKey2025";
-
-    // Load saved encrypted credentials
-    const encryptedEmail = localStorage.getItem("savedEmail");
-    const encryptedPassword = localStorage.getItem("savedPassword");
-    const remember = localStorage.getItem("rememberMe") === "true";
-
-    let decryptedEmail = "";
-    let decryptedPassword = "";
-
-    if (remember && encryptedEmail && encryptedPassword) {
-        try {
-            decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, SECRET_KEY).toString(CryptoJS.enc.Utf8);
-            decryptedPassword = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY).toString(CryptoJS.enc.Utf8);
-
-            // Autofill fields
-            emailInput.value = decryptedEmail;
-            passwordInput.value = decryptedPassword;
-            rememberCheckbox.checked = true;
-
-            // ✅ Show Fast Login button
-            fastLoginBtn.style.display = "inline-block";
-        } catch (err) {
-            console.error("Decryption error:", err);
-        }
-    }
-
-    // Save credentials securely if checked
-    loginBtn.addEventListener("click", () => {
-        const email = emailInput.value.trim();
-        const password = passwordInput.value.trim();
-
-        if (rememberCheckbox.checked && email && password) {
-            const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
-            const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
-
-            localStorage.setItem("savedEmail", encEmail);
-            localStorage.setItem("savedPassword", encPassword);
-            localStorage.setItem("rememberMe", "true");
-        } else {
-            localStorage.removeItem("savedEmail");
-            localStorage.removeItem("savedPassword");
-            localStorage.setItem("rememberMe", "false");
-        }
-    });
-
-    // 🟢 Fast Login click handler
-    fastLoginBtn.addEventListener("click", async () => {
-        if (!decryptedEmail || !decryptedPassword) {
-            alert("Kayıtlı giriş bilgisi bulunamadı!");
-            return;
-        }
-
-        console.log("🚀 Fast login with saved credentials:", decryptedEmail);
-
-        // Example placeholder (replace with your real login logic)
-        await performLogin(decryptedEmail, decryptedPassword);
-    });
-
-    // Example login logic (replace with your real login code)
-    async function performLogin(email, password) {
-        showAlert("Giriş yapılıyor...", "info");
-
-        // Simulate async login
-        setTimeout(() => {
-            showAlert(`Hoşgeldiniz, ${email}`, "success");
-
-            // ✅ Option 1 fix (safe modal closing)
-            const modal = document.getElementById("loginScreen");
-           if (modal) modal.style.display = "none";
-        }, 800);
-    }
-});
 </script>
 </body>
 </html>
