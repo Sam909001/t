@@ -1757,7 +1757,7 @@ function initializeSupabase() {
     
     if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'REPLACE_WITH_YOUR_ANON_KEY') {
         console.warn('Supabase API key is not set. Running in Excel (offline) mode.');
-        isUsingExcel = true;
+        isUsingExcel = false;
         showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
         return null;
     }
@@ -2814,7 +2814,7 @@ async function populatePackagesTable() {
                     pkg.status === 'beklemede' && 
                     (!pkg.container_id || pkg.container_id === null)
                 );
-                isUsingExcel = true;
+                isUsingExcel = false;
             }
         }
 
