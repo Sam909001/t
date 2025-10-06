@@ -2941,7 +2941,7 @@ let lastShippingFetchTime = 0;
 
 // ==================== SUPABASE ONLY: SHIPPING TABLE ====================
 
-async function populateShippingTableFromSupabase(page = 0) {
+async function populateShippingTable(page = 0) {
     if (isShippingTableLoading) {
         console.log('Shipping table already loading, skipping...');
         return;
@@ -3941,7 +3941,7 @@ console.log('✅ Reports module loaded successfully');
 
 // ==================== SUPABASE ONLY: STOCK TABLE ====================
 
-async function populateStockTableFromSupabase() {
+async function populateStockTable() {
     if (isStockTableLoading) return;
     
     const now = Date.now();
