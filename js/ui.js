@@ -3,7 +3,7 @@ if (!window.elements) window.elements = {};
 if (!window._elementsInitialized) {
     document.addEventListener('DOMContentLoaded', function() {
         // initializeElementsObject returns a map and sets elements[...] entries
-        try {
+        try {F
             // Call the existing helper if available
             if (typeof initializeElementsObject === 'function') {
                 window.elements = initializeElementsObject();
@@ -872,7 +872,7 @@ function setupAutoSave() {
                 window.saveAppState();
                 console.log('Auto-save completed');
             }
-        }, 30000);
+        }, 5000);
         
         // Also save on page unload
         window.addEventListener('beforeunload', () => {
