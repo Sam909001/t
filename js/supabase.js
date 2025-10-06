@@ -1747,50 +1747,39 @@ const ProfessionalExcelExport = {
     }
 };
 
-// INITIALIZE SUPABASE - uses direct key (from localStorage or hardcoded above)
-// Singleton pattern with safe fallback to Excel mode if no key
+// Replace the existing initializeSupabase function
 function initializeSupabase() {
-    // If client already created and API key exists, return it
-    if (supabase && SUPABASE_ANON_KEY) {
-        return supabase;
+  if (supabase && SUPABASE_ANON_KEY) {
+    console.log('Using existing Supabase client');
+    return supabase;
+  }
+  
+  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'REPLACE_WITH_YOUR_ANON_KEY') {
+    console.warn('No Supabase API key found');
+    return null;
+  }
+  
+  try {
+    // Try to create client with different methods
+    if (typeof createClient === 'function') {
+      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else if (window.supabase && typeof window.supabase.createClient === 'function') {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else if (window.SupabaseClient) {
+      supabase = new window.SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+      console.error('No Supabase client method available');
+      return null;
     }
     
-    if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'REPLACE_WITH_YOUR_ANON_KEY') {
-        console.warn('Supabase API key is not set. Running in Excel (offline) mode.');
-        isUsingExcel = false;
-        showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
-        return null;
-    }
-    
-    try {
-        // If a global supabase factory exists, prefer it; otherwise create minimal wrapper
-        if (window.supabase && typeof window.supabase.createClient === 'function') {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } else if (typeof createClient === 'function') {
-            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } else {
-            // Try to use @supabase/supabase-js if loaded as supabaseClient
-            if (window.SupabaseClient) {
-                supabase = new window.SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } else {
-                console.warn('Supabase client factory not found - supabase operations will fail if attempted');
-                supabase = null;
-            }
-        }
-        if (supabase) {
-            console.log('Supabase client initialized successfully');
-            isUsingExcel = false;
-            return supabase;
-        } else {
-            throw new Error('Supabase client creation returned null');
-        }
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
-        showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
-        isUsingExcel = true;
-        return null;
-    }
+    console.log('Supabase client initialized');
+    return supabase;
+  } catch (error) {
+    console.error('Supabase initialization error:', error);
+    return null;
+  }
 }
+
 
 async function initializeExcelStorage() {
     try {
@@ -5497,3 +5486,72 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error populating tables on DOM ready:', err);
     }
 });
+
+
+// Add this to your DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    console.log('Initializing tabs...');
+    
+    // Initialize each tab
+    initializeReportsTab();
+    initializeStockTab();
+    initializeShippingTab();
+    
+    // Set up tab switch handlers
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        const tabName = this.getAttribute('data-tab');
+        showTab(tabName);
+      });
+    });
+    
+    // Show initial tab
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab) {
+      showTab(activeTab.getAttribute('data-tab'));
+    }
+  } catch (err) {
+    console.error('Tab initialization error:', err);
+  }
+});
+
+// Add initialization functions for missing tabs
+function initializeStockTab() {
+  const stockTab = document.querySelector('[data-tab="stock"]');
+  if (stockTab) {
+    stockTab.addEventListener('click', async function() {
+      setTimeout(async () => {
+        await populateStockTable();
+      }, 100);
+    });
+  }
+  
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab && activeTab.getAttribute('data-tab') === 'stock') {
+    setTimeout(async () => {
+      await populateStockTable();
+    }, 500);
+  }
+}
+
+function initializeShippingTab() {
+  const shippingTab = document.querySelector('[data-tab="shipping"]');
+  if (shippingTab) {
+    shippingTab.addEventListener('click', async function() {
+      setTimeout(async () => {
+        await populateShippingTable();
+      }, 100);
+    });
+  }
+  
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab && activeTab.getAttribute('data-tab') === 'shipping') {
+    setTimeout(async () => {
+      await populateShippingTable();
+    }, 500);
+  }
+}
+
+
+
