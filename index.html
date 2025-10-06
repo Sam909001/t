@@ -778,280 +778,118 @@ console.log("✅ getEventListenersCustom (Simulated Debug Function) loaded.");
 </script>
 
 
-            <!-- Add this script at the END of your HTML, right before </body> -->
+    
 <script>
 (function() {
-    'use strict';
-    
-    // Wait for everything to load
-    window.addEventListener('DOMContentLoaded', function() {
-        console.log('Remember Me: Initializing...');
-        
-        // Load saved accounts on startup
-        setTimeout(loadSavedAccountsOnStartup, 500);
-        
-        // Hook into existing login button (don't replace it)
-        hookIntoLogin();
-    });
-    
-    // Load saved accounts
-    async function loadSavedAccountsOnStartup() {
-        try {
-            const savedAccounts = await getSavedAccounts();
-            
-            if (savedAccounts.length === 0) {
-                console.log('Remember Me: No saved accounts');
-                return;
-            }
-            
-            const savedSection = document.getElementById('savedAccountsSection');
-            const manualSection = document.getElementById('manualLoginSection');
-            
-            if (!savedSection || !manualSection) {
-                console.log('Remember Me: Sections not found in HTML');
-                return;
-            }
-            
-            displaySavedAccounts(savedAccounts);
-            savedSection.style.display = 'block';
-            manualSection.style.display = 'none';
-            document.getElementById('showSavedAccountsBtn').style.display = 'block';
-            
-            console.log('Remember Me: Loaded', savedAccounts.length, 'accounts');
-        } catch (error) {
-            console.error('Remember Me: Load error:', error);
-        }
+  // Wait for StorageManager to be available
+  function waitForStorage(callback) {
+    if (window.StorageManager) {
+      callback();
+    } else {
+      console.log('Waiting for StorageManager...');
+      setTimeout(() => waitForStorage(callback), 100);
     }
-    
-    // Display saved accounts
-    function displaySavedAccounts(accounts) {
-        const list = document.getElementById('savedAccountsList');
-        if (!list) return;
-        
-        list.innerHTML = '';
-        
-        accounts.forEach(account => {
-            const item = document.createElement('div');
-            item.className = 'saved-account-item';
-            
-            const timeAgo = getTimeAgo(new Date(account.lastLogin));
-            
-            item.innerHTML = `
-                <div class="saved-account-info" style="cursor: pointer;">
-                    <div class="account-avatar">${account.avatar}</div>
-                    <div class="account-details">
-                        <span class="account-email">${account.email}</span>
-                        <span class="account-last-login">Son giriş: ${timeAgo}</span>
-                    </div>
-                </div>
-                <button class="account-remove" title="Hesabı kaldır">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            
-            // Quick login on click
-            item.querySelector('.saved-account-info').onclick = () => quickLogin(account.email);
-            
-            // Remove account on X click
-            item.querySelector('.account-remove').onclick = (e) => {
-                e.stopPropagation();
-                removeAccount(account.email);
-            };
-            
-            list.appendChild(item);
-        });
-    }
-    
-    // Hook into existing login
-    function hookIntoLogin() {
-        const loginBtn = document.getElementById('loginBtn');
-        if (!loginBtn) {
-            console.log('Remember Me: Login button not found');
-            return;
-        }
-        
-        // Store original onclick
-        const originalOnClick = loginBtn.onclick;
-        
-        // Replace with wrapped version
-        loginBtn.onclick = async function(e) {
-            // Call original if it exists
-            if (originalOnClick) {
-                await originalOnClick.call(this, e);
-            }
-            
-            // After login, check if successful and save
-            setTimeout(checkAndSave, 1000);
+  }
+  
+  waitForStorage(function() {
+    console.log('StorageManager ready, initializing Remember Me');
+    initRememberMe();
+  });
+  
+  function initRememberMe() {
+    window.addEventListener('DOMContentLoaded', async function() {
+      setTimeout(async () => {
+        const accounts = await RememberMeStorage.getAccounts();
+        if (accounts.length > 0) displayAccounts(accounts);
+      }, 500);
+      
+      const btn = document.getElementById('loginBtn');
+      if (btn) {
+        const orig = btn.onclick;
+        btn.onclick = async function(e) {
+          if (orig) await orig.call(this, e);
+          setTimeout(checkSave, 1000);
         };
-        
-        console.log('Remember Me: Hooked into login button');
+      }
+    });
+  }
+  
+  async function checkSave() {
+    const app = document.getElementById('appContainer');
+    if (app?.style.display === 'flex') {
+      const email = document.getElementById('email').value;
+      const pass = document.getElementById('password').value;
+      const remember = document.getElementById('rememberMe');
+      if (email && pass && remember?.checked) {
+        await RememberMeStorage.saveAccount(email, pass);
+      }
     }
-    
-    // Check if login was successful and save credentials
-    async function checkAndSave() {
-        const loginScreen = document.getElementById('loginScreen');
-        const appContainer = document.getElementById('appContainer');
-        
-        // If app container is visible, login was successful
-        if (appContainer && appContainer.style.display === 'flex') {
-            const emailInput = document.getElementById('email');
-            const passwordInput = document.getElementById('password');
-            const rememberCheckbox = document.getElementById('rememberMe');
-            
-            if (emailInput && passwordInput && rememberCheckbox && rememberCheckbox.checked) {
-                await saveCredentials(emailInput.value, passwordInput.value);
-                console.log('Remember Me: Credentials saved');
-            }
-        }
+  }
+  
+  function displayAccounts(accounts) {
+    const list = document.getElementById('savedAccountsList');
+    if (!list) return;
+    list.innerHTML = '';
+    accounts.forEach(acc => {
+      const div = document.createElement('div');
+      div.className = 'saved-account-item';
+      div.innerHTML = `
+        <div class="saved-account-info" onclick="quickLogin('${acc.email}')">
+          <div class="account-avatar">${acc.avatar}</div>
+          <div class="account-details">
+            <span class="account-email">${acc.email}</span>
+            <span class="account-last-login">${timeAgo(acc.lastLogin)}</span>
+          </div>
+        </div>
+        <button class="account-remove" onclick="removeAcc('${acc.email}', event)">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      list.appendChild(div);
+    });
+    document.getElementById('savedAccountsSection').style.display = 'block';
+    document.getElementById('manualLoginSection').style.display = 'none';
+  }
+  
+  window.quickLogin = async function(email) {
+    const acc = await RememberMeStorage.getAccount(email);
+    if (acc) {
+      document.getElementById('email').value = email;
+      document.getElementById('password').value = atob(acc.password);
+      document.getElementById('loginBtn').click();
     }
-    
-    // Quick login
-    async function quickLogin(email) {
-        try {
-            const accounts = await getSavedAccounts();
-            const account = accounts.find(a => a.email === email);
-            
-            if (!account) {
-                alert('Hesap bulunamadı');
-                return;
-            }
-            
-            // Decode password
-            const password = atob(account.password);
-            
-            // Fill form
-            document.getElementById('email').value = email;
-            document.getElementById('password').value = password;
-            
-            // Trigger login
-            const loginBtn = document.getElementById('loginBtn');
-            if (loginBtn) {
-                loginBtn.click();
-            }
-        } catch (error) {
-            console.error('Remember Me: Quick login error:', error);
-            alert('Giriş başarısız: ' + error.message);
-        }
+  };
+  
+  window.removeAcc = async function(email, e) {
+    e.stopPropagation();
+    if (confirm(`${email} kaldırılsın mı?`)) {
+      await RememberMeStorage.removeAccount(email);
+      const accs = await RememberMeStorage.getAccounts();
+      accs.length === 0 ? (
+        document.getElementById('savedAccountsSection').style.display = 'none',
+        document.getElementById('manualLoginSection').style.display = 'block'
+      ) : displayAccounts(accs);
     }
-    
-    // Remove account
-    async function removeAccount(email) {
-        if (!confirm(`${email} hesabını kaldırmak istediğinize emin misiniz?`)) {
-            return;
-        }
-        
-        try {
-            const accounts = await getSavedAccounts();
-            const filtered = accounts.filter(a => a.email !== email);
-            await saveAccounts(filtered);
-            
-            if (filtered.length === 0) {
-                document.getElementById('savedAccountsSection').style.display = 'none';
-                document.getElementById('manualLoginSection').style.display = 'block';
-            } else {
-                displaySavedAccounts(filtered);
-            }
-        } catch (error) {
-            console.error('Remember Me: Remove error:', error);
-        }
-    }
-    
-    // Save credentials
-    async function saveCredentials(email, password) {
-        try {
-            const accounts = await getSavedAccounts();
-            const existingIndex = accounts.findIndex(a => a.email === email);
-            
-            const account = {
-                email: email,
-                password: btoa(password),
-                lastLogin: new Date().toISOString(),
-                avatar: email.charAt(0).toUpperCase()
-            };
-            
-            if (existingIndex >= 0) {
-                accounts[existingIndex] = account;
-            } else {
-                accounts.push(account);
-            }
-            
-            // Keep only last 5
-            if (accounts.length > 5) {
-                accounts.shift();
-            }
-            
-            await saveAccounts(accounts);
-        } catch (error) {
-            console.error('Remember Me: Save error:', error);
-        }
-    }
-    
-    // Get saved accounts
-    async function getSavedAccounts() {
-        try {
-            if (window.StorageManager) {
-                return await window.StorageManager.getItem('saved_accounts') || [];
-            } else {
-                const data = localStorage.getItem('saved_accounts');
-                return data ? JSON.parse(data) : [];
-            }
-        } catch (error) {
-            console.error('Remember Me: Get error:', error);
-            return [];
-        }
-    }
-    
-    // Save accounts
-    async function saveAccounts(accounts) {
-        try {
-            if (window.StorageManager) {
-                await window.StorageManager.setItem('saved_accounts', accounts);
-            } else {
-                localStorage.setItem('saved_accounts', JSON.stringify(accounts));
-            }
-        } catch (error) {
-            console.error('Remember Me: Save accounts error:', error);
-        }
-    }
-    
-    // Time ago helper
-    function getTimeAgo(date) {
-        const now = new Date();
-        const diff = now - date;
-        const mins = Math.floor(diff / 60000);
-        const hours = Math.floor(diff / 3600000);
-        const days = Math.floor(diff / 86400000);
-        
-        if (mins < 1) return 'Az önce';
-        if (mins < 60) return `${mins} dakika önce`;
-        if (hours < 24) return `${hours} saat önce`;
-        if (days < 7) return `${days} gün önce`;
-        return date.toLocaleDateString('tr-TR');
-    }
-    
-    // Make functions global for onclick handlers
-    window.showManualLogin = function() {
-        document.getElementById('savedAccountsSection').style.display = 'none';
-        document.getElementById('manualLoginSection').style.display = 'block';
-    };
-    
-    window.showSavedAccounts = function() {
-        loadSavedAccountsOnStartup();
-    };
-    
-    window.togglePasswordVisibility = function() {
-        const input = document.getElementById('password');
-        const icon = document.getElementById('passwordToggleIcon');
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.className = 'fas fa-eye-slash';
-        } else {
-            input.type = 'password';
-            icon.className = 'fas fa-eye';
-        }
-    };
-    
-    console.log('Remember Me: Script loaded');
+  };
+  
+  window.showManualLogin = () => {
+    document.getElementById('savedAccountsSection').style.display = 'none';
+    document.getElementById('manualLoginSection').style.display = 'block';
+  };
+  
+  window.showSavedAccounts = async () => displayAccounts(await RememberMeStorage.getAccounts());
+  
+  window.togglePasswordVisibility = () => {
+    const input = document.getElementById('password');
+    const icon = document.getElementById('passwordToggleIcon');
+    input.type = input.type === 'password' ? 'text' : 'password';
+    icon.className = 'fas fa-eye' + (input.type === 'text' ? '-slash' : '');
+  };
+  
+  function timeAgo(d) {
+    const m = Math.floor((Date.now() - new Date(d)) / 60000);
+    return m < 1 ? 'Az önce' : m < 60 ? m + ' dk' : Math.floor(m/60) + ' saat';
+  }
 })();
 </script>
             
