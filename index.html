@@ -820,45 +820,56 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // 3. GİRİŞ BUTONU İŞLEYİCİSİ (HEM Manuel hem Hızlı Giriş)
-    if (loginBtn) {
-        loginBtn.addEventListener("click", async (e) => {
-            // e.stopImmediatePropagation(); // Gerekirse çakışmaları önlemek için eklenebilir.
-            
-            console.log("🔐 Giriş butonu tıklandı (Birleşik İşleyici)");
-            const email = emailInput.value.trim();
-            const password = passwordInput.value.trim();
-            
-            if (!email || !password) {
-                showAlert("Lütfen e-posta ve şifrenizi girin.", "warning");
-                return;
-            }
+// 3. GİRİŞ BUTONU İŞLEYİCİSİ (HEM Manuel hem Hızlı Giriş)
+if (loginBtn) {
+    loginBtn.addEventListener("click", async (e) => {
+        // e.preventDefault(); // Gerekirse çakışmaları önlemek için eklenebilir
+        
+        console.log("🔐 Giriş butonu tıklandı (Birleşik İşleyici)");
+        const email = emailInput.value.trim();
+        const password = passwordInput.value.trim();
+        
+        if (!email || !password) {
+            showAlert("Lütfen e-posta ve şifrenizi girin.", "warning");
+            return;
+        }
 
-            // Kimlik Bilgilerini Kaydetme Mantığı
-            if (rememberCheckbox.checked) {
-                console.log("💾 Kimlik bilgileri localStorage'a kaydediliyor");
-                const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
-                const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+        // Kimlik Bilgilerini Kaydetme Mantığı (Synchronous, burada kalmalı)
+        if (rememberCheckbox.checked) {
+            console.log("💾 Kimlik bilgileri localStorage'a kaydediliyor");
+            const encEmail = CryptoJS.AES.encrypt(email, SECRET_KEY).toString();
+            const encPassword = CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
 
-                localStorage.setItem("savedEmail", encEmail);
-                localStorage.setItem("savedPassword", encPassword);
-                localStorage.setItem("rememberMe", "true");
-            } else {
-                clearSavedCredentials();
-            }
+            localStorage.setItem("savedEmail", encEmail);
+            localStorage.setItem("savedPassword", encPassword);
+            localStorage.setItem("rememberMe", "true");
+        } else {
+            clearSavedCredentials();
+        }
 
-            // Asıl Giriş Fonksiyonunu Çağırma
-            if (typeof login === 'function') {
-                console.log("✅ auth.js'teki parametresiz login() fonksiyonu çağrılıyor.");
+        // --- KRİTİK: Core Login Call'u Ayırma ---
+        if (typeof login === 'function') {
+            // setTimeout ile asıl login çağrısını bir sonraki event loop'a ertele
+            // Bu, tüm senkron DOM/Local Storage işlemlerinin tamamlanmasını sağlar.
+            setTimeout(async () => {
+                console.log("✅ auth.js'teki parametresiz login() fonksiyonu çağrılıyor (Ayrılmış).");
                 showAlert("Giriş yapılıyor...", "info");
-                // auth.js'teki login() fonksiyonu zaten input alanlarını okuyacaktır.
-                await login(); 
-            } else {
-                console.error("❌ Ana login fonksiyonu yüklenmedi. auth.js dosyasını kontrol edin.");
-                showAlert("Giriş hatası. Lütfen sayfayı yenileyin.", "error");
-            }
-        });
-    }
+                
+                try {
+                    await login(); 
+                } catch (err) {
+                    // Bu log, sadece login() çağrısının kendisi promise hatası verirse çalışır.
+                    console.error("Login fonksiyonu çağrılırken beklenmedik hata:", err);
+                    showAlert("Giriş çağrısı başarısız oldu.", "error");
+                }
+            }, 50); // 50 milisaniye gecikme yeterlidir.
+            
+        } else {
+            console.error("❌ Ana login fonksiyonu yüklenmedi.");
+            showAlert("Giriş hatası. Lütfen sayfayı yenileyin.", "error");
+        }
+    });
+}
 
     // 4. Input değişiminde kayıtlı bilgileri temizle
     const clearOnInput = () => {
