@@ -143,25 +143,10 @@ function clearAppState() {
         '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 }
 
-
 async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
+    
     try {
-         // 1. Check for and restore the Supabase session
-    // checkAndRestoreSession is the new function you added in auth (10).js
-    const sessionRestored = await checkAndRestoreSession(); 
-
-    if (!sessionRestored) {
-        // If the session is NOT restored (first visit or explicit logout),
-        // show the login screen.
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('appContainer').style.display = 'none';
-        console.log('⚠️ No active session found, showing login screen.');
-    } else {
-        // If the session IS restored, the afterLoginSuccess() function (in auth.js)
-        // has already loaded the data and shown the app container.
-    }
-        
         // 1. CRITICAL FIX: Initialize elements FIRST before anything else
         if (typeof initializeElementsObject !== 'function') {
             console.error('❌ initializeElementsObject function not loaded!');
