@@ -641,16 +641,6 @@ function closeExtraModal() {
     }
 }
 
-// 🟢 Close modal if user clicks outside of it
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('extraModal');
-    if (modal && event.target === modal) {
-        modal.style.display = 'none';
-    }
-});
-
-
-
 
 // Settings functions
 function showSettingsModal() {
