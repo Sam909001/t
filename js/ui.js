@@ -595,6 +595,22 @@ function confirmQuantity() {
     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
     closeQuantityModal();
 }
+
+// Close quantity modal when clicking outside it
+document.addEventListener('click', function(event) {
+    const modal = elements.quantityModal;
+    if (!modal) return;
+
+    // Check if modal is visible
+    const isVisible = modal.style.display === 'flex' || modal.style.display === 'block';
+    if (!isVisible) return;
+
+    // If clicked outside the modal content, close it
+    if (!modal.contains(event.target) && !event.target.closest('.quantity-modal-content')) {
+        closeQuantityModal();
+    }
+});
+
         
 function openManualEntry() {
     const modal = document.getElementById('manualModal');
