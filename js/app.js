@@ -448,78 +448,43 @@ async function deleteContainer() {
     }
 }
 
-// app (22).js - Replace the existing switchTab function
-
-async function switchTab(tabName) {
-    console.log(`[TAB] Switching to: ${tabName}`);
-    
-    // 1. Hide all content and remove 'active' class from all tabs
-    document.querySelectorAll('.app-content').forEach(section => {
-        section.style.display = 'none';
+function switchTab(tabName) {
+    // Hide all tab panes
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
     });
+    
+    // Deactivate all tabs
     document.querySelectorAll('.tab').forEach(tab => {
         tab.classList.remove('active');
     });
-
-    // 2. Show selected content and activate tab
-    const selectedContent = document.getElementById(tabName + 'Content');
+    
+    // Activate selected tab
     const selectedTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
-
-    if (selectedContent) {
-        selectedContent.style.display = 'flex';
-    }
-    if (selectedTab) {
+    const selectedPane = document.getElementById(`${tabName}Tab`);
+    
+    if (selectedTab && selectedPane) {
         selectedTab.classList.add('active');
-    }
-    
-    // 3. Load Tab-Specific Data (CRITICAL SECTION FOR EMPTY TABS)
-    try {
-        switch (tabName) {
-            case 'packages':
-                if (typeof populatePackagesTable === 'function') {
-                    await populatePackagesTable();
-                }
-                break;
-                
-            case 'stock':
-                // FIX FOR EMPTY STOCK TAB
-                if (typeof populateStockTable === 'function') {
-                    console.log('🔄 Attempting to load Stock Reports...');
-                    await populateStockTable();
-                    console.log('✅ Stock Reports load complete.');
-                } else {
-                    console.error('❌ ERROR: populateStockTable function is MISSING or not globally exported (check ui.js).');
-                }
-                break;
-
-            case 'shipping':
-                // FIX FOR EMPTY SHIPPING TAB
-                if (typeof populateShippingFolders === 'function') {
-                    console.log('🔄 Attempting to load Shipping Folders...');
-                    await populateShippingFolders();
-                    console.log('✅ Shipping Folders load complete.');
-                } else {
-                    console.error('❌ ERROR: populateShippingFolders function is MISSING or not globally exported (check ui.js).');
-                }
-                break;
-                
-            case 'reports':
-                if (typeof populateReportsTable === 'function') {
-                    await populateReportsTable();
-                }
-                break;
-        }
-    } catch (error) {
-        // Catches errors thrown *inside* the populate functions (e.g., Supabase network error)
-        console.error(`❌ CRITICAL DATA ERROR: Failed to load data for tab ${tabName}:`, error);
-        showAlert(`Error: Data for ${tabName} could not be loaded. Check console for details.`, 'error');
-    }
-    
-    // Ensure switchTab is globally accessible
-    if (typeof saveAppState === 'function') {
-        saveAppState();
+        selectedPane.classList.add('active');
+        
+        // Load data when tab is clicked
+        setTimeout(() => {
+            switch(tabName) {
+                case 'shipping':
+                    populateShippingTable();
+                    break;
+                case 'stock':
+                    populateStockTable();
+                    break;
+                case 'reports':
+                    populateReportsTable();
+                    break;
+            }
+        }, 100);
     }
 }
+
+
 
 // Make sure switchTab is globally available
 window.switchTab = switchTab;
