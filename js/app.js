@@ -733,6 +733,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 });
 
+// ADD THIS: Load saved accounts after checking session
+    const savedSession = await getSavedLoginSession();
+    if (!savedSession) {
+        await loadSavedAccounts();
+    }
+});
+
 // Separate function for event listeners
 function setupEventListeners() {
     // Settings button
