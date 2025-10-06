@@ -99,76 +99,60 @@ class WorkspaceManager {
     }
     
     // Detect or create workspace for current monitor
-  // Detect or create workspace for current monitor
-async detectOrCreateWorkspace() {
-    console.log('🔍 Detecting workspace...');
+    async detectOrCreateWorkspace() {
+        console.log('🔍 Detecting workspace...');
+        
+        // Try to get workspace from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const workspaceId = urlParams.get('workspace');
+        
+        if (workspaceId) {
+            const workspace = this.availableWorkspaces.find(ws => ws.id === workspaceId);
+            if (workspace) {
+                this.setCurrentWorkspace(workspace);
+                console.log('✅ Workspace from URL:', workspaceId);
+                return;
+            }
+        }
+        
+        // Try to get from localStorage
+        const savedWorkspace = localStorage.getItem(this.workspaceKey);
+        if (savedWorkspace) {
+            const workspace = this.availableWorkspaces.find(ws => ws.id === savedWorkspace);
+            if (workspace) {
+                this.setCurrentWorkspace(workspace);
+                console.log('✅ Workspace from localStorage:', savedWorkspace);
+                return;
+            }
+        }
+        
+        // Show workspace selection modal
+        console.log('🔄 Showing workspace selection modal');
+        await this.showWorkspaceSelection();
+    }
     
-    // 1. FIRST check if workspace was previously selected and stored
-    const previouslySelected = localStorage.getItem('proclean_workspace_selected') === 'true';
-    const savedWorkspaceId = localStorage.getItem(this.workspaceKey);
-    
-    if (previouslySelected && savedWorkspaceId) {
-        const workspace = this.availableWorkspaces.find(ws => ws.id === savedWorkspaceId);
-        if (workspace) {
-            this.setCurrentWorkspace(workspace);
-            console.log('✅ Workspace loaded from previous selection:', savedWorkspaceId);
-            return; // STOP HERE - don't show modal
+    // Set current workspace
+    setCurrentWorkspace(workspace) {
+       this.currentWorkspace = workspace;
+localStorage.setItem(this.workspaceKey, workspace.id);
+
+// Persist that a selection has been made (prevent repeated prompts)
+localStorage.setItem('proclean_workspace_selected', 'true');
+window._workspaceSelectionShown = true;
+        
+        console.log('🎯 Current workspace set:', workspace.name);
+        
+        // Update UI to show current workspace
+        this.updateWorkspaceUI();
+        
+        // Initialize workspace-specific storage
+        this.initializeWorkspaceStorage();
+        
+        // Notify about workspace change
+        if (this.onWorkspaceChange) {
+            this.onWorkspaceChange();
         }
     }
-    
-    // 2. Try to get workspace from URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const workspaceId = urlParams.get('workspace');
-    if (workspaceId) {
-        const workspace = this.availableWorkspaces.find(ws => ws.id === workspaceId);
-        if (workspace) {
-            this.setCurrentWorkspace(workspace);
-            console.log('✅ Workspace from URL:', workspaceId);
-            return;
-        }
-    }
-    
-    // 3. If we get here, show workspace selection modal
-    console.log('🔄 No workspace detected, showing selection modal');
-    await this.showWorkspaceSelection();
-}
-
-
-
-    
-   // Set current workspace
-setCurrentWorkspace(workspace) {
-    if (!workspace) {
-        console.error('❌ Cannot set null workspace');
-        return;
-    }
-    
-    this.currentWorkspace = workspace;
-    
-    // Set BOTH persistence flags
-    localStorage.setItem(this.workspaceKey, workspace.id);
-    localStorage.setItem('proclean_workspace_selected', 'true');
-    
-    // Set session flag
-    window._workspaceSelectionShown = true;
-    
-    console.log('🎯 Current workspace set:', workspace.name);
-    console.log('💾 Persistence set:', {
-        workspaceKey: this.workspaceKey,
-        workspaceSelected: 'true'
-    });
-    
-    // Update UI to show current workspace
-    this.updateWorkspaceUI();
-    
-    // Initialize workspace-specific storage
-    this.initializeWorkspaceStorage();
-    
-    // Notify about workspace change
-    if (this.onWorkspaceChange) {
-        this.onWorkspaceChange();
-    }
-}
     
     // Update UI to show current workspace
    updateWorkspaceUI() {
@@ -289,10 +273,7 @@ async loadWorkspaceData() {
         }
     }
     
- async showWorkspaceSelection() {
-    // Remove any existing modals first
-    this.removeExistingModals();
-    
+  async showWorkspaceSelection() {
     return new Promise((resolve) => {
         const modal = document.createElement('div');
         modal.className = 'modal workspace-modal';
@@ -344,6 +325,7 @@ async loadWorkspaceData() {
                     transition: background 0.2s;
                 `;
                 
+                // FIXED: Pass workspace to getWorkspaceTypeLabel
                 const typeLabel = this.getWorkspaceTypeLabel(workspace);
                 
                 button.innerHTML = `
@@ -373,16 +355,6 @@ async loadWorkspaceData() {
                 resolve();
             };
         }
-        
-        // Add escape key handler
-        const escapeHandler = (e) => {
-            if (e.key === 'Escape') {
-                document.body.removeChild(modal);
-                document.removeEventListener('keydown', escapeHandler);
-                resolve();
-            }
-        };
-        document.addEventListener('keydown', escapeHandler);
     });
 }
     
@@ -431,27 +403,34 @@ async loadWorkspaceData() {
 
 
 // Only force workspace selection if the user/device hasn't chosen one yet
-// ==================== SIMPLIFIED INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Initializing workspace system...');
-    
-    try {
-        // Initialize workspace manager
-        await window.workspaceManager.initialize();
-        
-        // Check if workspace is set after initialization
-        const hasWorkspace = window.workspaceManager.currentWorkspace !== null;
-        console.log('✅ Workspace initialization complete. Has workspace:', hasWorkspace);
-        
-        if (!hasWorkspace) {
-            console.log('🔄 No workspace found, selection should be shown by initialize()');
-            // The modal should already be shown by detectOrCreateWorkspace()
+    setTimeout(async () => {
+        try {
+            // If workspace already persisted, do not show
+            const alreadySelected = localStorage.getItem('proclean_workspace_selected') === 'true';
+            if (alreadySelected) {
+                // If it exists but workspaceManager not set, try to initialize silently
+                if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+                    await window.workspaceManager.loadWorkspaceData();
+                }
+                return;
+            }
+
+            // Avoid showing many times in same session
+            if (window._workspaceSelectionShown) return;
+
+            if (window.workspaceManager && !window.workspaceManager.currentWorkspace) {
+                console.log('🔄 No workspace selected, asking user to choose (once)...');
+                window._workspaceSelectionShown = true;
+                await window.workspaceManager.showWorkspaceSelection();
+            }
+        } catch (err) {
+            console.error('Workspace selection guard error:', err);
         }
-        
-    } catch (error) {
-        console.error('❌ Workspace initialization failed:', error);
-    }
+    }, 800);
 });
+
+
 
 // ==================== WORKSPACE UTILITIES ====================
 // Safe workspace ID getter
@@ -532,16 +511,7 @@ async function testWorkspaceIsolation() {
 }
 
 
-// Safety method to remove any existing modals
-removeExistingModals() {
-    const existingModals = document.querySelectorAll('.workspace-modal');
-    existingModals.forEach(modal => {
-        if (modal.parentNode) {
-            modal.parentNode.removeChild(modal);
-        }
-    });
-    console.log('🧹 Removed existing workspace modals');
-}
+
 // ==================== ENHANCED WORKSPACE ISOLATION ====================
 
 class EnhancedWorkspaceManager extends WorkspaceManager {
@@ -1616,9 +1586,9 @@ const ProfessionalExcelExport = {
             
             // SET WIDER COLUMN WIDTHS FOR BETTER VISIBILITY
             const colWidths = [
-                { wch: 45 }, // PAKET NO - WIDER
-                { wch: 50 }, // MÜŞTERİ - WIDER
-                { wch: 50 }, // ÜRÜNLER - MUCH WIDER for product names
+                { wch: 60 }, // PAKET NO - WIDER
+                { wch: 40 }, // MÜŞTERİ - WIDER
+                { wch: 35 }, // ÜRÜNLER - MUCH WIDER for product names
                 { wch: 10 }, // TOPLAM ADET
                 { wch: 40 }, // DURUM
                 { wch: 40 }, // PAKETLEYEN - WIDER
