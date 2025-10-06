@@ -2939,7 +2939,9 @@ const pageSize = 20; // number of containers per page
 let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
 
-async function populateShippingTable(page = 0) {
+// ==================== SUPABASE ONLY: SHIPPING TABLE ====================
+
+async function populateShippingTableFromSupabase(page = 0) {
     if (isShippingTableLoading) {
         console.log('Shipping table already loading, skipping...');
         return;
@@ -2948,7 +2950,7 @@ async function populateShippingTable(page = 0) {
     isShippingTableLoading = true;
 
     try {
-        console.log('Populating shipping table...');
+        console.log('🔄 Populating shipping table from Supabase ONLY...');
 
         const shippingFolders = document.getElementById('shippingFolders');
         if (!shippingFolders) {
@@ -2957,87 +2959,58 @@ async function populateShippingTable(page = 0) {
         }
 
         // Show loading state
-        shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666; font-size:16px;">Sevkiyat verileri yükleniyor...</div>';
+        shippingFolders.innerHTML = '<div style="text-align:center; padding:40px; color:#666; font-size:16px;">Sevkiyat verileri Supabase\'den yükleniyor...</div>';
 
         let containers = [];
         let packagesData = [];
 
-        // Get data based on current mode
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            console.log('Using Excel data for shipping');
-            
-            // Use Excel data for containers
-            const excelContainers = {};
-            
-            // Group packages by container
-            excelPackages.forEach(pkg => {
-                if (pkg.container_id) {
-                    if (!excelContainers[pkg.container_id]) {
-                        excelContainers[pkg.container_id] = {
-                            id: pkg.container_id,
-                            container_no: pkg.container_id,
-                            packages: [],
-                            package_count: 0,
-                            total_quantity: 0,
-                            status: pkg.status || 'beklemede',
-                            created_at: pkg.created_at
-                        };
-                    }
-                    excelContainers[pkg.container_id].packages.push(pkg);
-                    excelContainers[pkg.container_id].package_count++;
-                    excelContainers[pkg.container_id].total_quantity += pkg.total_quantity || 0;
-                }
-            });
-            
-            containers = Object.values(excelContainers);
-            console.log('Excel containers found:', containers.length);
-            
-        } else {
-            console.log('Using Supabase data for shipping');
-            
-            // Use Supabase data
-            try {
-                const { data: supabaseContainers, error } = await supabase
-                    .from('containers')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+        // STRICT SUPABASE ONLY - No fallback to Excel
+        if (!supabase || !navigator.onLine) {
+            throw new Error('Supabase bağlantısı yok veya çevrimdışı mod. Supabase verileri yüklenemiyor.');
+        }
 
-                if (error) {
-                    console.error('Supabase containers error:', error);
-                    throw error;
-                }
+        console.log('📦 Loading containers from Supabase ONLY...');
+        
+        // Get containers with workspace filtering
+        const { data: supabaseContainers, error: containersError } = await supabase
+            .from('containers')
+            .select('*')
+            .eq('workspace_id', getCurrentWorkspaceId())
+            .order('created_at', { ascending: false });
 
-                containers = supabaseContainers || [];
-                console.log('Supabase containers loaded:', containers.length);
+        if (containersError) {
+            throw new Error('Konteyner verileri yüklenemedi: ' + containersError.message);
+        }
 
-                // Get packages for these containers if we have containers
-                if (containers.length > 0) {
-                    const containerIds = containers.map(c => c.id);
-                    const { data: supabasePackages } = await supabase
-                        .from('packages')
-                        .select('*, customers(name)')
-                        .in('container_id', containerIds);
-                    
-                    packagesData = supabasePackages || [];
-                    console.log('Packages for containers loaded:', packagesData.length);
-                }
+        containers = supabaseContainers || [];
+        console.log('✅ Supabase ONLY containers loaded:', containers.length);
 
-            } catch (supabaseError) {
-                console.error('Supabase shipping data error:', supabaseError);
-                // Fallback to empty array
-                containers = [];
+        // Get packages for these containers if we have containers
+        if (containers.length > 0) {
+            const containerIds = containers.map(c => c.id);
+            const { data: supabasePackages, error: packagesError } = await supabase
+                .from('packages')
+                .select('*, customers(name)')
+                .in('container_id', containerIds)
+                .eq('workspace_id', getCurrentWorkspaceId());
+            
+            if (packagesError) {
+                console.warn('Paket verileri yüklenirken uyarı:', packagesError);
             }
+            
+            packagesData = supabasePackages || [];
+            console.log('✅ Packages for containers loaded:', packagesData.length);
         }
 
         // Clear loading message
         shippingFolders.innerHTML = '';
 
-        if (!containers || containers.length === 0) {
+        if (containers.length === 0) {
             shippingFolders.innerHTML = `
                 <div style="text-align:center; padding:60px; color:#666;">
                     <i class="fas fa-box-open" style="font-size:48px; margin-bottom:20px; opacity:0.5;"></i>
                     <h3>Henüz konteyner bulunmamaktadır</h3>
-                    <p>Paketleri sevkiyat için konteynerlere ekleyin.</p>
+                    <p>Supabase veritabanında konteyner kaydı bulunamadı.</p>
                     <button onclick="createNewContainer()" class="btn btn-primary" style="margin-top:15px;">
                         <i class="fas fa-plus"></i> Yeni Konteyner Oluştur
                     </button>
@@ -3046,7 +3019,7 @@ async function populateShippingTable(page = 0) {
             return;
         }
 
-        console.log('Rendering containers:', containers.length);
+        console.log('🎯 Rendering Supabase containers:', containers.length);
 
         // Group containers by customer for folder view
         const customersMap = {};
@@ -3054,7 +3027,7 @@ async function populateShippingTable(page = 0) {
         containers.forEach(container => {
             let customerName = 'Genel Sevkiyat';
             
-            // Try to find customer name from packages
+            // Find customer name from packages
             if (packagesData.length > 0) {
                 const containerPackages = packagesData.filter(p => p.container_id === container.id);
                 if (containerPackages.length > 0) {
@@ -3062,12 +3035,6 @@ async function populateShippingTable(page = 0) {
                     if (customerNames.length > 0) {
                         customerName = [...new Set(customerNames)].join(', ');
                     }
-                }
-            } else if (container.packages && container.packages.length > 0) {
-                // For Excel data
-                const customerNames = container.packages.map(p => p.customer_name).filter(Boolean);
-                if (customerNames.length > 0) {
-                    customerName = [...new Set(customerNames)].join(', ');
                 }
             } else if (container.customer) {
                 customerName = container.customer;
@@ -3079,7 +3046,7 @@ async function populateShippingTable(page = 0) {
             customersMap[customerName].push(container);
         });
 
-        // Render customer folders
+        // Render customer folders (same rendering logic)
         Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'customer-folder';
@@ -3112,7 +3079,7 @@ async function populateShippingTable(page = 0) {
             const folderContent = document.createElement('div');
             folderContent.className = 'folder-content';
             folderContent.style.padding = '0';
-            folderContent.style.display = 'none'; // Start collapsed
+            folderContent.style.display = 'none';
 
             const table = document.createElement('table');
             table.style.width = '100%';
@@ -3185,24 +3152,27 @@ async function populateShippingTable(page = 0) {
             shippingFolders.appendChild(folderDiv);
         });
 
-        console.log('Shipping table populated successfully with', Object.keys(customersMap).length, 'customer folders');
+        console.log('✅ Supabase ONLY shipping table populated with', Object.keys(customersMap).length, 'customer folders');
 
     } catch (error) {
-        console.error('Error in populateShippingTable:', error);
+        console.error('❌ Error in Supabase ONLY shipping table:', error);
         const shippingFolders = document.getElementById('shippingFolders');
         if (shippingFolders) {
             shippingFolders.innerHTML = `
                 <div style="text-align:center; padding:40px; color:#dc3545;">
                     <i class="fas fa-exclamation-triangle" style="font-size:48px; margin-bottom:20px;"></i>
-                    <h3>Sevkiyat verileri yüklenirken hata oluştu</h3>
+                    <h3>Supabase verileri yüklenirken hata oluştu</h3>
                     <p>${error.message}</p>
-                    <button onclick="populateShippingTable()" class="btn btn-primary" style="margin-top:15px;">
+                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                        Sadece Supabase verileri kullanılıyor. Excel yedeği mevcut değil.
+                    </p>
+                    <button onclick="populateShippingTableFromSupabase()" class="btn btn-primary" style="margin-top:15px;">
                         <i class="fas fa-redo"></i> Tekrar Dene
                     </button>
                 </div>
             `;
         }
-        showAlert('Sevkiyat tablosu yüklenirken hata oluştu: ' + error.message, 'error');
+        showAlert('Supabase sevkiyat verileri yüklenirken hata oluştu: ' + error.message, 'error');
     } finally {
         isShippingTableLoading = false;
     }
@@ -3969,13 +3939,14 @@ window.closeDailyFileModal = closeDailyFileModal;
 console.log('✅ Reports module loaded successfully');
 
 
-// Fixed populateStockTable function
-async function populateStockTable() {
+// ==================== SUPABASE ONLY: STOCK TABLE ====================
+
+async function populateStockTableFromSupabase() {
     if (isStockTableLoading) return;
     
     const now = Date.now();
     if (now - lastStockFetchTime < 500) {
-        setTimeout(() => populateStockTable(), 500);
+        setTimeout(() => populateStockTableFromSupabase(), 500);
         return;
     }
     
@@ -3983,7 +3954,7 @@ async function populateStockTable() {
     lastStockFetchTime = now;
     
     try {
-        console.log('Populating stock table...');
+        console.log('🔄 Populating stock table from Supabase ONLY...');
         
         const stockTableBody = document.getElementById('stockTableBody');
         if (!stockTableBody) {
@@ -3991,45 +3962,42 @@ async function populateStockTable() {
             return;
         }
         
-        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
+        stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Supabase\'den stok verileri yükleniyor...</td></tr>';
         
         let stockData = [];
         
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use mock stock data for Excel mode
-            stockData = [
-                { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK002', name: 'Büyük Havlu', quantity: 200, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK003', name: 'Nevresim', quantity: 85, unit: 'Adet', status: 'Az Stok', updated_at: new Date().toISOString() },
-                { code: 'STK004', name: 'Çarşaf', quantity: 300, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() },
-                { code: 'STK005', name: 'Havlu', quantity: 25, unit: 'Adet', status: 'Kritik', updated_at: new Date().toISOString() }
-            ];
-            console.log('Using mock stock data for Excel mode');
-        } else {
-            // Use Supabase data
-            try {
-                const { data, error } = await supabase
-                    .from('stock_items')
-                    .select('*')
-                    .order('name', { ascending: true });
-                
-                if (error) throw error;
-                stockData = data || [];
-                console.log('Loaded stock data from Supabase:', stockData.length);
-            } catch (error) {
-                console.warn('Supabase stock fetch failed, using mock data:', error);
-                stockData = [
-                    { code: 'STK001', name: 'Büyük Çarşaf', quantity: 150, unit: 'Adet', status: 'Stokta', updated_at: new Date().toISOString() }
-                ];
-            }
+        // STRICT SUPABASE ONLY - No fallback to mock data
+        if (!supabase || !navigator.onLine) {
+            throw new Error('Supabase bağlantısı yok veya çevrimdışı mod. Stok verileri yüklenemiyor.');
         }
+
+        console.log('📦 Loading stock data from Supabase ONLY...');
+        
+        const { data, error } = await supabase
+            .from('stock_items')
+            .select('*')
+            .eq('workspace_id', getCurrentWorkspaceId())
+            .order('name', { ascending: true });
+        
+        if (error) {
+            throw new Error('Stok verileri yüklenemedi: ' + error.message);
+        }
+        
+        stockData = data || [];
+        console.log('✅ Supabase ONLY stock data loaded:', stockData.length);
         
         // Clear loading message
         stockTableBody.innerHTML = '';
         
         if (stockData.length === 0) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666; padding:20px;">Stok verisi bulunamadı</td></tr>';
+            stockTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; color:#666; padding:20px;">
+                        <i class="fas fa-boxes" style="font-size:24px; margin-bottom:10px; opacity:0.5;"></i><br>
+                        Supabase veritabanında stok kaydı bulunamadı
+                    </td>
+                </tr>
+            `;
             return;
         }
         
@@ -4067,127 +4035,250 @@ async function populateStockTable() {
             stockTableBody.appendChild(row);
         });
         
-        console.log('Stock table populated with', stockData.length, 'items');
+        console.log('✅ Supabase ONLY stock table populated with', stockData.length, 'items');
         
     } catch (error) {
-        console.error('Error in populateStockTable:', error);
+        console.error('❌ Error in Supabase ONLY stock table:', error);
         const stockTableBody = document.getElementById('stockTableBody');
         if (stockTableBody) {
-            stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Stok verileri yüklenirken hata oluştu</td></tr>';
+            stockTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; color:red; padding:20px;">
+                        <i class="fas fa-exclamation-triangle" style="font-size:24px; margin-bottom:10px;"></i><br>
+                        Supabase stok verileri yüklenirken hata oluştu<br>
+                        <small>${error.message}</small>
+                    </td>
+                </tr>
+            `;
         }
-        showAlert('Stok verileri yüklenirken hata oluştu', 'error');
+        showAlert('Supabase stok verileri yüklenirken hata oluştu: ' + error.message, 'error');
     } finally {
         isStockTableLoading = false;
     }
-}
+} 
 
-// Fixed populateReportsTable function
-async function populateReportsTable() {
+
+// ==================== SUPABASE ONLY: REPORTS TABLE ====================
+
+async function populateReportsTableFromSupabase() {
     try {
-        console.log('Populating reports table...');
+        console.log('🔄 Populating reports table from Supabase ONLY...');
         
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (!reportsTableBody) {
-            console.error('Reports table body not found');
+        const reportsContainer = document.getElementById('reportsTab');
+        if (!reportsContainer) {
+            console.error('Reports container not found');
             return;
         }
         
-        reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Yükleniyor...</td></tr>';
+        // Show loading state
+        reportsContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <h4>Raporlar Supabase'den yükleniyor...</h4>
+                <p>Sadece Supabase verileri kullanılıyor</p>
+            </div>
+        `;
         
         let reportsData = [];
         
-        // Check if we should use Excel data
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Generate mock reports data for Excel mode
-            const today = new Date();
-            reportsData = [
-                {
-                    id: 1,
-                    report_date: today.toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 15,
-                    total_quantity: 245,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: today.toISOString()
-                },
-                {
-                    id: 2,
-                    report_date: new Date(today.setDate(today.getDate() - 1)).toISOString(),
-                    report_type: 'Günlük Rapor',
-                    package_count: 12,
-                    total_quantity: 198,
-                    created_by: currentUser?.name || 'Sistem',
-                    created_at: new Date(today.setDate(today.getDate() - 1)).toISOString()
-                }
-            ];
-            console.log('Using mock reports data for Excel mode');
-        } else {
-            // Use Supabase data
-            try {
-                const { data, error } = await supabase
-                    .from('reports')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(50);
+        // STRICT SUPABASE ONLY - No fallback to Excel
+        if (!supabase || !navigator.onLine) {
+            throw new Error('Supabase bağlantısı yok veya çevrimdışı mod. Rapor verileri yüklenemiyor.');
+        }
+
+        console.log('📦 Loading reports data from Supabase ONLY...');
+        
+        // Get packages for reporting with workspace filtering
+        const { data: supabasePackages, error } = await supabase
+            .from('packages')
+            .select('*')
+            .eq('workspace_id', getCurrentWorkspaceId())
+            .order('created_at', { ascending: false })
+            .limit(1000);
+        
+        if (error) {
+            throw new Error('Rapor verileri yüklenemedi: ' + error.message);
+        }
+        
+        reportsData = supabasePackages || [];
+        console.log('✅ Supabase ONLY reports data loaded:', reportsData.length);
+        
+        const totalQuantity = reportsData.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
+        const shippedCount = reportsData.filter(pkg => pkg.status === 'sevk-edildi').length;
+        const waitingCount = reportsData.filter(pkg => pkg.status === 'beklemede').length;
+        
+        const reportsHTML = `
+            <div style="margin-bottom: 20px;">
+                <h3><i class="fas fa-chart-bar"></i> Supabase Gerçek Zamanlı Raporlar</h3>
+                <p style="color: #666; font-size: 0.9rem;">Sadece Supabase veritabanı kullanılıyor - ${reportsData.length} paket</p>
                 
-                if (error) throw error;
-                reportsData = data || [];
-                console.log('Loaded reports data from Supabase:', reportsData.length);
-            } catch (error) {
-                console.warn('Supabase reports fetch failed, using mock data:', error);
-                reportsData = [
-                    {
-                        id: 1,
-                        report_date: new Date().toISOString(),
-                        report_type: 'Günlük Rapor',
-                        package_count: 15,
-                        total_quantity: 245,
-                        created_by: currentUser?.name || 'Sistem',
-                        created_at: new Date().toISOString()
-                    }
-                ];
-            }
-        }
-        
-        // Clear loading message
-        reportsTableBody.innerHTML = '';
-        
-        if (reportsData.length === 0) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666; padding:20px;">Henüz rapor bulunmamaktadır</td></tr>';
-            return;
-        }
-        
-        // Populate reports table
-        reportsData.forEach(report => {
-            const row = document.createElement('tr');
+                <!-- Real-time Report Summary -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #007bff;">
+                        <div style="font-size: 24px; font-weight: bold; color: #007bff;">${reportsData.length}</div>
+                        <div>Toplam Paket</div>
+                    </div>
+                    <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #28a745;">
+                        <div style="font-size: 24px; font-weight: bold; color: #28a745;">${totalQuantity}</div>
+                        <div>Toplam Adet</div>
+                    </div>
+                    <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #ffc107;">
+                        <div style="font-size: 24px; font-weight: bold; color: #ffc107;">${shippedCount}</div>
+                        <div>Sevk Edilen</div>
+                    </div>
+                    <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #6f42c1;">
+                        <div style="font-size: 24px; font-weight: bold; color: #6f42c1;">${waitingCount}</div>
+                        <div>Bekleyen</div>
+                    </div>
+                </div>
+                
+                <!-- Export Buttons -->
+                <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="exportSupabaseDataToExcel()" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Supabase Verilerini Excel'e Aktar
+                    </button>
+                    <button onclick="generateCustomReportFromSupabase()" class="btn btn-primary">
+                        <i class="fas fa-chart-line"></i> Özel Rapor Oluştur (Supabase)
+                    </button>
+                </div>
+            </div>
             
-            row.innerHTML = `
-                <td>${report.report_date ? new Date(report.report_date).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td>${escapeHtml(report.report_type || 'N/A')}</td>
-                <td>${report.package_count || 0}</td>
-                <td>${report.total_quantity || 0}</td>
-                <td>${escapeHtml(report.created_by || 'N/A')}</td>
-                <td>
-                    <button onclick="viewReport(${report.id})" class="btn btn-primary btn-sm">Görüntüle</button>
-                    <button onclick="exportReport(${report.id})" class="btn btn-success btn-sm">Dışa Aktar</button>
-                </td>
-            `;
+            <!-- Recent Packages Table -->
+            <div style="margin-top: 30px;">
+                <h4><i class="fas fa-list"></i> Son Paketler</h4>
+                <div style="max-height: 500px; overflow: auto; border: 1px solid #ddd; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead style="background: #343a40; color: white; position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 12px; border: 1px solid #ddd;">Paket No</th>
+                                <th style="padding: 12px; border: 1px solid #ddd;">Müşteri</th>
+                                <th style="padding: 12px; border: 1px solid #ddd;">Ürünler</th>
+                                <th style="padding: 12px; border: 1px solid #ddd;">Adet</th>
+                                <th style="padding: 12px; border: 1px solid #ddd;">Durum</th>
+                                <th style="padding: 12px; border: 1px solid #ddd;">Tarih</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${reportsData.slice(0, 50).map(pkg => `
+                                <tr style="transition: background-color 0.2s ease;" 
+                                    onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                                    onmouseout="this.style.backgroundColor='transparent'">
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 500;">${pkg.package_no || 'N/A'}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; max-width: 200px; word-wrap: break-word;">
+                                        ${pkg.items_display || 'N/A'}
+                                    </td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #2196F3;">
+                                        ${pkg.total_quantity || 0}
+                                    </td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">
+                                        <span style="
+                                            padding: 4px 8px;
+                                            border-radius: 12px;
+                                            font-size: 0.8em;
+                                            font-weight: 500;
+                                            ${pkg.status === 'sevk-edildi' ? 
+                                                'background: #4CAF50; color: white;' : 
+                                                'background: #FF9800; color: white;'
+                                            }
+                                        ">
+                                            ${pkg.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">
+                                        ${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                            ${reportsData.length === 0 ? `
+                                <tr>
+                                    <td colspan="6" style="padding: 40px; text-align: center; color: #666; border: 1px solid #ddd;">
+                                        <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; opacity: 0.5;"></i><br>
+                                        Supabase'de paket bulunmamaktadır
+                                    </td>
+                                </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             
-            reportsTableBody.appendChild(row);
-        });
+            <!-- Information Box -->
+            <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196F3;">
+                <h5 style="margin: 0 0 10px 0; color: #1565C0;">
+                    <i class="fas fa-info-circle"></i> Supabase Raporları
+                </h5>
+                <p style="margin: 0; color: #0d47a1; font-size: 0.9em;">
+                    Bu rapor sadece Supabase veritabanındaki gerçek zamanlı verileri göstermektedir. 
+                    Excel yedek dosyaları bu görünümde kullanılmamaktadır.
+                </p>
+            </div>
+        `;
         
-        console.log('Reports table populated with', reportsData.length, 'reports');
+        reportsContainer.innerHTML = reportsHTML;
+        console.log(`✅ Supabase ONLY reports table populated with ${reportsData.length} packages`);
         
     } catch (error) {
-        console.error('Error in populateReportsTable:', error);
-        const reportsTableBody = document.getElementById('reportsTableBody');
-        if (reportsTableBody) {
-            reportsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">Raporlar yüklenirken hata oluştu</td></tr>';
+        console.error('❌ Error in Supabase ONLY reports table:', error);
+        const reportsContainer = document.getElementById('reportsTab');
+        if (reportsContainer) {
+            reportsContainer.innerHTML = `
+                <div style="text-align: center; color: #d32f2f; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                    <h4>Supabase raporları yüklenirken hata oluştu</h4>
+                    <p>${error.message}</p>
+                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                        Sadece Supabase veritabanı kullanılıyor. Excel yedekleri mevcut değil.
+                    </p>
+                    <button onclick="populateReportsTableFromSupabase()" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Tekrar Dene
+                    </button>
+                </div>
+            `;
         }
-        showAlert('Raporlar yüklenirken hata oluştu', 'error');
     }
 }
 
+// Helper function to export Supabase data to Excel
+async function exportSupabaseDataToExcel() {
+    try {
+        if (!supabase || !navigator.onLine) {
+            throw new Error('Supabase bağlantısı yok. Veriler dışa aktarılamıyor.');
+        }
+
+        const { data: supabaseData, error } = await supabase
+            .from('packages')
+            .select('*')
+            .eq('workspace_id', getCurrentWorkspaceId())
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            throw new Error('Supabase verileri alınamadı: ' + error.message);
+        }
+
+        if (!supabaseData || supabaseData.length === 0) {
+            showAlert('Dışa aktarılacak Supabase verisi bulunamadı', 'warning');
+            return;
+        }
+
+        const date = new Date().toISOString().split('T')[0];
+        const filename = `Supabase_Rapor_${date}_${getCurrentWorkspaceName()}.xlsx`;
+        
+        ProfessionalExcelExport.exportToProfessionalExcel(supabaseData, filename);
+        
+    } catch (error) {
+        console.error('Supabase export error:', error);
+        showAlert('Supabase verileri dışa aktarılırken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Make functions available globally
+window.populateShippingTableFromSupabase = populateShippingTableFromSupabase;
+window.populateStockTableFromSupabase = populateStockTableFromSupabase;
+window.populateReportsTableFromSupabase = populateReportsTableFromSupabase;
+window.exportSupabaseDataToExcel = exportSupabaseDataToExcel;
+
+console.log('✅ Supabase-only data loading functions loaded');
 
 
 
@@ -5006,36 +5097,7 @@ function displayReportResults(data, reportType, startDate, endDate) {
     reportsContainer.innerHTML = reportHTML;
 }
 
-async function exportReports() {
-    try {
-        const dailyFiles = ExcelStorage.getAvailableDailyFiles();
-        if (dailyFiles.length === 0) {
-            showAlert('Dışa aktarılacak rapor bulunamadı', 'info');
-            return;
-        }
-        
-        const allPackages = dailyFiles.flatMap(file => file.data);
-        
-        if (allPackages.length === 0) {
-            showAlert('Dışa aktarılacak veri bulunamadı', 'info');
-            return;
-        }
-        
-        const date = new Date().toISOString().split('T')[0];
-        const filename = `ProClean_Tum_Raporlar_${date}.xlsx`;
-        
-        ProfessionalExcelExport.exportToProfessionalExcel(allPackages, filename);
-        
-    } catch (error) {
-        console.error('Export reports error:', error);
-        showAlert('Raporlar dışa aktarılırken hata oluştu', 'error');
-    }
-}
 
-async function loadReports() {
-    await populateReportsTable();
-    showAlert('Raporlar yüklendi', 'success');
-}
 
 function viewReport(reportId) {
     showAlert(`Rapor #${reportId} görüntüleniyor...`, 'info');
