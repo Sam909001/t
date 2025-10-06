@@ -4001,5 +4001,10 @@ window.getAllCustomers = getAllCustomers;
 window.getAllShippingData = getAllShippingData;
 window.getAllReports = getAllReports;
 window.getProductType = getProductType;
+// ui (34).js - Add these lines to your existing global export block
+// (The lines below assume you have functions named this in ui.js)
+window.populateStockTable = populateStockTable;
+window.populateShippingFolders = populateShippingFolders;
+window.populateReportsTable = populateReportsTable; // (Also good practice to check this one)
 
 console.log('✅ Fixed data collection functions loaded - No fake data');
