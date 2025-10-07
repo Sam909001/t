@@ -640,31 +640,107 @@ function handleSupabaseError(error, context) {
 }
 
 // ==========================
-// DAILY AUTO-CLEAR FUNCTION
+// DAILY AUTO-CLEAR FUNCTION - FIXED VERSION
 // ==========================
 
-// Clear local app state (frontend only)
-function clearDailyAppState() {
-    console.log('[Daily Clear] Clearing frontend state...');
+// ADD HELPER FUNCTIONS FIRST (they must be defined before clearDailyAppState)
+async function checkForUnsavedExcelData() {
+    try {
+        // Check if we have Excel packages that haven't been synced to Supabase
+        if (typeof ExcelJS !== 'undefined' && typeof ExcelJS.readFile === 'function') {
+            const excelData = await ExcelJS.readFile();
+            return excelData && excelData.length > 0;
+        }
+        
+        // Fallback: Check localStorage for Excel data
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const excelData = localStorage.getItem(`excelPackages_${workspaceId}`);
+        return excelData && JSON.parse(excelData).length > 0;
+        
+    } catch (error) {
+        console.error('Error checking for unsaved data:', error);
+        return false;
+    }
+}
+
+async function createDailyBackup() {
+    try {
+        const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'default';
+        
+        let excelData = [];
+        
+        // Get current Excel data
+        if (typeof ExcelJS !== 'undefined' && typeof ExcelJS.readFile === 'function') {
+            excelData = await ExcelJS.readFile();
+        } else {
+            // Fallback: Get from localStorage
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            const storedData = localStorage.getItem(`excelPackages_${workspaceId}`);
+            excelData = storedData ? JSON.parse(storedData) : [];
+        }
+        
+        if (excelData.length > 0) {
+            // Save backup to localStorage
+            const backupKey = `excel_backup_${workspaceName}_${timestamp}`;
+            localStorage.setItem(backupKey, JSON.stringify({
+                timestamp: new Date().toISOString(),
+                data: excelData,
+                count: excelData.length,
+                workspace: workspaceName
+            }));
+            
+            console.log(`[Backup] Created daily backup: ${backupKey} with ${excelData.length} items`);
+        }
+        
+    } catch (error) {
+        console.error('Error creating daily backup:', error);
+    }
+}
+
+// THEN THE MAIN FUNCTION (it uses the helpers above)
+async function clearDailyAppState() {
+    console.log('[Daily Clear] Starting daily cleanup with data protection...');
     
-    // Clear saved state in localStorage
-    localStorage.removeItem('procleanState');
+    try {
+        // 1. FIRST: Check if there's unsaved Excel data
+        const hasUnsavedData = await checkForUnsavedExcelData();
+        
+        if (hasUnsavedData) {
+            console.log('[Daily Clear] Unsaved Excel data found, creating backup...');
+            
+            // 2. Create automatic backup before clearing
+            await createDailyBackup();
+            
+            // 3. Optional: Show notification about the backup
+            showAlert('Günlük temizlik: Excel verileriniz yedeklendi ve temizlendi', 'info');
+        }
+        
+        // 4. Clear saved state in localStorage
+        localStorage.removeItem('procleanState');
 
-    // Reset global variables
-    selectedCustomer = null;
-    currentContainer = null;
-    currentPackage = {};
+        // 5. Reset global variables
+        selectedCustomer = null;
+        currentContainer = null;
+        currentPackage = {};
 
-    // Reset UI
-    if (elements.customerSelect) elements.customerSelect.value = '';
-    if (elements.personnelSelect) elements.personnelSelect.value = '';
-    if (elements.containerNumber) elements.containerNumber.textContent = 'Yok';
-    document.querySelectorAll('.quantity-badge').forEach(b => b.textContent = '0');
-    const packageDetail = document.getElementById('packageDetailContent');
-    if (packageDetail) packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+        // 6. Reset UI
+        if (elements.customerSelect) elements.customerSelect.value = '';
+        if (elements.personnelSelect) elements.personnelSelect.value = '';
+        if (elements.containerNumber) elements.containerNumber.textContent = 'Yok';
+        document.querySelectorAll('.quantity-badge').forEach(b => b.textContent = '0');
+        const packageDetail = document.getElementById('packageDetailContent');
+        if (packageDetail) packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
 
-    // Reload today's data from Supabase
-    loadTodaysData();
+        // 7. Reload today's data from Supabase
+        await loadTodaysData();
+        
+        console.log('[Daily Clear] Daily cleanup completed successfully');
+
+    } catch (error) {
+        console.error('[Daily Clear] Error during daily cleanup:', error);
+        showAlert('Günlük temizlik sırasında hata oluştu', 'error');
+    }
 }
 
 // Load today's packages/containers from Supabase
@@ -699,7 +775,6 @@ function scheduleDailyClear() {
         scheduleDailyClear();  // reschedule for next day
     }, msUntilMidnight);
 }
-
 // Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Starting ProClean application initialization...');
