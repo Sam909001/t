@@ -20,6 +20,11 @@ let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
 
+// Excel local storage
+let excelPackages = [];
+let excelSyncQueue = [];
+let isUsingExcel = false;
+
 // Missing dependency placeholders
 if (typeof XLSX === 'undefined') {
     console.warn('XLSX library not found - using placeholder');
@@ -48,6 +53,11 @@ if (typeof emailjs === 'undefined') {
     };
 }
 
+
+    
+
+    
+   
 
 
 // Replace ALL data loading functions with strict versions
@@ -166,6 +176,503 @@ function isValidEmail(email) {
 // Elementleri bir defa tanımla
 const elements = {};
 
+// Enhanced Excel Storage with Proper Daily Files
+const ExcelStorage = {
+    // Get today's date string for file naming
+    getTodayDateString: function() {
+        return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    },
+    
+    // Get current file name
+    getCurrentFileName: function() {
+        return `packages_${this.getTodayDateString()}.json`;
+    },
+    
+    // Get all available daily files (last 7 days)
+    getAvailableDailyFiles: function() {
+        const files = [];
+        const today = new Date();
+        
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            const fileName = `packages_${dateStr}.json`;
+            const fileData = localStorage.getItem(fileName);
+            
+            if (fileData) {
+                const packages = JSON.parse(fileData);
+                files.push({
+                    fileName: fileName,
+                    date: dateStr,
+                    displayDate: date.toLocaleDateString('tr-TR'),
+                    packageCount: packages.length,
+                    totalQuantity: packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0),
+                    data: packages
+                });
+            }
+        }
+        return files;
+    },
+    
+    // Read from today's file
+    readFile: async function() {
+        try {
+            const fileName = this.getCurrentFileName();
+            const data = localStorage.getItem(fileName);
+            
+            if (data) {
+                console.log(`📁 Loaded data from ${fileName}`);
+                const packages = JSON.parse(data);
+                return packages;
+            } else {
+                // Create empty file for today
+                const emptyData = [];
+                localStorage.setItem(fileName, JSON.stringify(emptyData));
+                console.log(`📁 Created new daily file: ${fileName}`);
+                return emptyData;
+            }
+        } catch (error) {
+            console.error('Excel read error:', error);
+            return [];
+        }
+    },
+    
+    // Write to today's file
+    writeFile: async function(data) {
+        try {
+            const fileName = this.getCurrentFileName();
+            const enhancedData = data.map(pkg => ({
+                ...pkg,
+                // Ensure all necessary fields are included
+                customer_name: pkg.customer_name || 'Bilinmeyen Müşteri',
+                customer_code: pkg.customer_code || '',
+                items_display: pkg.items ? 
+                    (Array.isArray(pkg.items) ? 
+                        pkg.items.map(item => `${item.name}: ${item.qty} adet`).join(', ') :
+                        Object.entries(pkg.items).map(([product, quantity]) => 
+                            `${product}: ${quantity} adet`
+                        ).join(', ')
+                    ) : 'Ürün bilgisi yok',
+                export_timestamp: new Date().toISOString()
+            }));
+            
+            localStorage.setItem(fileName, JSON.stringify(enhancedData));
+            
+            // Also update the current active file reference
+            localStorage.setItem('excelPackages_current', fileName);
+            
+            console.log(`💾 Saved ${enhancedData.length} records to ${fileName}`);
+            return true;
+        } catch (error) {
+            console.error('Excel write error:', error);
+            return false;
+        }
+    },
+    
+    // Export daily file to downloadable format
+exportDailyFile: function(dateString) {
+    try {
+        const fileName = `packages_${dateString}.json`;
+        const fileData = localStorage.getItem(fileName);
+        
+        if (!fileData) {
+            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
+            return;
+        }
+        
+        const packages = JSON.parse(fileData);
+        
+        // Convert to CSV format for better Excel compatibility
+        const csvContent = this.convertToCSV(packages);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `proclean_packages_${dateString}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showAlert(`${dateString} tarihli ${packages.length} paket CSV olarak indirildi`, 'success');
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert('Dosya dışa aktarılırken hata oluştu', 'error');
+    }
+},
+    
+// Convert to CSV format - Professional version
+convertToCSV: function(data) {
+    if (!data || data.length === 0) {
+        return 'PAKET NO,MÜŞTERİ ADI,MÜŞTERİ KODU,ÜRÜN TİPLERİ,ÜRÜN DETAYLARI,TOPLAM ADET,DURUM,KONTEYNER,PAKETLEYEN,OLUŞTURULMA TARİHİ,GÜNCELLENME TARİHİ,İSTASYON,BARCODE\n';
+    }
+    
+    const excelData = ProfessionalExcelExport.convertToProfessionalExcel(data);
+    const headers = Object.keys(excelData[0]);
+    
+    const csvContent = [
+        headers.join(','), // Header row
+        ...excelData.map(row => 
+            headers.map(header => {
+                const value = row[header];
+                // Escape commas and quotes in values
+                if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                    return `"${value.replace(/"/g, '""')}"`;
+                }
+                return value;
+            }).join(',')
+        )
+    ].join('\n');
+    
+    return csvContent;
+},
+    
+    // Clean up old files (keep only last 7 days)
+    cleanupOldFiles: function() {
+        const keepDays = 7;
+        const today = new Date();
+        const filesToKeep = [];
+        
+        // Determine which files to keep
+        for (let i = 0; i < keepDays; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            filesToKeep.push(`packages_${dateStr}.json`);
+        }
+        
+        // Remove files older than 7 days
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('packages_') && key.endsWith('.json')) {
+                if (!filesToKeep.includes(key)) {
+                    localStorage.removeItem(key);
+                    console.log(`🧹 Removed old file: ${key}`);
+                }
+            }
+        }
+    }
+};
+
+// Excel.js library (simple implementation) - Enhanced with ExcelStorage functionality
+const ExcelJS = {
+    readFile: async function() {
+        try {
+            // Use the enhanced daily file system
+            return await ExcelStorage.readFile();
+        } catch (error) {
+            console.error('Excel read error:', error);
+            return [];
+        }
+    },
+    
+    writeFile: async function(data) {
+        try {
+            // Use the enhanced daily file system
+            return await ExcelStorage.writeFile(data);
+        } catch (error) {
+            console.error('Excel write error:', error);
+            return false;
+        }
+    },
+    
+   // Simple XLSX format simulation
+toExcelFormat: function(packages) {
+    return packages.map(pkg => ({
+        id: pkg.id, // Always use the existing ID, never generate new ones
+        package_no: pkg.package_no,
+        customer_id: pkg.customer_id,
+        customer_name: pkg.customer_name,
+        customer_code: pkg.customer_code,
+        items: pkg.items,
+        items_display: pkg.items_display,
+        total_quantity: pkg.total_quantity,
+        status: pkg.status,
+        packer: pkg.packer,
+        created_at: pkg.created_at,
+        updated_at: pkg.updated_at || new Date().toISOString(),
+        workspace_id: pkg.workspace_id,
+        station_name: pkg.station_name,
+        source: pkg.source || 'excel' // Preserve existing source
+    }));
+},
+    
+    fromExcelFormat: function(excelData) {
+        return excelData.map(row => ({
+            ...row,
+            items: typeof row.items === 'string' ? JSON.parse(row.items) : row.items,
+        }));
+    },
+    
+    // Add the enhanced ExcelStorage methods to ExcelJS
+    getTodayDateString: ExcelStorage.getTodayDateString,
+    getCurrentFileName: ExcelStorage.getCurrentFileName,
+    getAvailableDailyFiles: ExcelStorage.getAvailableDailyFiles,
+    exportDailyFile: ExcelStorage.exportDailyFile,
+    convertToCSV: ExcelStorage.convertToCSV,
+    cleanupOldFiles: ExcelStorage.cleanupOldFiles
+};
+
+
+
+// ==================== PROFESSIONAL EXCEL EXPORT - SIMPLIFIED ====================
+const ProfessionalExcelExport = {
+    // Convert packages to Excel-friendly format with simplified headers
+    convertToProfessionalExcel: function(packages) {
+        if (!packages || packages.length === 0) {
+            return [];
+        }
+
+        // Define simplified professional headers
+        const excelData = packages.map(pkg => {
+            // Extract items information professionally - SIMPLIFIED VERSION
+            let itemsInfo = 'Ürün bilgisi yok';
+            let totalQuantity = pkg.total_quantity || 0;
+            
+            // FIXED: Better product extraction - KEEP ONLY PRODUCT NAMES
+            if (pkg.items) {
+                if (Array.isArray(pkg.items)) {
+                    // Array format: [{name: "Product", qty: 5}]
+                    // KEEP ONLY PRODUCT NAMES, remove quantities from display
+                    itemsInfo = pkg.items.map(item => item.name || 'Ürün').join(', ');
+                    
+                    // Calculate total quantity from items array
+                    if (pkg.items.length > 0 && !totalQuantity) {
+                        totalQuantity = pkg.items.reduce((sum, item) => sum + (item.qty || 0), 0);
+                    }
+                } else if (typeof pkg.items === 'object') {
+                    // Object format: {"Product1": 5, "Product2": 3}
+                    // KEEP ONLY PRODUCT NAMES, remove quantities from display
+                    itemsInfo = Object.keys(pkg.items).join(', ');
+                    
+                    // Calculate total quantity from items object
+                    const itemsArray = Object.entries(pkg.items);
+                    if (itemsArray.length > 0 && !totalQuantity) {
+                        totalQuantity = itemsArray.reduce((sum, [_, quantity]) => sum + quantity, 0);
+                    }
+                }
+            } else if (pkg.items_display) {
+                // Fallback to items_display but extract only product names
+                const productMatches = pkg.items_display.match(/([^:,]+)(?=:)/g);
+                if (productMatches) {
+                    itemsInfo = productMatches.map(match => match.trim()).join(', ');
+                } else {
+                    itemsInfo = pkg.items_display;
+                }
+            } else if (pkg.product) {
+                // Fallback to single product field
+                itemsInfo = pkg.product;
+            }
+
+            // Get customer information - KEEP ONLY CUSTOMER NAME, REMOVE ID
+            const customerName = pkg.customer_name || pkg.customers?.name || 'Bilinmeyen Müşteri';
+            
+            // Format dates properly
+            const createdDate = pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A';
+            const updatedDate = pkg.updated_at ? new Date(pkg.updated_at).toLocaleDateString('tr-TR') : 'N/A';
+
+            // SIMPLIFIED COLUMNS - Only essential fields
+            return {
+                'PAKET NO': pkg.package_no || 'N/A',
+                'MÜŞTERİ': customerName, // ONLY CUSTOMER NAME, NO ID
+                'ÜRÜNLER': itemsInfo, // ONLY PRODUCT NAMES, NO DETAILS
+                'TOPLAM ADET': totalQuantity,
+                'DURUM': pkg.status === 'sevk-edildi' ? 'SEVK EDİLDİ' : 'BEKLEMEDE',
+                'PAKETLEYEN': pkg.packer || 'Bilinmiyor',
+                'OLUŞTURULMA TARİHİ': createdDate,
+                'GÜNCELLENME TARİHİ': updatedDate,
+                'İSTASYON': pkg.station_name || pkg.workspace_id || 'Default'
+            };
+        });
+
+        return excelData;
+    },
+
+    // Create professional Excel file with WIDER columns and proper styling
+    exportToProfessionalExcel: function(packages, filename = null) {
+        try {
+            if (!packages || packages.length === 0) {
+                showAlert('Excel için paket verisi bulunamadı', 'warning');
+                return false;
+            }
+
+            const excelData = this.convertToProfessionalExcel(packages);
+            
+            if (!filename) {
+                const date = new Date().toISOString().split('T')[0];
+                filename = `ProClean_Paketler_${date}_${getCurrentWorkspaceName()}.xlsx`;
+            }
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            
+            // Convert data to worksheet
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            
+            // SET WIDER COLUMN WIDTHS FOR BETTER VISIBILITY
+            const colWidths = [
+                { wch: 60 }, // PAKET NO - WIDER
+                { wch: 40 }, // MÜŞTERİ - WIDER
+                { wch: 35 }, // ÜRÜNLER - MUCH WIDER for product names
+                { wch: 10 }, // TOPLAM ADET
+                { wch: 40 }, // DURUM
+                { wch: 40 }, // PAKETLEYEN - WIDER
+                { wch: 40 }, // OLUŞTURULMA TARİHİ
+                { wch: 40 }, // GÜNCELLENME TARİHİ
+                { wch: 5 }  // İSTASYON
+            ];
+            ws['!cols'] = colWidths;
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Paketler');
+
+            // Create header style
+            if (ws['!ref']) {
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                
+                // Style header row (row 0)
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cell_address = { c: C, r: 0 };
+                    const cell_ref = XLSX.utils.encode_cell(cell_address);
+                    if (!ws[cell_ref]) continue;
+                    
+                    // Make header cells bold with professional styling
+                    if (!ws[cell_ref].s) {
+                        ws[cell_ref].s = {};
+                    }
+                    ws[cell_ref].s = {
+                        font: { 
+                            bold: true, 
+                            color: { rgb: "FFFFFF" },
+                            sz: 12 // Slightly larger font
+                        },
+                        fill: { 
+                            fgColor: { rgb: "2F75B5" } 
+                        },
+                        alignment: { 
+                            horizontal: "center", 
+                            vertical: "center",
+                            wrapText: true
+                        },
+                        border: {
+                            top: { style: "thin", color: { rgb: "1F5B95" } },
+                            left: { style: "thin", color: { rgb: "1F5B95" } },
+                            bottom: { style: "thin", color: { rgb: "1F5B95" } },
+                            right: { style: "thin", color: { rgb: "1F5B95" } }
+                        }
+                    };
+                }
+
+                // Style data rows for better readability
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cell_address = { c: C, r: R };
+                        const cell_ref = XLSX.utils.encode_cell(cell_address);
+                        if (!ws[cell_ref]) continue;
+                        
+                        if (!ws[cell_ref].s) {
+                            ws[cell_ref].s = {};
+                        }
+                        
+                        // Set text wrapping for better visibility
+                        ws[cell_ref].s.alignment = {
+                            wrapText: true,
+                            vertical: "top"
+                        };
+                        
+                        // Alternate row coloring for better readability
+                        if (R % 2 === 0) {
+                            ws[cell_ref].s.fill = { fgColor: { rgb: "F8F9FA" } };
+                        }
+                        
+                        // Add borders to all cells
+                        ws[cell_ref].s.border = {
+                            top: { style: "thin", color: { rgb: "E0E0E0" } },
+                            left: { style: "thin", color: { rgb: "E0E0E0" } },
+                            bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+                            right: { style: "thin", color: { rgb: "E0E0E0" } }
+                        };
+                    }
+                }
+
+                // Add auto filters
+                ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+                
+                // Freeze header row
+                ws['!freeze'] = { x: 0, y: 1 };
+            }
+
+            // Write and download file
+            XLSX.writeFile(wb, filename);
+            
+            showAlert(`✅ ${packages.length} paket profesyonel Excel formatında dışa aktarıldı`, 'success');
+            console.log('Professional Excel exported:', packages.length, 'packages');
+            
+            return true;
+
+        } catch (error) {
+            console.error('Professional Excel export error:', error);
+            showAlert('Excel dışa aktarım hatası: ' + error.message, 'error');
+            return false;
+        }
+    },
+
+    // Enhanced CSV export with simplified columns and better formatting
+    exportToProfessionalCSV: function(packages, filename = null) {
+        try {
+            if (!packages || packages.length === 0) {
+                showAlert('CSV için paket verisi bulunamadı', 'warning');
+                return false;
+            }
+
+            const excelData = this.convertToProfessionalExcel(packages);
+            
+            if (!filename) {
+                const date = new Date().toISOString().split('T')[0];
+                filename = `ProClean_Paketler_${date}_${getCurrentWorkspaceName()}.csv`;
+            }
+
+            // Convert to CSV with proper formatting
+            const headers = Object.keys(excelData[0]);
+            const csvContent = [
+                headers.join(','), // Header row
+                ...excelData.map(row => 
+                    headers.map(header => {
+                        const value = row[header];
+                        // Escape commas and quotes in values
+                        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                            return `"${value.replace(/"/g, '""')}"`;
+                        }
+                        return value;
+                    }).join(',')
+                )
+            ].join('\n');
+
+            // Create and download CSV file
+            const blob = new Blob(['\uFEFF' + csvContent], { 
+                type: 'text/csv;charset=utf-8;' 
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showAlert(`✅ ${packages.length} paket CSV formatında dışa aktarıldı`, 'success');
+            return true;
+
+        } catch (error) {
+            console.error('Professional CSV export error:', error);
+            showAlert('CSV dışa aktarım hatası: ' + error.message, 'error');
+            return false;
+        }
+    }
+};
 
 // INITIALIZE SUPABASE - uses direct key (from localStorage or hardcoded above)
 // Singleton pattern with safe fallback to Excel mode if no key
@@ -212,6 +719,99 @@ function initializeSupabase() {
     }
 }
 
+async function initializeExcelStorage() {
+    try {
+        // Initialize daily file system
+        await ExcelStorage.cleanupOldFiles(); // Clean up old files first
+        await ExcelStorage.readFile(); // Ensure today's file exists
+        
+        // Load from current workspace using daily file system
+        const packages = await ExcelJS.readFile();
+        excelPackages = packages;
+        
+        console.log(`Excel packages loaded from daily file:`, excelPackages.length);
+        
+        // Sync queue'yu yükle
+        const savedQueue = localStorage.getItem('excelSyncQueue');
+        excelSyncQueue = savedQueue ? JSON.parse(savedQueue) : [];
+        
+        return excelPackages;
+    } catch (error) {
+        console.error('Excel storage init error:', error);
+        excelPackages = [];
+        return [];
+    }
+}
+
+// REPLACE the existing saveToExcel function with this:
+async function saveToExcel(packageData) {
+    try {
+        // Enhanced package data with customer and product info
+        const enhancedPackageData = {
+            ...packageData,
+            // Ensure customer info is included
+            customer_name: packageData.customer_name || selectedCustomer?.name || 'Bilinmeyen Müşteri',
+            customer_code: selectedCustomer?.code || '',
+            // Ensure product/items info is properly formatted
+            items: packageData.items || currentPackage.items || {},
+            // Add date info for daily file management
+            excel_export_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            // Convert items to readable string for Excel
+            items_display: packageData.items ? 
+                Object.entries(packageData.items).map(([product, quantity]) => 
+                    `${product}: ${quantity} adet`
+                ).join(', ') : 'Ürün bilgisi yok',
+            // Add workspace info
+            workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default',
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
+        };
+        
+        // Read current daily file
+        const currentPackages = await ExcelJS.readFile();
+        
+        // Yeni paketi ekle veya güncelle
+        const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
+        if (existingIndex >= 0) {
+            currentPackages[existingIndex] = enhancedPackageData;
+        } else {
+            currentPackages.push(enhancedPackageData);
+        }
+        
+        // Save to daily file
+        const success = await ExcelJS.writeFile(currentPackages);
+        
+        if (success) {
+            // Global excelPackages değişkenini güncelle
+            excelPackages = currentPackages;
+            console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
+            return true;
+        }
+        return false;
+        
+    } catch (error) {
+        console.error('Save to Excel error:', error);
+        return false;
+    }
+}
+
+async function deleteFromExcel(packageId) {
+    try {
+        const currentPackages = await ExcelJS.readFile();
+        const filteredPackages = currentPackages.filter(p => p.id !== packageId);
+        
+        const success = await ExcelJS.writeFile(filteredPackages);
+        
+        if (success) {
+            excelPackages = filteredPackages;
+            console.log('Package deleted from Excel daily file');
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Delete from Excel error:', error);
+        return false;
+    }
+}
 
 // REPLACE the existing syncExcelWithSupabase function with this:
 async function syncExcelWithSupabase() {
@@ -383,6 +983,59 @@ async function restoreSyncBackup() {
         console.error('❌ Failed to restore sync backup:', error);
     }
 }
+
+// Enhanced addToSyncQueue with backup
+function addToSyncQueue(operationType, data) {
+    // Create operation fingerprint for deduplication
+    const operationFingerprint = `${operationType}-${data.id}`;
+    
+    // Check for duplicates
+    const isDuplicate = excelSyncQueue.some(op => 
+        op.fingerprint === operationFingerprint && op.status !== 'failed'
+    );
+    
+    if (isDuplicate) {
+        console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
+        return;
+    }
+
+    // Remove any older operations for the same data ID
+    excelSyncQueue = excelSyncQueue.filter(op => 
+        !(op.data.id === data.id && op.type !== operationType)
+    );
+
+    // Create enhanced operation object
+    const enhancedOperation = {
+        type: operationType,
+        data: data,
+        timestamp: new Date().toISOString(),
+        fingerprint: operationFingerprint,
+        workspace_id: getCurrentWorkspaceId(),
+        attempts: 0,
+        maxAttempts: 3,
+        status: 'pending',
+        lastAttempt: null,
+        lastError: null
+    };
+
+    // Create backup before modifying queue
+    localStorage.setItem('excelSyncQueue_backup', JSON.stringify(excelSyncQueue));
+    
+    // Add new operation
+    excelSyncQueue.push(enhancedOperation);
+    
+    // Limit queue size to prevent memory issues
+    if (excelSyncQueue.length > 1000) {
+        console.warn('📦 Sync queue too large, removing oldest failed operations');
+        excelSyncQueue = excelSyncQueue
+            .filter(op => op.status !== 'failed')
+            .slice(-500); // Keep last 500 non-failed operations
+    }
+
+    localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+    console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
+}
+
 
 
 
@@ -1785,6 +2438,403 @@ function onRFIDScan(tag_id, code, customer, step) {
                 showAlert('Stok güncellenirken hata oluştu', 'error');
             }
         }
+
+
+
+
+
+// Enhanced viewDailyFile function
+async function viewDailyFile(dateString) {
+    try {
+        const fileName = `packages_${dateString}.json`;
+        const fileData = localStorage.getItem(fileName);
+        
+        if (!fileData) {
+            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
+            return;
+        }
+        
+        const packages = JSON.parse(fileData);
+        
+        // Remove existing modal if any
+        const existingModal = document.querySelector('.daily-file-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create a modal to show file details
+        const modal = document.createElement('div');
+        modal.className = 'daily-file-modal';
+        modal.style.cssText = `
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(0,0,0,0.8); 
+            display: flex; 
+            justify-content: center;
+            align-items: center; 
+            z-index: 10000;
+            font-family: inherit;
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: white; 
+                padding: 24px; 
+                border-radius: 8px; 
+                max-width: 90%; 
+                max-height: 90%; 
+                width: 900px; 
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0;">
+                    <h3 style="margin: 0; color: #333;">
+                        <i class="fas fa-file-excel" style="color: #217346;"></i> 
+                        ${dateString} - Paket Detayları
+                    </h3>
+                    <button onclick="closeDailyFileModal()" 
+                            style="
+                                background: none; 
+                                border: none; 
+                                font-size: 24px; 
+                                cursor: pointer; 
+                                color: #666;
+                                padding: 0;
+                                width: 30px;
+                                height: 30px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">
+                        ×
+                    </button>
+                </div>
+                
+                <div style="
+                    margin-bottom: 16px; 
+                    padding: 12px; 
+                    background: #f5f5f5; 
+                    border-radius: 4px;
+                    flex-shrink: 0;
+                ">
+                    <strong>Özet:</strong> 
+                    <span style="color: #2196F3; font-weight: bold;">${packages.length} paket</span>, 
+                    <span style="color: #4CAF50; font-weight: bold;">${packages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)} adet</span>
+                </div>
+                
+                <div style="
+                    flex: 1; 
+                    overflow: auto; 
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                ">
+                    <table style="
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        font-size: 0.9em;
+                        min-width: 600px;
+                    ">
+                        <thead style="background: #f0f0f0; position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Paket No</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Müşteri</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Ürünler</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: center; background: #e0e0e0;">Adet</th>
+                                <th style="padding: 12px; border: 1px solid #ddd; text-align: left; background: #e0e0e0;">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${packages.map(pkg => `
+                                <tr style="transition: background-color 0.2s ease;" 
+                                    onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                                    onmouseout="this.style.backgroundColor='transparent'">
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 500;">${pkg.package_no || 'N/A'}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">${pkg.customer_name || 'N/A'}</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; max-width: 250px; word-wrap: break-word;">
+                                        ${pkg.items_display || pkg.product || 'N/A'}
+                                    </td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #2196F3;">
+                                        ${pkg.total_quantity || 0}
+                                    </td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">
+                                        <span style="
+                                            padding: 4px 8px;
+                                            border-radius: 12px;
+                                            font-size: 0.8em;
+                                            font-weight: 500;
+                                            ${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 
+                                                'background: #4CAF50; color: white;' : 
+                                                'background: #FF9800; color: white;'
+                                            }
+                                        ">
+                                            ${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 'Sevk Edildi' : 'Beklemede'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                            ${packages.length === 0 ? `
+                                <tr>
+                                    <td colspan="5" style="padding: 40px; text-align: center; color: #666; border: 1px solid #ddd;">
+                                        <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; opacity: 0.5;"></i><br>
+                                        Bu dosyada paket bulunmamaktadır
+                                    </td>
+                                </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="
+                    margin-top: 16px; 
+                    text-align: center;
+                    flex-shrink: 0;
+                    padding-top: 16px;
+                    border-top: 1px solid #eee;
+                ">
+                    <button onclick="exportDailyFile('${dateString}')" 
+                            class="btn btn-success"
+                            style="margin-right: 8px;">
+                        <i class="fas fa-download"></i> CSV Olarak İndir
+                    </button>
+                    <button onclick="printDailyFile('${dateString}')" 
+                            class="btn btn-primary"
+                            style="margin-right: 8px;">
+                        <i class="fas fa-print"></i> Yazdır
+                    </button>
+                    <button onclick="closeDailyFileModal()" 
+                            class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Kapat
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close modal with Escape key
+        const closeModal = () => modal.remove();
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') closeModal();
+        };
+        
+        document.addEventListener('keydown', handleEscape);
+        modal._handleEscape = handleEscape;
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error viewing daily file:', error);
+        showAlert('Dosya görüntülenirken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Close modal function
+function closeDailyFileModal() {
+    const modal = document.querySelector('.daily-file-modal');
+    if (modal) {
+        if (modal._handleEscape) {
+            document.removeEventListener('keydown', modal._handleEscape);
+        }
+        modal.remove();
+    }
+}
+
+// Enhanced export function
+async function exportDailyFile(dateString) {
+    try {
+        showAlert('CSV dosyası hazırlanıyor...', 'info');
+        
+        const fileName = `packages_${dateString}.json`;
+        const fileData = localStorage.getItem(fileName);
+        
+        if (!fileData) {
+            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
+            return;
+        }
+        
+        const packages = JSON.parse(fileData);
+        
+        if (packages.length === 0) {
+            showAlert('İndirilecek paket bulunamadı', 'warning');
+            return;
+        }
+        
+        // Create CSV content
+        const headers = ['Paket No', 'Müşteri', 'Müşteri Kodu', 'Ürünler', 'Toplam Adet', 'Durum', 'Paketleyen', 'Oluşturulma Tarihi'];
+        const csvRows = [headers.join(',')];
+        
+        packages.forEach(pkg => {
+            const row = [
+                `"${pkg.package_no || ''}"`,
+                `"${pkg.customer_name || ''}"`,
+                `"${pkg.customer_code || ''}"`,
+                `"${pkg.items_display || pkg.product || ''}"`,
+                pkg.total_quantity || 0,
+                `"${pkg.status === 'sevk-edildi' || pkg.status === 'shipped' ? 'Sevk Edildi' : 'Beklemede'}"`,
+                `"${pkg.packer || ''}"`,
+                `"${new Date(pkg.created_at).toLocaleDateString('tr-TR')}"`
+            ];
+            csvRows.push(row.join(','));
+        });
+        
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `paketler_${dateString}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showAlert(`CSV dosyası indirildi: ${packages.length} paket`, 'success');
+        
+    } catch (error) {
+        console.error('Error exporting daily file:', error);
+        showAlert('CSV dosyası indirilirken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Print function
+function printDailyFile(dateString) {
+    try {
+        const modal = document.querySelector('.daily-file-modal');
+        if (!modal) {
+            showAlert('Önce dosyayı görüntüleyin', 'warning');
+            return;
+        }
+        
+        const printContent = modal.querySelector('div').cloneNode(true);
+        const printWindow = window.open('', '_blank', 'width=1000,height=700');
+        
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Paket Raporu - ${dateString}</title>
+                <style>
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 20px; 
+                        color: #333;
+                    }
+                    h1 { 
+                        color: #2c3e50; 
+                        border-bottom: 2px solid #3498db;
+                        padding-bottom: 10px;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin: 20px 0;
+                    }
+                    th, td { 
+                        border: 1px solid #ddd; 
+                        padding: 12px; 
+                        text-align: left;
+                    }
+                    th { 
+                        background-color: #f8f9fa; 
+                        font-weight: bold;
+                    }
+                    tr:nth-child(even) {
+                        background-color: #f8f9fa;
+                    }
+                    .summary {
+                        background: #e3f2fd;
+                        padding: 15px;
+                        border-radius: 5px;
+                        margin: 15px 0;
+                        font-weight: bold;
+                    }
+                    @media print {
+                        body { margin: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>📦 Paket Raporu - ${dateString}</h1>
+                <div class="summary">
+                    Toplam: ${printContent.querySelector('div:nth-child(2)').textContent.replace('Özet:', '').trim()}
+                </div>
+                ${printContent.querySelector('table').outerHTML}
+                <div class="no-print" style="margin-top: 20px; text-align: center;">
+                    <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        🖨️ Yazdır
+                    </button>
+                    <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                        ❌ Kapat
+                    </button>
+                </div>
+                <script>
+                    window.onload = function() {
+                        // Auto-print if needed
+                        // window.print();
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        
+    } catch (error) {
+        console.error('Error printing daily file:', error);
+        showAlert('Yazdırma sırasında hata oluştu', 'error');
+    }
+}
+
+// Enhanced cleanup function
+async function cleanupOldFiles() {
+    try {
+        if (!confirm('7 günden eski dosyalar silinecek. Emin misiniz?')) {
+            return;
+        }
+        
+        showAlert('Eski dosyalar temizleniyor...', 'info');
+        
+        // Call ExcelStorage cleanup
+        if (typeof ExcelStorage.cleanupOldFiles === 'function') {
+            await ExcelStorage.cleanupOldFiles();
+        } else {
+            // Fallback cleanup
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('packages_')) {
+                    const dateStr = key.replace('packages_', '').replace('.json', '');
+                    const fileDate = new Date(dateStr);
+                    
+                    if (fileDate < oneWeekAgo) {
+                        localStorage.removeItem(key);
+                        console.log(`🗑️ Removed old file: ${key}`);
+                    }
+                }
+            }
+        }
+        
+        // Refresh the reports table
+        await populateReportsTable();
+        showAlert('Eski dosyalar başarıyla temizlendi', 'success');
+        
+    } catch (error) {
+        console.error('Error cleaning up old files:', error);
+        showAlert('Dosya temizleme sırasında hata oluştu: ' + error.message, 'error');
+    }
+}
 
 // Initialize reports when tab is shown
 function initializeReportsTab() {
