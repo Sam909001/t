@@ -767,31 +767,54 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
 
 
-        <!-- Veri Yönetimi -->
-        <div class="settings-section">
-            <h3>Veri Yönetimi</h3>
-            
-            
-           <div class="settings-option">
-    <label>Veri Yedekleme</label>
-    <div style="display: flex; gap: 10px;">
-        <button class="btn btn-primary" onclick="exportData('json')">JSON İndir</button>
-        <button class="btn btn-primary" onclick="exportData('excel')">Excel İndir</button>
-        <button class="btn btn-primary" id="excelPreviewBtn" onclick="previewExcelData()" style="background-color: #217346; border-color: #217346; color: white;">
-            <i class="fas fa-file-excel"></i> Excel Önizleme
+       <!-- Veri Yönetimi -->
+<div class="settings-section">
+    <h3>Veri Yönetimi</h3>
+    
+    <!-- Veri Yedekleme Section -->
+    <div class="settings-option">
+        <label>Veri Yedekleme</label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="exportData('json')">
+                <i class="fas fa-file-code"></i> JSON İndir
+            </button>
+            <button class="btn btn-primary" onclick="exportData('excel')">
+                <i class="fas fa-file-excel"></i> Excel İndir
+            </button>
+            <button class="btn btn-primary" id="excelPreviewBtn" onclick="previewExcelData()" style="background-color: #217346; border-color: #217346; color: white;">
+                <i class="fas fa-eye"></i> Excel Önizleme
+            </button>
+        </div>
+    </div>
+
+    <!-- Excel İşlemleri Section -->
+    <div class="settings-option">
+        <label>Excel İşlemleri</label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="refreshExcelBtn" class="btn btn-secondary">
+                <i class="fas fa-sync-alt"></i> Güncelle
+            </button>
+            <button id="clearExcelBtn" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Temizle
+            </button>
+        </div>
+        <p style="font-size: 12px; color: #666; margin-top: 5px; margin-bottom: 0;">
+            Güncelle: Verileri yeniler | Temizle: Tüm Excel verilerini siler (şifre gerekli)
+        </p>
+    </div>
+    
+    <!-- Diğer Temizleme İşlemleri -->
+    <div class="settings-option">
+        <label>Diğer Temizleme İşlemleri</label>
+        <button class="btn btn-danger" onclick="clearDataWithAuth()">
+            <i class="fas fa-broom"></i> Yerel Verileri Temizle
         </button>
-        <button id="refreshExcelBtn" class="btn btn-secondary">Güncelle</button>
-        <button id="clearExcelBtn" class="btn btn-danger">Temizle</button>
+        <p style="font-size: 12px; color: #666; margin-top: 5px; margin-bottom: 0;">
+            Uygulama önbelleğini ve geçici verileri temizler
+        </p>
     </div>
 </div>
-
         
-            <div class="settings-option">
-                <label>Verileri Temizle</label>
-                <button class="btn btn-danger" onclick="clearDataWithAuth()">Yerel Verileri Temizle</button>
-            </div>
-        </div>
-
         <!-- Sistem Bilgileri -->
         <div class="settings-section">
             <h3>Sistem Bilgileri</h3>
