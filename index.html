@@ -140,94 +140,95 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
 
         <div class="tab-content">
-            <div class="tab-pane active" id="packagingTab">
-                <div class="packaging-header">
-                    <div class="customer-info">
-                        <div class="info-group">
-                            <label for="customerSelect">Müşteri Seçimi</label>
-                            <select id="customerSelect" required>
-                                <option value="">Müşteri seçin...</option>
-                            </select>
-                            <div class="validation-error" id="customerError">Müşteri seçimi zorunludur</div>
-                        </div>
-                        <div class="info-group">
-                            <label for="personnelSelect">Personel</label>
-                            <select id="personnelSelect" required>
-                                <option value="">Personel seçin...</option>
-                            </select>
-                            <div class="validation-error" id="personnelError">Personel seçimi zorunludur</div>
-                        </div>
-                        <div class="info-group">
-                            <label>Tarih</label>
-                            <span id="currentDate">-</span>
-                        </div>
+    <!-- Packaging Tab -->
+    <div class="tab-pane active" id="packagingTab">
+        <div class="packaging-header">
+            <div class="customer-info">
+                <div class="info-group">
+                    <label for="customerSelect">Müşteri Seçimi</label>
+                    <select id="customerSelect" required>
+                        <option value="">Müşteri seçin...</option>
+                    </select>
+                    <div class="validation-error" id="customerError">Müşteri seçimi zorunludur</div>
+                </div>
+                <div class="info-group">
+                    <label for="personnelSelect">Personel</label>
+                    <select id="personnelSelect" required>
+                        <option value="">Personel seçin...</option>
+                    </select>
+                    <div class="validation-error" id="personnelError">Personel seçimi zorunludur</div>
+                </div>
+                <div class="info-group">
+                    <label>Tarih</label>
+                    <span id="currentDate">-</span>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button type="button" class="btn btn-primary" onclick="showAllCustomers()">Müşteri Yönetimi</button>
+                <button type="button" class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
+                <button type="button" class="btn btn-success" onclick="sendToRamp()">Konteynere Ekle</button>
+            </div>
+        </div>
+
+        <div class="packaging-content">
+            <!-- LEFT COLUMN: Product Buttons Only -->
+            <div class="barcode-section">
+                <div class="quick-buttons">
+                    <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
+                        <span>Büyük çarşaf</span>
+                        <div class="quantity-badge" id="Büyük Çarşaf-quantity">0</div>
                     </div>
-                    <div class="action-buttons">
-                        <button type="button" class="btn btn-primary" onclick="showAllCustomers()">Müşteri Yönetimi</button>
-                        <button type="button" class="btn btn-warning" onclick="generateDailyReport()">İş Sonu Raporu</button>
-                        <button type="button" class="btn btn-success" onclick="sendToRamp()">Konteynere Ekle</button>
+                    <div class="quick-btn" onclick="openQuantityModal('Çarşaf')" data-product="Çarşaf">
+                        <span>Çarşaf</span>
+                        <div class="quantity-badge" id="Çarşaf-quantity">0</div>
+                    </div>
+                    <div class="quick-btn" onclick="openQuantityModal('Büyük Nevresim')" data-product="Büyük Nevresim">
+                        <span>Büyük Nevresim</span>
+                        <div class="quantity-badge" id="Büyük Nevresim-quantity">0</div>
+                    </div>
+                    <div class="quick-btn" onclick="openQuantityModal('Nevresim')" data-product="Nevresim">
+                        <span>Nevresim</span>
+                        <div class="quantity-badge" id="Nevresim-quantity">0</div>
+                    </div>
+                    <div class="quick-btn" onclick="openQuantityModal('Büyük Havlu')" data-product="Büyük Havlu">
+                        <span>Büyük Havlu</span>
+                        <div class="quantity-badge" id="Büyük Havlu-quantity">0</div>
+                    </div>
+                    <div class="quick-btn" onclick="openQuantityModal('Havlu')" data-product="Havlu">
+                        <span>Havlu</span>
+                        <div class="quantity-badge" id="Havlu-quantity">0</div>
+                    </div>
+                    <div class="quick-btn" onclick="openQuantityModal('Yastık')" data-product="Yastık">
+                        <span>Yastık</span>
+                        <div class="quantity-badge" id="Yastık-quantity">0</div>
+                    </div>
+                    <div class="quick-btn" onclick="openQuantityModal('Yastık Kılıfı')" data-product="Yastık Kılıfı">
+                        <span>Yastık Kılıfı</span>
+                        <div class="quantity-badge" id="Yastık Kılıfı-quantity">0</div>
+                    </div>
+                    <div class="quick-btn" onclick="openQuantityModal('Alez')" data-product="Alez">
+                        <span>Alez</span>
+                        <div class="quantity-badge" id="Alez-quantity">0</div>
                     </div>
                 </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                    <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="flex: 1;">Manuel Giriş</button>
+                    <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;">Extra</button>
+                </div>
 
-               <div class="packaging-content">
-    <!-- LEFT COLUMN: Product Buttons Only -->
-    <div class="barcode-section">
-        <div class="quick-buttons">
-            <div class="quick-btn" onclick="openQuantityModal('Büyük Çarşaf')" data-product="Büyük çarşaf">
-                <span>Büyük çarşaf</span>
-                <div class="quantity-badge" id="Büyük Çarşaf-quantity">0</div>
+                <div class="status-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+                    <div class="quick-btn status-btn" id="Lekeli" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli">Lekeli</div>
+                    <div class="quick-btn status-btn" id="Yırtık" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık">Yırtık</div>
+                    <div class="quick-btn status-btn" id="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan">Çıkmayan</div>
+                    <div class="quick-btn status-btn" id="Discard" onclick="openStatusQuantityModal('Discard')" data-status="Discard">Discard</div>
+                </div>
             </div>
-            <div class="quick-btn" onclick="openQuantityModal('Çarşaf')" data-product="Çarşaf">
-                <span>Çarşaf</span>
-                <div class="quantity-badge" id="Çarşaf-quantity">0</div>
-            </div>
-            <div class="quick-btn" onclick="openQuantityModal('Büyük Nevresim')" data-product="Büyük Nevresim">
-                <span>Büyük Nevresim</span>
-                <div class="quantity-badge" id="Büyük Nevresim-quantity">0</div>
-            </div>
-            <div class="quick-btn" onclick="openQuantityModal('Nevresim')" data-product="Nevresim">
-                <span>Nevresim</span>
-                <div class="quantity-badge" id="Nevresim-quantity">0</div>
-            </div>
-            <div class="quick-btn" onclick="openQuantityModal('Büyük Havlu')" data-product="Büyük Havlu">
-                <span>Büyük Havlu</span>
-                <div class="quantity-badge" id="Büyük Havlu-quantity">0</div>
-            </div>
-            <div class="quick-btn" onclick="openQuantityModal('Havlu')" data-product="Havlu">
-                <span>Havlu</span>
-                <div class="quantity-badge" id="Havlu-quantity">0</div>
-            </div>
-            <div class="quick-btn" onclick="openQuantityModal('Yastık')" data-product="Yastık">
-                <span>Yastık</span>
-                <div class="quantity-badge" id="Yastık-quantity">0</div>
-            </div>
-            <div class="quick-btn" onclick="openQuantityModal('Yastık Kılıfı')" data-product="Yastık Kılıfı">
-                <span>Yastık Kılıfı</span>
-                <div class="quantity-badge" id="Yastık Kılıfı-quantity">0</div>
-            </div>
-            <div class="quick-btn" onclick="openQuantityModal('Alez')" data-product="Alez">
-                <span>Alez</span>
-                <div class="quantity-badge" id="Alez-quantity">0</div>
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 10px; margin-top: 1rem;">
-            <button type="button" class="btn btn-primary" onclick="openManualEntry()" style="flex: 1;">Manuel Giriş</button>
-            <button type="button" class="btn btn-secondary" onclick="openExtraModal()" style="flex: 1;">Extra</button>
-        </div>
 
-        <div class="status-buttons" style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-            <div class="quick-btn status-btn" id="Lekeli" onclick="openStatusQuantityModal('Lekeli')" data-status="Lekeli">Lekeli</div>
-            <div class="quick-btn status-btn" id="Yırtık" onclick="openStatusQuantityModal('Yırtık')" data-status="Yırtık">Yırtık</div>
-            <div class="quick-btn status-btn" id="Çıkmayan" onclick="openStatusQuantityModal('Çıkmayan')" data-status="Çıkmayan">Çıkmayan</div>
-            <div class="quick-btn status-btn" id="Discard" onclick="openStatusQuantityModal('Discard')" data-status="Discard">Discard</div>
-        </div>
-    </div>
-
-    <!-- MIDDLE COLUMN: Bekleyen Paketler Table -->
-    <div class="pending-packages">
-        <h3>Bekleyen Paketler</h3>
-    <table class="package-table">
+            <!-- MIDDLE COLUMN: Bekleyen Paketler Table -->
+            <div class="pending-packages">
+                <h3>Bekleyen Paketler</h3>
+                <table class="package-table">
                     <thead>
                         <tr>
                             <th>
@@ -246,39 +247,163 @@ document.addEventListener("DOMContentLoaded", function() {
                         <!-- Data will be populated here -->
                     </tbody>
                 </table>
-           </div>
-         </div>
-    <!-- RIGHT COLUMN: Barcode + Package Details + Scanner Button -->
-    <div class="package-details">
-        <!-- Barcode Section at Top -->
-        <h3>Barkod Okuma</h3>
-        <div class="barcode-input">
-            <input type="text" id="barcodeInput" placeholder="Barkod okutun veya girin" autofocus>
-            <button type="button" onclick="processBarcode()"><i class="fas fa-search"></i></button>
+            </div>
+
+            <!-- RIGHT COLUMN: Barcode + Package Details + Scanner Button -->
+            <div class="package-details">
+                <!-- Barcode Section at Top -->
+                <h3>Barkod Okuma</h3>
+                <div class="barcode-input">
+                    <input type="text" id="barcodeInput" placeholder="Barkod okutun veya girin" autofocus>
+                    <button type="button" onclick="processBarcode()"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="barcodeResult">
+                    <div id="scannedBarcodes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+                </div>
+
+                <!-- Package Details Section -->
+                <h3 style="margin-top: 1.5rem;">Paket Detayları</h3>
+                <div id="packageDetailContent">
+                    <p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>
+                </div>
+                
+                <div class="package-actions">
+                    <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
+                    <button type="button" class="btn btn-warning" id="printBarcodeBtn">Etiket Yazdır</button>
+                    <button type="button" class="btn btn-danger" 
+                        onclick="deletePackageWithAuth()" 
+                        data-i18n="general.delete">Sil</button>
+
+                    <!-- Scanner Button at Bottom -->
+                    <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:1rem;" id="scannerToggle">
+                        <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
+                    </button>
+                </div>
+            </div>
         </div>
-        <div id="barcodeResult">
-            <div id="scannedBarcodes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+    </div> <!-- End of packagingTab -->
+
+    <!-- Shipping Tab -->
+    <div class="tab-pane" id="shippingTab">
+        <div class="packaging-header">
+            <div class="customer-info">
+                <div class="info-group">
+                    <label for="shippingFilter">Durum Filtresi</label>
+                    <select id="shippingFilter" onchange="filterShipping()">
+                        <option value="all">Tümü</option>
+                        <option value="beklemede">Beklemede</option>
+                        <option value="sevk-edildi">Sevk Edildi</option>
+                    </select>
+                </div>
+                <div class="info-group">
+                    <label for="containerSearch">Konteyner Ara</label>
+                    <input type="text" id="containerSearch" placeholder="Konteyner no..." oninput="searchContainers()">
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button type="button" class="btn btn-primary" onclick="createNewContainer()">Yeni Konteyner</button>
+                <button type="button" class="btn btn-warning" onclick="loadCurrentContainer()">Mevcut Konteyner</button>
+                <button type="button" class="btn btn-danger" onclick="deleteContainerWithAuth()">Konteyner Sil</button>
+            </div>
         </div>
 
-        <!-- Package Details Section -->
-        <h3 style="margin-top: 1.5rem;">Paket Detayları</h3>
-        <div id="packageDetailContent">
-            <p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>
+        <div id="shippingFolders">
+            <!-- Customer folders will be populated here -->
         </div>
-        
-        <div class="package-actions">
-            <button type="button" class="btn btn-success" onclick="completePackage()">Paketle</button>
-            <button type="button" class="btn btn-warning" id="printBarcodeBtn">Etiket Yazdır</button>
-       <button type="button" class="btn btn-danger" 
-        onclick="deletePackageWithAuth()" 
-        data-i18n="general.delete">Sil</button>
+    </div> <!-- End of shippingTab -->
 
-        <!-- Scanner Button at Bottom -->
-        <button type="button" class="btn btn-secondary" onclick="toggleScannerMode()" style="width:100%; margin-top:1rem;" id="scannerToggle">
-            <i class="fas fa-camera"></i> Barkod Tarayıcıyı Aç
-        </button>
-    </div>
-</div>
+    <!-- Stock Tab -->
+    <div class="tab-pane" id="stockTab">
+        <div class="stock-search">
+            <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
+            <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
+            <button type="button" class="btn btn-success" onclick="exportStock()">Stokları Dışa Aktar</button>
+        </div>
+
+        <table class="stock-table">
+            <thead>
+                <tr>
+                    <th>Stok Kodu</th>
+                    <th>Ürün Adı</th>
+                    <th>Mevcut Adet</th>
+                    <th>Birim</th>
+                    <th>Durum</th>
+                    <th>Son Güncelleme</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="stockTableBody">
+                <!-- Stock data will be populated here -->
+            </tbody>
+        </table>
+
+        <div class="file-upload">
+            <h3>Stok Dosyası Yükle</h3>
+            <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
+            <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
+            <div>
+                <span id="selectedFileName"></span>
+                <div class="validation-error" id="fileError"></div>
+            </div>
+            <button type="button" class="upload-button" onclick="uploadStockFile()">
+                <i class="fas fa-upload"></i> Dosya Yükle
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
+                <i class="fas fa-download"></i> Şablon İndir
+            </button>
+        </div>
+    </div> <!-- End of stockTab -->
+
+    <!-- Reports Tab -->
+    <div class="tab-pane admin-only" id="reportsTab">
+        <div class="packaging-header">
+            <h3>Raporlar</h3>
+            <div class="action-buttons">
+                <button type="button" class="btn btn-primary" onclick="generateCustomReport()">Özel Rapor</button>
+                <button type="button" class="btn btn-warning" onclick="exportReports()">Raporları Dışa Aktar</button>
+            </div>
+        </div>
+
+        <div class="report-filters" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+            <div class="info-group">
+                <label for="reportType">Rapor Türü</label>
+                <select id="reportType">
+                    <option value="daily">Günlük Rapor</option>
+                    <option value="weekly">Haftalık Rapor</option>
+                    <option value="monthly">Aylık Rapor</option>
+                    <option value="custom">Özel Rapor</option>
+                </select>
+            </div>
+            <div class="info-group">
+                <label for="startDate">Başlangıç Tarihi</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="info-group">
+                <label for="endDate">Bitiş Tarihi</label>
+                <input type="date" id="endDate">
+            </div>
+            <div class="info-group" style="align-self: flex-end;">
+                <button type="button" class="btn btn-primary" onclick="loadReports()">Raporları Yükle</button>
+            </div>
+        </div>
+
+        <table class="stock-table">
+            <thead>
+                <tr>
+                    <th>Rapor Tarihi</th>
+                    <th>Rapor Türü</th>
+                    <th>Paket Sayısı</th>
+                    <th>Toplam Adet</th>
+                    <th>Oluşturan</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="reportsTableBody">
+                <!-- Reports will be populated here -->
+            </tbody>
+        </table>
+    </div> <!-- End of reportsTab -->
+</div> <!-- End of tab-content -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔍 DEBUG: DOM loaded');
