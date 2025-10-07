@@ -3,7 +3,7 @@ if (!window.elements) window.elements = {};
 if (!window._elementsInitialized) {
     document.addEventListener('DOMContentLoaded', function() {
         // initializeElementsObject returns a map and sets elements[...] entries
-        try {
+        try {F
             // Call the existing helper if available
             if (typeof initializeElementsObject === 'function') {
                 window.elements = initializeElementsObject();
@@ -815,52 +815,43 @@ function savePrinterSettings() {
     console.log('Printer settings saved', settings);
 }
 
+// ---------------- INIT ----------------
 document.addEventListener('DOMContentLoaded', () => {
-    try {
-        const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        loadPrinterSettings(settings);
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    loadPrinterSettings(settings);
 
-        const inputIds = [
-            'printerScaling', 'copiesNumber', 'fontName',
-            'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
-        ];
+    const inputIds = [
+        'printerScaling', 'copiesNumber', 'fontName',
+        'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
+    ];
 
-        inputIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('change', savePrinterSettings);
-            } else {
-                console.warn(`⚠️ Printer setting element not found: ${id}`);
+    inputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', savePrinterSettings);
+    });
+
+    const testBtn = document.getElementById('test-printer-yazdir');
+    if (testBtn) {
+        testBtn.addEventListener('click', async () => {
+            savePrinterSettings();
+            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+            const printerInstance = getPrinter();
+
+            const originalText = testBtn.textContent;
+            testBtn.disabled = true;
+            testBtn.textContent = 'Test Ediliyor...';
+
+            try {
+                // Use labelHeader for test print
+                await printerInstance.testPrint(settings, settings.labelHeader);
+            } catch (error) {
+                console.error('Test print error:', error);
+                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = originalText;
             }
         });
-
-        const testBtn = document.getElementById('test-printer-yazdir');
-        if (testBtn) {
-            testBtn.addEventListener('click', async () => {
-                savePrinterSettings();
-                const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-                const printerInstance = getPrinter();
-
-                const originalText = testBtn.textContent;
-                testBtn.disabled = true;
-                testBtn.textContent = 'Test Ediliyor...';
-
-                try {
-                    // Use labelHeader for test print
-                    await printerInstance.testPrint(settings, settings.labelHeader);
-                } catch (error) {
-                    console.error('Test print error:', error);
-                    showAlert('Test yazdırma başarısız: ' + error.message, 'error');
-                } finally {
-                    testBtn.disabled = false;
-                    testBtn.textContent = originalText;
-                }
-            });
-        } else {
-            console.warn('⚠️ Test print button not found');
-        }
-    } catch (error) {
-        console.error('❌ Printer settings initialization failed:', error);
     }
 });
 
@@ -4295,162 +4286,3 @@ window.clearExcelData = clearExcelData;
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeExcelButtons, 3000);
 });
-
-
-
-// BULLETPROOF OFFLINE CACHE SYSTEM
-class OfflineCache {
-    constructor() {
-        this.cacheKeys = {
-            customers: 'proclean_customers_cache_v2',
-            personnel: 'proclean_personnel_cache_v2'
-        };
-        this.cacheExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days (much longer)
-    }
-
-    // ==================== CUSTOMERS ====================
-    async getCustomers() {
-        console.log('🔄 Loading customers with offline support...');
-        
-        try {
-            // 1. Try Supabase first (if online)
-            if (supabase && navigator.onLine) {
-                console.log('📡 Fetching fresh customers from Supabase...');
-                const { data: customers, error } = await supabase
-                    .from('customers')
-                    .select('id, name, code, email, phone')
-                    .order('name', { ascending: true });
-                
-                if (!error && customers && customers.length > 0) {
-                    console.log(`✅ Loaded ${customers.length} fresh customers from Supabase`);
-                    this.setCache('customers', customers);
-                    return this.deduplicateCustomers(customers);
-                }
-            }
-            
-            // 2. Fallback to cache (works offline)
-            const cachedCustomers = this.getCache('customers');
-            if (cachedCustomers.length > 0) {
-                console.log(`📂 Loaded ${cachedCustomers.length} customers from cache (OFFLINE)`);
-                return this.deduplicateCustomers(cachedCustomers);
-            }
-            
-            // 3. Final fallback - empty array (never break)
-            console.log('ℹ️ No customers found online or offline');
-            return [];
-            
-        } catch (error) {
-            console.error('❌ Customer loading error, using cache:', error);
-            return this.getCache('customers'); // Safe offline fallback
-        }
-    }
-
-    // ==================== PERSONNEL ====================
-    async getPersonnel() {
-        console.log('🔄 Loading personnel with offline support...');
-        
-        try {
-            // 1. Try Supabase first (if online)
-            if (supabase && navigator.onLine) {
-                console.log('📡 Fetching fresh personnel from Supabase...');
-                const { data: personnel, error } = await supabase
-                    .from('personnel')
-                    .select('id, name, email, role')
-                    .order('name', { ascending: true });
-                
-                if (!error && personnel && personnel.length > 0) {
-                    console.log(`✅ Loaded ${personnel.length} fresh personnel from Supabase`);
-                    this.setCache('personnel', personnel);
-                    return personnel;
-                }
-            }
-            
-            // 2. Fallback to cache (works offline)
-            const cachedPersonnel = this.getCache('personnel');
-            if (cachedPersonnel.length > 0) {
-                console.log(`📂 Loaded ${cachedPersonnel.length} personnel from cache (OFFLINE)`);
-                return cachedPersonnel;
-            }
-            
-            // 3. Final fallback - empty array (never break)
-            console.log('ℹ️ No personnel found online or offline');
-            return [];
-            
-        } catch (error) {
-            console.error('❌ Personnel loading error, using cache:', error);
-            return this.getCache('personnel'); // Safe offline fallback
-        }
-    }
-
-    // ==================== CACHE MANAGEMENT ====================
-    setCache(type, data) {
-        try {
-            const cacheData = {
-                data: data,
-                timestamp: Date.now(),
-                count: data.length,
-                source: navigator.onLine ? 'supabase' : 'cache'
-            };
-            localStorage.setItem(this.cacheKeys[type], JSON.stringify(cacheData));
-            console.log(`💾 Cached ${data.length} ${type}`);
-        } catch (error) {
-            console.warn(`⚠️ Could not cache ${type}:`, error);
-        }
-    }
-
-    getCache(type) {
-        try {
-            const cached = localStorage.getItem(this.cacheKeys[type]);
-            if (!cached) return [];
-            
-            const cacheData = JSON.parse(cached);
-            
-            // Check if cache is expired
-            if (Date.now() - cacheData.timestamp > this.cacheExpiry) {
-                console.log(`🕒 ${type} cache expired`);
-                this.clearCache(type);
-                return [];
-            }
-            
-            return cacheData.data || [];
-        } catch (error) {
-            console.warn(`⚠️ ${type} cache read error:`, error);
-            return [];
-        }
-    }
-
-    clearCache(type) {
-        try {
-            localStorage.removeItem(this.cacheKeys[type]);
-            console.log(`🧹 ${type} cache cleared`);
-        } catch (error) {
-            console.warn(`⚠️ ${type} cache clear error:`, error);
-        }
-    }
-
-    // ==================== UTILITIES ====================
-    deduplicateCustomers(customers) {
-        const uniqueCustomers = {};
-        customers.forEach(cust => {
-            if (!uniqueCustomers[cust.code]) {
-                uniqueCustomers[cust.code] = cust;
-            }
-        });
-        return Object.values(uniqueCustomers);
-    }
-
-    // Force refresh cache (manual update)
-    async forceRefresh() {
-        console.log('🔄 Force refreshing all caches...');
-        if (navigator.onLine && supabase) {
-            await this.getCustomers(); // This will update cache
-            await this.getPersonnel(); // This will update cache
-            showAlert('Önbellek güncellendi', 'success');
-        } else {
-            showAlert('İnternet bağlantısı yok - önbellek güncel değil', 'warning');
-        }
-    }
-}
-
-// Initialize offline cache
-const offlineCache = new OfflineCache();
