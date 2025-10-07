@@ -239,178 +239,268 @@ function getStrictWorkspaceFilter(tableName) {
 
 
 
-// ==================== PERMANENT BUTTON INTEGRATION ====================
+// ==================== FIXED LABEL CUSTOMIZER INITIALIZATION ====================
 
-// Function to permanently add the button to your existing UI
-function integrateLabelCustomizerButton() {
-    console.log('🔧 Integrating label customizer button...');
-    
-    // Strategy 1: Add next to Check Status button in settings modal
-    const checkStatusBtn = findCheckStatusButton();
-    if (checkStatusBtn) {
-        addButtonNextToCheckStatus(checkStatusBtn);
-        return;
-    }
-    
-    // Strategy 2: Add to settings modal directly
-    const settingsModal = findSettingsModal();
-    if (settingsModal) {
-        addButtonToSettingsModal(settingsModal);
-        return;
-    }
-    
-    // Strategy 3: Add to main toolbar/header
-    const toolbar = findToolbar();
-    if (toolbar) {
-        addButtonToToolbar(toolbar);
-        return;
-    }
-    
-    // Strategy 4: Last resort - fixed position but permanent
-    createPermanentButton();
-}
+// Ensure labelCustomizer is available globally before anything else
+window.labelCustomizer = window.labelCustomizer || null;
 
-// Find the Check Status button
-function findCheckStatusButton() {
-    const selectors = [
-        '#checkStatusBtn',
-        '[onclick*="checkStatus"]',
-        'button:contains("Durum")',
-        'button:contains("Check Status")',
-        'button:contains("Status")',
-        '.status-btn',
-        '.check-status-btn'
-    ];
+class LabelCustomizer {
+    constructor() {
+        this.useCustomText = false;
+        this.customText = '';
+        this.storageKey = 'label_customizer_settings';
+        this.logoBase64 = 'YOUR_BASE64_LOGO_HERE';
+        
+        this.loadSettings();
+        this.initializeUI();
+    }
     
-    for (let selector of selectors) {
-        if (selector.includes('contains')) {
-            // Text-based search
-            const buttons = document.querySelectorAll('button');
-            for (let btn of buttons) {
-                if (btn.textContent.includes('Durum') || btn.textContent.includes('Check Status') || btn.textContent.includes('Status')) {
-                    return btn;
-                }
+    // ... (keep all your existing LabelCustomizer methods exactly as they were)
+    // Load settings from localStorage
+    loadSettings() {
+        try {
+            const saved = localStorage.getItem(this.storageKey);
+            if (saved) {
+                const settings = JSON.parse(saved);
+                this.useCustomText = settings.useCustomText || false;
+                this.customText = settings.customText || '';
             }
-        } else {
-            const element = document.querySelector(selector);
-            if (element) return element;
+        } catch (error) {
+            console.error('Error loading label settings:', error);
         }
     }
-    return null;
-}
-
-// Find settings modal
-function findSettingsModal() {
-    const selectors = [
-        '#settingsModal',
-        '.settings-modal',
-        '[data-modal="settings"]',
-        '#settingsDialog',
-        '.modal-settings'
-    ];
     
-    for (let selector of selectors) {
-        const element = document.querySelector(selector);
-        if (element) return element;
-    }
-    return null;
-}
-
-// Find main toolbar
-function findToolbar() {
-    const selectors = [
-        '.toolbar',
-        '.header-actions',
-        '.page-actions',
-        '.actions',
-        '.btn-group',
-        '.button-group',
-        '.main-tools'
-    ];
-    
-    for (let selector of selectors) {
-        const element = document.querySelector(selector);
-        if (element) return element;
-    }
-    return null;
-}
-
-// Add button next to Check Status button
-function addButtonNextToCheckStatus(checkStatusBtn) {
-    const existingBtn = document.getElementById('labelCustomizerToggle');
-    if (existingBtn) existingBtn.remove();
-    
-    const labelBtn = createLabelButton();
-    
-    // Insert after check status button
-    checkStatusBtn.parentNode.insertBefore(labelBtn, checkStatusBtn.nextSibling);
-    
-    console.log('✅ Label button placed next to Check Status button');
-}
-
-// Add button to settings modal
-function addButtonToSettingsModal(settingsModal) {
-    const existingBtn = document.getElementById('labelCustomizerToggle');
-    if (existingBtn) existingBtn.remove();
-    
-    const labelBtn = createLabelButton();
-    
-    // Try to find button container in modal
-    const modalFooter = settingsModal.querySelector('.modal-footer, .modal-actions, .btn-container');
-    if (modalFooter) {
-        modalFooter.prepend(labelBtn);
-    } else {
-        // Add to modal body
-        const modalBody = settingsModal.querySelector('.modal-body') || settingsModal;
-        const buttonContainer = document.createElement('div');
-        buttonContainer.style.cssText = 'margin: 15px 0; padding: 10px 0; border-top: 1px solid #eee;';
-        buttonContainer.appendChild(labelBtn);
-        modalBody.appendChild(buttonContainer);
+    // Save settings to localStorage
+    saveSettings() {
+        try {
+            const settings = {
+                useCustomText: this.useCustomText,
+                customText: this.customText
+            };
+            localStorage.setItem(this.storageKey, JSON.stringify(settings));
+        } catch (error) {
+            console.error('Error saving label settings:', error);
+        }
     }
     
-    console.log('✅ Label button added to settings modal');
+    // Initialize the toggle UI
+    initializeUI() {
+        // Create the control panel
+        this.createControlPanel();
+        
+        // Apply initial state
+        this.applyCurrentMode();
+    }
+    
+    // Create the toggle control panel
+    createControlPanel() {
+        // Check if panel already exists
+        if (document.getElementById('labelCustomizerPanel')) {
+            return;
+        }
+        
+        const panel = document.createElement('div');
+        panel.id = 'labelCustomizerPanel';
+        panel.style.cssText = `
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 9999;
+            min-width: 250px;
+            font-family: Arial, sans-serif;
+            display: none;
+        `;
+        
+        panel.innerHTML = `
+            <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
+                <h4 style="margin: 0; color: #333; font-size: 14px;">
+                    <i class="fas fa-tag"></i> Etiket Özelleştirici
+                </h4>
+                <button id="closeLabelPanel" style="background: none; border: none; color: #666; cursor: pointer; font-size: 16px;">
+                    ×
+                </button>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 10px;">
+                    <input type="radio" name="labelMode" value="logo" ${!this.useCustomText ? 'checked' : ''} 
+                           style="margin-right: 8px;">
+                    <span style="font-size: 13px;">Logo Kullan</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="radio" name="labelMode" value="text" ${this.useCustomText ? 'checked' : ''} 
+                           style="margin-right: 8px;">
+                    <span style="font-size: 13px;">Özel Metin Kullan</span>
+                </label>
+            </div>
+            
+            <div id="customTextSection" style="display: ${this.useCustomText ? 'block' : 'none'}; margin-bottom: 15px;">
+                <input type="text" id="customTextInput" 
+                       value="${this.customText}" 
+                       placeholder="Etiket için özel metin girin..."
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
+                       maxlength="30">
+                <small style="color: #666; font-size: 11px;">Maksimum 30 karakter</small>
+            </div>
+            
+            <button id="applyLabelSettings" 
+                    style="width: 100%; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                <i class="fas fa-check"></i> Ayarları Uygula
+            </button>
+            
+            <div style="margin-top: 10px; text-align: center;">
+                <button id="toggleLabelPanel" 
+                        style="background: none; border: none; color: #007bff; cursor: pointer; font-size: 12px; text-decoration: underline;">
+                    <i class="fas fa-eye"></i> Gizle
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(panel);
+        this.attachEventListeners();
+    }
+    
+    // Attach event listeners to the control panel
+    attachEventListeners() {
+        // Radio button changes
+        const radioButtons = document.querySelectorAll('input[name="labelMode"]');
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const showTextSection = e.target.value === 'text';
+                document.getElementById('customTextSection').style.display = showTextSection ? 'block' : 'none';
+            });
+        });
+        
+        // Apply button
+        const applyBtn = document.getElementById('applyLabelSettings');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => {
+                this.applySettings();
+            });
+        }
+        
+        // Close button
+        const closeBtn = document.getElementById('closeLabelPanel');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.hidePanel();
+            });
+        }
+        
+        // Toggle visibility button
+        const toggleBtn = document.getElementById('toggleLabelPanel');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.togglePanelVisibility();
+            });
+        }
+        
+        // Enter key in text input
+        const textInput = document.getElementById('customTextInput');
+        if (textInput) {
+            textInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.applySettings();
+                }
+            });
+        }
+    }
+    
+    // Apply the settings
+    applySettings() {
+        const selectedMode = document.querySelector('input[name="labelMode"]:checked').value;
+        this.useCustomText = selectedMode === 'text';
+        
+        if (this.useCustomText) {
+            const textInput = document.getElementById('customTextInput');
+            if (textInput) {
+                this.customText = textInput.value.trim();
+                if (!this.customText) {
+                    showAlert('Lütfen özel metin girin', 'error');
+                    return;
+                }
+                if (this.customText.length > 30) {
+                    showAlert('Metin 30 karakterden uzun olamaz', 'error');
+                    return;
+                }
+            }
+        }
+        
+        this.saveSettings();
+        this.applyCurrentMode();
+        
+        showAlert(
+            this.useCustomText ? 
+            `Etiket metni ayarlandı: "${this.customText}"` : 
+            'Logo moduna geçildi', 
+            'success'
+        );
+    }
+    
+    // Apply current mode to label generation
+    applyCurrentMode() {
+        console.log('🎨 Label mode:', this.useCustomText ? `Text: "${this.customText}"` : 'Logo');
+    }
+    
+    // Show panel
+    showPanel() {
+        const panel = document.getElementById('labelCustomizerPanel');
+        if (panel) {
+            panel.style.display = 'block';
+        }
+    }
+    
+    // Hide panel
+    hidePanel() {
+        const panel = document.getElementById('labelCustomizerPanel');
+        if (panel) {
+            panel.style.display = 'none';
+        }
+    }
+    
+    // Toggle panel visibility
+    togglePanelVisibility() {
+        const panel = document.getElementById('labelCustomizerPanel');
+        const toggleBtn = document.getElementById('toggleLabelPanel');
+        
+        if (panel && toggleBtn) {
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Gizle';
+            } else {
+                panel.style.display = 'none';
+                toggleBtn.innerHTML = '<i class="fas fa-eye"></i> Göster';
+            }
+        }
+    }
+    
+    // Get current label content (logo or text)
+    getLabelContent() {
+        if (this.useCustomText && this.customText) {
+            return {
+                type: 'text',
+                content: this.customText
+            };
+        } else {
+            return {
+                type: 'logo',
+                content: this.logoBase64
+            };
+        }
+    }
+    
+    // ... (keep all your existing label generation methods)
 }
 
-// Add button to toolbar
-function addButtonToToolbar(toolbar) {
-    const existingBtn = document.getElementById('labelCustomizerToggle');
-    if (existingBtn) existingBtn.remove();
-    
-    const labelBtn = createLabelButton();
-    toolbar.appendChild(labelBtn);
-    
-    console.log('✅ Label button added to toolbar');
-}
+// ==================== SAFE BUTTON CREATION ====================
 
-// Create permanent fixed button
-function createPermanentButton() {
-    const existingBtn = document.getElementById('labelCustomizerToggle');
-    if (existingBtn) existingBtn.remove();
-    
-    const labelBtn = createLabelButton();
-    labelBtn.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        background: #28a745;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        padding: 10px 15px;
-        cursor: pointer;
-        z-index: 9998;
-        font-size: 13px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-    `;
-    
-    document.body.appendChild(labelBtn);
-    console.log('✅ Permanent label button created');
-}
-
-// Create the label button element
+// Create the label button element with safe click handler
 function createLabelButton() {
     const button = document.createElement('button');
     button.id = 'labelCustomizerToggle';
@@ -431,6 +521,31 @@ function createLabelButton() {
         transition: all 0.3s ease;
     `;
     
+    // Safe click handler that checks if labelCustomizer is available
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Check if labelCustomizer is initialized
+        if (!window.labelCustomizer) {
+            console.error('❌ LabelCustomizer not initialized. Initializing now...');
+            initializeLabelCustomizerSystem();
+            
+            // Try again after a short delay
+            setTimeout(() => {
+                if (window.labelCustomizer) {
+                    window.labelCustomizer.showPanel();
+                } else {
+                    showAlert('Etiket özelleştirici yüklenemedi. Sayfayı yenileyin.', 'error');
+                }
+            }, 100);
+            return;
+        }
+        
+        // If initialized, show panel
+        window.labelCustomizer.showPanel();
+    });
+    
     // Add hover effects
     button.addEventListener('mouseenter', function() {
         this.style.background = '#218838';
@@ -442,165 +557,160 @@ function createLabelButton() {
         this.style.transform = 'translateY(0)';
     });
     
-    button.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        window.labelCustomizer.showPanel();
-    });
-    
     return button;
 }
 
-// ==================== ENHANCED INITIALIZATION ====================
+// ==================== SAFE INITIALIZATION SYSTEM ====================
 
-// Wait for the page to fully load and then integrate the button
-function initializePermanentButton() {
-    console.log('🎯 Initializing permanent label customizer button...');
+// Initialize the complete label customizer system
+function initializeLabelCustomizerSystem() {
+    console.log('🚀 Initializing Label Customizer System...');
     
-    // Try immediate integration
-    integrateLabelCustomizerButton();
-    
-    // If not successful, wait a bit and try again (for dynamic UIs)
-    setTimeout(() => {
-        if (!document.getElementById('labelCustomizerToggle')) {
-            console.log('🔄 Retrying button integration...');
-            integrateLabelCustomizerButton();
-        }
-    }, 1000);
-    
-    // Final attempt after longer delay
-    setTimeout(() => {
-        if (!document.getElementById('labelCustomizerToggle')) {
-            console.log('⚡ Final integration attempt...');
-            integrateLabelCustomizerButton();
+    try {
+        // Initialize the LabelCustomizer class
+        if (!window.labelCustomizer) {
+            window.labelCustomizer = new LabelCustomizer();
+            console.log('✅ LabelCustomizer class initialized');
         }
         
-        // Verify success
-        const btn = document.getElementById('labelCustomizerToggle');
-        if (btn) {
-            console.log('🎉 Permanent label button integrated successfully!');
-            // Make sure it stays even if content changes
-            observeDOMChanges();
-        } else {
-            console.error('❌ Failed to integrate label button');
-        }
-    }, 3000);
-}
-
-// Observe DOM changes to ensure button stays
-function observeDOMChanges() {
-    const observer = new MutationObserver(function(mutations) {
-        let buttonExists = document.getElementById('labelCustomizerToggle');
+        // Create and place the button
+        integrateLabelCustomizerButton();
         
-        mutations.forEach(function(mutation) {
-            // If our button was removed, re-add it
-            if (mutation.removedNodes) {
-                mutation.removedNodes.forEach(function(node) {
-                    if (node.id === 'labelCustomizerToggle') {
-                        console.log('🔄 Label button was removed, re-adding...');
-                        setTimeout(integrateLabelCustomizerButton, 100);
+        // Verify everything is working
+        setTimeout(() => {
+            const btn = document.getElementById('labelCustomizerToggle');
+            if (btn && window.labelCustomizer) {
+                console.log('🎉 Label customizer system fully initialized!');
+                
+                // Test the click handler
+                btn.addEventListener('click', function(e) {
+                    if (window.labelCustomizer) {
+                        window.labelCustomizer.showPanel();
                     }
                 });
+                
+            } else {
+                console.error('❌ Label customizer system initialization failed');
             }
-        });
+        }, 500);
         
-        // If button doesn't exist anymore, re-add it
-        if (!buttonExists) {
-            console.log('🔄 Label button missing, re-integrating...');
-            setTimeout(integrateLabelCustomizerButton, 100);
-        }
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+    } catch (error) {
+        console.error('❌ Error initializing label customizer:', error);
+    }
 }
 
-// Initialize when page loads
+// Enhanced integration function
+function integrateLabelCustomizerButton() {
+    console.log('🔧 Integrating label customizer button...');
+    
+    // Remove existing button if any
+    const existingBtn = document.getElementById('labelCustomizerToggle');
+    if (existingBtn) {
+        existingBtn.remove();
+    }
+    
+    // Create new button
+    const labelBtn = createLabelButton();
+    
+    // Try to place it in the best location
+    const placementStrategies = [
+        () => {
+            // Look for check status button
+            const checkStatusBtn = document.querySelector('#checkStatusBtn, [onclick*="checkStatus"], button:contains("Durum")');
+            if (checkStatusBtn) {
+                checkStatusBtn.parentNode.insertBefore(labelBtn, checkStatusBtn.nextSibling);
+                return true;
+            }
+            return false;
+        },
+        () => {
+            // Look for test print button
+            const testPrintBtn = document.querySelector('#testPrintBtn, [onclick*="testPrint"], button:contains("Yazdır")');
+            if (testPrintBtn) {
+                testPrintBtn.parentNode.insertBefore(labelBtn, testPrintBtn.nextSibling);
+                return true;
+            }
+            return false;
+        },
+        () => {
+            // Look for settings modal
+            const settingsModal = document.querySelector('#settingsModal, .settings-modal');
+            if (settingsModal) {
+                const modalFooter = settingsModal.querySelector('.modal-footer, .modal-actions');
+                if (modalFooter) {
+                    modalFooter.prepend(labelBtn);
+                    return true;
+                }
+            }
+            return false;
+        },
+        () => {
+            // Fallback: fixed position
+            labelBtn.style.position = 'fixed';
+            labelBtn.style.top = '80px';
+            labelBtn.style.right = '20px';
+            labelBtn.style.zIndex = '9998';
+            document.body.appendChild(labelBtn);
+            return true;
+        }
+    ];
+    
+    // Try each strategy
+    for (let strategy of placementStrategies) {
+        if (strategy()) {
+            console.log('✅ Label button placed successfully');
+            break;
+        }
+    }
+}
+
+// ==================== INITIALIZATION ON LOAD ====================
+
+// Initialize when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializePermanentButton);
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(initializeLabelCustomizerSystem, 1000);
+    });
 } else {
-    initializePermanentButton();
+    setTimeout(initializeLabelCustomizerSystem, 1000);
 }
 
 // Also initialize when window loads
-window.addEventListener('load', initializePermanentButton);
+window.addEventListener('load', function() {
+    setTimeout(initializeLabelCustomizerSystem, 500);
+});
 
-// Re-initialize when settings modal opens (common in SPA)
-function watchForSettingsModal() {
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                const target = mutation.target;
-                if (target.id === 'settingsModal' || target.classList.contains('settings-modal')) {
-                    if (target.style.display !== 'none') {
-                        // Settings modal just opened, ensure our button is there
-                        setTimeout(integrateLabelCustomizerButton, 100);
-                    }
-                }
+// ==================== GLOBAL ACCESS ====================
+
+// Ensure global functions are available
+window.showLabelSettings = function() {
+    if (window.labelCustomizer) {
+        window.labelCustomizer.showPanel();
+    } else {
+        console.error('LabelCustomizer not available');
+        initializeLabelCustomizerSystem();
+        setTimeout(() => {
+            if (window.labelCustomizer) {
+                window.labelCustomizer.showPanel();
             }
-        });
-    });
-    
-    observer.observe(document.body, {
-        attributes: true,
-        attributeFilter: ['style'],
-        subtree: true
-    });
-}
-
-// Start watching for modal openings
-setTimeout(watchForSettingsModal, 2000);
-
-// ==================== MANUAL PLACEMENT HELPERS ====================
-
-// If automatic placement doesn't work, use these manual commands:
-
-// Place next to Check Status button (if you can find it)
-window.placeNextToCheckStatus = function() {
-    const checkStatusBtn = findCheckStatusButton();
-    if (checkStatusBtn) {
-        addButtonNextToCheckStatus(checkStatusBtn);
-    } else {
-        console.log('❌ Check Status button not found');
+        }, 200);
     }
 };
 
-// Place in settings modal
-window.placeInSettingsModal = function() {
-    const settingsModal = findSettingsModal();
-    if (settingsModal) {
-        addButtonToSettingsModal(settingsModal);
-    } else {
-        console.log('❌ Settings modal not found');
+// Test function to verify everything works
+window.testLabelCustomizer = function() {
+    console.group('🧪 Label Customizer Test');
+    console.log('LabelCustomizer available:', !!window.labelCustomizer);
+    console.log('Button exists:', !!document.getElementById('labelCustomizerToggle'));
+    console.log('Panel exists:', !!document.getElementById('labelCustomizerPanel'));
+    
+    if (window.labelCustomizer) {
+        console.log('Current mode:', window.labelCustomizer.getLabelContent());
     }
-};
-
-// Force create permanent button
-window.createPermanentLabelButton = function() {
-    createPermanentButton();
-};
-
-// Debug current UI structure
-window.debugUIStructure = function() {
-    console.group('🔍 UI Structure Debug');
-    
-    // Check for common UI elements
-    const elements = {
-        'Check Status Button': findCheckStatusButton(),
-        'Settings Modal': findSettingsModal(),
-        'Toolbar': findToolbar(),
-        'Existing Label Button': document.getElementById('labelCustomizerToggle')
-    };
-    
-    Object.entries(elements).forEach(([name, element]) => {
-        console.log(`${name}:`, element ? 'FOUND' : 'NOT FOUND');
-        if (element) {
-            console.log('  Element:', element);
-            console.log('  HTML:', element.outerHTML);
-        }
-    });
-    
     console.groupEnd();
+    
+    return !!window.labelCustomizer;
 };
+
+// Manual initialization command
+window.initLabelCustomizer = initializeLabelCustomizerSystem;
