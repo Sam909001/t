@@ -2660,82 +2660,136 @@ async function testConnection() {
 
 
 
-  async function populateCustomers() {
+ // ✅ ENHANCED: Populate customers with 100% offline support
+async function populateCustomers() {
+    console.log('🔄 Populating customers with offline cache...');
+    
     try {
-        const { data: customers, error } = await supabase
-            .from('customers')
-            .select('id, name, code')
-            .order('name', { ascending: true });
-
-        if (error) {
-            console.error('Error loading customers:', error);
+        const customerSelect = document.getElementById('customerSelect');
+        if (!customerSelect) {
+            console.error('❌ Customer select element not found');
             return;
         }
 
+        // Get customers with offline support
+        const customers = await offlineCache.getCustomers();
+        
+        // Store current selection
+        const currentValue = customerSelect.value;
+        
+        // Clear existing options
+        customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
+        
+        if (customers.length === 0) {
+            // Add offline/online specific message
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = navigator.onLine ? 
+                'Müşteri bulunamadı - İlk müşteriyi ekleyin' : 
+                'Çevrimdışı - Müşteri yüklenemedi';
+            option.disabled = true;
+            customerSelect.appendChild(option);
+            console.log('ℹ️ No customers to display');
+            return;
+        }
+
+        // Add customers to dropdown
+        customers.forEach(customer => {
+            const option = document.createElement('option');
+            option.value = customer.id;
+            option.textContent = `${customer.name} (${customer.code})`;
+            customerSelect.appendChild(option);
+        });
+
+        // Restore selection if possible
+        if (currentValue && customers.some(c => c.id === currentValue)) {
+            customerSelect.value = currentValue;
+        }
+
+        console.log(`✅ Populated ${customers.length} customers (${navigator.onLine ? 'ONLINE' : 'OFFLINE'})`);
+        
+    } catch (error) {
+        console.error('❌ Customer population error:', error);
+        // Even in error, show something useful
         const customerSelect = document.getElementById('customerSelect');
-        if (!customerSelect) return;
-
-        // Clear old options
-        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
-
-        // Deduplicate by customer code
-        const uniqueCustomers = {};
-        customers.forEach(cust => {
-            if (!uniqueCustomers[cust.code]) {
-                uniqueCustomers[cust.code] = cust;
-            }
-        });
-
-        // Append unique customers
-        Object.values(uniqueCustomers).forEach(cust => {
-            const opt = document.createElement('option');
-            opt.value = cust.id;
-            opt.textContent = `${cust.name} (${cust.code})`;
-            customerSelect.appendChild(opt);
-        });
-
-    } catch (err) {
-        console.error('populateCustomers error:', err);
+        if (customerSelect) {
+            customerSelect.innerHTML = `
+                <option value="">Müşteri yüklenemedi</option>
+            `;
+        }
     }
 }
 
 
 
 
+// ✅ ENHANCED: Populate personnel with 100% offline support
+let personnelLoaded = false;
 
 async function populatePersonnel() {
-    if (personnelLoaded) return; // prevent duplicates
+    if (personnelLoaded) return;
     personnelLoaded = true;
 
     const personnelSelect = document.getElementById('personnelSelect');
     if (!personnelSelect) return;
 
-    personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+    console.log('🔄 Populating personnel with offline cache...');
 
     try {
-        const { data: personnel, error } = await supabase
-            .from('personnel')
-            .select('id, name')
-            .order('name', { ascending: true });
-
-        if (error) {
-            console.error('Error fetching personnel:', error);
-            showAlert('Personel verileri yüklenemedi', 'error');
+        // Get personnel with offline support
+        const personnel = await offlineCache.getPersonnel();
+        
+        // Store current selection
+        const currentValue = personnelSelect.value;
+        
+        // Clear existing options
+        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
+        
+        if (personnel.length === 0) {
+            // Add current user as fallback for printing
+            const currentUser = window.currentUser;
+            if (currentUser && currentUser.name) {
+                const option = document.createElement('option');
+                option.value = currentUser.name;
+                option.textContent = `${currentUser.name} (Mevcut Kullanıcı)`;
+                personnelSelect.appendChild(option);
+                console.log('ℹ️ Using current user as personnel fallback');
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = navigator.onLine ? 
+                    'Personel bulunamadı' : 
+                    'Çevrimdışı - Personel yüklenemedi';
+                option.disabled = true;
+                personnelSelect.appendChild(option);
+            }
             return;
         }
 
-        if (personnel && personnel.length > 0) {
-            personnel.forEach(p => {
-                const option = document.createElement('option');
-                option.value = p.id;
-                option.textContent = p.name;
-                personnelSelect.appendChild(option);
-            });
+        // Add personnel to dropdown
+        personnel.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = p.name;
+            personnelSelect.appendChild(option);
+        });
+
+        // Restore selection if possible
+        if (currentValue && personnel.some(p => p.id === currentValue)) {
+            personnelSelect.value = currentValue;
         }
 
-    } catch (err) {
-        console.error('Unexpected error:', err);
-        showAlert('Personel dropdown yükleme hatası', 'error');
+        console.log(`✅ Populated ${personnel.length} personnel (${navigator.onLine ? 'ONLINE' : 'OFFLINE'})`);
+        
+    } catch (error) {
+        console.error('❌ Personnel population error:', error);
+        // Fallback to current user for printing
+        const currentUser = window.currentUser;
+        if (currentUser && currentUser.name) {
+            personnelSelect.innerHTML = `
+                <option value="${currentUser.name}">${currentUser.name} (Mevcut Kullanıcı)</option>
+            `;
+        }
     }
 }
 
