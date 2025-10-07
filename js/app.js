@@ -1444,15 +1444,35 @@ async function importExcelData(event) {
 // Temporary debug function - call this in console
 function debugWorkspace() {
     console.log('=== WORKSPACE DEBUG INFO ===');
-    console.log('Current Workspace:', window.workspaceManager?.currentWorkspace);
-    console.log('Excel Packages:', excelPackages);
-    console.log('LocalStorage Keys:');
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key.includes('excelPackages') || key.includes('workspace')) {
-            console.log(`- ${key}:`, localStorage.getItem(key));
-        }
+    
+    try {
+        console.log('Current Workspace:', window.workspaceManager?.currentWorkspace);
+    } catch (e) {
+        console.log('Current Workspace: Error -', e.message);
     }
+    
+    try {
+        // Multiple fallback attempts to reference excelPackages
+        const packages = window.excelPackages || 
+                        (typeof excelPackages !== 'undefined' ? excelPackages : null) ||
+                        localStorage.getItem('excelPackages');
+        console.log('Excel Packages:', packages || 'NOT FOUND');
+    } catch (e) {
+        console.log('Excel Packages: Error -', e.message);
+    }
+    
+    console.log('LocalStorage Keys:');
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.includes('excelPackages') || key.includes('workspace'))) {
+                console.log(`- ${key}:`, localStorage.getItem(key));
+            }
+        }
+    } catch (e) {
+        console.log('LocalStorage access error:', e.message);
+    }
+}
     
     // Test workspace storage
     const workspaceId = window.workspaceManager?.currentWorkspace?.id;
