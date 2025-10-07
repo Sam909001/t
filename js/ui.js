@@ -4057,7 +4057,7 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// EXCEL MANAGEMENT FUNCTIONS
+// EXCEL MANAGEMENT FUNCTIONS - UPDATED WITH PASSWORD GUARD
 
 // Initialize the buttons
 function initializeExcelButtons() {
@@ -4070,12 +4070,12 @@ function initializeExcelButtons() {
     }
     
     if (clearBtn) {
-        clearBtn.addEventListener('click', showPasswordModalForClear);
+        clearBtn.addEventListener('click', clearExcelDataWithAuth);
         console.log('✅ Clear Excel button initialized');
     }
 }
 
-// Refresh Excel Data Function
+// Refresh Excel Data Function - NO PASSWORD NEEDED
 async function refreshExcelData() {
     console.log('🔄 Refreshing Excel data...');
     
@@ -4111,87 +4111,31 @@ async function refreshExcelData() {
         console.error('❌ Excel refresh error:', error);
         showAlert('Excel güncelleme hatası: ' + error.message, 'error');
     } finally {
-        // Restore button state
+        // Restore button state - FIXED: This was missing!
         const refreshBtn = document.getElementById('refreshExcelBtn');
         if (refreshBtn) {
-            refreshBtn.innerHTML = originalText || '<i class="fas fa-sync-alt"></i> Güncelle';
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Güncelle';
             refreshBtn.disabled = false;
         }
     }
 }
 
-// Password Modal Functions
-function showPasswordModalForClear() {
-    console.log('🔒 Showing password modal for clear operation');
+// Clear Excel Data with Authentication - USES PASSWORD GUARD
+async function clearExcelDataWithAuth() {
+    const passwordGuard = new PasswordGuard();
     
-    // Reset modal
-    document.getElementById('adminPassword').value = '';
-    document.getElementById('passwordModalError').style.display = 'none';
-    document.getElementById('passwordModalError').textContent = '';
-    
-    // Show modal
-    document.getElementById('passwordModal').style.display = 'flex';
-    document.getElementById('adminPassword').focus();
-}
-
-function closePasswordModal() {
-    document.getElementById('passwordModal').style.display = 'none';
-    document.getElementById('adminPassword').value = '';
-    document.getElementById('passwordModalError').style.display = 'none';
-}
-
-// Password validation and clear confirmation
-async function confirmClearExcel() {
-    const password = document.getElementById('adminPassword').value;
-    const errorElement = document.getElementById('passwordModalError');
-    
-    // Reset error
-    errorElement.style.display = 'none';
-    errorElement.textContent = '';
-    
-    if (!password) {
-        errorElement.textContent = 'Şifre gereklidir';
-        errorElement.style.display = 'block';
-        return;
-    }
-    
-    // Validate password (use your existing password validation)
-    const isValid = await validateAdminPassword(password);
-    
-    if (!isValid) {
-        errorElement.textContent = 'Geçersiz şifre!';
-        errorElement.style.display = 'block';
-        document.getElementById('adminPassword').value = '';
-        document.getElementById('adminPassword').focus();
-        return;
-    }
-    
-    // Password is valid, proceed with clear
-    await clearExcelData();
-    closePasswordModal();
-}
-
-// Password validation function (connect to your existing system)
-async function validateAdminPassword(password) {
     try {
-        // Use your existing password validation system
-        // Example: Check against stored admin password
-        const storedPassword = await StorageManager.getItem('admin_password') || '8823'; // Default fallback
-        
-        if (password === storedPassword) {
-            console.log('✅ Admin password validated');
-            return true;
-        } else {
-            console.log('❌ Invalid admin password');
-            return false;
-        }
+        await passwordGuard.askPasswordAndRun(() => {
+            return clearExcelData(); // This returns the actual clear function
+        }, 'Excel verilerini temizleme', 'clearData'); // Uses 7142 password
     } catch (error) {
-        console.error('Password validation error:', error);
-        return false;
+        if (error.message !== 'User cancelled') {
+            console.log('Excel clear cancelled:', error.message);
+        }
     }
 }
 
-// Main Clear Excel Function
+// Main Clear Excel Function (called after password verification)
 async function clearExcelData() {
     console.log('🗑️ Clearing Excel data...');
     
@@ -4247,7 +4191,7 @@ async function clearExcelData() {
         // Restore button state
         const clearBtn = document.getElementById('clearExcelBtn');
         if (clearBtn) {
-            clearBtn.innerHTML = originalText || '<i class="fas fa-trash"></i> Temizle';
+            clearBtn.innerHTML = '<i class="fas fa-trash"></i> Temizle';
             clearBtn.disabled = false;
         }
     }
