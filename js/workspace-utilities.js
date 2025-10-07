@@ -238,7 +238,6 @@ function getStrictWorkspaceFilter(tableName) {
 
 
 
-
 // ==================== ROBUST LABEL CUSTOMIZER SYSTEM ====================
 
 // Global variable to track initialization
@@ -404,79 +403,32 @@ class LabelCustomizer {
     }
 }
 
+// ==================== SIMPLE BUTTON CREATION ====================
 
-
-// ==================== MATCHING BUTTON STYLING ====================
-
-function createLabelButton() {
-    // First, let's check the existing button styles
-    const existingButtons = document.querySelectorAll('button');
-    let targetStyle = {};
-    
-    // Find a reference button (Check Status or similar)
-    for (let btn of existingButtons) {
-        if (btn.textContent.includes('Check Status') || btn.textContent.includes('Durum') || 
-            btn.textContent.includes('Test Print') || btn.textContent.includes('Yazdır')) {
-            
-            // Get computed style to match exactly
-            const computedStyle = window.getComputedStyle(btn);
-            targetStyle = {
-                background: computedStyle.backgroundColor,
-                color: computedStyle.color,
-                border: computedStyle.border,
-                borderRadius: computedStyle.borderRadius,
-                padding: computedStyle.padding,
-                margin: computedStyle.margin,
-                fontSize: computedStyle.fontSize,
-                fontFamily: computedStyle.fontFamily,
-                cursor: computedStyle.cursor,
-                display: computedStyle.display,
-                alignItems: computedStyle.alignItems,
-                gap: '8px'
-            };
-            break;
-        }
-    }
-    
-    // Create the button with matching style
+function createSimpleLabelButton() {
     const button = document.createElement('button');
     button.id = 'labelCustomizerToggle';
     button.type = 'button';
     button.innerHTML = '<i class="fas fa-tag"></i> Etiket Ayarları';
-    
-    // Apply styles - use target style if found, otherwise use sensible defaults
     button.style.cssText = `
-        background: ${targetStyle.background || '#ffffff'};
-        color: ${targetStyle.color || '#333333'};
-        border: ${targetStyle.border || '1px solid #ccc'};
-        border-radius: ${targetStyle.borderRadius || '4px'};
-        padding: ${targetStyle.padding || '6px 12px'};
-        margin: ${targetStyle.margin || '4px'};
-        font-size: ${targetStyle.fontSize || '13px'};
-        font-family: ${targetStyle.fontFamily || 'Arial, sans-serif'};
-        cursor: ${targetStyle.cursor || 'pointer'};
-        display: ${targetStyle.display || 'inline-flex'};
-        align-items: ${targetStyle.alignItems || 'center'};
-        gap: ${targetStyle.gap || '6px'};
-        transition: all 0.2s ease;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        margin: 5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     `;
-    
-    // Add hover effects to match other buttons
-    button.addEventListener('mouseenter', function() {
-        this.style.background = '#f8f9fa';
-        this.style.borderColor = '#adb5bd';
-    });
-    
-    button.addEventListener('mouseleave', function() {
-        this.style.background = targetStyle.background || '#ffffff';
-        this.style.borderColor = targetStyle.borderColor || '#ccc';
-    });
     
     button.onclick = function() {
         if (window.labelCustomizer) {
             window.labelCustomizer.showPanel();
         } else {
-            console.log('Label customizer not ready');
+            alert('Label customizer henüz yüklenmedi. Lütfen bekleyin...');
         }
     };
     
@@ -604,4 +556,4 @@ window.initLabelNow = initializeLabelCustomizerSimple;
 // Run the test to see current status
 setTimeout(() => {
     window.testLabelSystem();
-}, 2000); can we make the label changing button inside the settings modal at the top just under   Genel Ayarlar  in proper button style
+}, 2000);
