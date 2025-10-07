@@ -3,7 +3,7 @@ if (!window.elements) window.elements = {};
 if (!window._elementsInitialized) {
     document.addEventListener('DOMContentLoaded', function() {
         // initializeElementsObject returns a map and sets elements[...] entries
-        try {F
+        try {
             // Call the existing helper if available
             if (typeof initializeElementsObject === 'function') {
                 window.elements = initializeElementsObject();
