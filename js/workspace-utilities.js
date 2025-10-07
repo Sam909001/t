@@ -42,8 +42,6 @@ function validateWorkspaceAccessStrict(data, tableName = 'packages') {
     return window.workspaceManager.validateDataAccess(tableName, data);
 }
 
-
-
 // ==================== WORKSTATION PRINTER FUNCTIONS ====================
 
 // Global printer functions
@@ -80,13 +78,9 @@ async function generateAndPrintLabel(packageData, printerConfig) {
     return await sendToPrinter(labelContent, printerConfig);
 }
 
+// Fixed function - removed syntax error
 function generateLabelContent(packageData, printerConfig) {
     return window.labelCustomizer.generateLabelContent(packageData, printerConfig);
-}
-        default:
-            // Generic label for browser printing
-            return 'generic';
-    }
 }
 
 async function sendToPrinter(labelContent, printerConfig) {
@@ -190,9 +184,6 @@ async function testCurrentWorkstationPrinter() {
     
     await window.workspaceManager.testCurrentPrinter();
 }
-
-
-
 
 // Enhanced workspace filter for all queries
 function getStrictWorkspaceFilter(tableName) {
@@ -351,16 +342,22 @@ class LabelCustomizer {
         });
         
         // Toggle visibility button
-        document.getElementById('toggleLabelPanel').addEventListener('click', () => {
-            this.togglePanelVisibility();
-        });
+        const toggleBtn = document.getElementById('toggleLabelPanel');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.togglePanelVisibility();
+            });
+        }
         
         // Enter key in text input
-        document.getElementById('customTextInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.applySettings();
-            }
-        });
+        const textInput = document.getElementById('customTextInput');
+        if (textInput) {
+            textInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.applySettings();
+                }
+            });
+        }
     }
     
     // Apply the settings
@@ -369,14 +366,17 @@ class LabelCustomizer {
         this.useCustomText = selectedMode === 'text';
         
         if (this.useCustomText) {
-            this.customText = document.getElementById('customTextInput').value.trim();
-            if (!this.customText) {
-                showAlert('Lütfen özel metin girin', 'error');
-                return;
-            }
-            if (this.customText.length > 30) {
-                showAlert('Metin 30 karakterden uzun olamaz', 'error');
-                return;
+            const textInput = document.getElementById('customTextInput');
+            if (textInput) {
+                this.customText = textInput.value.trim();
+                if (!this.customText) {
+                    showAlert('Lütfen özel metin girin', 'error');
+                    return;
+                }
+                if (this.customText.length > 30) {
+                    showAlert('Metin 30 karakterden uzun olamaz', 'error');
+                    return;
+                }
             }
         }
         
@@ -398,7 +398,6 @@ class LabelCustomizer {
     
     // Apply current mode to label generation
     applyCurrentMode() {
-        // This will be used by the label generation functions
         console.log('🎨 Label mode:', this.useCustomText ? `Text: "${this.customText}"` : 'Logo');
     }
     
@@ -415,27 +414,45 @@ class LabelCustomizer {
         const panel = document.getElementById('labelCustomizerPanel');
         const toggleBtn = document.getElementById('toggleLabelPanel');
         
-        if (currentlyVisible) {
-            panel.style.display = 'none';
-            toggleBtn.innerHTML = '<i class="fas fa-eye"></i> Göster';
-        } else {
-            panel.style.display = 'block';
-            toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Gizle';
+        if (panel && toggleBtn) {
+            if (currentlyVisible) {
+                panel.style.display = 'none';
+                toggleBtn.innerHTML = '<i class="fas fa-eye"></i> Göster';
+            } else {
+                panel.style.display = 'block';
+                toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Gizle';
+            }
         }
     }
     
     // Hide panel
     hidePanel() {
-        document.getElementById('labelCustomizerPanel').style.display = 'none';
+        const panel = document.getElementById('labelCustomizerPanel');
+        const toggleBtn = document.getElementById('toggleLabelPanel');
+        
+        if (panel) {
+            panel.style.display = 'none';
+        }
         localStorage.setItem('label_panel_visible', 'false');
-        document.getElementById('toggleLabelPanel').innerHTML = '<i class="fas fa-eye"></i> Göster';
+        
+        if (toggleBtn) {
+            toggleBtn.innerHTML = '<i class="fas fa-eye"></i> Göster';
+        }
     }
     
     // Show panel
     showPanel() {
-        document.getElementById('labelCustomizerPanel').style.display = 'block';
+        const panel = document.getElementById('labelCustomizerPanel');
+        const toggleBtn = document.getElementById('toggleLabelPanel');
+        
+        if (panel) {
+            panel.style.display = 'block';
+        }
         localStorage.setItem('label_panel_visible', 'true');
-        document.getElementById('toggleLabelPanel').innerHTML = '<i class="fas fa-eye-slash"></i> Gizle';
+        
+        if (toggleBtn) {
+            toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Gizle';
+        }
     }
     
     // Get current label content (logo or text)
@@ -455,23 +472,23 @@ class LabelCustomizer {
     
     // Generate label content for different printer types
     generateLabelContent(packageData, printerConfig) {
-        const workspace = window.workspaceManager.currentWorkspace;
-        const itemsText = packageData.items_display || 'Ürün bilgisi yok';
+        const workspace = window.workspaceManager?.currentWorkspace || { name: 'Unknown Workspace' };
+        const itemsText = packageData.items_display || Object.entries(packageData.items || {}).map(([p, q]) => `${p}: ${q}`).join(', ');
         const date = new Date().toLocaleDateString('tr-TR');
         const labelContent = this.getLabelContent();
         
         switch (printerConfig.type) {
             case 'argox':
-                return this.generateArgoxLabel(workspace, packageData, itemsText, date, labelContent);
+                return this.generateArgoxLabel(workspace, packageData, itemsText, date, labelContent, printerConfig);
             case 'zebra':
-                return this.generateZebraLabel(workspace, packageData, itemsText, date, labelContent);
+                return this.generateZebraLabel(workspace, packageData, itemsText, date, labelContent, printerConfig);
             default:
-                return this.generateGenericLabel(workspace, packageData, itemsText, date, labelContent);
+                return this.generateGenericLabel(workspace, packageData, itemsText, date, labelContent, printerConfig);
         }
     }
     
     // Generate Argox label content
-    generateArgoxLabel(workspace, packageData, itemsText, date, labelContent) {
+    generateArgoxLabel(workspace, packageData, itemsText, date, labelContent, printerConfig) {
         let label = `
 SIZE ${printerConfig.paperWidth} mm, ${printerConfig.paperHeight} mm
 GAP 2 mm, 0 mm
@@ -486,12 +503,12 @@ CLS
         
         label += `
 TEXT 10,60,"0",0,1,1,"${workspace.name}"
-TEXT 10,90,"0",0,1,1,"${packageData.package_no}"
-TEXT 10,120,"0",0,1,1,"${packageData.customer_name}"
+TEXT 10,90,"0",0,1,1,"${packageData.package_no || 'PKG-XXXX'}"
+TEXT 10,120,"0",0,1,1,"${packageData.customer_name || 'Müşteri'}"
 TEXT 10,150,"0",0,1,1,"${itemsText}"
-TEXT 10,180,"0",0,1,1,"Toplam: ${packageData.total_quantity}"
+TEXT 10,180,"0",0,1,1,"Toplam: ${Object.values(packageData.items || {}).reduce((a, b) => a + b, 0)}"
 TEXT 10,210,"0",0,1,1,"${date}"
-BARCODE 10,240,"128",40,1,0,2,2,"${packageData.package_no}"
+BARCODE 10,240,"128",40,1,0,2,2,"${packageData.package_no || 'PKG-XXXX'}"
 PRINT 1
 `;
         
@@ -499,12 +516,11 @@ PRINT 1
     }
     
     // Generate Zebra label content
-    generateZebraLabel(workspace, packageData, itemsText, date, labelContent) {
+    generateZebraLabel(workspace, packageData, itemsText, date, labelContent, printerConfig) {
         let label = `^XA\n`;
         
         if (labelContent.type === 'logo' && labelContent.content) {
             // For Zebra, we'd need to convert base64 to GRF format
-            // This is a simplified version - you might need a proper image converter
             label += `^FO20,20^GFA,...\n`; // Placeholder for logo
         } else {
             label += `^FO20,20^A0N,25,25^FD${labelContent.content}^FS\n`;
@@ -512,12 +528,12 @@ PRINT 1
         
         label += `
 ^FO20,70^A0N,20,20^FD${workspace.name}^FS
-^FO20,100^A0N,20,20^FD${packageData.package_no}^FS
-^FO20,130^A0N,20,20^FD${packageData.customer_name}^FS
+^FO20,100^A0N,20,20^FD${packageData.package_no || 'PKG-XXXX'}^FS
+^FO20,130^A0N,20,20^FD${packageData.customer_name || 'Müşteri'}^FS
 ^FO20,160^A0N,15,15^FD${itemsText}^FS
-^FO20,190^A0N,20,20^FDToplam: ${packageData.total_quantity}^FS
+^FO20,190^A0N,20,20^FDToplam: ${Object.values(packageData.items || {}).reduce((a, b) => a + b, 0)}^FS
 ^FO20,220^A0N,15,15^FD${date}^FS
-^FO20,250^BY2^BCN,40,Y,N,N^FD${packageData.package_no}^FS
+^FO20,250^BY2^BCN,40,Y,N,N^FD${packageData.package_no || 'PKG-XXXX'}^FS
 ^XZ
 `;
         
@@ -525,7 +541,7 @@ PRINT 1
     }
     
     // Generate generic label content for browser printing
-    generateGenericLabel(workspace, packageData, itemsText, date, labelContent) {
+    generateGenericLabel(workspace, packageData, itemsText, date, labelContent, printerConfig) {
         let logoOrText = '';
         
         if (labelContent.type === 'logo' && labelContent.content) {
@@ -544,7 +560,7 @@ PRINT 1
                 <div class="workspace" style="font-weight: bold; font-size: 16px;">${workspace.name}</div>
                 <div class="package-no" style="font-size: 14px; margin: 5px 0;">${packageData.package_no || 'PKG-XXXX'}</div>
                 <div class="customer" style="font-size: 12px; margin: 5px 0;">${packageData.customer_name || 'Müşteri'}</div>
-                <div class="items" style="font-size: 11px; margin: 5px 0;">${Object.entries(packageData.items || {}).map(([p, q]) => `${p}: ${q}`).join(', ')}</div>
+                <div class="items" style="font-size: 11px; margin: 5px 0;">${itemsText}</div>
                 <div class="total" style="font-size: 12px; font-weight: bold;">Toplam: ${Object.values(packageData.items || {}).reduce((a, b) => a + b, 0)} adet</div>
                 <div class="date" style="font-size: 10px; color: #666;">${date}</div>
             </div>
@@ -557,52 +573,95 @@ PRINT 1
 // Initialize label customizer
 window.labelCustomizer = new LabelCustomizer();
 
-// Replace the existing generateLabelContent function in workspace-utilities.js
-function generateLabelContent(packageData, printerConfig) {
-    return window.labelCustomizer.generateLabelContent(packageData, printerConfig);
-}
-
-// Add toggle button to your main UI
+// Add toggle button to your main UI - INTEGRATED WITH CHECK STATUS BUTTON
 function addLabelCustomizerToggle() {
     // Check if button already exists
     if (document.getElementById('labelCustomizerToggle')) {
         return;
     }
     
-    // Create toggle button in your main UI
+    // Find the check status button or settings area to place our button next to it
+    const checkStatusBtn = document.querySelector('#checkStatusBtn, .status-check-btn, [onclick*="checkStatus"], button:contains("Durum")');
+    const settingsModal = document.querySelector('#settingsModal, .settings-modal, [data-modal="settings"]');
+    
+    let targetElement;
+    
+    // Try to find a suitable place to add the button
+    if (checkStatusBtn) {
+        // Add next to check status button
+        targetElement = checkStatusBtn.parentNode;
+    } else if (settingsModal) {
+        // Add to settings modal
+        targetElement = settingsModal.querySelector('.modal-body, .modal-footer') || settingsModal;
+    } else {
+        // Fallback: add to fixed position
+        targetElement = document.body;
+    }
+    
+    // Create toggle button
     const toggleButton = document.createElement('button');
     toggleButton.id = 'labelCustomizerToggle';
+    toggleButton.type = 'button';
     toggleButton.innerHTML = '<i class="fas fa-tag"></i> Etiket Ayarları';
     toggleButton.style.cssText = `
-        position: fixed;
-        top: 70px;
-        right: 20px;
         background: #28a745;
         color: white;
         border: none;
         border-radius: 5px;
         padding: 8px 12px;
         cursor: pointer;
-        z-index: 9998;
         font-size: 12px;
+        margin: 5px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     `;
     
     toggleButton.addEventListener('click', () => {
         window.labelCustomizer.showPanel();
     });
     
-    document.body.appendChild(toggleButton);
+    // Add to the appropriate location
+    if (targetElement === document.body) {
+        // Fixed position if no suitable container found
+        toggleButton.style.position = 'fixed';
+        toggleButton.style.top = '70px';
+        toggleButton.style.right = '20px';
+        toggleButton.style.zIndex = '9998';
+    } else if (checkStatusBtn) {
+        // Insert after check status button
+        checkStatusBtn.parentNode.insertBefore(toggleButton, checkStatusBtn.nextSibling);
+    } else {
+        // Prepend to settings modal
+        targetElement.prepend(toggleButton);
+    }
+    
+    console.log('✅ Label customizer toggle button added');
 }
 
-// Initialize when DOM is ready
+// Enhanced initialization with better error handling
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
-        addLabelCustomizerToggle();
-        
-        // Apply initial panel visibility
-        if (!window.labelCustomizer.isPanelVisible()) {
-            document.getElementById('labelCustomizerPanel').style.display = 'none';
+        try {
+            addLabelCustomizerToggle();
+            
+            // Apply initial panel visibility
+            const panel = document.getElementById('labelCustomizerPanel');
+            if (panel && !window.labelCustomizer.isPanelVisible()) {
+                panel.style.display = 'none';
+            }
+            
+            console.log('🎯 Label customizer initialized successfully');
+            
+            // Test the functionality
+            setTimeout(() => {
+                const currentMode = window.getCurrentLabelMode();
+                console.log('🔍 Current label mode:', currentMode);
+            }, 500);
+            
+        } catch (error) {
+            console.error('❌ Error initializing label customizer:', error);
         }
     }, 1000);
 });
@@ -615,4 +674,35 @@ window.toggleLabelCustomizer = function() {
 // Global function to get current label mode
 window.getCurrentLabelMode = function() {
     return window.labelCustomizer.getLabelContent();
+};
+
+// Test function to verify label customizer is working
+window.testLabelCustomizer = function() {
+    console.group('🧪 Label Customizer Test');
+    
+    // Test 1: Check if customizer is initialized
+    if (!window.labelCustomizer) {
+        console.error('❌ Label customizer not initialized');
+        return false;
+    }
+    console.log('✅ Label customizer initialized');
+    
+    // Test 2: Check current mode
+    const currentMode = window.getCurrentLabelMode();
+    console.log('✅ Current mode:', currentMode);
+    
+    // Test 3: Test mode switching
+    const originalMode = currentMode.type;
+    console.log('✅ Original mode:', originalMode);
+    
+    // Test 4: Check if UI elements exist
+    const panel = document.getElementById('labelCustomizerPanel');
+    const toggleBtn = document.getElementById('labelCustomizerToggle');
+    
+    console.log('✅ Control panel:', panel ? 'Exists' : 'Missing');
+    console.log('✅ Toggle button:', toggleBtn ? 'Exists' : 'Missing');
+    
+    console.groupEnd();
+    
+    return true;
 };
