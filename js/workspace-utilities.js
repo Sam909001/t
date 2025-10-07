@@ -81,25 +81,8 @@ async function generateAndPrintLabel(packageData, printerConfig) {
 }
 
 function generateLabelContent(packageData, printerConfig) {
-    const workspace = window.workspaceManager.currentWorkspace;
-    const itemsText = packageData.items_display || 'Ürün bilgisi yok';
-    const date = new Date().toLocaleDateString('tr-TR');
-    
-    switch (printerConfig.type) {
-        case 'argox':
-            return `
-SIZE ${printerConfig.paperWidth} mm, ${printerConfig.paperHeight} mm
-GAP 2 mm, 0 mm
-CLS
-TEXT 10,10,"0",0,1,1,"${workspace.name}"
-TEXT 10,40,"0",0,1,1,"${packageData.package_no}"
-TEXT 10,70,"0",0,1,1,"${packageData.customer_name}"
-TEXT 10,100,"0",0,1,1,"${itemsText}"
-TEXT 10,130,"0",0,1,1,"Toplam: ${packageData.total_quantity}"
-TEXT 10,160,"0",0,1,1,"${date}"
-BARCODE 10,190,"128",40,1,0,2,2,"${packageData.package_no}"
-PRINT 1
-`;
+    return window.labelCustomizer.generateLabelContent(packageData, printerConfig);
+}
         case 'zebra':
             return `
 ^XA
