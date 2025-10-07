@@ -254,6 +254,16 @@ class LabelCustomizer {
         this.loadSettings();
         this.initializeUI();
     }
+
+
+     // ADD THESE TWO METHODS:
+    shouldUseCustomText() {
+        return this.useCustomText;
+    }
+    
+    getCustomText() {
+        return this.customText;
+    }
     
     loadSettings() {
         try {
