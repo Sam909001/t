@@ -147,6 +147,72 @@ async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
+        // ==================== OFFLINE CACHE SYSTEM - ADD THIS SECTION ====================
+        console.log('🔄 Initializing offline cache systems...');
+        
+        // Make offlineCache globally available
+        if (typeof OfflineCache !== 'undefined' && !window.offlineCache) {
+            window.offlineCache = new OfflineCache();
+            console.log('✅ Offline cache system initialized');
+        } else if (window.offlineCache) {
+            console.log('✅ Offline cache already initialized');
+        } else {
+            console.warn('⚠️ OfflineCache class not available - offline features disabled');
+        }
+        
+        // Start offline sync system
+        if (window.offlineCache) {
+            console.log('🔄 Setting up offline cache sync system...');
+            
+            // Sync when coming online
+            window.addEventListener('online', async () => {
+                console.log('🌐 Online - syncing offline cache...');
+                try {
+                    await window.offlineCache.getCustomers();
+                    await window.offlineCache.getPersonnel();
+                    
+                    if (typeof populateCustomers === 'function') await populateCustomers();
+                    if (typeof populatePersonnel === 'function') await populatePersonnel();
+                    
+                    console.log('✅ Offline cache synced successfully');
+                    showAlert('Çevrimdışı veriler güncellendi', 'success');
+                } catch (error) {
+                    console.warn('Background sync failed:', error);
+                }
+            });
+
+            // Periodic sync every 15 minutes when online
+            setInterval(async () => {
+                if (navigator.onLine && supabase && window.offlineCache) {
+                    console.log('🔄 Periodic offline cache sync...');
+                    try {
+                        await window.offlineCache.getCustomers();
+                        await window.offlineCache.getPersonnel();
+                        console.log('✅ Periodic cache sync completed');
+                    } catch (error) {
+                        console.warn('Periodic sync failed:', error);
+                    }
+                }
+            }, 15 * 60 * 1000);
+
+            // Initial sync on app start
+            setTimeout(async () => {
+                if (navigator.onLine && supabase && window.offlineCache) {
+                    console.log('🚀 Initial offline cache sync...');
+                    try {
+                        await window.offlineCache.getCustomers();
+                        await window.offlineCache.getPersonnel();
+                        console.log('✅ Initial cache sync completed');
+                    } catch (error) {
+                        console.warn('Initial sync failed:', error);
+                    }
+                }
+            }, 8000);
+
+            console.log('✅ Offline sync system started');
+        }
+        // ==================== END OFFLINE CACHE SYSTEM ====================
+
         // 1. CRITICAL FIX: Initialize elements FIRST before anything else
         if (typeof initializeElementsObject !== 'function') {
             console.error('❌ initializeElementsObject function not loaded!');
@@ -267,7 +333,6 @@ async function initApp() {
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 }
-
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
@@ -988,12 +1053,18 @@ function loadAppState() {
 
 // Initialize application
 async function initApp() {
+    // Initialize offline cache if available
+    if (typeof OfflineCache !== 'undefined' && !window.offlineCache) {
+        window.offlineCache = new OfflineCache();
+        console.log('✅ Offline cache initialized');
+    }
+    
     elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
     
     // Storage indicator'ı güncelle
     updateStorageIndicator();
     
-    // Populate dropdowns
+    // Populate dropdowns (now uses offline cache)
     await populateCustomers();
     await populatePersonnel();
     
