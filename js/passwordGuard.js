@@ -284,7 +284,6 @@ async function addCustomerWithAuth() {
 }
 
 // ==================== GLOBAL AVAILABILITY ====================
-
 // Make only essential functions globally available
 window.PasswordGuard = PasswordGuard;
 window.deletePackageWithAuth = deletePackageWithAuth;
@@ -292,6 +291,7 @@ window.changeApiKeyWithAuth = changeApiKeyWithAuth;
 window.clearDataWithAuth = clearDataWithAuth;
 window.deleteCustomerWithAuth = deleteCustomerWithAuth;
 window.addCustomerWithAuth = addCustomerWithAuth;
+window.clearExcelDataWithAuth = clearExcelDataWithAuth;
 
 // ==================== CSS ANIMATIONS ====================
 
