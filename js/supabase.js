@@ -3328,27 +3328,29 @@ function debouncedPopulateShippingTable() {
 
 
 
- let isStockTableLoading = false;
+let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
+// Keeps track of live RFID scans
+const scannedRFIDTags = new Map(); // tag_id => {code, name, customer, step, time}
+
 async function populateStockTable() {
-    // Prevent multiple simultaneous calls
     if (isStockTableLoading) return;
-    
-    // Debounce - prevent rapid successive calls
+
     const now = Date.now();
     if (now - lastStockFetchTime < 500) {
         setTimeout(populateStockTable, 500);
         return;
     }
-    
+
     isStockTableLoading = true;
     lastStockFetchTime = now;
-    
+
     try {
-        // Clear table only once
+        // Clear table
         elements.stockTableBody.innerHTML = '';
-        
+
+        // Fetch stock items
         const { data: stockItems, error } = await supabase
             .from('stock_items')
             .select('*')
@@ -3360,40 +3362,46 @@ async function populateStockTable() {
             return;
         }
 
-        // Deduplicate stock items by code
+        // Deduplicate stock by code
         const uniqueStockItems = [];
         const seenStockCodes = new Set();
-        
+
         if (stockItems && stockItems.length > 0) {
             stockItems.forEach(item => {
                 if (!seenStockCodes.has(item.code)) {
                     seenStockCodes.add(item.code);
                     uniqueStockItems.push(item);
-                    
+
                     const row = document.createElement('tr');
-                    
+
                     // Determine stock status
                     let statusClass = 'status-stokta';
                     let statusText = 'Stokta';
-                    
-                    if (item.quantity <= 0) {
-                        statusClass = 'status-kritik';
-                        statusText = 'Kritik';
-                    } else if (item.quantity < 10) {
-                        statusClass = 'status-az-stok';
-                        statusText = 'Az Stok';
-                    }
-                    
+                    if (item.quantity <= 0) { statusClass = 'status-kritik'; statusText = 'Kritik'; }
+                    else if (item.quantity < 10) { statusClass = 'status-az-stok'; statusText = 'Az Stok'; }
+
+                    // Check if RFID tag exists for this item
+                    let rfidTag = '';
+                    let customer = '';
+                    let step = '';
+                    let time = '';
+                    scannedRFIDTags.forEach(scan => {
+                        if (scan.code === item.code) {
+                            rfidTag = scan.tag_id;
+                            customer = scan.customer;
+                            step = scan.step;
+                            time = new Date(scan.time).toLocaleTimeString('tr-TR');
+                        }
+                    });
+
                     row.innerHTML = `
+                        <td>${rfidTag || '-'}</td>
                         <td>${item.code}</td>
                         <td>${item.name}</td>
-                        <td class="editable-cell">
-                            <span class="stock-quantity">${item.quantity}</span>
-                            <input type="number" class="stock-quantity-input" value="${item.quantity}" style="display:none;">
-                        </td>
-                        <td>${item.unit || 'Adet'}</td>
+                        <td>${customer || '-'}</td>
                         <td><span class="${statusClass}">${statusText}</span></td>
-                        <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                        <td>${step || '-'}</td>
+                        <td>${time || '-'}</td>
                         <td>
                             <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
                             <div class="edit-buttons" style="display:none;">
@@ -3407,10 +3415,10 @@ async function populateStockTable() {
             });
         } else {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
+            row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Stok verisi yok</td>';
             elements.stockTableBody.appendChild(row);
         }
-        
+
     } catch (error) {
         console.error('Error in populateStockTable:', error);
         showAlert('Stok tablosu yükleme hatası', 'error');
@@ -3419,13 +3427,24 @@ async function populateStockTable() {
     }
 }
 
-// Debounced version to prevent rapid successive calls
+// Debounced call
 let stockTableTimeout;
 function debouncedPopulateStockTable() {
     clearTimeout(stockTableTimeout);
     stockTableTimeout = setTimeout(populateStockTable, 300);
 }
 
+// Call this when a new RFID tag is scanned
+function onRFIDScan(tag_id, code, customer, step) {
+    scannedRFIDTags.set(tag_id, {
+        tag_id,
+        code,
+        customer,
+        step,
+        time: Date.now()
+    });
+    debouncedPopulateStockTable();
+}
 
  
         async function saveStockItem(code) {
