@@ -238,13 +238,19 @@ function getStrictWorkspaceFilter(tableName) {
 
 
 
-// ==================== SIMPLE LOGO/TEXT TOGGLE ONLY ====================
 
-class SimpleLabelCustomizer {
+// ==================== ROBUST LABEL CUSTOMIZER SYSTEM ====================
+
+// Global variable to track initialization
+window.labelCustomizerInitialized = false;
+
+// Simple LabelCustomizer class with essential methods
+class LabelCustomizer {
     constructor() {
         this.useCustomText = false;
         this.customText = '';
         this.storageKey = 'label_customizer_settings';
+        this.logoBase64 = 'YOUR_BASE64_LOGO_HERE';
         
         this.loadSettings();
         this.initializeUI();
@@ -302,7 +308,7 @@ class SimpleLabelCustomizer {
         panel.innerHTML = `
             <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
                 <h4 style="margin: 0; color: #333; font-size: 14px;">
-                    <i class="fas fa-tag"></i> Logo/Text Değiştirici
+                    <i class="fas fa-tag"></i> Etiket Özelleştirici
                 </h4>
                 <button id="closeLabelPanel" style="background: none; border: none; color: #666; cursor: pointer; font-size: 16px;">
                     ×
@@ -312,7 +318,7 @@ class SimpleLabelCustomizer {
             <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 10px;">
                     <input type="radio" name="labelMode" value="logo" ${!this.useCustomText ? 'checked' : ''} style="margin-right: 8px;">
-                    <span style="font-size: 13px;">Logo Kullan (Varsayılan)</span>
+                    <span style="font-size: 13px;">Logo Kullan</span>
                 </label>
                 
                 <label style="display: flex; align-items: center; cursor: pointer;">
@@ -322,8 +328,8 @@ class SimpleLabelCustomizer {
             </div>
             
             <div id="customTextSection" style="display: ${this.useCustomText ? 'block' : 'none'}; margin-bottom: 15px;">
-                <input type="text" id="customTextInput" value="${this.customText}" placeholder="Logo yerine yazılacak metin..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;" maxlength="20">
-                <small style="color: #666; font-size: 11px;">Maksimum 20 karakter</small>
+                <input type="text" id="customTextInput" value="${this.customText}" placeholder="Etiket için özel metin girin..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;" maxlength="30">
+                <small style="color: #666; font-size: 11px;">Maksimum 30 karakter</small>
             </div>
             
             <button id="applyLabelSettings" style="width: 100%; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">
@@ -336,14 +342,14 @@ class SimpleLabelCustomizer {
     }
     
     attachEventListeners() {
-        // Radio buttons - only toggle text input visibility
+        // Radio buttons
         document.querySelectorAll('input[name="labelMode"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 document.getElementById('customTextSection').style.display = e.target.value === 'text' ? 'block' : 'none';
             });
         });
         
-        // Apply button - only save the preference
+        // Apply button
         const applyBtn = document.getElementById('applyLabelSettings');
         if (applyBtn) {
             applyBtn.addEventListener('click', () => this.applySettings());
@@ -376,15 +382,11 @@ class SimpleLabelCustomizer {
                     alert('Lütfen özel metin girin');
                     return;
                 }
-                if (this.customText.length > 20) {
-                    alert('Metin 20 karakterden uzun olamaz');
-                    return;
-                }
             }
         }
         
         this.saveSettings();
-        alert(this.useCustomText ? `Logo yerine "${this.customText}" kullanılacak` : 'Logo moduna geçildi');
+        alert(this.useCustomText ? `Etiket metni ayarlandı: "${this.customText}"` : 'Logo moduna geçildi');
     }
     
     showPanel() {
@@ -397,75 +399,209 @@ class SimpleLabelCustomizer {
         if (panel) panel.style.display = 'none';
     }
     
-    // THE ONLY FUNCTION THAT INTERACTS WITH PRINTING SYSTEM
-    // This simply returns whether to use logo or text - doesn't modify any printing logic
-    shouldUseCustomText() {
-        return this.useCustomText;
-    }
-    
-    getCustomText() {
-        return this.customText;
-    }
-    
-    // This is the ONLY integration point with your existing system
-    getLabelMode() {
-        return {
-            useCustomText: this.useCustomText,
-            customText: this.customText
-        };
+    getLabelContent() {
+        return this.useCustomText ? { type: 'text', content: this.customText } : { type: 'logo', content: this.logoBase64 };
     }
 }
 
-// ==================== MINIMAL INTEGRATION ====================
 
-// Initialize the simple customizer
-window.simpleLabelCustomizer = new SimpleLabelCustomizer();
 
-// Create simple button that doesn't interfere with anything
-function createSimpleLabelButton() {
+// ==================== MATCHING BUTTON STYLING ====================
+
+function createLabelButton() {
+    // First, let's check the existing button styles
+    const existingButtons = document.querySelectorAll('button');
+    let targetStyle = {};
+    
+    // Find a reference button (Check Status or similar)
+    for (let btn of existingButtons) {
+        if (btn.textContent.includes('Check Status') || btn.textContent.includes('Durum') || 
+            btn.textContent.includes('Test Print') || btn.textContent.includes('Yazdır')) {
+            
+            // Get computed style to match exactly
+            const computedStyle = window.getComputedStyle(btn);
+            targetStyle = {
+                background: computedStyle.backgroundColor,
+                color: computedStyle.color,
+                border: computedStyle.border,
+                borderRadius: computedStyle.borderRadius,
+                padding: computedStyle.padding,
+                margin: computedStyle.margin,
+                fontSize: computedStyle.fontSize,
+                fontFamily: computedStyle.fontFamily,
+                cursor: computedStyle.cursor,
+                display: computedStyle.display,
+                alignItems: computedStyle.alignItems,
+                gap: '8px'
+            };
+            break;
+        }
+    }
+    
+    // Create the button with matching style
     const button = document.createElement('button');
     button.id = 'labelCustomizerToggle';
     button.type = 'button';
-    button.innerHTML = '<i class="fas fa-tag"></i> Logo/Text';
+    button.innerHTML = '<i class="fas fa-tag"></i> Etiket Ayarları';
+    
+    // Apply styles - use target style if found, otherwise use sensible defaults
     button.style.cssText = `
-        background: #ffffff;
-        color: #333333;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        padding: 6px 12px;
-        margin: 4px;
-        font-size: 13px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
+        background: ${targetStyle.background || '#ffffff'};
+        color: ${targetStyle.color || '#333333'};
+        border: ${targetStyle.border || '1px solid #ccc'};
+        border-radius: ${targetStyle.borderRadius || '4px'};
+        padding: ${targetStyle.padding || '6px 12px'};
+        margin: ${targetStyle.margin || '4px'};
+        font-size: ${targetStyle.fontSize || '13px'};
+        font-family: ${targetStyle.fontFamily || 'Arial, sans-serif'};
+        cursor: ${targetStyle.cursor || 'pointer'};
+        display: ${targetStyle.display || 'inline-flex'};
+        align-items: ${targetStyle.alignItems || 'center'};
+        gap: ${targetStyle.gap || '6px'};
+        transition: all 0.2s ease;
     `;
     
-    // Simple click handler - only shows the settings panel
+    // Add hover effects to match other buttons
+    button.addEventListener('mouseenter', function() {
+        this.style.background = '#f8f9fa';
+        this.style.borderColor = '#adb5bd';
+    });
+    
+    button.addEventListener('mouseleave', function() {
+        this.style.background = targetStyle.background || '#ffffff';
+        this.style.borderColor = targetStyle.borderColor || '#ccc';
+    });
+    
     button.onclick = function() {
-        window.simpleLabelCustomizer.showPanel();
+        if (window.labelCustomizer) {
+            window.labelCustomizer.showPanel();
+        } else {
+            console.log('Label customizer not ready');
+        }
     };
     
     return button;
 }
 
-// Simple placement
-function placeSimpleLabelButton() {
+// ==================== DIRECT BUTTON PLACEMENT ====================
+
+function placeLabelButtonNow() {
+    console.log('📍 Placing label button...');
+    
+    // Remove existing button if any
     const existingBtn = document.getElementById('labelCustomizerToggle');
     if (existingBtn) existingBtn.remove();
     
+    // Create new button
     const labelBtn = createSimpleLabelButton();
     
-    // Try to place next to Check Status button
-    const checkStatusBtn = document.querySelector('button:contains("Check Status"), button:contains("Durum")');
-    if (checkStatusBtn && checkStatusBtn.parentNode) {
-        checkStatusBtn.parentNode.insertBefore(labelBtn, checkStatusBtn.nextSibling);
-    } else {
+    // Try to find the best place for the button
+    let placed = false;
+    
+    // Strategy 1: Look for check status button and place next to it
+    const buttons = document.querySelectorAll('button');
+    for (let btn of buttons) {
+        if (btn.textContent.includes('Durum') || btn.textContent.includes('Check Status') || 
+            btn.textContent.includes('Yazdır') || btn.textContent.includes('Print') ||
+            btn.id.includes('status') || btn.id.includes('print')) {
+            
+            btn.parentNode.insertBefore(labelBtn, btn.nextSibling);
+            console.log('✅ Button placed next to:', btn.textContent || btn.id);
+            placed = true;
+            break;
+        }
+    }
+    
+    // Strategy 2: Look for button containers
+    if (!placed) {
+        const containers = document.querySelectorAll('.btn-group, .button-group, .actions, .tools, .modal-footer, .toolbar');
+        for (let container of containers) {
+            container.appendChild(labelBtn);
+            console.log('✅ Button placed in container:', container.className);
+            placed = true;
+            break;
+        }
+    }
+    
+    // Strategy 3: Fixed position as last resort
+    if (!placed) {
+        labelBtn.style.position = 'fixed';
+        labelBtn.style.top = '70px';
+        labelBtn.style.right = '20px';
+        labelBtn.style.zIndex = '9998';
         document.body.appendChild(labelBtn);
+        console.log('✅ Button placed in fixed position');
     }
     
     return labelBtn;
 }
 
-// Initialize
-setTimeout(placeSimpleLabelButton, 1000);
+// ==================== SIMPLE INITIALIZATION ====================
+
+function initializeLabelCustomizerSimple() {
+    console.log('🚀 Starting label customizer initialization...');
+    
+    // Step 1: Place the button immediately
+    const button = placeLabelButtonNow();
+    console.log('✅ Button placed');
+    
+    // Step 2: Initialize the LabelCustomizer class
+    try {
+        if (!window.labelCustomizer) {
+            window.labelCustomizer = new LabelCustomizer();
+            console.log('✅ LabelCustomizer class initialized');
+        }
+        
+        // Step 3: Update button click handler to use the initialized class
+        button.onclick = function() {
+            if (window.labelCustomizer) {
+                window.labelCustomizer.showPanel();
+            }
+        };
+        
+        window.labelCustomizerInitialized = true;
+        console.log('🎉 Label customizer fully initialized!');
+        
+    } catch (error) {
+        console.error('❌ Error initializing LabelCustomizer:', error);
+    }
+}
+
+// ==================== IMMEDIATE EXECUTION ====================
+
+// Run immediately - don't wait for events
+console.log('🔧 Setting up label customizer...');
+
+// Place button immediately
+setTimeout(initializeLabelCustomizerSimple, 100);
+
+// Also try after a short delay in case DOM isn't ready
+setTimeout(initializeLabelCustomizerSimple, 1000);
+
+// And one more time after everything should be loaded
+setTimeout(initializeLabelCustomizerSimple, 3000);
+
+// ==================== MANUAL COMMANDS ====================
+
+// Command to force show the button
+window.showLabelButton = function() {
+    placeLabelButtonNow();
+    console.log('✅ Label button should be visible now');
+};
+
+// Command to test the system
+window.testLabelSystem = function() {
+    console.log('🧪 Testing Label System:');
+    console.log('- Button exists:', !!document.getElementById('labelCustomizerToggle'));
+    console.log('- Panel exists:', !!document.getElementById('labelCustomizerPanel'));
+    console.log('- LabelCustomizer initialized:', !!window.labelCustomizer);
+    console.log('- Global initialized flag:', window.labelCustomizerInitialized);
+};
+
+// Command to force initialization
+window.initLabelNow = initializeLabelCustomizerSimple;
+
+// Run the test to see current status
+setTimeout(() => {
+    window.testLabelSystem();
+}, 2000); can we make the label changing button inside the settings modal at the top just under   Genel Ayarlar  in proper button style
