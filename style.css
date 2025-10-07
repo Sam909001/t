@@ -2225,3 +2225,35 @@ body.modal-open {
 .password-toggle:hover {
     color: #333;
 }
+
+
+/* Add to your CSS for better button grouping */
+.settings-option {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.settings-option:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.settings-option label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.settings-option .btn {
+    margin-bottom: 5px;
+}
+
+/* Tooltip style for descriptions */
+.settings-description {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+    line-height: 1.4;
+}
