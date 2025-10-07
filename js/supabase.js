@@ -3448,37 +3448,28 @@ function onRFIDScan(tag_id, code, customer, step) {
 
 
 
-// ========== RFID Simulation / Live Scan ==========
-
-// Simulated scanning interval
+// Simulation of RFID scanning
 let rfidScanInterval = null;
 
-// Start simulated scanning
 function startRFIDScan() {
-    if (rfidScanInterval) return; // already scanning
+    if (rfidScanInterval) return;
 
     rfidScanInterval = setInterval(() => {
-        // Simulate a random tag scan every 2-5 seconds
         const sampleTags = [
-            { tag_id: 'TAG001', code: 'STK001', customer: 'Ali Veli', step: 'Washing' },
-            { tag_id: 'TAG002', code: 'STK002', customer: 'Ayşe Demir', step: 'Ironing' },
-            { tag_id: 'TAG003', code: 'STK003', customer: 'Mehmet Kaya', step: 'Shipping' }
+            { tag_id: 'TAG001', code: 'STK001', productName: 'Gömlek', customerName: 'Ali Veli', step: 'Yıkama' },
+            { tag_id: 'TAG002', code: 'STK002', productName: 'Pantolon', customerName: 'Ayşe Demir', step: 'Ütüleme' },
+            { tag_id: 'TAG003', code: 'STK003', productName: 'Ceket', customerName: 'Mehmet Kaya', step: 'Sevkiyat' }
         ];
         const randomTag = sampleTags[Math.floor(Math.random() * sampleTags.length)];
-
-        // Trigger scan event
-        onRFIDScan(randomTag.tag_id, randomTag.code, randomTag.customer, randomTag.step);
-
-        console.log('Simulated RFID scan:', randomTag);
-    }, 2000 + Math.random() * 3000); // random interval 2-5 sec
+        onRFIDScan(randomTag.tag_id, randomTag.code, randomTag.productName, randomTag.customerName, randomTag.step);
+    }, 2000 + Math.random() * 3000);
 }
 
-// Stop simulated scanning
 function stopRFIDScan() {
     if (rfidScanInterval) {
         clearInterval(rfidScanInterval);
         rfidScanInterval = null;
-        console.log('RFID scan stopped');
+        console.log('RFID scanning stopped');
     }
 }
 
