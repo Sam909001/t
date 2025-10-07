@@ -1,3 +1,10 @@
+// These should be in excel-storage.js
+let excelPackages = [];
+let excelSyncQueue = [];
+let isUsingExcel = false;
+
+
+
 // Enhanced Excel Storage with Proper Daily Files
 const ExcelStorage = {
     // Get today's date string for file naming
