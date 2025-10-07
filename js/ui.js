@@ -550,51 +550,122 @@ function selectCustomerFromModal(customer) {
     showAlert(`Müşteri seçildi: ${customer.name}`, 'success');
 }
         
-// Package operations
-function openQuantityModal(product) {
-    selectedProduct = product;
-    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
+// ----------------------
+// Helper: Touch keyboard (POS-only)
+// ----------------------
+function showTouchKeyboardIfPOS() {
+    try {
+        // Detect touch capability
+        const hasTouch = (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
+        if (!hasTouch) return; // skip on non-touch devices
+
+        // Only run on Windows
+        if (typeof process === 'undefined' || process.platform !== 'win32') return;
+
+        // Try require safely (works if nodeIntegration is enabled or window.require exists)
+        let execFunc;
+        try {
+            // normal require
+            execFunc = require('child_process').exec;
+        } catch (e) {
+            // if contextIsolation is on but window.require exposed by preload
+            if (window && window.require) {
+                try { execFunc = window.require('child_process').exec; } catch (e2) { /* fallback */ }
+            }
+        }
+        if (!execFunc) return; // cannot open keyboard in this environment
+
+        const keyboardPath = `${process.env.SystemRoot}\\System32\\TabTip.exe`;
+        execFunc(`"${keyboardPath}"`, (err) => {
+            if (err) console.warn("⚠️ Touch keyboard not opened:", err.message || err);
+        });
+    } catch (err) {
+        console.warn("⚠️ showTouchKeyboardIfPOS error:", err && err.message ? err.message : err);
+    }
 }
 
-setTimeout(() => {
-        elements.quantityInput.focus();
-        showTouchKeyboardIfPOS(); // 🟢 auto open on-screen keyboard for touch POS
+function hideTouchKeyboard() {
+    try {
+        if (typeof process === 'undefined' || process.platform !== 'win32') return;
+
+        let execFunc;
+        try {
+            execFunc = require('child_process').exec;
+        } catch (e) {
+            if (window && window.require) {
+                try { execFunc = window.require('child_process').exec; } catch (e2) { /* fallback */ }
+            }
+        }
+        if (!execFunc) return;
+
+        execFunc('taskkill /IM TabTip.exe /F', () => { /* ignore errors */ });
+    } catch (err) {
+        console.warn("⚠️ hideTouchKeyboard error:", err && err.message ? err.message : err);
+    }
+}
+
+// ----------------------
+// Package operations (single, cleaned definitions)
+// ----------------------
+
+// Note: `elements` is assumed to exist and contain:
+// elements.quantityModal, elements.quantityModalTitle, elements.quantityInput
+// If not, functions fallback to document.getElementById('quantityInput') etc.
+
+function openQuantityModal(product) {
+    selectedProduct = product;
+    const titleEl = elements?.quantityModalTitle ?? document.getElementById('quantityModalTitle');
+    const inputEl = elements?.quantityInput ?? document.getElementById('quantityInput');
+    const modalEl = elements?.quantityModal ?? document.getElementById('quantityModal');
+
+    if (titleEl) titleEl.textContent = `${product} - Adet Girin`;
+    if (inputEl) inputEl.value = '';
+    const errEl = document.getElementById('quantityError');
+    if (errEl) errEl.style.display = 'none';
+    if (modalEl) modalEl.style.display = 'flex';
+
+    // Focus + show keyboard (delay to allow modal to open)
+    setTimeout(() => {
+        if (inputEl) inputEl.focus();
+        showTouchKeyboardIfPOS();
     }, 200);
 }
 
-
 function openStatusQuantityModal(status) {
-    selectedProduct = status; // 👈 reuse the same global
-    elements.quantityModalTitle.textContent = `${status} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
-}
+    selectedProduct = status; // reuse the same global
+    const titleEl = elements?.quantityModalTitle ?? document.getElementById('quantityModalTitle');
+    const inputEl = elements?.quantityInput ?? document.getElementById('quantityInput');
+    const modalEl = elements?.quantityModal ?? document.getElementById('quantityModal');
 
-setTimeout(() => {
-        elements.quantityInput.focus();
-        showTouchKeyboardIfPOS(); // 🟢 auto open on-screen keyboard for touch POS
+    if (titleEl) titleEl.textContent = `${status} - Adet Girin`;
+    if (inputEl) inputEl.value = '';
+    const errEl = document.getElementById('quantityError');
+    if (errEl) errEl.style.display = 'none';
+    if (modalEl) modalEl.style.display = 'flex';
+
+    // Focus + show keyboard (delay to allow modal to open)
+    setTimeout(() => {
+        if (inputEl) inputEl.focus();
+        showTouchKeyboardIfPOS();
     }, 200);
 }
 
 function confirmQuantity() {
-    const quantity = parseInt(elements.quantityInput.value);
-    
-    // Doğrulama
+    const inputEl = elements?.quantityInput ?? document.getElementById('quantityInput');
+    const val = inputEl ? inputEl.value : (document.getElementById('quantityInput')?.value || '');
+    const quantity = parseInt(val, 10);
+
+    // Validation
     if (!quantity || quantity <= 0) {
-        document.getElementById('quantityError').style.display = 'block';
+        const errEl = document.getElementById('quantityError');
+        if (errEl) errEl.style.display = 'block';
         return;
     }
 
     // Update quantity badge
     const badge = document.getElementById(`${selectedProduct}-quantity`);
     if (badge) {
-        const currentQuantity = parseInt(badge.textContent) || 0;
+        const currentQuantity = parseInt(badge.textContent, 10) || 0;
         badge.textContent = currentQuantity + quantity;
     }
 
@@ -603,27 +674,39 @@ function confirmQuantity() {
     currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
 
     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-    closeQuantityModal();
+    // Close modal if you have closeQuantityModal() defined elsewhere
+    if (typeof closeQuantityModal === 'function') {
+        closeQuantityModal();
+    } else {
+        // fallback: hide modal element
+        const modalEl = elements?.quantityModal ?? document.getElementById('quantityModal');
+        if (modalEl) modalEl.style.display = 'none';
+    }
+
+    // hide keyboard after confirm (POS only)
+    hideTouchKeyboard();
 }
-        
+
+// ----------------------
+// Manual entry modal
+// ----------------------
 function openManualEntry() {
     const modal = document.getElementById('manualModal');
     if (modal) {
         modal.style.display = 'flex';
-        document.getElementById('manualProduct').focus();
+        const prod = document.getElementById('manualProduct');
+        if (prod) prod.focus();
     }
 }
 
 function closeManualModal() {
     const modal = document.getElementById('manualModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
 }
 
 function addManualProduct() {
-    const product = document.getElementById('manualProduct').value.trim();
-    const quantity = parseInt(document.getElementById('manualQuantity').value);
+    const product = (document.getElementById('manualProduct')?.value || '').trim();
+    const quantity = parseInt(document.getElementById('manualQuantity')?.value || '0', 10);
 
     // Form validation
     if (!validateForm([
@@ -638,170 +721,66 @@ function addManualProduct() {
     currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
 
     showAlert(`${product}: ${quantity} adet eklendi`, 'success');
-    
+
     // Clear form and close modal
-    document.getElementById('manualProduct').value = '';
-    document.getElementById('manualQuantity').value = '';
+    const mp = document.getElementById('manualProduct');
+    const mq = document.getElementById('manualQuantity');
+    if (mp) mp.value = '';
+    if (mq) mq.value = '';
     closeManualModal();
 }
 
-// Open Extra Modal
+// ----------------------
+// Extra modal open/close
+// ----------------------
 function openExtraModal() {
     const modal = document.getElementById('extraModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
+    if (modal) modal.style.display = 'block';
 }
-
-// Close Extra Modal
 function closeExtraModal() {
     const modal = document.getElementById('extraModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
 }
 
-// Settings functions
+// ----------------------
+// Settings modal & load/save
+// ----------------------
 function showSettingsModal() {
     loadSettings(); // Load current settings
-    checkSystemStatus(); // Update status indicators
-    document.getElementById('settingsModal').style.display = 'flex';
+    if (typeof checkSystemStatus === 'function') checkSystemStatus(); // optional
+    const modal = document.getElementById('settingsModal');
+    if (modal) modal.style.display = 'flex';
 }
 
 function closeSettingsModal() {
-    document.getElementById('settingsModal').style.display = 'none';
+    const modal = document.getElementById('settingsModal');
+    if (modal) modal.style.display = 'none';
 }
 
 function loadSettings() {
-    // Load saved settings from localStorage
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
     // Theme
     if (settings.theme === 'dark') {
-        document.getElementById('themeToggle').checked = true;
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) themeToggle.checked = true;
         document.body.classList.add('dark-mode');
     }
 
     // Language
     if (settings.language) {
-        document.getElementById('languageSelect').value = settings.language;
+        const lang = document.getElementById('languageSelect');
+        if (lang) lang.value = settings.language;
     }
-    
+
     // Auto-save
-    document.getElementById('autoSaveToggle').checked = settings.autoSave !== false;
+    const auto = document.getElementById('autoSaveToggle');
+    if (auto) auto.checked = settings.autoSave !== false;
 }
 
-
-
-// Package operations
-function openQuantityModal(product) {
-    selectedProduct = product;
-    elements.quantityModalTitle.textContent = `${product} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
-}
-
-
-function openStatusQuantityModal(status) {
-    selectedProduct = status; // 👈 reuse the same global
-    elements.quantityModalTitle.textContent = `${status} - Adet Girin`;
-    elements.quantityInput.value = '';
-    document.getElementById('quantityError').style.display = 'none';
-    elements.quantityModal.style.display = 'flex';
-    elements.quantityInput.focus();
-}
-
-
-
-function confirmQuantity() {
-    const quantity = parseInt(elements.quantityInput.value);
-    
-    // Doğrulama
-    if (!quantity || quantity <= 0) {
-        document.getElementById('quantityError').style.display = 'block';
-        return;
-    }
-
-    // Update quantity badge
-    const badge = document.getElementById(`${selectedProduct}-quantity`);
-    if (badge) {
-        const currentQuantity = parseInt(badge.textContent) || 0;
-        badge.textContent = currentQuantity + quantity;
-    }
-
-    // Add to current package
-    if (!currentPackage.items) currentPackage.items = {};
-    currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
-
-     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-    closeQuantityModal();
-    hideTouchKeyboard(); // 🟢 close keyboard after confirming
-}
-
-    showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
-    closeQuantityModal();
-}
-        
-function openManualEntry() {
-    const modal = document.getElementById('manualModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        document.getElementById('manualProduct').focus();
-    }
-}
-
-function closeManualModal() {
-    const modal = document.getElementById('manualModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-function addManualProduct() {
-    const product = document.getElementById('manualProduct').value.trim();
-    const quantity = parseInt(document.getElementById('manualQuantity').value);
-
-    // Form validation
-    if (!validateForm([
-        { id: 'manualProduct', errorId: 'manualProductError', type: 'text', required: true },
-        { id: 'manualQuantity', errorId: 'manualQuantityError', type: 'number', required: true }
-    ])) {
-        return;
-    }
-
-    // Add to current package
-    if (!currentPackage.items) currentPackage.items = {};
-    currentPackage.items[product] = (currentPackage.items[product] || 0) + quantity;
-
-    showAlert(`${product}: ${quantity} adet eklendi`, 'success');
-    
-    // Clear form and close modal
-    document.getElementById('manualProduct').value = '';
-    document.getElementById('manualQuantity').value = '';
-    closeManualModal();
-}
-
-
-
-// Open Extra Modal
-function openExtraModal() {
-    const modal = document.getElementById('extraModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
-}
-
-// Close Extra Modal
-function closeExtraModal() {
-    const modal = document.getElementById('extraModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-// ---------------- LOAD SETTINGS ----------------
+// ----------------------
+// Printer settings load/save
+// ----------------------
 function loadPrinterSettings(settings) {
     document.getElementById('printerScaling').value = settings.printerScaling || '100%';
     document.getElementById('copiesNumber').value = settings.copies || 1;
@@ -813,7 +792,6 @@ function loadPrinterSettings(settings) {
     document.getElementById('labelHeader').value = settings.labelHeader || 'Yeditepe';
 }
 
-// ---------------- SAVE SETTINGS ----------------
 function savePrinterSettings() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
@@ -830,7 +808,9 @@ function savePrinterSettings() {
     console.log('Printer settings saved', settings);
 }
 
-// ---------------- INIT ----------------
+// ----------------------
+// INIT
+// ----------------------
 document.addEventListener('DOMContentLoaded', () => {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     loadPrinterSettings(settings);
@@ -861,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await printerInstance.testPrint(settings, settings.labelHeader);
             } catch (error) {
                 console.error('Test print error:', error);
-                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
+                showAlert('Test yazdırma başarısız: ' + (error.message || error), 'error');
             } finally {
                 testBtn.disabled = false;
                 testBtn.textContent = originalText;
@@ -4301,32 +4281,3 @@ window.clearExcelData = clearExcelData;
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeExcelButtons, 3000);
 });
-
-
-
-// 🔹 Auto open Windows on-screen keyboard (for touch POS)
-function showTouchKeyboardIfPOS() {
-    try {
-        // Detect touch screen
-        const hasTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
-        if (!hasTouch) return; // ✅ skip on normal PCs
-
-        const { exec } = require('child_process');
-        const keyboardPath = `${process.env.SystemRoot}\\System32\\TabTip.exe`;
-        exec(`"${keyboardPath}"`, (err) => {
-            if (err) console.warn("⚠️ Touch keyboard not opened:", err.message);
-        });
-    } catch (e) {
-        console.warn("⚠️ Keyboard open skipped:", e.message);
-    }
-}
-
-// 🔹 Optional: Hide keyboard
-function hideTouchKeyboard() {
-    try {
-        const { exec } = require('child_process');
-        exec('taskkill /IM TabTip.exe /F', () => {});
-    } catch (e) {
-        console.warn("⚠️ Could not close keyboard:", e.message);
-    }
-}
