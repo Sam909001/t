@@ -263,6 +263,26 @@ async function addCustomerWithAuth() {
     }
 }
 
+
+// ✅ 6. Clear Excel with Authentication - Uses 7142
+    async clearExcelWithAuth() {
+        try {
+            await this.askPasswordAndRun(() => {
+                if (typeof clearExcelData === 'function') {
+                    return clearExcelData();
+                } else {
+                    showAlert('Excel temizleme fonksiyonu bulunamadı', 'error');
+                    throw new Error('Function not found');
+                }
+            }, 'Excel verilerini temizleme', 'clearData');
+        } catch (error) {
+            if (error.message !== 'User cancelled') {
+                console.log('Excel clear cancelled:', error.message);
+            }
+        }
+    }
+}
+
 // ==================== GLOBAL AVAILABILITY ====================
 
 // Make only essential functions globally available
