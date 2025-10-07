@@ -4057,7 +4057,8 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// EXCEL MANAGEMENT FUNCTIONS - UPDATED WITH PASSWORD GUARD
+// EXCEL MANAGEMENT FUNCTIONS - WITH PROPER PASSWORD GUARD HANDLING
+// REPLACE YOUR PREVIOUS VERSION WITH THIS ONE
 
 // Initialize the buttons
 function initializeExcelButtons() {
@@ -4073,6 +4074,51 @@ function initializeExcelButtons() {
         clearBtn.addEventListener('click', clearExcelDataWithAuth);
         console.log('✅ Clear Excel button initialized');
     }
+}
+
+// Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
+async function clearExcelDataWithAuth() {
+    console.log('🔒 Attempting to clear Excel data with auth...');
+    
+    try {
+        // Check if PasswordGuard is available
+        if (typeof PasswordGuard === 'undefined') {
+            console.warn('❌ PasswordGuard not available, using fallback...');
+            await fallbackPasswordCheck();
+            return;
+        }
+        
+        const passwordGuard = new PasswordGuard();
+        
+        await passwordGuard.askPasswordAndRun(() => {
+            return clearExcelData();
+        }, 'Excel verilerini temizleme', 'clearData');
+        
+    } catch (error) {
+        if (error.message === 'User cancelled') {
+            console.log('Excel clear cancelled by user');
+        } else {
+            console.error('Clear Excel error:', error);
+            showAlert('Excel temizleme hatası: ' + error.message, 'error');
+        }
+    }
+}
+
+// Simple fallback password check
+async function fallbackPasswordCheck() {
+    return new Promise((resolve, reject) => {
+        const password = prompt('Excel verilerini temizlemek için şifre girin (7142):');
+        
+        if (password === '7142') {
+            resolve();
+            clearExcelData();
+        } else if (password === null) {
+            reject(new Error('User cancelled'));
+        } else {
+            alert('Hatalı şifre! İşlem iptal edildi.');
+            reject(new Error('Wrong password'));
+        }
+    });
 }
 
 // Refresh Excel Data Function - NO PASSWORD NEEDED
@@ -4111,26 +4157,11 @@ async function refreshExcelData() {
         console.error('❌ Excel refresh error:', error);
         showAlert('Excel güncelleme hatası: ' + error.message, 'error');
     } finally {
-        // Restore button state - FIXED: This was missing!
+        // Restore button state
         const refreshBtn = document.getElementById('refreshExcelBtn');
         if (refreshBtn) {
             refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Güncelle';
             refreshBtn.disabled = false;
-        }
-    }
-}
-
-// Clear Excel Data with Authentication - USES PASSWORD GUARD
-async function clearExcelDataWithAuth() {
-    const passwordGuard = new PasswordGuard();
-    
-    try {
-        await passwordGuard.askPasswordAndRun(() => {
-            return clearExcelData(); // This returns the actual clear function
-        }, 'Excel verilerini temizleme', 'clearData'); // Uses 7142 password
-    } catch (error) {
-        if (error.message !== 'User cancelled') {
-            console.log('Excel clear cancelled:', error.message);
         }
     }
 }
@@ -4180,9 +4211,6 @@ async function clearExcelData() {
         
         // 6. Show success message
         showAlert('✅ Excel verileri başarıyla temizlendi!', 'success');
-        
-        // 7. Log the action
-        console.log('📝 Excel clear operation completed by admin');
         
     } catch (error) {
         console.error('❌ Excel clear error:', error);
@@ -4249,7 +4277,12 @@ function clearAppState() {
     console.log('✅ Application state cleared');
 }
 
+// Make functions globally available
+window.clearExcelDataWithAuth = clearExcelDataWithAuth;
+window.refreshExcelData = refreshExcelData;
+window.clearExcelData = clearExcelData;
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(initializeExcelButtons, 2000);
+    setTimeout(initializeExcelButtons, 3000);
 });
