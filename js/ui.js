@@ -1225,9 +1225,21 @@ function showConsoleLogs() {
     console.log('Console logs monitoring started');
 }
 
-// Reset settings to defaults
 function resetSettings() {
-    if (confirm('Tüm ayarlar varsayılan değerlere sıfırlanacak. Emin misiniz?')) {
+    if (!confirm('Uygulama ayarları varsayılana döndürülecek. Müşteri veya paket verileri silinmeyecek. Devam edilsin mi?')) return;
+
+    try {
+        // 🧹 Step 1: Remove all stored setting keys that could be corrupted or user-modified
+        const keepKeys = ['packages', 'customers', 'sales', 'workspaces']; // ✅ Keep business data
+        const allKeys = Object.keys(localStorage);
+        
+        for (const key of allKeys) {
+            if (!keepKeys.includes(key)) {
+                localStorage.removeItem(key);
+            }
+        }
+
+        // 🧩 Step 2: Recreate clean default settings
         const defaultSettings = {
             theme: 'light',
             printerScaling: '100',
@@ -1243,17 +1255,27 @@ function resetSettings() {
             backupEnabled: true,
             printerFontSize: '12',
             printerMargin: '3',
-            barcodeHeight: '25',
-            labelWidth: '100',
-            labelHeight: '80',
             debugMode: false
         };
-        
+
+        // 🧾 Step 3: Save clean settings
         localStorage.setItem('procleanSettings', JSON.stringify(defaultSettings));
-        applySettings(defaultSettings);
-        loadSettings();
-        
-        showAlert('Ayarlar varsayılan değerlere sıfırlandı', 'success');
+
+        // 🧠 Step 4: Optional cleanup of temporary app caches
+        sessionStorage.clear();
+
+        // 🪄 Step 5: Reload settings into UI/system
+        if (typeof loadSettings === 'function') {
+            loadSettings();
+        }
+
+        // 🔄 Step 6: Force full refresh to ensure a clean start
+        showAlert('Ayarlar sıfırlandı. Uygulama temizleniyor...', 'info');
+        setTimeout(() => location.reload(), 1200);
+
+    } catch (error) {
+        console.error('Ayar sıfırlama hatası:', error);
+        showAlert('Ayarlar sıfırlanırken hata oluştu', 'error');
     }
 }
 
