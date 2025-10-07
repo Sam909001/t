@@ -57,51 +57,7 @@ if (typeof emailjs === 'undefined') {
     
 
     
-    // Initialize workspace-specific Excel storage
-    initializeWorkspaceStorage() {
-        if (!this.currentWorkspace) {
-            console.warn('⚠️ No current workspace for storage initialization');
-            return;
-        }
-        
-        console.log('💾 Initializing workspace storage for:', this.currentWorkspace.id);
-        
-        // Store original functions
-        if (!this.originalExcelRead) {
-            this.originalExcelRead = ExcelJS.readFile;
-            this.originalExcelWrite = ExcelJS.writeFile;
-        }
-        
-        // Override with workspace-specific versions
-        ExcelJS.readFile = async function() {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-                const packages = data ? JSON.parse(data) : [];
-                console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
-                return packages;
-            } catch (error) {
-                console.error('❌ Workspace Excel read error:', error);
-                return [];
-            }
-        };
-        
-        ExcelJS.writeFile = async function(data) {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
-                console.log(`💾 Saved ${data.length} packages to workspace: ${workspaceId}`);
-                return true;
-            } catch (error) {
-                console.error('❌ Workspace Excel write error:', error);
-                return false;
-            }
-        };
-        
-        // Initialize excelPackages for current workspace
-        this.loadWorkspaceData();
-    }
-    
+   
 
 
 // Replace ALL data loading functions with strict versions
