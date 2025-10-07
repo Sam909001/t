@@ -384,14 +384,13 @@ class LabelCustomizer {
     }
 }
 
-// -------------------- Button Creation --------------------
+// -------------------- Robust Label Button in Modal --------------------
 function createLabelButton() {
     const button = document.createElement('button');
     button.id = 'labelCustomizerToggle';
     button.type = 'button';
     button.innerHTML = '<i class="fas fa-tag"></i> Etiket Ayarları';
 
-    // Basic styling to match modal buttons
     button.style.cssText = `
         display: inline-flex;
         align-items: center;
@@ -406,8 +405,6 @@ function createLabelButton() {
         margin-top: 10px;
         transition: all 0.2s ease;
     `;
-
-    // Hover effect
     button.addEventListener('mouseenter', () => {
         button.style.background = '#0056b3';
         button.style.borderColor = '#0056b3';
@@ -417,25 +414,61 @@ function createLabelButton() {
         button.style.borderColor = '#007bff';
     });
 
+    button.onclick = () => {
+        if (!window.labelCustomizer) {
+            window.labelCustomizer = new LabelCustomizer();
+        }
+        window.labelCustomizer.showPanel();
+    };
+
     return button;
 }
 
-// -------------------- Place Button in Modal --------------------
+// -------------------- Place Button under Modal Title --------------------
 function placeLabelButtonInModal() {
     const oldBtn = document.getElementById('labelCustomizerToggle');
     if (oldBtn) oldBtn.remove();
 
-    // Adjust selector to match your modal title element
-    const modalHeader = document.querySelector('.modal-header, .settings-header, h4');
+    // Find the modal header that contains "Genel Ayarlar"
+    const modalHeaders = document.querySelectorAll('.modal-header, .settings-header, h4, h3');
+    let modalHeader = null;
+    for (let header of modalHeaders) {
+        if (header.textContent.includes('Genel Ayarlar')) {
+            modalHeader = header;
+            break;
+        }
+    }
+
     if (!modalHeader) {
-        console.warn('Modal header not found. Button will not be placed.');
+        console.warn('❌ Genel Ayarlar modal header not found yet.');
         return null;
     }
 
     const button = createLabelButton();
     modalHeader.insertAdjacentElement('afterend', button);
+    console.log('✅ Label button placed under Genel Ayarlar title.');
     return button;
 }
+
+// -------------------- Observe Modal Opening --------------------
+function observeModal() {
+    const observer = new MutationObserver(() => {
+        // Try placing button whenever DOM changes (modal might be added dynamically)
+        placeLabelButtonInModal();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+
+// -------------------- Initialize --------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // Observe modal dynamically
+    observeModal();
+
+    // Attempt initial placement
+    setTimeout(placeLabelButtonInModal, 500);
+});
+
 
 // -------------------- Initialize --------------------
 function initializeLabelCustomizerInModal() {
