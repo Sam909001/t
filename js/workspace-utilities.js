@@ -238,21 +238,16 @@ function getStrictWorkspaceFilter(tableName) {
 
 
 
-// ==================== ROBUST LABEL CUSTOMIZER SYSTEM ====================
+// ==================== SIMPLE LOGO/TEXT TOGGLE ONLY ====================
 
-// Global variable to track initialization
-window.labelCustomizerInitialized = false;
-
-// -------------------- LabelCustomizer Class --------------------
-class LabelCustomizer {
+class SimpleLabelCustomizer {
     constructor() {
         this.useCustomText = false;
         this.customText = '';
         this.storageKey = 'label_customizer_settings';
-        this.logoBase64 = 'YOUR_BASE64_LOGO_HERE';
         
         this.loadSettings();
-        this.createControlPanel();
+        this.initializeUI();
     }
     
     loadSettings() {
@@ -280,6 +275,10 @@ class LabelCustomizer {
         }
     }
     
+    initializeUI() {
+        this.createControlPanel();
+    }
+    
     createControlPanel() {
         if (document.getElementById('labelCustomizerPanel')) return;
         
@@ -303,15 +302,17 @@ class LabelCustomizer {
         panel.innerHTML = `
             <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
                 <h4 style="margin: 0; color: #333; font-size: 14px;">
-                    <i class="fas fa-tag"></i> Etiket Özelleştirici
+                    <i class="fas fa-tag"></i> Logo/Text Değiştirici
                 </h4>
-                <button id="closeLabelPanel" style="background: none; border: none; color: #666; cursor: pointer; font-size: 16px;">×</button>
+                <button id="closeLabelPanel" style="background: none; border: none; color: #666; cursor: pointer; font-size: 16px;">
+                    ×
+                </button>
             </div>
             
             <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 10px;">
                     <input type="radio" name="labelMode" value="logo" ${!this.useCustomText ? 'checked' : ''} style="margin-right: 8px;">
-                    <span style="font-size: 13px;">Logo Kullan</span>
+                    <span style="font-size: 13px;">Logo Kullan (Varsayılan)</span>
                 </label>
                 
                 <label style="display: flex; align-items: center; cursor: pointer;">
@@ -321,8 +322,8 @@ class LabelCustomizer {
             </div>
             
             <div id="customTextSection" style="display: ${this.useCustomText ? 'block' : 'none'}; margin-bottom: 15px;">
-                <input type="text" id="customTextInput" value="${this.customText}" placeholder="Etiket için özel metin girin..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;" maxlength="30">
-                <small style="color: #666; font-size: 11px;">Maksimum 30 karakter</small>
+                <input type="text" id="customTextInput" value="${this.customText}" placeholder="Logo yerine yazılacak metin..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;" maxlength="20">
+                <small style="color: #666; font-size: 11px;">Maksimum 20 karakter</small>
             </div>
             
             <button id="applyLabelSettings" style="width: 100%; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">
@@ -335,23 +336,32 @@ class LabelCustomizer {
     }
     
     attachEventListeners() {
-        // Radio buttons toggle
+        // Radio buttons - only toggle text input visibility
         document.querySelectorAll('input[name="labelMode"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 document.getElementById('customTextSection').style.display = e.target.value === 'text' ? 'block' : 'none';
             });
         });
         
-        // Apply button
-        document.getElementById('applyLabelSettings')?.addEventListener('click', () => this.applySettings());
+        // Apply button - only save the preference
+        const applyBtn = document.getElementById('applyLabelSettings');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => this.applySettings());
+        }
         
         // Close button
-        document.getElementById('closeLabelPanel')?.addEventListener('click', () => this.hidePanel());
+        const closeBtn = document.getElementById('closeLabelPanel');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.hidePanel());
+        }
         
         // Enter key in text input
-        document.getElementById('customTextInput')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.applySettings();
-        });
+        const textInput = document.getElementById('customTextInput');
+        if (textInput) {
+            textInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.applySettings();
+            });
+        }
     }
     
     applySettings() {
@@ -360,155 +370,102 @@ class LabelCustomizer {
         
         if (this.useCustomText) {
             const textInput = document.getElementById('customTextInput');
-            this.customText = textInput.value.trim();
-            if (!this.customText) {
-                alert('Lütfen özel metin girin');
-                return;
+            if (textInput) {
+                this.customText = textInput.value.trim();
+                if (!this.customText) {
+                    alert('Lütfen özel metin girin');
+                    return;
+                }
+                if (this.customText.length > 20) {
+                    alert('Metin 20 karakterden uzun olamaz');
+                    return;
+                }
             }
         }
         
         this.saveSettings();
-        alert(this.useCustomText ? `Etiket metni ayarlandı: "${this.customText}"` : 'Logo moduna geçildi');
+        alert(this.useCustomText ? `Logo yerine "${this.customText}" kullanılacak` : 'Logo moduna geçildi');
     }
     
     showPanel() {
-        document.getElementById('labelCustomizerPanel').style.display = 'block';
+        const panel = document.getElementById('labelCustomizerPanel');
+        if (panel) panel.style.display = 'block';
     }
     
     hidePanel() {
-        document.getElementById('labelCustomizerPanel').style.display = 'none';
+        const panel = document.getElementById('labelCustomizerPanel');
+        if (panel) panel.style.display = 'none';
     }
     
-    getLabelContent() {
-        return this.useCustomText ? { type: 'text', content: this.customText } : { type: 'logo', content: this.logoBase64 };
+    // THE ONLY FUNCTION THAT INTERACTS WITH PRINTING SYSTEM
+    // This simply returns whether to use logo or text - doesn't modify any printing logic
+    shouldUseCustomText() {
+        return this.useCustomText;
+    }
+    
+    getCustomText() {
+        return this.customText;
+    }
+    
+    // This is the ONLY integration point with your existing system
+    getLabelMode() {
+        return {
+            useCustomText: this.useCustomText,
+            customText: this.customText
+        };
     }
 }
 
-// -------------------- Robust Label Button in Modal --------------------
-function createLabelButton() {
+// ==================== MINIMAL INTEGRATION ====================
+
+// Initialize the simple customizer
+window.simpleLabelCustomizer = new SimpleLabelCustomizer();
+
+// Create simple button that doesn't interfere with anything
+function createSimpleLabelButton() {
     const button = document.createElement('button');
     button.id = 'labelCustomizerToggle';
     button.type = 'button';
-    button.innerHTML = '<i class="fas fa-tag"></i> Etiket Ayarları';
-
+    button.innerHTML = '<i class="fas fa-tag"></i> Logo/Text';
     button.style.cssText = `
+        background: #ffffff;
+        color: #333333;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 6px 12px;
+        margin: 4px;
+        font-size: 13px;
+        cursor: pointer;
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 13px;
-        padding: 6px 12px;
-        border-radius: 4px;
-        background: #007bff;
-        color: #fff;
-        border: 1px solid #007bff;
-        cursor: pointer;
-        margin-top: 10px;
-        transition: all 0.2s ease;
     `;
-    button.addEventListener('mouseenter', () => {
-        button.style.background = '#0056b3';
-        button.style.borderColor = '#0056b3';
-    });
-    button.addEventListener('mouseleave', () => {
-        button.style.background = '#007bff';
-        button.style.borderColor = '#007bff';
-    });
-
-    button.onclick = () => {
-        if (!window.labelCustomizer) {
-            window.labelCustomizer = new LabelCustomizer();
-        }
-        window.labelCustomizer.showPanel();
+    
+    // Simple click handler - only shows the settings panel
+    button.onclick = function() {
+        window.simpleLabelCustomizer.showPanel();
     };
-
+    
     return button;
 }
 
-// -------------------- Place Button under Modal Title --------------------
-function placeLabelButtonInModal() {
-    const oldBtn = document.getElementById('labelCustomizerToggle');
-    if (oldBtn) oldBtn.remove();
-
-    // Find the modal header that contains "Genel Ayarlar"
-    const modalHeaders = document.querySelectorAll('.modal-header, .settings-header, h4, h3');
-    let modalHeader = null;
-    for (let header of modalHeaders) {
-        if (header.textContent.includes('Genel Ayarlar')) {
-            modalHeader = header;
-            break;
-        }
+// Simple placement
+function placeSimpleLabelButton() {
+    const existingBtn = document.getElementById('labelCustomizerToggle');
+    if (existingBtn) existingBtn.remove();
+    
+    const labelBtn = createSimpleLabelButton();
+    
+    // Try to place next to Check Status button
+    const checkStatusBtn = document.querySelector('button:contains("Check Status"), button:contains("Durum")');
+    if (checkStatusBtn && checkStatusBtn.parentNode) {
+        checkStatusBtn.parentNode.insertBefore(labelBtn, checkStatusBtn.nextSibling);
+    } else {
+        document.body.appendChild(labelBtn);
     }
-
-    if (!modalHeader) {
-        console.warn('❌ Genel Ayarlar modal header not found yet.');
-        return null;
-    }
-
-    const button = createLabelButton();
-    modalHeader.insertAdjacentElement('afterend', button);
-    console.log('✅ Label button placed under Genel Ayarlar title.');
-    return button;
+    
+    return labelBtn;
 }
 
-// -------------------- Observe Modal Opening --------------------
-function observeModal() {
-    const observer = new MutationObserver(() => {
-        // Try placing button whenever DOM changes (modal might be added dynamically)
-        placeLabelButtonInModal();
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-}
-
-// -------------------- Initialize --------------------
-document.addEventListener('DOMContentLoaded', () => {
-    // Observe modal dynamically
-    observeModal();
-
-    // Attempt initial placement
-    setTimeout(placeLabelButtonInModal, 500);
-});
-
-
-// -------------------- Initialize --------------------
-function initializeLabelCustomizerInModal() {
-    console.log('🚀 Initializing LabelCustomizer in modal...');
-    const button = placeLabelButtonInModal();
-    if (!button) return;
-
-    if (!window.labelCustomizer) {
-        window.labelCustomizer = new LabelCustomizer();
-        console.log('✅ LabelCustomizer class initialized');
-    }
-
-    button.onclick = () => {
-        window.labelCustomizer?.showPanel();
-    };
-
-    window.labelCustomizerInitialized = true;
-    console.log('🎉 LabelCustomizer fully initialized in modal!');
-}
-
-// -------------------- Auto Initialization --------------------
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize after a short delay in case modal is dynamically loaded
-    setTimeout(initializeLabelCustomizerInModal, 500);
-
-    // Optional: if your modal can open later dynamically, listen for show event
-    const modal = document.querySelector('#genelAyarlarModal');
-    if (modal) {
-        modal.addEventListener('show.bs.modal', () => {
-            setTimeout(initializeLabelCustomizerInModal, 200);
-        });
-    }
-});
-
-// -------------------- Manual Commands --------------------
-window.showLabelButton = initializeLabelCustomizerInModal;
-window.testLabelSystem = function() {
-    console.log('🧪 Testing Label System:');
-    console.log('- Button exists:', !!document.getElementById('labelCustomizerToggle'));
-    console.log('- Panel exists:', !!document.getElementById('labelCustomizerPanel'));
-    console.log('- LabelCustomizer initialized:', !!window.labelCustomizer);
-    console.log('- Global initialized flag:', window.labelCustomizerInitialized);
-};
+// Initialize
+setTimeout(placeSimpleLabelButton, 1000);
