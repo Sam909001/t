@@ -560,6 +560,12 @@ function openQuantityModal(product) {
     elements.quantityInput.focus();
 }
 
+setTimeout(() => {
+        elements.quantityInput.focus();
+        showTouchKeyboardIfPOS(); // 🟢 auto open on-screen keyboard for touch POS
+    }, 200);
+}
+
 
 function openStatusQuantityModal(status) {
     selectedProduct = status; // 👈 reuse the same global
@@ -570,7 +576,11 @@ function openStatusQuantityModal(status) {
     elements.quantityInput.focus();
 }
 
-
+setTimeout(() => {
+        elements.quantityInput.focus();
+        showTouchKeyboardIfPOS(); // 🟢 auto open on-screen keyboard for touch POS
+    }, 200);
+}
 
 function confirmQuantity() {
     const quantity = parseInt(elements.quantityInput.value);
@@ -724,6 +734,11 @@ function confirmQuantity() {
     // Add to current package
     if (!currentPackage.items) currentPackage.items = {};
     currentPackage.items[selectedProduct] = (currentPackage.items[selectedProduct] || 0) + quantity;
+
+     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
+    closeQuantityModal();
+    hideTouchKeyboard(); // 🟢 close keyboard after confirming
+}
 
     showAlert(`${selectedProduct}: ${quantity} adet eklendi`, 'success');
     closeQuantityModal();
@@ -4286,3 +4301,32 @@ window.clearExcelData = clearExcelData;
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeExcelButtons, 3000);
 });
+
+
+
+// 🔹 Auto open Windows on-screen keyboard (for touch POS)
+function showTouchKeyboardIfPOS() {
+    try {
+        // Detect touch screen
+        const hasTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+        if (!hasTouch) return; // ✅ skip on normal PCs
+
+        const { exec } = require('child_process');
+        const keyboardPath = `${process.env.SystemRoot}\\System32\\TabTip.exe`;
+        exec(`"${keyboardPath}"`, (err) => {
+            if (err) console.warn("⚠️ Touch keyboard not opened:", err.message);
+        });
+    } catch (e) {
+        console.warn("⚠️ Keyboard open skipped:", e.message);
+    }
+}
+
+// 🔹 Optional: Hide keyboard
+function hideTouchKeyboard() {
+    try {
+        const { exec } = require('child_process');
+        exec('taskkill /IM TabTip.exe /F', () => {});
+    } catch (e) {
+        console.warn("⚠️ Could not close keyboard:", e.message);
+    }
+}
