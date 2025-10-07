@@ -312,47 +312,55 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
     </div> <!-- End of shippingTab -->
 
-    <!-- Stock Tab -->
-    <div class="tab-pane" id="stockTab">
-        <div class="stock-search">
-            <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
-            <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
-            <button type="button" class="btn btn-success" onclick="exportStock()">Stokları Dışa Aktar</button>
-        </div>
+   <!-- RFID Stock Tab -->
+<div class="tab-pane" id="stockTab">
+    <div class="stock-search">
+        <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
+        <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
+        <button type="button" class="btn btn-success" onclick="exportStock()">Dışa Aktar</button>
+    </div>
 
-        <table class="stock-table">
-            <thead>
-                <tr>
-                    <th>Stok Kodu</th>
-                    <th>Ürün Adı</th>
-                    <th>Mevcut Adet</th>
-                    <th>Birim</th>
-                    <th>Durum</th>
-                    <th>Son Güncelleme</th>
-                    <th>İşlemler</th>
-                </tr>
-            </thead>
-            <tbody id="stockTableBody">
-                <!-- Stock data will be populated here -->
-            </tbody>
-        </table>
+    <!-- RFID Scan Controls -->
+    <div class="rfid-controls" style="margin-top: 10px;">
+        <button type="button" class="btn btn-primary" onclick="startRFIDScan()">RFID Tarayıcı Başlat</button>
+        <button type="button" class="btn btn-warning" onclick="stopRFIDScan()">Durdur</button>
+        <span>Toplam Tarama: <span id="rfidTotalCount">0</span></span>
+    </div>
 
-        <div class="file-upload">
-            <h3>Stok Dosyası Yükle</h3>
-            <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
-            <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
-            <div>
-                <span id="selectedFileName"></span>
-                <div class="validation-error" id="fileError"></div>
-            </div>
-            <button type="button" class="upload-button" onclick="uploadStockFile()">
-                <i class="fas fa-upload"></i> Dosya Yükle
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
-                <i class="fas fa-download"></i> Şablon İndir
-            </button>
+    <table class="stock-table" style="margin-top: 10px;">
+        <thead>
+            <tr>
+                <th>RFID Tag ID</th>
+                <th>Stok Kodu</th>
+                <th>Ürün Adı</th>
+                <th>Müşteri</th>
+                <th>Durum</th>
+                <th>Adım</th>
+                <th>Zaman</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody id="stockTableBody">
+            <!-- Live scanned RFID items will appear here -->
+        </tbody>
+    </table>
+
+    <div class="file-upload" style="margin-top: 20px;">
+        <h3>Stok Dosyası Yükle / Güncelle</h3>
+        <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
+        <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
+        <div>
+            <span id="selectedFileName"></span>
+            <div class="validation-error" id="fileError"></div>
         </div>
-    </div> <!-- End of stockTab -->
+        <button type="button" class="upload-button" onclick="uploadStockFile()">
+            <i class="fas fa-upload"></i> Dosya Yükle
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
+            <i class="fas fa-download"></i> Şablon İndir
+        </button>
+    </div>
+</div>
 
     <!-- Reports Tab -->
     <div class="tab-pane admin-only" id="reportsTab">
