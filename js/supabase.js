@@ -2660,136 +2660,82 @@ async function testConnection() {
 
 
 
- // ✅ ENHANCED: Populate customers with 100% offline support
-async function populateCustomers() {
-    console.log('🔄 Populating customers with offline cache...');
-    
+  async function populateCustomers() {
     try {
+        const { data: customers, error } = await supabase
+            .from('customers')
+            .select('id, name, code')
+            .order('name', { ascending: true });
+
+        if (error) {
+            console.error('Error loading customers:', error);
+            return;
+        }
+
         const customerSelect = document.getElementById('customerSelect');
-        if (!customerSelect) {
-            console.error('❌ Customer select element not found');
-            return;
-        }
+        if (!customerSelect) return;
 
-        // Get customers with offline support
-        const customers = await offlineCache.getCustomers();
-        
-        // Store current selection
-        const currentValue = customerSelect.value;
-        
-        // Clear existing options
-        customerSelect.innerHTML = '<option value="">Müşteri seçin...</option>';
-        
-        if (customers.length === 0) {
-            // Add offline/online specific message
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = navigator.onLine ? 
-                'Müşteri bulunamadı - İlk müşteriyi ekleyin' : 
-                'Çevrimdışı - Müşteri yüklenemedi';
-            option.disabled = true;
-            customerSelect.appendChild(option);
-            console.log('ℹ️ No customers to display');
-            return;
-        }
+        // Clear old options
+        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
 
-        // Add customers to dropdown
-        customers.forEach(customer => {
-            const option = document.createElement('option');
-            option.value = customer.id;
-            option.textContent = `${customer.name} (${customer.code})`;
-            customerSelect.appendChild(option);
+        // Deduplicate by customer code
+        const uniqueCustomers = {};
+        customers.forEach(cust => {
+            if (!uniqueCustomers[cust.code]) {
+                uniqueCustomers[cust.code] = cust;
+            }
         });
 
-        // Restore selection if possible
-        if (currentValue && customers.some(c => c.id === currentValue)) {
-            customerSelect.value = currentValue;
-        }
+        // Append unique customers
+        Object.values(uniqueCustomers).forEach(cust => {
+            const opt = document.createElement('option');
+            opt.value = cust.id;
+            opt.textContent = `${cust.name} (${cust.code})`;
+            customerSelect.appendChild(opt);
+        });
 
-        console.log(`✅ Populated ${customers.length} customers (${navigator.onLine ? 'ONLINE' : 'OFFLINE'})`);
-        
-    } catch (error) {
-        console.error('❌ Customer population error:', error);
-        // Even in error, show something useful
-        const customerSelect = document.getElementById('customerSelect');
-        if (customerSelect) {
-            customerSelect.innerHTML = `
-                <option value="">Müşteri yüklenemedi</option>
-            `;
-        }
+    } catch (err) {
+        console.error('populateCustomers error:', err);
     }
 }
 
 
 
 
-// ✅ ENHANCED: Populate personnel with 100% offline support
-let personnelLoaded = false;
 
 async function populatePersonnel() {
-    if (personnelLoaded) return;
+    if (personnelLoaded) return; // prevent duplicates
     personnelLoaded = true;
 
     const personnelSelect = document.getElementById('personnelSelect');
     if (!personnelSelect) return;
 
-    console.log('🔄 Populating personnel with offline cache...');
+    personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
 
     try {
-        // Get personnel with offline support
-        const personnel = await offlineCache.getPersonnel();
-        
-        // Store current selection
-        const currentValue = personnelSelect.value;
-        
-        // Clear existing options
-        personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
-        
-        if (personnel.length === 0) {
-            // Add current user as fallback for printing
-            const currentUser = window.currentUser;
-            if (currentUser && currentUser.name) {
-                const option = document.createElement('option');
-                option.value = currentUser.name;
-                option.textContent = `${currentUser.name} (Mevcut Kullanıcı)`;
-                personnelSelect.appendChild(option);
-                console.log('ℹ️ Using current user as personnel fallback');
-            } else {
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = navigator.onLine ? 
-                    'Personel bulunamadı' : 
-                    'Çevrimdışı - Personel yüklenemedi';
-                option.disabled = true;
-                personnelSelect.appendChild(option);
-            }
+        const { data: personnel, error } = await supabase
+            .from('personnel')
+            .select('id, name')
+            .order('name', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching personnel:', error);
+            showAlert('Personel verileri yüklenemedi', 'error');
             return;
         }
 
-        // Add personnel to dropdown
-        personnel.forEach(p => {
-            const option = document.createElement('option');
-            option.value = p.id;
-            option.textContent = p.name;
-            personnelSelect.appendChild(option);
-        });
-
-        // Restore selection if possible
-        if (currentValue && personnel.some(p => p.id === currentValue)) {
-            personnelSelect.value = currentValue;
+        if (personnel && personnel.length > 0) {
+            personnel.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.name;
+                personnelSelect.appendChild(option);
+            });
         }
 
-        console.log(`✅ Populated ${personnel.length} personnel (${navigator.onLine ? 'ONLINE' : 'OFFLINE'})`);
-        
-    } catch (error) {
-        console.error('❌ Personnel population error:', error);
-        // Fallback to current user for printing
-        const currentUser = window.currentUser;
-        if (currentUser && currentUser.name) {
-            personnelSelect.innerHTML = `
-                <option value="${currentUser.name}">${currentUser.name} (Mevcut Kullanıcı)</option>
-            `;
-        }
+    } catch (err) {
+        console.error('Unexpected error:', err);
+        showAlert('Personel dropdown yükleme hatası', 'error');
     }
 }
 
@@ -3382,29 +3328,27 @@ function debouncedPopulateShippingTable() {
 
 
 
-let isStockTableLoading = false;
+ let isStockTableLoading = false;
 let lastStockFetchTime = 0;
 
-// Keeps track of live RFID scans
-const scannedRFIDTags = new Map(); // tag_id => {code, name, customer, step, time}
-
 async function populateStockTable() {
+    // Prevent multiple simultaneous calls
     if (isStockTableLoading) return;
-
+    
+    // Debounce - prevent rapid successive calls
     const now = Date.now();
     if (now - lastStockFetchTime < 500) {
         setTimeout(populateStockTable, 500);
         return;
     }
-
+    
     isStockTableLoading = true;
     lastStockFetchTime = now;
-
+    
     try {
-        // Clear table
+        // Clear table only once
         elements.stockTableBody.innerHTML = '';
-
-        // Fetch stock items
+        
         const { data: stockItems, error } = await supabase
             .from('stock_items')
             .select('*')
@@ -3416,46 +3360,40 @@ async function populateStockTable() {
             return;
         }
 
-        // Deduplicate stock by code
+        // Deduplicate stock items by code
         const uniqueStockItems = [];
         const seenStockCodes = new Set();
-
+        
         if (stockItems && stockItems.length > 0) {
             stockItems.forEach(item => {
                 if (!seenStockCodes.has(item.code)) {
                     seenStockCodes.add(item.code);
                     uniqueStockItems.push(item);
-
+                    
                     const row = document.createElement('tr');
-
+                    
                     // Determine stock status
                     let statusClass = 'status-stokta';
                     let statusText = 'Stokta';
-                    if (item.quantity <= 0) { statusClass = 'status-kritik'; statusText = 'Kritik'; }
-                    else if (item.quantity < 10) { statusClass = 'status-az-stok'; statusText = 'Az Stok'; }
-
-                    // Check if RFID tag exists for this item
-                    let rfidTag = '';
-                    let customer = '';
-                    let step = '';
-                    let time = '';
-                    scannedRFIDTags.forEach(scan => {
-                        if (scan.code === item.code) {
-                            rfidTag = scan.tag_id;
-                            customer = scan.customer;
-                            step = scan.step;
-                            time = new Date(scan.time).toLocaleTimeString('tr-TR');
-                        }
-                    });
-
+                    
+                    if (item.quantity <= 0) {
+                        statusClass = 'status-kritik';
+                        statusText = 'Kritik';
+                    } else if (item.quantity < 10) {
+                        statusClass = 'status-az-stok';
+                        statusText = 'Az Stok';
+                    }
+                    
                     row.innerHTML = `
-                        <td>${rfidTag || '-'}</td>
                         <td>${item.code}</td>
                         <td>${item.name}</td>
-                        <td>${customer || '-'}</td>
+                        <td class="editable-cell">
+                            <span class="stock-quantity">${item.quantity}</span>
+                            <input type="number" class="stock-quantity-input" value="${item.quantity}" style="display:none;">
+                        </td>
+                        <td>${item.unit || 'Adet'}</td>
                         <td><span class="${statusClass}">${statusText}</span></td>
-                        <td>${step || '-'}</td>
-                        <td>${time || '-'}</td>
+                        <td>${item.updated_at ? new Date(item.updated_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
                         <td>
                             <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
                             <div class="edit-buttons" style="display:none;">
@@ -3469,10 +3407,10 @@ async function populateStockTable() {
             });
         } else {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Stok verisi yok</td>';
+            row.innerHTML = '<td colspan="7" style="text-align:center; color:#666;">Stok verisi yok</td>';
             elements.stockTableBody.appendChild(row);
         }
-
+        
     } catch (error) {
         console.error('Error in populateStockTable:', error);
         showAlert('Stok tablosu yükleme hatası', 'error');
@@ -3481,51 +3419,13 @@ async function populateStockTable() {
     }
 }
 
-// Debounced call
+// Debounced version to prevent rapid successive calls
 let stockTableTimeout;
 function debouncedPopulateStockTable() {
     clearTimeout(stockTableTimeout);
     stockTableTimeout = setTimeout(populateStockTable, 300);
 }
 
-// Call this when a new RFID tag is scanned
-function onRFIDScan(tag_id, code, customer, step) {
-    scannedRFIDTags.set(tag_id, {
-        tag_id,
-        code,
-        customer,
-        step,
-        time: Date.now()
-    });
-    debouncedPopulateStockTable();
-}
-
-
-
-// Simulation of RFID scanning
-let rfidScanInterval = null;
-
-function startRFIDScan() {
-    if (rfidScanInterval) return;
-
-    rfidScanInterval = setInterval(() => {
-        const sampleTags = [
-            { tag_id: 'TAG001', code: 'STK001', productName: 'Gömlek', customerName: 'Ali Veli', step: 'Yıkama' },
-            { tag_id: 'TAG002', code: 'STK002', productName: 'Pantolon', customerName: 'Ayşe Demir', step: 'Ütüleme' },
-            { tag_id: 'TAG003', code: 'STK003', productName: 'Ceket', customerName: 'Mehmet Kaya', step: 'Sevkiyat' }
-        ];
-        const randomTag = sampleTags[Math.floor(Math.random() * sampleTags.length)];
-        onRFIDScan(randomTag.tag_id, randomTag.code, randomTag.productName, randomTag.customerName, randomTag.step);
-    }, 2000 + Math.random() * 3000);
-}
-
-function stopRFIDScan() {
-    if (rfidScanInterval) {
-        clearInterval(rfidScanInterval);
-        rfidScanInterval = null;
-        console.log('RFID scanning stopped');
-    }
-}
 
  
         async function saveStockItem(code) {
