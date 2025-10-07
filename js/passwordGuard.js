@@ -154,9 +154,9 @@ class PasswordGuard {
         switch(actionType) {
             case 'clearData':
             case 'changeApiKey':
-                return '7142 (Yönetici Şifresi)';
+                return 'Yönetici Şifresi';
             default:
-                return '8823 (Operatör Şifresi)';
+                return 'Operatör Şifresi';
         }
     }
 }
@@ -263,8 +263,7 @@ async function addCustomerWithAuth() {
     }
 }
 
-
-/// ✅ 6. Clear Excel with Authentication - Uses 8823 (CHANGED FROM 7142)
+// ✅ 6. Clear Excel with Authentication - Uses 8823
 async function clearExcelDataWithAuth() {
     const passwordGuard = new PasswordGuard();
     
@@ -276,7 +275,7 @@ async function clearExcelDataWithAuth() {
                 showAlert('Excel temizleme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
             }
-        }, 'Excel verilerini temizleme', 'default'); // ← CHANGED FROM 'clearData' TO 'default'
+        }, 'Excel verilerini temizleme', 'default'); // Uses 8823
     } catch (error) {
         if (error.message !== 'User cancelled') {
             console.log('Excel clear cancelled:', error.message);
@@ -305,6 +304,7 @@ async function deleteContainerWithAuth() {
 }
 
 // ==================== GLOBAL AVAILABILITY ====================
+
 // Make only essential functions globally available
 window.PasswordGuard = PasswordGuard;
 window.deletePackageWithAuth = deletePackageWithAuth;
@@ -338,9 +338,11 @@ if (!document.getElementById('passwordGuardStyles')) {
 }
 
 console.log('✅ Clean PasswordGuard loaded (No attempt references)');
-console.log('🔐 Simple password protection:');
-console.log('   - Delete Package: 8823');
-console.log('   - Add Customer: 8823'); 
-console.log('   - Delete Customer: 8823');
-console.log('   - Clear Data: 7142');
-console.log('   - Change API Key: 7142');
+console.log('🔐 Password protection system active');
+console.log('   - Delete Package: Protected');
+console.log('   - Add Customer: Protected'); 
+console.log('   - Delete Customer: Protected');
+console.log('   - Clear Excel: Protected');
+console.log('   - Delete Container: Protected');
+console.log('   - Clear Data: Protected');
+console.log('   - Change API Key: Protected');
