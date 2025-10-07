@@ -20,11 +20,6 @@ let personnelLoaded = false;
 let packagesLoaded = false;
 let packagesTableLoading = false;
 
-// Excel local storage
-let excelPackages = [];
-let excelSyncQueue = [];
-let isUsingExcel = false;
-
 // Missing dependency placeholders
 if (typeof XLSX === 'undefined') {
     console.warn('XLSX library not found - using placeholder');
