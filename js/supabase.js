@@ -3718,4 +3718,4 @@ window.printSinglePackage = async function(packageId) {
     } else {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
-}; so is the supabase.js now clean from workspace script ?
+};
