@@ -221,6 +221,22 @@ class PrinterServiceElectronWithSettings {
         height: 21mm; 
         object-fit: contain; 
     }
+
+    .custom-text-logo {
+    width: 50mm;
+    height: 21mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+    box-sizing: border-box;
+}
     
     .barcode-section { 
         text-align: right; 
@@ -392,7 +408,12 @@ class PrinterServiceElectronWithSettings {
                     htmlContent += `
 <div class="label">
     <div class="header">
-        <div class="logo-section"><img src="${logoBase64}" class="logo-img" onerror="this.style.display='none'"></div>
+       <div class="logo-section">
+    ${window.simpleLabelCustomizer && window.simpleLabelCustomizer.shouldUseCustomText() ? 
+        `<div class="custom-text-logo">${window.simpleLabelCustomizer.getCustomText()}</div>` : 
+        `<img src="${logoBase64}" class="logo-img" onerror="this.style.display='none'>`
+    }
+</div>
         <div class="barcode-section"><div class="barcode">${barcodeSVG}</div></div>
     </div>
     <div class="customer-section">
