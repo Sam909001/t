@@ -211,162 +211,234 @@ class WorkspaceManager {
     }
   
     // Show workspace selection modal - SIMPLIFIED VERSION
-    async showWorkspaceSelection() {
-        return new Promise((resolve) => {
-            // Prevent multiple modals
-            if (document.querySelector('.workspace-modal')) {
-                console.log('⚠️ Workspace modal already shown, skipping...');
-                resolve();
-                return;
-            }
+   // Show workspace selection modal - WITH CLOSE/CANCEL OPTION
+async showWorkspaceSelection() {
+    return new Promise((resolve) => {
+        // Prevent multiple modals
+        if (document.querySelector('.workspace-modal')) {
+            console.log('⚠️ Workspace modal already shown, skipping...');
+            resolve();
+            return;
+        }
 
-            const modal = document.createElement('div');
-            modal.className = 'modal workspace-modal';
-            modal.style.cssText = `
-                position: fixed; 
-                top: 0; 
-                left: 0; 
-                width: 100%; 
-                height: 100%; 
-                background: rgba(0,0,0,0.9); 
-                display: flex; 
-                justify-content: center; 
-                align-items: center; 
-                z-index: 10000;
-            `;
-            
-            modal.innerHTML = `
-                <div style="background: white; padding: 2rem; border-radius: 10px; max-width: 500px; width: 90%; text-align: center;">
-                    <h2 style="color: #333; margin-bottom: 1rem;">Çalışma İstasyonu Seçin</h2>
-                    <p style="color: #666; margin-bottom: 1.5rem;">Bu cihaz için bir çalışma istasyonu seçin:</p>
-                    <div id="workspaceOptions" style="margin: 1.5rem 0;"></div>
-                    <div style="border-top: 1px solid #eee; padding-top: 1rem;">
-                        <button id="createNewWorkspaceBtn" 
-                                style="padding: 0.75rem 1.5rem; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                            <i class="fas fa-plus"></i> Yeni İstasyon Oluştur
-                        </button>
-                    </div>
+        const modal = document.createElement('div');
+        modal.className = 'modal workspace-modal';
+        modal.style.cssText = `
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.85); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); position: relative;">
+                <!-- Close button -->
+                <button id="closeWorkspaceModal" 
+                        style="position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 24px; color: #666; cursor: pointer; padding: 5px;">
+                    ×
+                </button>
+                
+                <h2 style="color: #333; margin-bottom: 1rem; margin-right: 20px;">Çalışma İstasyonu Seçin</h2>
+                <p style="color: #666; margin-bottom: 1.5rem;">Bu cihaz için bir çalışma istasyonu seçin:</p>
+                
+                <div id="workspaceOptions" style="margin: 1.5rem 0; max-height: 300px; overflow-y: auto;"></div>
+                
+                <div style="border-top: 1px solid #eee; padding-top: 1rem; display: flex; gap: 10px; justify-content: center;">
+                    <button id="createNewWorkspaceBtn" 
+                            style="padding: 0.75rem 1.5rem; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; flex: 1;">
+                        <i class="fas fa-plus"></i> Yeni İstasyon
+                    </button>
+                    <button id="cancelWorkspaceBtn" 
+                            style="padding: 0.75rem 1.5rem; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; flex: 1;">
+                        <i class="fas fa-times"></i> İptal
+                    </button>
                 </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Populate workspace options
-            const optionsContainer = document.getElementById('workspaceOptions');
-            
-            if (this.availableWorkspaces.length === 0) {
-                optionsContainer.innerHTML = '<p style="color: #666;">Henüz istasyon yok. Yeni istasyon oluşturun.</p>';
-            } else {
-                this.availableWorkspaces.forEach(workspace => {
-                    const button = document.createElement('button');
-                    button.style.cssText = `
-                        display: block; 
-                        width: 100%; 
-                        padding: 1rem; 
-                        margin: 0.5rem 0; 
-                        text-align: center; 
-                        border: 2px solid #007bff; 
-                        border-radius: 8px;
-                        background: white; 
-                        color: #007bff;
-                        cursor: pointer;
-                        font-size: 16px;
-                        font-weight: bold;
-                        transition: all 0.2s;
-                    `;
-                    
-                    const typeLabel = this.getWorkspaceTypeLabel(workspace);
-                    
-                    button.innerHTML = `
-                        <div>${workspace.name}</div>
-                        <small style="font-weight: normal; color: #666;">${typeLabel}</small>
-                    `;
-                    
-                    button.onmouseover = () => {
-                        button.style.background = '#007bff';
-                        button.style.color = 'white';
-                    };
-                    button.onmouseout = () => {
-                        button.style.background = 'white';
-                        button.style.color = '#007bff';
-                    };
-                    
-                    button.onclick = () => {
-                        this.setCurrentWorkspace(workspace);
-                        document.body.removeChild(modal);
-                        showAlert(`İstasyon seçildi: ${workspace.name}`, 'success');
-                        resolve();
-                    };
-                    
-                    optionsContainer.appendChild(button);
-                });
-            }
-            
-            // Create new workspace button handler
-            const createBtn = document.getElementById('createNewWorkspaceBtn');
-            if (createBtn) {
-                createBtn.onclick = () => {
-                    this.createNewWorkspace();
+                
+                <div style="margin-top: 1rem; font-size: 12px; color: #999;">
+                    <i class="fas fa-info-circle"></i> Bu seçim bu cihaz için kalıcıdır
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Populate workspace options
+        const optionsContainer = document.getElementById('workspaceOptions');
+        
+        if (this.availableWorkspaces.length === 0) {
+            optionsContainer.innerHTML = '<p style="color: #666; padding: 2rem;">Henüz istasyon yok. Yeni istasyon oluşturun.</p>';
+        } else {
+            this.availableWorkspaces.forEach(workspace => {
+                const button = document.createElement('button');
+                button.style.cssText = `
+                    display: block; 
+                    width: 100%; 
+                    padding: 1rem; 
+                    margin: 0.5rem 0; 
+                    text-align: center; 
+                    border: 2px solid #007bff; 
+                    border-radius: 8px;
+                    background: white; 
+                    color: #007bff;
+                    cursor: pointer;
+                    font-size: 16px;
+                    font-weight: bold;
+                    transition: all 0.2s;
+                `;
+                
+                const typeLabel = this.getWorkspaceTypeLabel(workspace);
+                
+                button.innerHTML = `
+                    <div>${workspace.name}</div>
+                    <small style="font-weight: normal; color: #666;">${typeLabel}</small>
+                `;
+                
+                button.onmouseover = () => {
+                    button.style.background = '#007bff';
+                    button.style.color = 'white';
+                    button.style.transform = 'translateY(-2px)';
+                };
+                button.onmouseout = () => {
+                    button.style.background = 'white';
+                    button.style.color = '#007bff';
+                    button.style.transform = 'translateY(0)';
+                };
+                
+                button.onclick = () => {
+                    this.setCurrentWorkspace(workspace);
                     document.body.removeChild(modal);
+                    showAlert(`İstasyon seçildi: ${workspace.name}`, 'success');
                     resolve();
                 };
-            }
-
-            // Prevent closing by clicking outside
-            modal.onclick = (e) => {
-                if (e.target === modal) {
-                    // Don't allow closing by clicking outside - force selection
-                    showAlert('Lütfen bir çalışma istasyonu seçin', 'warning');
-                }
-            };
-        });
-    }
-    
-    // Create new workspace - SIMPLIFIED
-    createNewWorkspace() {
-        const name = prompt('Yeni istasyon adını girin:');
-        if (!name || name.trim() === '') {
-            showAlert('İstasyon adı boş olamaz', 'error');
-            return this.createNewWorkspace(); // Retry
+                
+                optionsContainer.appendChild(button);
+            });
         }
         
-        const newWorkspace = {
-            id: 'station-' + Date.now(),
-            name: name.trim(),
-            type: 'packaging',
-            created: new Date().toISOString()
-        };
+        // Close button handler (X button)
+        const closeBtn = document.getElementById('closeWorkspaceModal');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                document.body.removeChild(modal);
+                showAlert('İstasyon seçimi iptal edildi. Sayfa yeniden yüklenecek.', 'warning');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                resolve();
+            };
+            
+            // Add hover effect for close button
+            closeBtn.onmouseover = () => {
+                closeBtn.style.color = '#ff4444';
+                closeBtn.style.transform = 'scale(1.1)';
+            };
+            closeBtn.onmouseout = () => {
+                closeBtn.style.color = '#666';
+                closeBtn.style.transform = 'scale(1)';
+            };
+        }
         
-        this.availableWorkspaces.push(newWorkspace);
-        this.saveWorkspaces();
-        this.setCurrentWorkspace(newWorkspace);
+        // Create new workspace button handler
+        const createBtn = document.getElementById('createNewWorkspaceBtn');
+        if (createBtn) {
+            createBtn.onclick = () => {
+                document.body.removeChild(modal);
+                this.createNewWorkspace();
+                resolve();
+            };
+        }
         
-        console.log('✅ New workspace created:', newWorkspace);
-        showAlert(`Yeni istasyon oluşturuldu: ${newWorkspace.name}`, 'success');
-    }
-    
-    // Save workspaces to localStorage
-    saveWorkspaces() {
-        localStorage.setItem('proclean_workspaces', JSON.stringify(this.availableWorkspaces));
-    }
-    
-    // Check if current workspace can perform an action
-    canPerformAction(action) {
-        const permissions = {
-            'packaging': ['create_package', 'view_packages', 'edit_package'],
-            'shipping': ['view_packages', 'ship_packages', 'view_containers'],
-            'quality': ['view_packages', 'quality_check', 'view_reports'],
-            'admin': ['all']
-        };
-        
-        const workspacePermissions = permissions[this.currentWorkspace.type] || [];
-        return workspacePermissions.includes(action) || permissions.admin.includes('all');
-    }
+        // Cancel button handler
+        const cancelBtn = document.getElementById('cancelWorkspaceBtn');
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                document.body.removeChild(modal);
+                showAlert('İstasyon seçimi iptal edildi. Sayfa yeniden yüklenecek.', 'warning');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                resolve();
+            };
+        }
 
-    // Check if workspace is already selected for this device
-    isWorkspaceSelected() {
-        return localStorage.getItem('proclean_workspace_device_locked') === 'true';
+        // Allow closing by clicking outside the modal
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+                showAlert('İstasyon seçimi iptal edildi. Sayfa yeniden yüklenecek.', 'warning');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                resolve();
+            }
+        };
+
+        // Also allow closing with Escape key
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleKeydown);
+                showAlert('İstasyon seçimi iptal edildi. Sayfa yeniden yüklenecek.', 'warning');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                resolve();
+            }
+        };
+        
+        document.addEventListener('keydown', handleKeydown);
+        
+        // Clean up event listener when modal is closed
+        modal._cleanup = () => {
+            document.removeEventListener('keydown', handleKeydown);
+        };
+    });
+}
+    
+    // Create new workspace - SIMPLIFIED
+  // Create new workspace - WITH CANCELLATION HANDLING
+createNewWorkspace() {
+    const name = prompt('Yeni istasyon adını girin:\n\n(İptal için "Cancel" tuşuna basın)');
+    
+    // Handle cancellation
+    if (name === null) {
+        showAlert('Yeni istasyon oluşturma iptal edildi', 'info');
+        // Re-show the workspace selection modal
+        setTimeout(() => {
+            this.showWorkspaceSelection();
+        }, 500);
+        return;
     }
+    
+    // Handle empty name
+    if (!name || name.trim() === '') {
+        showAlert('İstasyon adı boş olamaz', 'error');
+        // Retry with the same modal flow
+        setTimeout(() => {
+            this.createNewWorkspace();
+        }, 500);
+        return;
+    }
+    
+    const newWorkspace = {
+        id: 'station-' + Date.now(),
+        name: name.trim(),
+        type: 'packaging',
+        created: new Date().toISOString()
+    };
+    
+    this.availableWorkspaces.push(newWorkspace);
+    this.saveWorkspaces();
+    this.setCurrentWorkspace(newWorkspace);
+    
+    console.log('✅ New workspace created:', newWorkspace);
+    showAlert(`Yeni istasyon oluşturuldu: ${newWorkspace.name}`, 'success');
 }
 
 // SIMPLIFIED initialization - CALL THIS ONCE
