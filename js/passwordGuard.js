@@ -264,21 +264,42 @@ async function addCustomerWithAuth() {
 }
 
 
-// ✅ 6. Clear Excel with Authentication - Uses 7142
-    async clearExcelWithAuth() {
-        try {
-            await this.askPasswordAndRun(() => {
-                if (typeof clearExcelData === 'function') {
-                    return clearExcelData();
-                } else {
-                    showAlert('Excel temizleme fonksiyonu bulunamadı', 'error');
-                    throw new Error('Function not found');
-                }
-            }, 'Excel verilerini temizleme', 'clearData');
-        } catch (error) {
-            if (error.message !== 'User cancelled') {
-                console.log('Excel clear cancelled:', error.message);
+/// ✅ 6. Clear Excel with Authentication - Uses 8823 (CHANGED FROM 7142)
+async function clearExcelDataWithAuth() {
+    const passwordGuard = new PasswordGuard();
+    
+    try {
+        await passwordGuard.askPasswordAndRun(() => {
+            if (typeof clearExcelData === 'function') {
+                return clearExcelData();
+            } else {
+                showAlert('Excel temizleme fonksiyonu bulunamadı', 'error');
+                throw new Error('Function not found');
             }
+        }, 'Excel verilerini temizleme', 'default'); // ← CHANGED FROM 'clearData' TO 'default'
+    } catch (error) {
+        if (error.message !== 'User cancelled') {
+            console.log('Excel clear cancelled:', error.message);
+        }
+    }
+}
+
+// ✅ 7. Delete Container with Authentication - Uses 8823
+async function deleteContainerWithAuth() {
+    const passwordGuard = new PasswordGuard();
+    
+    try {
+        await passwordGuard.askPasswordAndRun(() => {
+            if (typeof deleteContainer === 'function') {
+                return deleteContainer();
+            } else {
+                showAlert('Konteyner silme fonksiyonu bulunamadı', 'error');
+                throw new Error('Function not found');
+            }
+        }, 'konteyner silme', 'default');
+    } catch (error) {
+        if (error.message !== 'User cancelled') {
+            console.log('Delete container cancelled:', error.message);
         }
     }
 }
@@ -291,6 +312,7 @@ window.changeApiKeyWithAuth = changeApiKeyWithAuth;
 window.clearDataWithAuth = clearDataWithAuth;
 window.deleteCustomerWithAuth = deleteCustomerWithAuth;
 window.addCustomerWithAuth = addCustomerWithAuth;
+window.deleteContainerWithAuth = deleteContainerWithAuth;
 window.clearExcelDataWithAuth = clearExcelDataWithAuth;
 
 // ==================== CSS ANIMATIONS ====================
