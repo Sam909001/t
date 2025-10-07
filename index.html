@@ -312,22 +312,24 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
     </div> <!-- End of shippingTab -->
 
-   <!-- RFID Stock Tab -->
+ <!-- RFID Stock Tab -->
 <div class="tab-pane" id="stockTab">
-    <div class="stock-search">
+    <!-- Search and Export -->
+    <div class="stock-search" style="display:flex; gap:10px; margin-bottom:10px;">
         <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
         <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
         <button type="button" class="btn btn-success" onclick="exportStock()">Dışa Aktar</button>
     </div>
 
     <!-- RFID Scan Controls -->
-    <div class="rfid-controls" style="margin-top: 10px;">
+    <div class="rfid-controls" style="margin-bottom:10px; display:flex; gap:10px; align-items:center;">
         <button type="button" class="btn btn-primary" onclick="startRFIDScan()">RFID Tarayıcı Başlat</button>
         <button type="button" class="btn btn-warning" onclick="stopRFIDScan()">Durdur</button>
         <span>Toplam Tarama: <span id="rfidTotalCount">0</span></span>
     </div>
 
-    <table class="stock-table" style="margin-top: 10px;">
+    <!-- Live RFID Table -->
+    <table class="stock-table" style="width:100%; border-collapse:collapse; margin-bottom:20px;">
         <thead>
             <tr>
                 <th>RFID Tag ID</th>
@@ -345,7 +347,8 @@ document.addEventListener("DOMContentLoaded", function() {
         </tbody>
     </table>
 
-    <div class="file-upload" style="margin-top: 20px;">
+    <!-- File Upload Section -->
+    <div class="file-upload" style="margin-top:20px;">
         <h3>Stok Dosyası Yükle / Güncelle</h3>
         <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
         <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
@@ -353,10 +356,10 @@ document.addEventListener("DOMContentLoaded", function() {
             <span id="selectedFileName"></span>
             <div class="validation-error" id="fileError"></div>
         </div>
-        <button type="button" class="upload-button" onclick="uploadStockFile()">
+        <button type="button" class="upload-button btn btn-primary" onclick="uploadStockFile()">
             <i class="fas fa-upload"></i> Dosya Yükle
         </button>
-        <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left:10px;">
             <i class="fas fa-download"></i> Şablon İndir
         </button>
     </div>
