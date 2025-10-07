@@ -83,18 +83,6 @@ async function generateAndPrintLabel(packageData, printerConfig) {
 function generateLabelContent(packageData, printerConfig) {
     return window.labelCustomizer.generateLabelContent(packageData, printerConfig);
 }
-        case 'zebra':
-            return `
-^XA
-^FO20,20^A0N,25,25^FD${workspace.name}^FS
-^FO20,50^A0N,20,20^FD${packageData.package_no}^FS
-^FO20,80^A0N,20,20^FD${packageData.customer_name}^FS
-^FO20,110^A0N,15,15^FD${itemsText}^FS
-^FO20,140^A0N,20,20^FDToplam: ${packageData.total_quantity}^FS
-^FO20,170^A0N,15,15^FD${date}^FS
-^FO20,200^BY2^BCN,40,Y,N,N^FD${packageData.package_no}^FS
-^XZ
-`;
         default:
             // Generic label for browser printing
             return 'generic';
@@ -216,7 +204,6 @@ function getStrictWorkspaceFilter(tableName) {
     return window.workspaceManager.createWorkspaceFilter(tableName);
 }
 
-
 // ==================== LOGO/TEXT TOGGLE SYSTEM ====================
 
 class LabelCustomizer {
@@ -277,70 +264,61 @@ class LabelCustomizer {
         panel.id = 'labelCustomizerPanel';
         panel.style.cssText = `
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            top: 100px;
+            right: 20px;
             background: white;
             border: 2px solid #007bff;
             border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-            z-index: 10000;
-            min-width: 300px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 9999;
+            min-width: 250px;
             font-family: Arial, sans-serif;
-            display: none;
-            max-height: 80vh;
-            overflow-y: auto;
         `;
         
         panel.innerHTML = `
-            <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-                <h3 style="margin: 0; color: #333; font-size: 16px;">
+            <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
+                <h4 style="margin: 0; color: #333; font-size: 14px;">
                     <i class="fas fa-tag"></i> Etiket Özelleştirici
-                </h3>
-                <button id="closeLabelPanel" style="background: none; border: none; color: #666; cursor: pointer; font-size: 18px; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                </h4>
+                <button id="closeLabelPanel" style="background: none; border: none; color: #666; cursor: pointer; font-size: 16px;">
                     ×
                 </button>
             </div>
             
-            <div style="margin-bottom: 20px;">
-                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 12px; padding: 8px; border-radius: 5px; transition: background 0.3s;">
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 10px;">
                     <input type="radio" name="labelMode" value="logo" ${!this.useCustomText ? 'checked' : ''} 
-                           style="margin-right: 10px;">
-                    <span style="font-size: 14px; font-weight: 500;">Logo Kullan</span>
+                           style="margin-right: 8px;">
+                    <span style="font-size: 13px;">Logo Kullan</span>
                 </label>
                 
-                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 5px; transition: background 0.3s;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
                     <input type="radio" name="labelMode" value="text" ${this.useCustomText ? 'checked' : ''} 
-                           style="margin-right: 10px;">
-                    <span style="font-size: 14px; font-weight: 500;">Özel Metin Kullan</span>
+                           style="margin-right: 8px;">
+                    <span style="font-size: 13px;">Özel Metin Kullan</span>
                 </label>
             </div>
             
-            <div id="customTextSection" style="display: ${this.useCustomText ? 'block' : 'none'}; margin-bottom: 20px;">
+            <div id="customTextSection" style="display: ${this.useCustomText ? 'block' : 'none'}; margin-bottom: 15px;">
                 <input type="text" id="customTextInput" 
                        value="${this.customText}" 
                        placeholder="Etiket için özel metin girin..."
-                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; margin-bottom: 5px;"
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
                        maxlength="30">
-                <small style="color: #666; font-size: 12px;">Maksimum 30 karakter</small>
+                <small style="color: #666; font-size: 11px;">Maksimum 30 karakter</small>
             </div>
             
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <button id="applyLabelSettings" 
-                        style="flex: 1; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; transition: background 0.3s;">
-                    <i class="fas fa-check"></i> Ayarları Uygula
-                </button>
-                <button id="testLabelSettings" 
-                        style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; transition: background 0.3s;">
-                    <i class="fas fa-print"></i> Test Et
-                </button>
-            </div>
+            <button id="applyLabelSettings" 
+                    style="width: 100%; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                <i class="fas fa-check"></i> Ayarları Uygula
+            </button>
             
-            <div style="text-align: center; padding-top: 15px; border-top: 1px solid #eee;">
-                <button id="closeLabelPanelBottom" 
-                        style="background: #6c757d; color: white; border: none; border-radius: 5px; padding: 8px 16px; cursor: pointer; font-size: 13px;">
-                    <i class="fas fa-times"></i> Kapat
+            <div style="margin-top: 10px; text-align: center;">
+                <button id="toggleLabelPanel" 
+                        style="background: none; border: none; color: #007bff; cursor: pointer; font-size: 12px; text-decoration: underline;">
+                    <i class="fas fa-eye${this.isPanelVisible() ? '-slash' : ''}"></i> 
+                    ${this.isPanelVisible() ? 'Gizle' : 'Göster'}
                 </button>
             </div>
         `;
@@ -349,9 +327,6 @@ class LabelCustomizer {
         
         // Add event listeners
         this.attachEventListeners();
-        
-        // Add hover effects
-        this.addHoverEffects();
     }
     
     // Attach event listeners to the control panel
@@ -362,134 +337,46 @@ class LabelCustomizer {
             radio.addEventListener('change', (e) => {
                 const showTextSection = e.target.value === 'text';
                 document.getElementById('customTextSection').style.display = showTextSection ? 'block' : 'none';
-                
-                // Auto-focus on text input when text mode is selected
-                if (showTextSection) {
-                    setTimeout(() => {
-                        const textInput = document.getElementById('customTextInput');
-                        if (textInput) textInput.focus();
-                    }, 100);
-                }
             });
         });
         
         // Apply button
-        const applyBtn = document.getElementById('applyLabelSettings');
-        if (applyBtn) {
-            applyBtn.addEventListener('click', () => {
-                this.applySettings();
-            });
-        }
+        document.getElementById('applyLabelSettings').addEventListener('click', () => {
+            this.applySettings();
+        });
         
-        // Test button
-        const testBtn = document.getElementById('testLabelSettings');
-        if (testBtn) {
-            testBtn.addEventListener('click', () => {
-                this.testLabelSettings();
-            });
-        }
+        // Close button
+        document.getElementById('closeLabelPanel').addEventListener('click', () => {
+            this.hidePanel();
+        });
         
-        // Close buttons
-        const closeBtn = document.getElementById('closeLabelPanel');
-        const closeBtnBottom = document.getElementById('closeLabelPanelBottom');
-        
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                this.hidePanel();
-            });
-        }
-        
-        if (closeBtnBottom) {
-            closeBtnBottom.addEventListener('click', () => {
-                this.hidePanel();
-            });
-        }
+        // Toggle visibility button
+        document.getElementById('toggleLabelPanel').addEventListener('click', () => {
+            this.togglePanelVisibility();
+        });
         
         // Enter key in text input
-        const textInput = document.getElementById('customTextInput');
-        if (textInput) {
-            textInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.applySettings();
-                }
-            });
-        }
-        
-        // Close modal when clicking outside
-        document.addEventListener('click', (e) => {
-            const panel = document.getElementById('labelCustomizerPanel');
-            if (panel && e.target === panel) {
-                this.hidePanel();
+        document.getElementById('customTextInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.applySettings();
             }
-        });
-        
-        // Close modal with Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.hidePanel();
-            }
-        });
-    }
-    
-    // Add hover effects
-    addHoverEffects() {
-        const applyBtn = document.getElementById('applyLabelSettings');
-        const testBtn = document.getElementById('testLabelSettings');
-        
-        if (applyBtn) {
-            applyBtn.addEventListener('mouseover', () => {
-                applyBtn.style.background = '#0056b3';
-            });
-            applyBtn.addEventListener('mouseout', () => {
-                applyBtn.style.background = '#007bff';
-            });
-        }
-        
-        if (testBtn) {
-            testBtn.addEventListener('mouseover', () => {
-                testBtn.style.background = '#218838';
-            });
-            testBtn.addEventListener('mouseout', () => {
-                testBtn.style.background = '#28a745';
-            });
-        }
-        
-        // Add hover effects to radio labels
-        const radioLabels = document.querySelectorAll('label');
-        radioLabels.forEach(label => {
-            label.addEventListener('mouseover', () => {
-                label.style.background = '#f8f9fa';
-            });
-            label.addEventListener('mouseout', () => {
-                label.style.background = 'transparent';
-            });
         });
     }
     
     // Apply the settings
     applySettings() {
-        const selectedMode = document.querySelector('input[name="labelMode"]:checked');
-        if (!selectedMode) {
-            showAlert('Lütfen bir mod seçin', 'error');
-            return;
-        }
-        
-        this.useCustomText = selectedMode.value === 'text';
+        const selectedMode = document.querySelector('input[name="labelMode"]:checked').value;
+        this.useCustomText = selectedMode === 'text';
         
         if (this.useCustomText) {
-            const textInput = document.getElementById('customTextInput');
-            if (textInput) {
-                this.customText = textInput.value.trim();
-                if (!this.customText) {
-                    showAlert('Lütfen özel metin girin', 'error');
-                    textInput.focus();
-                    return;
-                }
-                if (this.customText.length > 30) {
-                    showAlert('Metin 30 karakterden uzun olamaz', 'error');
-                    textInput.focus();
-                    return;
-                }
+            this.customText = document.getElementById('customTextInput').value.trim();
+            if (!this.customText) {
+                showAlert('Lütfen özel metin girin', 'error');
+                return;
+            }
+            if (this.customText.length > 30) {
+                showAlert('Metin 30 karakterden uzun olamaz', 'error');
+                return;
             }
         }
         
@@ -509,114 +396,46 @@ class LabelCustomizer {
         });
     }
     
-    // Test label settings
-    testLabelSettings() {
-        const selectedMode = document.querySelector('input[name="labelMode"]:checked');
-        if (!selectedMode) {
-            showAlert('Lütfen bir mod seçin', 'error');
-            return;
-        }
-        
-        const useText = selectedMode.value === 'text';
-        let customText = '';
-        
-        if (useText) {
-            const textInput = document.getElementById('customTextInput');
-            if (textInput) {
-                customText = textInput.value.trim();
-                if (!customText) {
-                    showAlert('Lütfen özel metin girin', 'error');
-                    textInput.focus();
-                    return;
-                }
-            }
-        }
-        
-        // Create test package data
-        const testPackage = {
-            package_no: 'TEST-001',
-            customer_name: 'Test Müşteri',
-            items_display: 'Test Ürün: 5 adet',
-            total_quantity: 5,
-            items: { 'Test Ürün': 5 }
-        };
-        
-        // Get current printer config
-        const printerConfig = window.workspaceManager?.getCurrentPrinterConfig?.() || {
-            type: 'generic',
-            paperWidth: 50,
-            paperHeight: 30
-        };
-        
-        // Generate and test label
-        const labelContent = this.generateLabelContent(testPackage, printerConfig);
-        console.log('🧪 Test label content:', labelContent);
-        
-        showAlert(
-            useText ? 
-            `Test etiketi oluşturuldu: "${customText}"` : 
-            'Logo ile test etiketi oluşturuldu', 
-            'success'
-        );
-    }
-    
     // Apply current mode to label generation
     applyCurrentMode() {
+        // This will be used by the label generation functions
         console.log('🎨 Label mode:', this.useCustomText ? `Text: "${this.customText}"` : 'Logo');
     }
     
-    // Show panel
-    showPanel() {
+    // Check if panel should be visible
+    isPanelVisible() {
+        return localStorage.getItem('label_panel_visible') !== 'false';
+    }
+    
+    // Toggle panel visibility
+    togglePanelVisibility() {
+        const currentlyVisible = this.isPanelVisible();
+        localStorage.setItem('label_panel_visible', (!currentlyVisible).toString());
+        
         const panel = document.getElementById('labelCustomizerPanel');
-        if (!panel) {
-            this.createControlPanel();
-            return;
+        const toggleBtn = document.getElementById('toggleLabelPanel');
+        
+        if (currentlyVisible) {
+            panel.style.display = 'none';
+            toggleBtn.innerHTML = '<i class="fas fa-eye"></i> Göster';
+        } else {
+            panel.style.display = 'block';
+            toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Gizle';
         }
-        
-        panel.style.display = 'block';
-        
-        // Add overlay
-        this.addOverlay();
     }
     
     // Hide panel
     hidePanel() {
-        const panel = document.getElementById('labelCustomizerPanel');
-        if (panel) {
-            panel.style.display = 'none';
-        }
-        
-        // Remove overlay
-        this.removeOverlay();
+        document.getElementById('labelCustomizerPanel').style.display = 'none';
+        localStorage.setItem('label_panel_visible', 'false');
+        document.getElementById('toggleLabelPanel').innerHTML = '<i class="fas fa-eye"></i> Göster';
     }
     
-    // Add overlay
-    addOverlay() {
-        if (document.getElementById('labelCustomizerOverlay')) {
-            return;
-        }
-        
-        const overlay = document.createElement('div');
-        overlay.id = 'labelCustomizerOverlay';
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 9999;
-        `;
-        
-        document.body.appendChild(overlay);
-    }
-    
-    // Remove overlay
-    removeOverlay() {
-        const overlay = document.getElementById('labelCustomizerOverlay');
-        if (overlay) {
-            overlay.remove();
-        }
+    // Show panel
+    showPanel() {
+        document.getElementById('labelCustomizerPanel').style.display = 'block';
+        localStorage.setItem('label_panel_visible', 'true');
+        document.getElementById('toggleLabelPanel').innerHTML = '<i class="fas fa-eye-slash"></i> Gizle';
     }
     
     // Get current label content (logo or text)
@@ -636,23 +455,23 @@ class LabelCustomizer {
     
     // Generate label content for different printer types
     generateLabelContent(packageData, printerConfig) {
-        const workspace = window.workspaceManager?.currentWorkspace || { name: 'İstasyon' };
+        const workspace = window.workspaceManager.currentWorkspace;
         const itemsText = packageData.items_display || 'Ürün bilgisi yok';
         const date = new Date().toLocaleDateString('tr-TR');
         const labelContent = this.getLabelContent();
         
         switch (printerConfig.type) {
             case 'argox':
-                return this.generateArgoxLabel(workspace, packageData, itemsText, date, labelContent, printerConfig);
+                return this.generateArgoxLabel(workspace, packageData, itemsText, date, labelContent);
             case 'zebra':
-                return this.generateZebraLabel(workspace, packageData, itemsText, date, labelContent, printerConfig);
+                return this.generateZebraLabel(workspace, packageData, itemsText, date, labelContent);
             default:
-                return this.generateGenericLabel(workspace, packageData, itemsText, date, labelContent, printerConfig);
+                return this.generateGenericLabel(workspace, packageData, itemsText, date, labelContent);
         }
     }
     
     // Generate Argox label content
-    generateArgoxLabel(workspace, packageData, itemsText, date, labelContent, printerConfig) {
+    generateArgoxLabel(workspace, packageData, itemsText, date, labelContent) {
         let label = `
 SIZE ${printerConfig.paperWidth} mm, ${printerConfig.paperHeight} mm
 GAP 2 mm, 0 mm
@@ -680,10 +499,12 @@ PRINT 1
     }
     
     // Generate Zebra label content
-    generateZebraLabel(workspace, packageData, itemsText, date, labelContent, printerConfig) {
+    generateZebraLabel(workspace, packageData, itemsText, date, labelContent) {
         let label = `^XA\n`;
         
         if (labelContent.type === 'logo' && labelContent.content) {
+            // For Zebra, we'd need to convert base64 to GRF format
+            // This is a simplified version - you might need a proper image converter
             label += `^FO20,20^GFA,...\n`; // Placeholder for logo
         } else {
             label += `^FO20,20^A0N,25,25^FD${labelContent.content}^FS\n`;
@@ -704,7 +525,7 @@ PRINT 1
     }
     
     // Generate generic label content for browser printing
-    generateGenericLabel(workspace, packageData, itemsText, date, labelContent, printerConfig) {
+    generateGenericLabel(workspace, packageData, itemsText, date, labelContent) {
         let logoOrText = '';
         
         if (labelContent.type === 'logo' && labelContent.content) {
@@ -741,95 +562,57 @@ function generateLabelContent(packageData, printerConfig) {
     return window.labelCustomizer.generateLabelContent(packageData, printerConfig);
 }
 
-// Add button to settings modal or existing UI
-function addLabelCustomizerToSettings() {
-    // Look for existing settings modal or create a button in main UI
-    const settingsModal = document.querySelector('.settings-modal, .modal, #settingsModal');
-    
-    if (settingsModal) {
-        // Add to existing settings modal
-        addToSettingsModal(settingsModal);
-    } else {
-        // Add to main UI as a standalone button
-        addToMainUI();
+// Add toggle button to your main UI
+function addLabelCustomizerToggle() {
+    // Check if button already exists
+    if (document.getElementById('labelCustomizerToggle')) {
+        return;
     }
-}
-
-// Add to existing settings modal
-function addToSettingsModal(settingsModal) {
-    const labelSection = document.createElement('div');
-    labelSection.style.cssText = `
-        margin: 15px 0;
-        padding: 15px;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        background: #f8f9fa;
-    `;
     
-    labelSection.innerHTML = `
-        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">
-            <i class="fas fa-tag"></i> Etiket Ayarları
-        </h4>
-        <button onclick="window.labelCustomizer.showPanel()" 
-                style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
-            <i class="fas fa-cog"></i> Etiket Özelleştirici'yi Aç
-        </button>
-        <div style="margin-top: 8px; font-size: 12px; color: #666;">
-            Logo ve metin ayarlarını değiştirin
-        </div>
-    `;
-    
-    settingsModal.appendChild(labelSection);
-}
-
-// Add to main UI as standalone button
-function addToMainUI() {
-    const button = document.createElement('button');
-    button.innerHTML = '<i class="fas fa-tag"></i> Etiket Ayarları';
-    button.style.cssText = `
+    // Create toggle button in your main UI
+    const toggleButton = document.createElement('button');
+    toggleButton.id = 'labelCustomizerToggle';
+    toggleButton.innerHTML = '<i class="fas fa-tag"></i> Etiket Ayarları';
+    toggleButton.style.cssText = `
         position: fixed;
-        bottom: 20px;
+        top: 70px;
         right: 20px;
         background: #28a745;
         color: white;
         border: none;
-        border-radius: 6px;
-        padding: 12px 16px;
+        border-radius: 5px;
+        padding: 8px 12px;
         cursor: pointer;
-        font-size: 14px;
-        font-weight: bold;
         z-index: 9998;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        transition: all 0.3s ease;
+        font-size: 12px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     `;
     
-    button.addEventListener('click', () => {
+    toggleButton.addEventListener('click', () => {
         window.labelCustomizer.showPanel();
     });
     
-    button.addEventListener('mouseover', () => {
-        button.style.background = '#218838';
-        button.style.transform = 'translateY(-2px)';
-    });
-    
-    button.addEventListener('mouseout', () => {
-        button.style.background = '#28a745';
-        button.style.transform = 'translateY(0)';
-    });
-    
-    document.body.appendChild(button);
+    document.body.appendChild(toggleButton);
 }
-
-// ==================== INITIALIZATION ====================
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
-        addLabelCustomizerToSettings();
-    }, 2000);
+        addLabelCustomizerToggle();
+        
+        // Apply initial panel visibility
+        if (!window.labelCustomizer.isPanelVisible()) {
+            document.getElementById('labelCustomizerPanel').style.display = 'none';
+        }
+    }, 1000);
 });
 
-// Global function to show label customizer
-window.showLabelCustomizer = function() {
-    window.labelCustomizer.showPanel();
+// Global function to toggle label customizer
+window.toggleLabelCustomizer = function() {
+    window.labelCustomizer.togglePanelVisibility();
+};
+
+// Global function to get current label mode
+window.getCurrentLabelMode = function() {
+    return window.labelCustomizer.getLabelContent();
 };
