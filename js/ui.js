@@ -4286,3 +4286,101 @@ window.clearExcelData = clearExcelData;
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeExcelButtons, 3000);
 });
+
+
+
+// SAFE CUSTOMER CACHE SYSTEM
+class CustomerCache {
+    constructor() {
+        this.cacheKey = 'proclean_customers_cache';
+        this.cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
+    }
+
+    // Get customers with fallback: Supabase → Cache → Empty array
+    async getCustomers() {
+        console.log('🔄 Loading customers with safe fallback...');
+        
+        try {
+            // 1. Try Supabase first (if online)
+            if (supabase && navigator.onLine) {
+                console.log('📡 Trying Supabase for customers...');
+                const { data, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
+                
+                if (!error && data && data.length > 0) {
+                    console.log(`✅ Loaded ${data.length} customers from Supabase`);
+                    // Update cache with fresh data
+                    this.setCache(data);
+                    return data;
+                }
+            }
+            
+            // 2. Fallback to cache
+            const cachedCustomers = this.getCache();
+            if (cachedCustomers.length > 0) {
+                console.log(`📂 Loaded ${cachedCustomers.length} customers from cache`);
+                return cachedCustomers;
+            }
+            
+            // 3. Final fallback - empty array (never break the app)
+            console.log('ℹ️ No customers found, returning empty array');
+            return [];
+            
+        } catch (error) {
+            console.error('❌ Customer loading error, using cache:', error);
+            return this.getCache(); // Safe fallback
+        }
+    }
+
+    // Safe cache setter
+    setCache(customers) {
+        try {
+            const cacheData = {
+                data: customers,
+                timestamp: Date.now(),
+                count: customers.length
+            };
+            localStorage.setItem(this.cacheKey, JSON.stringify(cacheData));
+            console.log(`💾 Cached ${customers.length} customers`);
+        } catch (error) {
+            console.warn('⚠️ Could not cache customers:', error);
+        }
+    }
+
+    // Safe cache getter with expiry
+    getCache() {
+        try {
+            const cached = localStorage.getItem(this.cacheKey);
+            if (!cached) return [];
+            
+            const cacheData = JSON.parse(cached);
+            
+            // Check if cache is expired
+            if (Date.now() - cacheData.timestamp > this.cacheExpiry) {
+                console.log('🕒 Customer cache expired');
+                this.clearCache();
+                return [];
+            }
+            
+            return cacheData.data || [];
+        } catch (error) {
+            console.warn('⚠️ Cache read error, returning empty array:', error);
+            return [];
+        }
+    }
+
+    // Clear cache safely
+    clearCache() {
+        try {
+            localStorage.removeItem(this.cacheKey);
+            console.log('🧹 Customer cache cleared');
+        } catch (error) {
+            console.warn('⚠️ Cache clear error:', error);
+        }
+    }
+}
+
+// Initialize customer cache
+const customerCache = new CustomerCache();
