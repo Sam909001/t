@@ -1,11 +1,11 @@
-// These should be in excel-storage.js
+// ==================== EXCEL STORAGE MANAGEMENT ====================
+
+// Excel local storage
 let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
 
-
-
-// Enhanced Excel Storage with Proper Daily Files
+// Excel Storage with Proper Daily Files
 const ExcelStorage = {
     // Get today's date string for file naming
     getTodayDateString: function() {
@@ -114,7 +114,7 @@ const ExcelStorage = {
             
             // Convert to CSV format for better Excel compatibility
             const csvContent = this.convertToCSV(packages);
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -182,6 +182,19 @@ const ExcelStorage = {
                 }
             }
         }
+    },
+
+    // Preview Excel data in modal
+    previewExcelData: function() {
+        const files = this.getAvailableDailyFiles();
+        if (files.length === 0) {
+            showAlert('Görüntülenecek Excel dosyası bulunamadı', 'info');
+            return;
+        }
+        
+        // Show the most recent file
+        const recentFile = files[0];
+        viewDailyFile(recentFile.date);
     }
 };
 
@@ -244,7 +257,7 @@ const ExcelJS = {
     cleanupOldFiles: ExcelStorage.cleanupOldFiles
 };
 
-// ==================== PROFESSIONAL EXCEL EXPORT - SIMPLIFIED ====================
+// ==================== PROFESSIONAL EXCEL EXPORT ====================
 const ProfessionalExcelExport = {
     // Convert packages to Excel-friendly format with simplified headers
     convertToProfessionalExcel: function(packages) {
@@ -501,8 +514,9 @@ const ProfessionalExcelExport = {
     }
 };
 
+// ==================== EXCEL STORAGE FUNCTIONS ====================
 
-// Excel storage initialization
+// Initialize Excel Storage
 async function initializeExcelStorage() {
     try {
         // Initialize daily file system
@@ -597,3 +611,68 @@ async function deleteFromExcel(packageId) {
         return false;
     }
 }
+
+// Add to sync queue
+function addToSyncQueue(operationType, data) {
+    // Create operation fingerprint for deduplication
+    const operationFingerprint = `${operationType}-${data.id}`;
+    
+    // Check for duplicates
+    const isDuplicate = excelSyncQueue.some(op => 
+        op.fingerprint === operationFingerprint && op.status !== 'failed'
+    );
+    
+    if (isDuplicate) {
+        console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
+        return;
+    }
+
+    // Remove any older operations for the same data ID
+    excelSyncQueue = excelSyncQueue.filter(op => 
+        !(op.data.id === data.id && op.type !== operationType)
+    );
+
+    // Create enhanced operation object
+    const enhancedOperation = {
+        type: operationType,
+        data: data,
+        timestamp: new Date().toISOString(),
+        fingerprint: operationFingerprint,
+        workspace_id: getCurrentWorkspaceId(),
+        attempts: 0,
+        maxAttempts: 3,
+        status: 'pending',
+        lastAttempt: null,
+        lastError: null
+    };
+
+    // Create backup before modifying queue
+    localStorage.setItem('excelSyncQueue_backup', JSON.stringify(excelSyncQueue));
+    
+    // Add new operation
+    excelSyncQueue.push(enhancedOperation);
+    
+    // Limit queue size to prevent memory issues
+    if (excelSyncQueue.length > 1000) {
+        console.warn('📦 Sync queue too large, removing oldest failed operations');
+        excelSyncQueue = excelSyncQueue
+            .filter(op => op.status !== 'failed')
+            .slice(-500); // Keep last 500 non-failed operations
+    }
+
+    localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+    console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
+}
+
+// ==================== GLOBAL EXPORTS ====================
+
+// Make functions available globally
+window.ExcelStorage = ExcelStorage;
+window.ExcelJS = ExcelJS;
+window.ProfessionalExcelExport = ProfessionalExcelExport;
+window.initializeExcelStorage = initializeExcelStorage;
+window.saveToExcel = saveToExcel;
+window.deleteFromExcel = deleteFromExcel;
+window.addToSyncQueue = addToSyncQueue;
+
+console.log('✅ Excel storage module loaded successfully');
