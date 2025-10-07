@@ -1461,17 +1461,28 @@ function debugWorkspace() {
         console.log('Excel Packages: Error -', e.message);
     }
     
-    console.log('LocalStorage Keys:');
-    try {
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (key.includes('excelPackages') || key.includes('workspace'))) {
-                console.log(`- ${key}:`, localStorage.getItem(key));
+console.log('LocalStorage Keys:');
+try {
+    // Check if localStorage is available and accessible
+    if (!localStorage) {
+        console.log('LocalStorage not available');
+        return;
+    }
+    
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        // Add more comprehensive checks
+        if (key && (key.includes('excelPackages') || key.includes('workspace'))) {
+            try {
+                const value = localStorage.getItem(key);
+                console.log(`- ${key}:`, value);
+            } catch (valueError) {
+                console.log(`- ${key}: [Cannot read value]`);
             }
         }
-    } catch (e) {
-        console.log('LocalStorage access error:', e.message);
     }
+} catch (e) {
+    console.log('LocalStorage access error:', e.message);
 }
     
     // Test workspace storage
