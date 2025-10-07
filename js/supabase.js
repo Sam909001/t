@@ -3447,6 +3447,41 @@ function onRFIDScan(tag_id, code, customer, step) {
 }
 
 
+
+// ========== RFID Simulation / Live Scan ==========
+
+// Simulated scanning interval
+let rfidScanInterval = null;
+
+// Start simulated scanning
+function startRFIDScan() {
+    if (rfidScanInterval) return; // already scanning
+
+    rfidScanInterval = setInterval(() => {
+        // Simulate a random tag scan every 2-5 seconds
+        const sampleTags = [
+            { tag_id: 'TAG001', code: 'STK001', customer: 'Ali Veli', step: 'Washing' },
+            { tag_id: 'TAG002', code: 'STK002', customer: 'Ayşe Demir', step: 'Ironing' },
+            { tag_id: 'TAG003', code: 'STK003', customer: 'Mehmet Kaya', step: 'Shipping' }
+        ];
+        const randomTag = sampleTags[Math.floor(Math.random() * sampleTags.length)];
+
+        // Trigger scan event
+        onRFIDScan(randomTag.tag_id, randomTag.code, randomTag.customer, randomTag.step);
+
+        console.log('Simulated RFID scan:', randomTag);
+    }, 2000 + Math.random() * 3000); // random interval 2-5 sec
+}
+
+// Stop simulated scanning
+function stopRFIDScan() {
+    if (rfidScanInterval) {
+        clearInterval(rfidScanInterval);
+        rfidScanInterval = null;
+        console.log('RFID scan stopped');
+    }
+}
+
  
         async function saveStockItem(code) {
             const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
