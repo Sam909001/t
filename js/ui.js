@@ -815,43 +815,52 @@ function savePrinterSettings() {
     console.log('Printer settings saved', settings);
 }
 
-// ---------------- INIT ----------------
 document.addEventListener('DOMContentLoaded', () => {
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    loadPrinterSettings(settings);
+    try {
+        const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+        loadPrinterSettings(settings);
 
-    const inputIds = [
-        'printerScaling', 'copiesNumber', 'fontName',
-        'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
-    ];
+        const inputIds = [
+            'printerScaling', 'copiesNumber', 'fontName',
+            'fontSize', 'orientation', 'marginTop', 'marginBottom', 'labelHeader'
+        ];
 
-    inputIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', savePrinterSettings);
-    });
-
-    const testBtn = document.getElementById('test-printer-yazdir');
-    if (testBtn) {
-        testBtn.addEventListener('click', async () => {
-            savePrinterSettings();
-            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-            const printerInstance = getPrinter();
-
-            const originalText = testBtn.textContent;
-            testBtn.disabled = true;
-            testBtn.textContent = 'Test Ediliyor...';
-
-            try {
-                // Use labelHeader for test print
-                await printerInstance.testPrint(settings, settings.labelHeader);
-            } catch (error) {
-                console.error('Test print error:', error);
-                showAlert('Test yazdırma başarısız: ' + error.message, 'error');
-            } finally {
-                testBtn.disabled = false;
-                testBtn.textContent = originalText;
+        inputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', savePrinterSettings);
+            } else {
+                console.warn(`⚠️ Printer setting element not found: ${id}`);
             }
         });
+
+        const testBtn = document.getElementById('test-printer-yazdir');
+        if (testBtn) {
+            testBtn.addEventListener('click', async () => {
+                savePrinterSettings();
+                const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+                const printerInstance = getPrinter();
+
+                const originalText = testBtn.textContent;
+                testBtn.disabled = true;
+                testBtn.textContent = 'Test Ediliyor...';
+
+                try {
+                    // Use labelHeader for test print
+                    await printerInstance.testPrint(settings, settings.labelHeader);
+                } catch (error) {
+                    console.error('Test print error:', error);
+                    showAlert('Test yazdırma başarısız: ' + error.message, 'error');
+                } finally {
+                    testBtn.disabled = false;
+                    testBtn.textContent = originalText;
+                }
+            });
+        } else {
+            console.warn('⚠️ Test print button not found');
+        }
+    } catch (error) {
+        console.error('❌ Printer settings initialization failed:', error);
     }
 });
 
