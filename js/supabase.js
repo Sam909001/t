@@ -3359,36 +3359,25 @@ async function completePackage() {
         return;
     }
 
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
-    // Check workspace permissions
-    if (!window.workspaceManager?.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
+    // ADD DEBUGGING HERE
+    console.log('🔍 DEBUG: Starting completePackage function');
+    console.log('🔍 DEBUG: Current workspace:', window.workspaceManager?.currentWorkspace);
+    
     try {
         // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-// ================== PASTE THIS NEW CODE IN ITS PLACE ==================
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        const stationNumber = workspaceId.replace('station-', '');
+        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
+        
+        // DEBUG THE GENERATED ID
+        console.log('🔍 DEBUG: Generated Package ID:', newPackageId);
+        
+        const packageId = newPackageId;
+        const packageNo = newPackageId;
 
-// 1. Get the current workspace ID (e.g., 'station-1')
-const workspaceId = window.workspaceManager.currentWorkspace.id;
-
-// 2. Extract the station number from the ID
-const stationNumber = workspaceId.replace('station-', ''); // Result: '1'
-
-// 3. Generate a 6-character random alphanumeric string
-const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase(); // Result: 'A1B2C3'
-
-// 4. Create the new, short, and unified package ID
-const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
-
-// 5. CRITICAL: Use the new ID for both the unique ID and the package number
-const packageId = newPackageId;
-const packageNo = newPackageId;
+        console.log('🔍 DEBUG: Final packageId:', packageId);
+        console.log('🔍 DEBUG: Final packageNo:', packageNo);
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
