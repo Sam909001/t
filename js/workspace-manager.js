@@ -19,6 +19,7 @@ class WorkspaceManager {
         await this.loadWorkspaces();
         await this.loadCurrentWorkspace();
         this.initializeWorkspaceStorage();
+        this.initializePackageCounters(); // ← ADDED THIS LINE
         
         this.initialized = true;
         console.log('✅ Workspace system ready:', this.currentWorkspace);
@@ -146,6 +147,22 @@ class WorkspaceManager {
         return types[ws.type] || ws.type || 'Genel';
     }
     
+    // Initialize package counters for all workspaces
+    initializePackageCounters() {
+        console.log('🔢 Initializing package counters for all workspaces...');
+        
+        this.availableWorkspaces.forEach(workspace => {
+            const stationNumber = workspace.id.replace('station-', '');
+            const counterKey = `packageCounter_station_${stationNumber}`;
+            
+            // Only initialize if counter doesn't exist
+            if (!localStorage.getItem(counterKey)) {
+                localStorage.setItem(counterKey, '0');
+                console.log(`✅ Package counter initialized for ${workspace.name}: 0`);
+            }
+        });
+    }
+    
     // Initialize workspace-specific Excel storage
     initializeWorkspaceStorage() {
         if (!this.currentWorkspace) {
@@ -168,6 +185,33 @@ class WorkspaceManager {
                 const data = localStorage.getItem(`excelPackages_${workspaceId}`);
                 const packages = data ? JSON.parse(data) : [];
                 console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
+                
+                // Initialize package counter based on existing packages
+                if (packages.length > 0) {
+                    const stationNumber = workspaceId.replace('station-', '');
+                    const counterKey = `packageCounter_station_${stationNumber}`;
+                    
+                    // Find the highest existing package number
+                    let highestNumber = 0;
+                    packages.forEach(pkg => {
+                        if (pkg.package_no && pkg.package_no.startsWith(`ST${stationNumber}-`)) {
+                            const numberPart = pkg.package_no.split('-')[1];
+                            if (numberPart && numberPart.length === 9) {
+                                const number = parseInt(numberPart);
+                                if (number > highestNumber) {
+                                    highestNumber = number;
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Set counter to highest found number
+                    if (highestNumber > 0) {
+                        localStorage.setItem(counterKey, highestNumber.toString());
+                        console.log(`🔢 Package counter initialized to: ${highestNumber}`);
+                    }
+                }
+                
                 return packages;
             } catch (error) {
                 console.error('❌ Workspace Excel read error:', error);
@@ -424,7 +468,7 @@ class WorkspaceManager {
             return;
         }
         
-      // Generate clean sequential workspace ID
+       // Generate clean sequential workspace ID
 const nextStationNumber = this.availableWorkspaces.length + 1;
 const newWorkspace = {
     id: 'station-' + nextStationNumber,  // ← FIXED: station-1, station-2, etc.
