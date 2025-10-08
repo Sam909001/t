@@ -3219,7 +3219,7 @@ async function completePackage() {
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         const stationNumber = workspaceId.replace('station-', '');
 
-        // GENERATE UNIQUE 6-DIGIT NUMBER WITH DUPLICATE PROTECTION
+        // GENERATE UNIQUE 6-DIGIT NUMBER WITH BETTER DUPLICATE PROTECTION
         const generateUniqueNumber = () => {
             const today = new Date().toISOString().split('T')[0];
             const usedNumbersKey = `usedPackageNumbers_${workspaceId}_${today}`;
@@ -3228,12 +3228,16 @@ async function completePackage() {
             let usedNumbers = JSON.parse(localStorage.getItem(usedNumbersKey) || '[]');
             console.log(`📊 Used numbers today: ${usedNumbers.length}`);
             
+            // If we've used many numbers today, increase the range
+            const startRange = usedNumbers.length > 100 ? 1000000 : 100000;
+            const endRange = usedNumbers.length > 100 ? 9999999 : 999999;
+            
             let attempts = 0;
-            const maxAttempts = 50;
+            const maxAttempts = 100; // Increased attempts
             
             while (attempts < maxAttempts) {
-                // Generate 6-digit number (000001 to 999999)
-                const newNumber = String(Math.floor(Math.random() * 900000) + 100000).padStart(6, '0');
+                // Generate 6 or 7-digit number based on usage
+                const newNumber = String(Math.floor(startRange + Math.random() * (endRange - startRange + 1))).padStart(6, '0');
                 
                 // Check if number was used today
                 if (!usedNumbers.includes(newNumber)) {
@@ -3247,9 +3251,9 @@ async function completePackage() {
                 attempts++;
             }
             
-            // Fallback: use timestamp
-            const fallbackNumber = String(Date.now()).slice(-6).padStart(6, '0');
-            console.warn(`⚠️ Using fallback number: ${fallbackNumber}`);
+            // BETTER FALLBACK: Use random + counter to avoid timestamps
+            const fallbackNumber = String(Math.floor(100000 + Math.random() * 900000) + attempts).slice(-6);
+            console.warn(`⚠️ Using random fallback number: ${fallbackNumber}`);
             return fallbackNumber;
         };
 
@@ -3327,6 +3331,7 @@ async function completePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
+
 
 // Add cleanup function to remove old used numbers (call this on app startup)
 function cleanupOldUsedNumbers() {
