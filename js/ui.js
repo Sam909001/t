@@ -3199,7 +3199,6 @@ class DataValidator {
     }
 }
 
-// Enhanced completePackage with validation
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -3211,24 +3210,60 @@ async function completePackage() {
         return;
     }
 
-    // Check workspace permissions
     if (!window.workspaceManager?.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
     try {
-        // Generate package data
         const workspaceId = window.workspaceManager.currentWorkspace.id;
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 9);
-        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-        const packageNo = `PKG-${workspaceId}-${timestamp}`;
+        const stationNumber = workspaceId.replace('station-', '');
+
+        // GENERATE UNIQUE 6-DIGIT NUMBER WITH DUPLICATE PROTECTION
+        const generateUniqueNumber = () => {
+            const today = new Date().toISOString().split('T')[0];
+            const usedNumbersKey = `usedPackageNumbers_${workspaceId}_${today}`;
+            
+            // Load used numbers for today from localStorage
+            let usedNumbers = JSON.parse(localStorage.getItem(usedNumbersKey) || '[]');
+            console.log(`📊 Used numbers today: ${usedNumbers.length}`);
+            
+            let attempts = 0;
+            const maxAttempts = 50;
+            
+            while (attempts < maxAttempts) {
+                // Generate 6-digit number (000001 to 999999)
+                const newNumber = String(Math.floor(Math.random() * 900000) + 100000).padStart(6, '0');
+                
+                // Check if number was used today
+                if (!usedNumbers.includes(newNumber)) {
+                    // Add to used numbers and save
+                    usedNumbers.push(newNumber);
+                    localStorage.setItem(usedNumbersKey, JSON.stringify(usedNumbers));
+                    console.log(`✅ Generated unique number: ${newNumber} (attempts: ${attempts + 1})`);
+                    return newNumber;
+                }
+                
+                attempts++;
+            }
+            
+            // Fallback: use timestamp
+            const fallbackNumber = String(Date.now()).slice(-6).padStart(6, '0');
+            console.warn(`⚠️ Using fallback number: ${fallbackNumber}`);
+            return fallbackNumber;
+        };
+
+        const uniqueSuffix = generateUniqueNumber();
         
+        // Create clean package IDs
+        const packageId = `pkg-st${stationNumber}-${uniqueSuffix}`;
+        const packageNo = `PKG-ST${stationNumber}-${uniqueSuffix}`;
+        
+        console.log('🆕 Generated Package:', packageNo);
+
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Create package data
         const packageData = {
             id: packageId,
             package_no: packageNo,
@@ -3241,62 +3276,82 @@ async function completePackage() {
                 qty: qty
             })),
             items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-                `${name} (${qty})`
+                `${name}: ${qty} adet`
             ).join(', '),
             total_quantity: totalQuantity,
             status: 'beklemede',
-            packer: selectedPersonnel,
-            workspace_id: workspaceId,
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-
-        // Validate and sanitize data
-        if (typeof DataValidator !== 'undefined') {
-            DataValidator.validatePackageData(packageData);
-            const sanitizedData = DataValidator.sanitizePackageData(packageData);
-        }
-
-        // Save to Excel
-        const excelData = await ExcelJS.readFile();
-        excelData.push(packageData);
-        await ExcelJS.writeFile(excelData);
-
-        // Add to sync queue
-        const syncOperation = {
-            fingerprint: `${packageId}-${Date.now()}`,
-            type: 'add',
-            data: packageData,
-            status: 'pending',
+            updated_at: new Date().toISOString(),
             workspace_id: workspaceId,
-            created_at: new Date().toISOString()
+            station_name: window.workspaceManager.currentWorkspace.name,
+            daily_file: ExcelStorage.getTodayDateString(),
+            source: 'app'
         };
-        
-        if (window.excelSyncQueue) {
-            window.excelSyncQueue.push(syncOperation);
-            localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
+
+        // Save to database and Excel
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+                await saveToExcel(packageData);
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+                isUsingExcel = true;
+            }
+        } else {
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+            isUsingExcel = true;
         }
 
-        // Try to sync immediately
-        if (supabase && navigator.onLine && typeof safeSyncExcelWithSupabase === 'function') {
-            await safeSyncExcelWithSupabase();
-        }
-
-        // Reset form
-        resetPackageForm();
-        showAlert('Paket başarıyla oluşturuldu!', 'success');
-
-        // Refresh packages table
-        if (typeof safePopulatePackagesTable === 'function') {
-            await safePopulatePackagesTable();
-        }
+        // Reset and refresh
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        await populatePackagesTable();
+        updateStorageIndicator();
 
     } catch (error) {
-        console.error('Error completing package:', error);
-        showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
 
+// Add cleanup function to remove old used numbers (call this on app startup)
+function cleanupOldUsedNumbers() {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('usedPackageNumbers_')) {
+            const dateMatch = key.match(/\d{4}-\d{2}-\d{2}$/);
+            if (dateMatch) {
+                const keyDate = new Date(dateMatch[0]);
+                if (keyDate < oneWeekAgo) {
+                    localStorage.removeItem(key);
+                    console.log(`🧹 Removed old used numbers: ${key}`);
+                }
+            }
+        }
+    }
+}
+
+// Call cleanup when UI loads
+document.addEventListener('DOMContentLoaded', function() {
+    cleanupOldUsedNumbers();
+});
 // Reports tab functionality fixes
 async function populateReportsTable() {
     const reportsTableBody = document.getElementById('reportsTableBody');
