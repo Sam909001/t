@@ -123,17 +123,49 @@ window.getPrinterElectron = function() {
 
 
 
-// Add this to your global functions section
-window.printSinglePackage = function(packageData) {
-    console.log('🖨️ printSinglePackage called');
-    
+// Global function
+window.printSinglePackage = async function(packageId) {
+    console.log('🖨️ printSinglePackage called', packageId);
+
+    // Find the checkbox first
+    const checkbox = document.querySelector(`#packagesTableBody input[data-package-id="${packageId}"]`);
+    if (!checkbox) {
+        showAlert('Paket bulunamadı ❌', 'error');
+        return false;
+    }
+
+    // Get the closest row
+    const packageRow = checkbox.closest('tr');
+    if (!packageRow) {
+        showAlert('Paket satırı bulunamadı ❌', 'error');
+        return false;
+    }
+
+    // Extract full package data from the table row
+    const packageData = extractPackageDataFromTableRow(packageRow);
+    if (!packageData) {
+        showAlert('Paket verisi çıkarılamadı ❌', 'error');
+        return false;
+    }
+
+    // Ensure package_no and items are defined
+    if (!packageData.package_no) packageData.package_no = `PKG-${Date.now()}`;
+    if (!packageData.items || packageData.items.length === 0) {
+        const productText = packageRow.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
+        const qtyText = packageRow.cells[4]?.textContent?.trim();
+        const qty = qtyText ? parseInt(qtyText) : 1;
+        packageData.items = [{ name: productText, qty }];
+    }
+
+    // Print using your existing working printer service
     if (!window.printerElectron) {
         window.printerElectron = new PrinterServiceElectronWithSettings();
     }
-    
+
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    return window.printerElectron.printLabel(packageData, settings);
+    return await window.printerElectron.printLabel(packageData, settings);
 };
+
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
