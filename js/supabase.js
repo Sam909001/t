@@ -937,7 +937,7 @@ async function initializeExcelStorage() {
     }
 }
 
-// REPLACE the existing saveToExcel function with this:
+// REPLACE the saveToExcel function with this FIXED version:
 async function saveToExcel(packageData) {
     try {
         // Enhanced package data with customer and product info
@@ -963,10 +963,15 @@ async function saveToExcel(packageData) {
         // Read current daily file
         const currentPackages = await ExcelJS.readFile();
         
-        // Yeni paketi ekle veya güncelle
+        // 🚨 FIX: Check by ID, but NEVER overwrite the ID
         const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
         if (existingIndex >= 0) {
-            currentPackages[existingIndex] = enhancedPackageData;
+            // Preserve the original ID but update other data
+            currentPackages[existingIndex] = {
+                ...currentPackages[existingIndex], // Keep original ID
+                ...enhancedPackageData,            // Update other fields
+                id: currentPackages[existingIndex].id // 🚨 CRITICAL: Preserve original ID
+            };
         } else {
             currentPackages.push(enhancedPackageData);
         }
@@ -975,7 +980,6 @@ async function saveToExcel(packageData) {
         const success = await ExcelJS.writeFile(currentPackages);
         
         if (success) {
-            // Global excelPackages değişkenini güncelle
             excelPackages = currentPackages;
             console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
             return true;
@@ -987,6 +991,7 @@ async function saveToExcel(packageData) {
         return false;
     }
 }
+
 
 async function deleteFromExcel(packageId) {
     try {
