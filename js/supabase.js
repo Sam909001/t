@@ -3353,7 +3353,7 @@ console.log('✅ Reports module loaded successfully');
 
 
 
-async function CompletePackage() {
+async function _internalCompletePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
         return;
@@ -3371,60 +3371,28 @@ async function CompletePackage() {
     }
 
     try {
-        // 1. Get the current workspace ID
+        // 1. Get the current workspace ID (e.g., 'station-1')
         const workspaceId = window.workspaceManager.currentWorkspace.id;
 
         // 2. Extract the station number from the ID
         const stationNumber = workspaceId.replace('station-', '');
 
-        // 3. GENERATE UNIQUE 6-DIGIT NUMBER WITH DUPLICATE PROTECTION
-        const generateUniqueNumber = () => {
-            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-            const usedNumbersKey = `usedPackageNumbers_${workspaceId}_${today}`;
-            
-            // Load used numbers for today from localStorage
-            let usedNumbers = JSON.parse(localStorage.getItem(usedNumbersKey) || '[]');
-            console.log(`📊 Used numbers today: ${usedNumbers.length}`);
-            
-            let attempts = 0;
-            const maxAttempts = 50; // Prevent infinite loop
-            
-            while (attempts < maxAttempts) {
-                // Generate 6-digit number (000001 to 999999)
-                const newNumber = String(Math.floor(Math.random() * 900000) + 100000).padStart(6, '0');
-                
-                // Check if number was used today
-                if (!usedNumbers.includes(newNumber)) {
-                    // Add to used numbers and save
-                    usedNumbers.push(newNumber);
-                    localStorage.setItem(usedNumbersKey, JSON.stringify(usedNumbers));
-                    console.log(`✅ Generated unique number: ${newNumber} (attempts: ${attempts + 1})`);
-                    return newNumber;
-                }
-                
-                attempts++;
-            }
-            
-            // If we can't find a unique number, use timestamp-based fallback
-            const fallbackNumber = String(Date.now()).slice(-6).padStart(6, '0');
-            console.warn(`⚠️ Using fallback number: ${fallbackNumber}`);
-            return fallbackNumber;
-        };
+        // 3. Generate a 6-character random alphanumeric string
+        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-        const uniqueSuffix = generateUniqueNumber();
-        
-        // 4. Create clean package IDs
-        const packageId = `pkg-st${stationNumber}-${uniqueSuffix}`;
-        const packageNo = `PKG-ST${stationNumber}-${uniqueSuffix}`;
-        
-        console.log('🆕 Generated Package:', packageNo);
+        // 4. Create ONE new, short, and unified package ID
+        const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
 
+        // 5. CRITICAL: Use this single ID for both the database and the display
+        const packageId = newPackageId;
+        const packageNo = newPackageId;
+        
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Enhanced package data with workspace info
+        // Enhanced package data with workspace info - USE THE SAME ID
         const packageData = {
-            id: packageId,
+            id: packageId, // SAME ID FOR BOTH SYSTEMS
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
@@ -3445,12 +3413,12 @@ async function CompletePackage() {
             workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app'
+            source: 'app' // Track source for sync
         };
 
-        console.log('📦 Creating package:', packageNo);
+        console.log('📦 Creating package with ID:', packageId);
 
-        // Save based on connectivity and workspace settings
+        // Save based on connectivity and workspace settings (rest of the logic remains)
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -3489,29 +3457,36 @@ async function CompletePackage() {
     }
 }
 
-// ADD THIS CLEANUP FUNCTION TO REMOVE OLD USED NUMBERS
-function cleanupOldUsedNumbers() {
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('usedPackageNumbers_')) {
-            // Extract date from key (format: usedPackageNumbers_station-1_2024-01-15)
-            const dateMatch = key.match(/\d{4}-\d{2}-\d{2}$/);
-            if (dateMatch) {
-                const keyDate = new Date(dateMatch[0]);
-                if (keyDate < oneWeekAgo) {
-                    localStorage.removeItem(key);
-                    console.log(`🧹 Removed old used numbers: ${key}`);
-                }
-            }
-        }
+
+// Delete selected packages
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
+
+        if (error) throw error;
+
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
     }
 }
 
-// Call cleanup on app startup
-cleanupOldUsedNumbers();
 
 
 async function sendToRamp(containerNo = null) {
@@ -4426,8 +4401,6 @@ function createSecureSupabaseClient() {
     });
 }
 
-
-
 async function completePackageSecure() {
     // Validate inputs
     const sanitizedItems = SecurityManager.sanitizeObject(currentPackage.items);
@@ -4453,11 +4426,6 @@ async function completePackageSecure() {
     return await _internalCompletePackage(); 
 }
 
-window.completePackage = completePackageSecure;
-
-
-
-
 window.workspaceManager = new EnhancedWorkspaceManager();
 
-
+window.completePackage = completePackageSecure;
