@@ -124,97 +124,40 @@ window.getPrinterElectron = function() {
 
 
 async function printSinglePackage(packageId) {
+    // Wait until the row exists (max 2 seconds)
     let packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
     let attempts = 0;
-    while (!packageRow && attempts < 20) { // max 2 seconds wait
+    while (!packageRow && attempts < 20) {
         await new Promise(r => setTimeout(r, 100));
         packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
         attempts++;
     }
+
     if (!packageRow) {
+        console.warn(`Package row not found: ${packageId}, falling back to checkbox method`);
+        // fallback: select the checkbox corresponding to this package
+        const checkbox = document.querySelector(`#packagesTableBody input[data-package-id="${packageId}"]`);
+        if (checkbox) {
+            checkbox.checked = true;
+            return await window.printSelectedElectron();
+        }
         showAlert('Paket bulunamadı ❌', 'error');
         return false;
     }
-        
-        // Extract package data directly from the table row (same as your main print function)
-        const packageData = extractPackageDataFromTableRow(packageRow);
-        
-        if (!packageData || !packageData.package_no) {
-            console.error('❌ Could not extract package data from row');
-            showAlert('Paket verisi çıkarılamadı ❌', 'error');
-            return false;
-        }
-        
-        console.log('📦 Extracted package data:', packageData);
-        
-        // Use your existing printer
-        if (!window.printerElectron) {
-            window.printerElectron = new PrinterServiceElectronWithSettings();
-        }
-        
-        const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-        return await window.printerElectron.printLabel(packageData, settings);
-        
-    } catch (error) {
-        console.error('Single package print error:', error);
-        showAlert('Yazdırma hatası: ' + error.message, 'error');
+
+    // Extract package data from table row
+    const packageData = extractPackageDataFromTableRow(packageRow);
+    if (!packageData) {
+        showAlert('Paket verisi çıkarılamadı ❌', 'error');
         return false;
     }
-};
 
-// Use the SAME data extraction as your working printSelectedElectron function
-function extractPackageDataFromTableRow(row) {
-    const packageNo = row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}`;
-    const customerName = row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri';
-    
-    let items = [];
-    
-    // Method 1: Check data attribute (same as your working function)
-    const itemsData = row.getAttribute('data-items');
-    if (itemsData) {
-        try {
-            items = JSON.parse(itemsData);
-            console.log('✅ Found items in data attribute:', items);
-        } catch (e) {
-            console.error('Error parsing items data:', e);
-        }
-    }
-    
-    // Method 2: Extract from product and quantity columns (same as your working function)
-    if (items.length === 0) {
-        const productText = row.cells[3]?.textContent?.trim();
-        const qtyText = row.cells[4]?.textContent?.trim();
-        
-        if (productText) {
-            const products = productText.split(/[,;]/).map(p => p.trim()).filter(p => p);
-            const quantities = qtyText ? qtyText.split(/[,;]/).map(q => parseInt(q.trim()) || 1) : [1];
-            
-            items = products.map((product, index) => ({
-                name: product,
-                qty: quantities[index] || 1
-            }));
-            
-            console.log('✅ Extracted items from columns:', items);
-        }
-    }
-    
-    // Method 3: Fallback to single item (same as your working function)
-    if (items.length === 0) {
-        const productText = row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
-        const qtyText = row.cells[4]?.textContent?.trim();
-        const qty = qtyText ? parseInt(qtyText) : 1;
-        
-        items = [{ name: productText, qty: qty }];
-        console.log('✅ Using single item fallback:', items);
-    }
-
-    return {
-        package_no: packageNo,
-        customer_name: customerName,
-        items: items,
-        created_at: row.cells[5]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
-    };
+    // Print using existing printer instance
+    if (!window.printerElectron) window.printerElectron = new PrinterServiceElectronWithSettings();
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    return await window.printerElectron.printLabel(packageData, settings);
 }
+
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
