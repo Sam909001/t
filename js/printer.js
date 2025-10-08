@@ -123,35 +123,17 @@ window.getPrinterElectron = function() {
 
 
 
-async function printSinglePackage(packageId) {
-    // Try to find the checkbox first
-    const checkbox = document.querySelector(`#packagesTableBody input[data-package-id="${packageId}"]`);
-
-    if (!checkbox) {
-        showAlert('Paket bulunamadı ❌', 'error');
-        return false;
+// Add this to your global functions section
+window.printSinglePackage = function(packageData) {
+    console.log('🖨️ printSinglePackage called');
+    
+    if (!window.printerElectron) {
+        window.printerElectron = new PrinterServiceElectronWithSettings();
     }
-
-    // Get the closest <tr> from the checkbox
-    const packageRow = checkbox.closest('tr');
-    if (!packageRow) {
-        showAlert('Paket satırı bulunamadı ❌', 'error');
-        return false;
-    }
-
-    // Extract package data from table row
-    const packageData = extractPackageDataFromTableRow(packageRow);
-    if (!packageData) {
-        showAlert('Paket verisi çıkarılamadı ❌', 'error');
-        return false;
-    }
-
-    // Print using existing printer instance
-    if (!window.printerElectron) window.printerElectron = new PrinterServiceElectronWithSettings();
+    
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    return await window.printerElectron.printLabel(packageData, settings);
-}
-
+    return window.printerElectron.printLabel(packageData, settings);
+};
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
