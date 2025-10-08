@@ -3371,28 +3371,30 @@ async function _internalCompletePackage() {
     }
 
     try {
-        // 1. Get the current workspace ID (e.g., 'station-1')
+        // 1. Get the current workspace ID
         const workspaceId = window.workspaceManager.currentWorkspace.id;
 
         // 2. Extract the station number from the ID
         const stationNumber = workspaceId.replace('station-', '');
 
-        // 3. Generate a 6-character random alphanumeric string
-        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+        // 3. Generate a UNIQUE 6-digit alphanumeric string
+        const generateUniqueId = () => {
+            const timestamp = Date.now().toString(36).slice(-4); // Last 4 chars of timestamp
+            const random = Math.random().toString(36).substring(2, 4); // 2 random chars
+            return (timestamp + random).toUpperCase().padStart(6, '0').slice(-6);
+        };
 
-        // 4. Create ONE new, short, and unified package ID
-        const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
-
-        // 5. CRITICAL: Use this single ID for both the database and the display
-        const packageId = newPackageId;
-        const packageNo = newPackageId;
+        // 4. Create unified package ID
+        const uniqueSuffix = generateUniqueId();
+        const packageId = `PKG-ST${stationNumber}-${uniqueSuffix}`;
+        const packageNo = packageId; // Use same ID for display
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Enhanced package data with workspace info - USE THE SAME ID
+        // Enhanced package data with workspace info
         const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
@@ -3413,12 +3415,12 @@ async function _internalCompletePackage() {
             workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app' // Track source for sync
+            source: 'app'
         };
 
         console.log('📦 Creating package with ID:', packageId);
 
-        // Save based on connectivity and workspace settings (rest of the logic remains)
+        // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -3456,7 +3458,6 @@ async function _internalCompletePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 // Delete selected packages
 async function deleteSelectedPackages() {
