@@ -424,12 +424,14 @@ class WorkspaceManager {
             return;
         }
         
-        const newWorkspace = {
-            id: 'station-' + Date.now(),
-            name: name.trim(),
-            type: 'packaging',
-            created: new Date().toISOString()
-        };
+       // Generate clean sequential workspace ID
+const nextStationNumber = this.availableWorkspaces.length + 1;
+const newWorkspace = {
+    id: 'station-' + nextStationNumber,  // ← FIXED: station-1, station-2, etc.
+    name: name.trim(),
+    type: 'packaging',
+    created: new Date().toISOString()
+};
         
         this.availableWorkspaces.push(newWorkspace);
         this.saveWorkspaces();
