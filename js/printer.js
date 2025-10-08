@@ -123,71 +123,273 @@ window.getPrinterElectron = function() {
 
 
 
+// FIXED printSinglePackage Function
+// Replace the existing one in your code (likely in ui.js or printer.js)
+
 window.printSinglePackage = async function(packageId) {
-    console.log('🖨️ printSinglePackage called', packageId);
-
-    if (!window.printerElectron) {
-        window.printerElectron = new PrinterServiceElectronWithSettings();
-    }
-
-    // Attempt to find the exact row or fallback to "starts-with" match
-    let packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
-    if (!packageRow) {
-        packageRow = document.querySelector(`tr[data-package-id^="${packageId}"]`);
-    }
-
-    if (!packageRow) {
-        console.warn(`Package row not found for ID: ${packageId}`);
-        showAlert('Paket bulunamadı ❌', 'error');
-        return false;
-    }
-
-    // Extract package data from the row
-    const packageNo = packageRow.querySelector('.package-no')?.textContent?.trim() || packageId;
-    const customerName = packageRow.querySelector('.customer-name')?.textContent?.trim() || 'Bilinmeyen Müşteri';
-
-    // Extract items
-    let items = [];
-    const itemRows = packageRow.querySelectorAll('.item-row');
-    if (itemRows.length > 0) {
-        items = Array.from(itemRows).map(row => {
-            const name = row.querySelector('.item-name')?.textContent?.trim() || 'Bilinmeyen Ürün';
-            const qtyText = row.querySelector('.item-qty')?.textContent?.trim() || '1';
-            const qty = parseInt(qtyText.replace(/\D/g, '')) || 1;
-            return { name, qty };
-        });
-    } else {
-        // fallback: try data-items attribute
-        const dataItems = packageRow.getAttribute('data-items');
-        if (dataItems) {
-            try {
-                items = JSON.parse(dataItems);
-            } catch (e) {
-                console.error('Error parsing data-items:', e);
+    console.log('🖨️ printSinglePackage called with ID:', packageId);
+    
+    try {
+        // Step 1: Try to get package data from multiple sources
+        let packageData = null;
+        
+        // Source 1: Try to find in window.packages array
+        if (window.packages && Array.isArray(window.packages)) {
+            packageData = window.packages.find(pkg => pkg.id === packageId);
+            if (packageData) {
+                console.log('✅ Found package in window.packages');
             }
         }
+        
+        // Source 2: Try to find in excelPackages
+        if (!packageData && window.excelPackages && Array.isArray(window.excelPackages)) {
+            packageData = window.excelPackages.find(pkg => pkg.id === packageId);
+            if (packageData) {
+                console.log('✅ Found package in excelPackages');
+            }
+        }
+        
+        // Source 3: Try to get from Supabase
+        if (!packageData && window.supabase) {
+            try {
+                console.log('🔄 Fetching package from Supabase...');
+                const { data, error } = await window.supabase
+                    .from('packages')
+                    .select('*, customers(name)')
+                    .eq('id', packageId)
+                    .single();
+                
+                if (!error && data) {
+                    packageData = data;
+                    console.log('✅ Found package in Supabase');
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase fetch failed:', supabaseError);
+            }
+        }
+        
+        // Source 4: Try to find from checkbox in table
+        if (!packageData) {
+            const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
+            if (checkbox) {
+                const packageJsonStr = checkbox.getAttribute('data-package');
+                if (packageJsonStr) {
+                    try {
+                        packageData = JSON.parse(packageJsonStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+                        console.log('✅ Found package from checkbox data-package attribute');
+                    } catch (parseError) {
+                        console.error('Error parsing package data from checkbox:', parseError);
+                    }
+                }
+            }
+        }
+        
+        // Source 5: Try to extract from table row
+        if (!packageData) {
+            const tableBody = document.getElementById('packagesTableBody');
+            if (tableBody) {
+                const rows = tableBody.querySelectorAll('tr');
+                for (const row of rows) {
+                    const checkbox = row.querySelector('input[type="checkbox"]');
+                    if (checkbox && checkbox.value === packageId) {
+                        // Extract data from table cells
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length >= 5) {
+                            packageData = {
+                                id: packageId,
+                                package_no: cells[1]?.textContent?.trim() || packageId,
+                                customer_name: cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri',
+                                items_display: cells[3]?.textContent?.trim() || '',
+                                total_quantity: parseInt(cells[4]?.textContent?.trim()) || 0,
+                                created_at: cells[5]?.textContent?.trim() || new Date().toISOString()
+                            };
+                            
+                            // Parse items from items_display
+                            if (packageData.items_display) {
+                                packageData.items = parseItemsFromDisplay(packageData.items_display);
+                            }
+                            
+                            console.log('✅ Extracted package from table row');
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // If still no package data found
+        if (!packageData) {
+            console.error('❌ Package not found in any source:', packageId);
+            showAlert('Paket bulunamadı ❌', 'error');
+            return false;
+        }
+        
+        // Step 2: Normalize package data for printing
+        const normalizedPackage = normalizePackageForPrinting(packageData);
+        
+        console.log('📦 Normalized package data for printing:', normalizedPackage);
+        
+        // Step 3: Initialize printer if needed
+        if (!window.printerElectron) {
+            if (typeof PrinterServiceElectronWithSettings !== 'undefined') {
+                window.printerElectron = new PrinterServiceElectronWithSettings();
+            } else if (typeof PrinterServiceElectron !== 'undefined') {
+                window.printerElectron = new PrinterServiceElectron();
+            } else {
+                console.error('❌ Printer service not available');
+                showAlert('Yazıcı servisi yüklenemedi', 'error');
+                return false;
+            }
+        }
+        
+        // Step 4: Get printer settings
+        const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+        
+        // Step 5: Print the label
+        const success = await window.printerElectron.printLabel(normalizedPackage, settings);
+        
+        if (success) {
+            showAlert('✅ Etiket yazdırıldı', 'success');
+            console.log('✅ Print successful for package:', normalizedPackage.package_no);
+        } else {
+            showAlert('❌ Yazdırma başarısız', 'error');
+            console.error('❌ Print failed for package:', normalizedPackage.package_no);
+        }
+        
+        return success;
+        
+    } catch (error) {
+        console.error('❌ Error in printSinglePackage:', error);
+        showAlert('Yazdırma hatası: ' + error.message, 'error');
+        return false;
     }
-
-    if (items.length === 0) {
-        // final fallback: single product/quantity columns
-        const productText = packageRow.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
-        const qtyText = packageRow.cells[4]?.textContent?.trim() || '1';
-        items = [{ name: productText, qty: parseInt(qtyText) || 1 }];
-    }
-
-    const packageData = {
-        package_no: packageNo,
-        customer_name: customerName,
-        items: items,
-        created_at: packageRow.querySelector('.created-at')?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
-    };
-
-    console.log('📦 Final packageData for printing:', packageData);
-
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    return await window.printerElectron.printLabel(packageData, settings);
 };
 
+// Helper function to parse items from display string
+function parseItemsFromDisplay(itemsDisplay) {
+    if (!itemsDisplay) return [];
+    
+    try {
+        // Try to parse items like "Product1: 5 adet, Product2: 3 adet"
+        const items = [];
+        const parts = itemsDisplay.split(',').map(s => s.trim());
+        
+        for (const part of parts) {
+            // Match pattern: "ProductName: X adet" or "ProductName: X"
+            const match = part.match(/^(.+?):\s*(\d+)/);
+            if (match) {
+                items.push({
+                    name: match[1].trim(),
+                    qty: parseInt(match[2]) || 1
+                });
+            } else {
+                // Fallback: just use the text as product name
+                items.push({
+                    name: part,
+                    qty: 1
+                });
+            }
+        }
+        
+        return items;
+    } catch (error) {
+        console.error('Error parsing items from display:', error);
+        return [];
+    }
+}
+
+// Helper function to normalize package data for printing
+function normalizePackageForPrinting(packageData) {
+    const normalized = {
+        id: packageData.id,
+        package_no: packageData.package_no || packageData.id,
+        customer_name: packageData.customer_name || packageData.customers?.name || 'Bilinmeyen Müşteri',
+        created_at: packageData.created_at || new Date().toISOString(),
+        items: []
+    };
+    
+    // Handle different item formats
+    if (packageData.items) {
+        if (Array.isArray(packageData.items)) {
+            // Already in array format
+            normalized.items = packageData.items;
+        } else if (typeof packageData.items === 'object') {
+            // Object format: { "Product1": 5, "Product2": 3 }
+            normalized.items = Object.entries(packageData.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            }));
+        }
+    } else if (packageData.items_array) {
+        // Use items_array if available
+        normalized.items = packageData.items_array;
+    } else if (packageData.items_display) {
+        // Parse from items_display string
+        normalized.items = parseItemsFromDisplay(packageData.items_display);
+    }
+    
+    // Fallback: create a single item if no items found
+    if (normalized.items.length === 0) {
+        normalized.items = [{
+            name: packageData.product || 'Bilinmeyen Ürün',
+            qty: packageData.total_quantity || 1
+        }];
+    }
+    
+    return normalized;
+}
+
+// Alternative function: Print using "Print All Labels" button programmatically
+window.printSinglePackageViaButton = async function(packageId) {
+    console.log('🖨️ printSinglePackageViaButton called with ID:', packageId);
+    
+    try {
+        // Step 1: Find the checkbox for this package
+        const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
+        
+        if (!checkbox) {
+            console.error('❌ Checkbox not found for package:', packageId);
+            showAlert('Paket checkbox bulunamadı', 'error');
+            return false;
+        }
+        
+        // Step 2: Uncheck all other checkboxes
+        const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+        allCheckboxes.forEach(cb => {
+            cb.checked = false;
+        });
+        
+        // Step 3: Check only this package's checkbox
+        checkbox.checked = true;
+        
+        // Step 4: Wait a moment for UI to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Step 5: Call the existing print function
+        if (typeof window.printSelectedElectron === 'function') {
+            const success = await window.printSelectedElectron();
+            return success;
+        } else if (typeof printSelectedPackages === 'function') {
+            const success = await printSelectedPackages();
+            return success;
+        } else {
+            console.error('❌ Print function not found');
+            showAlert('Yazdırma fonksiyonu bulunamadı', 'error');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error in printSinglePackageViaButton:', error);
+        showAlert('Yazdırma hatası: ' + error.message, 'error');
+        return false;
+    }
+};
+
+// Make functions globally available
+window.parseItemsFromDisplay = parseItemsFromDisplay;
+window.normalizePackageForPrinting = normalizePackageForPrinting;
+
+console.log('✅ Fixed printSinglePackage function loaded');
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
