@@ -120,22 +120,6 @@ window.getPrinterElectron = function() {
     }
     return window.printerElectron;
 };
-
-window.printSinglePackage = async function() {
-    console.log('🖨️ Single package print requested - triggering main print button');
-    
-    // Find and click the main print button
-    const mainPrintButton = document.getElementById('printBarcodeBtn');
-    if (mainPrintButton) {
-        console.log('✅ Found main print button, clicking it...');
-        mainPrintButton.click();
-        return true;
-    } else {
-        console.error('❌ Main print button not found');
-        showAlert('Yazdırma butonu bulunamadı ❌', 'error');
-        return false;
-    }
-};
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
