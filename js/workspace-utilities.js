@@ -238,12 +238,6 @@ function getStrictWorkspaceFilter(tableName) {
 
 
 
-// ==================== ROBUST LABEL CUSTOMIZER SYSTEM ====================
-
-// Global variable to track initialization
-window.labelCustomizerInitialized = false;
-
-// Simple LabelCustomizer class with essential methods
 class LabelCustomizer {
     constructor() {
         this.useCustomText = false;
@@ -253,16 +247,6 @@ class LabelCustomizer {
         
         this.loadSettings();
         this.initializeUI();
-    }
-
-
-     // ADD THESE TWO METHODS:
-    shouldUseCustomText() {
-        return this.useCustomText;
-    }
-    
-    getCustomText() {
-        return this.customText;
     }
     
     loadSettings() {
@@ -351,26 +335,22 @@ class LabelCustomizer {
     }
     
     attachEventListeners() {
-        // Radio buttons
         document.querySelectorAll('input[name="labelMode"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 document.getElementById('customTextSection').style.display = e.target.value === 'text' ? 'block' : 'none';
             });
         });
         
-        // Apply button
         const applyBtn = document.getElementById('applyLabelSettings');
         if (applyBtn) {
             applyBtn.addEventListener('click', () => this.applySettings());
         }
         
-        // Close button
         const closeBtn = document.getElementById('closeLabelPanel');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => this.hidePanel());
         }
         
-        // Enter key in text input
         const textInput = document.getElementById('customTextInput');
         if (textInput) {
             textInput.addEventListener('keypress', (e) => {
@@ -408,11 +388,19 @@ class LabelCustomizer {
         if (panel) panel.style.display = 'none';
     }
     
+    // === ADD THESE TWO CRITICAL METHODS ===
+    shouldUseCustomText() {
+        return this.useCustomText;
+    }
+    
+    getCustomText() {
+        return this.customText;
+    }
+    
     getLabelContent() {
         return this.useCustomText ? { type: 'text', content: this.customText } : { type: 'logo', content: this.logoBase64 };
     }
 }
-
 // ==================== SIMPLE BUTTON CREATION ====================
 
 function createSimpleLabelButton() {
