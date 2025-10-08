@@ -3356,6 +3356,146 @@ console.log('✅ Reports module loaded successfully');
             }
         }
 
+
+
+async function completePackage() {
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
+    try {
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        const stationNumber = workspaceId.replace('station-', '');
+
+        // GENERATE SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
+        const generateSequentialNumber = () => {
+            const counterKey = `packageCounter_station_${stationNumber}`;
+            
+            let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
+            currentCounter++;
+            localStorage.setItem(counterKey, currentCounter.toString());
+            
+            const sequentialNumber = String(currentCounter).padStart(9, '0');
+            console.log(`🔢 Sequential number generated: ${sequentialNumber} (counter: ${currentCounter})`);
+            return sequentialNumber;
+        };
+
+        const sequentialNumber = generateSequentialNumber();
+        
+        // Create package IDs with format: ST1-000000001
+        const packageNo = `ST${stationNumber}-${sequentialNumber}`;
+        const packageId = packageNo.toLowerCase();
+        
+        console.log('🆕 Sequential Package:', packageNo);
+
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect?.value || '';
+
+        const packageData = {
+            id: packageId,
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name}: ${qty} adet`
+            ).join(', '),
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            workspace_id: workspaceId,
+            station_name: window.workspaceManager.currentWorkspace.name,
+            daily_file: ExcelStorage.getTodayDateString(),
+            source: 'app'
+        };
+
+        // Save to database and Excel
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+                await saveToExcel(packageData);
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+                isUsingExcel = true;
+            }
+        } else {
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+            isUsingExcel = true;
+        }
+
+        // Reset and refresh
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        await populatePackagesTable();
+        updateStorageIndicator();
+
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+    }
+}
+// Delete selected packages
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
+
+        if (error) throw error;
+
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
+    }
+}
+
+
+
 async function sendToRamp(containerNo = null) {
     try {
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
