@@ -3427,30 +3427,38 @@ async function completePackage() {
         };
 
       // Save to database and Excel
-if (supabase && navigator.onLine && !isUsingExcel) {
-    try {
-        const { data, error } = await supabase
-            .from('packages')
-            .insert([packageData])
-            .select();
-
-        if (error) throw error;
-
-        showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-        await saveToExcel(packageData);
-        
-    } catch (supabaseError) {
-        console.warn('Supabase save failed, saving to Excel:', supabaseError);
-        await saveToExcel(packageData);
-        addToSyncQueue('add', packageData);
-        showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
-        isUsingExcel = true;
-    }
-} else {
+// Save to Excel FIRST, then backup to Supabase
+try {
+    // Always save to Excel first
     await saveToExcel(packageData);
-    addToSyncQueue('add', packageData);
-    showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
-    isUsingExcel = true;
+    showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+    
+    // Then try to backup to Supabase if available and online
+    if (supabase && navigator.onLine && !isUsingExcel) {
+        try {
+            const { data, error } = await supabase
+                .from('packages')
+                .insert([packageData])
+                .select();
+
+            if (error) throw error;
+            
+            console.log('✅ Backup saved to Supabase');
+            
+        } catch (supabaseError) {
+            console.warn('Supabase backup failed:', supabaseError);
+            addToSyncQueue('add', packageData);
+            showAlert('Supabase yedekleme başarısız, sıraya eklendi', 'warning');
+        }
+    } else {
+        // If Supabase not available, add to sync queue
+        addToSyncQueue('add', packageData);
+        console.log('📦 Added to sync queue for Supabase backup');
+    }
+    
+} catch (excelError) {
+    console.error('Excel save failed:', excelError);
+    showAlert('Excel kaydetme hatası: ' + excelError.message, 'error');
 }
         // Reset and refresh
         currentPackage = {};
