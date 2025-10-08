@@ -3358,7 +3358,7 @@ console.log('✅ Reports module loaded successfully');
 
 
 
-// REPLACE the completePackage function with the corrected version
+// REPLACE the completePackage function with sequential 9-digit numbering
 window.completePackage = async function() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -3379,44 +3379,33 @@ window.completePackage = async function() {
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         const stationNumber = workspaceId.replace('station-', '');
 
-        // GENERATE UNIQUE 6-DIGIT RANDOM NUMBER (NOT SEQUENTIAL)
-        const generateUniqueNumber = () => {
-            const today = new Date().toISOString().split('T')[0];
-            const usedNumbersKey = `usedPackageNumbers_${workspaceId}_${today}`;
+        // GENERATE SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
+        const generateSequentialNumber = () => {
+            const counterKey = `packageCounter_station_${stationNumber}`;
             
-            let usedNumbers = JSON.parse(localStorage.getItem(usedNumbersKey) || '[]');
-            console.log(`📊 Used numbers today: ${usedNumbers.length}`);
+            // Load current counter from localStorage
+            let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
             
-            let attempts = 0;
-            const maxAttempts = 50;
+            // Increment counter
+            currentCounter++;
             
-            while (attempts < maxAttempts) {
-                // Generate 6-digit number (000001 to 999999)
-                const newNumber = String(Math.floor(Math.random() * 900000) + 100000).padStart(6, '0');
-                
-                if (!usedNumbers.includes(newNumber)) {
-                    usedNumbers.push(newNumber);
-                    localStorage.setItem(usedNumbersKey, JSON.stringify(usedNumbers));
-                    console.log(`✅ Generated unique number: ${newNumber}`);
-                    return newNumber;
-                }
-                
-                attempts++;
-            }
+            // Save updated counter
+            localStorage.setItem(counterKey, currentCounter.toString());
             
-            // Fallback
-            const fallbackNumber = String(Date.now()).slice(-6).padStart(6, '0');
-            console.warn(`⚠️ Using fallback number: ${fallbackNumber}`);
-            return fallbackNumber;
+            // Format as 9-digit number with leading zeros
+            const sequentialNumber = String(currentCounter).padStart(9, '0');
+            
+            console.log(`🔢 Sequential number generated: ${sequentialNumber} (counter: ${currentCounter})`);
+            return sequentialNumber;
         };
 
-        const uniqueSuffix = generateUniqueNumber();
+        const sequentialNumber = generateSequentialNumber();
         
-        // Create clean package IDs - USE RANDOM NUMBERS
-        const packageNo = `PKG-ST${stationNumber}-${uniqueSuffix}`;
+        // Create package IDs with format: ST1-000000001
+        const packageNo = `ST${stationNumber}-${sequentialNumber}`;
         const packageId = packageNo.toLowerCase();
         
-        console.log('🆕 Generated Package:', packageNo);
+        console.log('🆕 Sequential Package:', packageNo);
 
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
@@ -3485,8 +3474,7 @@ window.completePackage = async function() {
     }
 };
 
-console.log('✅ completePackage function UPDATED with random 6-digit numbers!');
-
+console.log('✅ Sequential 9-digit package numbering installed!');
 // Delete selected packages
 async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
