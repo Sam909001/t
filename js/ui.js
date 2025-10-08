@@ -551,7 +551,7 @@ function selectCustomerFromModal(customer) {
 }
         
 // ----------------------
-// Helper: Touch keyboard (POS-only)
+// Helper: Touch keyboard (POS-only) - UI Neutral
 // ----------------------
 function showTouchKeyboardIfPOS() {
     return new Promise((resolve) => {
@@ -675,6 +675,26 @@ function hideTouchKeyboard() {
     }
 }
 
+// ----------------------
+// Touch Keyboard Testing (Optional - doesn't affect UI)
+// ----------------------
+window.testTouchKeyboard = function() {
+    console.group('🖐️ Touch Keyboard Test');
+    console.log('Touch points:', navigator.maxTouchPoints);
+    console.log('ontouchstart:', 'ontouchstart' in window);
+    console.log('Platform:', navigator.platform);
+    console.log('process:', typeof process !== 'undefined' ? process.platform : 'undefined');
+    console.log('electronAPI:', !!(window.electronAPI));
+    console.groupEnd();
+    
+    showTouchKeyboardIfPOS();
+};
+
+window.simpleTouchTest = function() {
+    const hasTouch = (navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
+    console.log('Touch capability:', hasTouch);
+    alert(hasTouch ? 'Touch device detected!' : 'No touch capability');
+};
 
 
 function openQuantityModal(product) {
