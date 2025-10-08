@@ -3219,11 +3219,21 @@ async function completePackage() {
 
     try {
         // Generate package data
-        const workspaceId = window.workspaceManager.currentWorkspace.id;
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 9);
-        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-        const packageNo = `PKG-${workspaceId}-${timestamp}`;
+       // 1. Get the current workspace ID (e.g., 'station-1')
+const workspaceId = window.workspaceManager.currentWorkspace.id;
+
+// 2. Extract the station number from the ID
+const stationNumber = workspaceId.replace('station-', ''); // Result: '1'
+
+// 3. Generate a 6-character random alphanumeric string
+const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase(); // Result: 'A1B2C3'
+
+// 4. Create the new, short, and unified package ID
+const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
+
+// 5. CRITICAL: Use the new ID for both the unique ID and the package number
+const packageId = newPackageId;
+const packageNo = newPackageId;
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
