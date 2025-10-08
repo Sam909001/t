@@ -161,36 +161,76 @@ class WorkspaceManager {
             this.originalExcelWrite = ExcelJS.writeFile;
         }
         
-        // Override with workspace-specific versions
-        ExcelJS.readFile = async function() {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-                const packages = data ? JSON.parse(data) : [];
-                console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
-                return packages;
-            } catch (error) {
-                console.error('❌ Workspace Excel read error:', error);
-                return [];
-            }
-        };
+      // Override with workspace-specific versions
+ExcelJS.readFile = async function() {
+    try {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+        const packages = data ? JSON.parse(data) : [];
+        console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
         
-        ExcelJS.writeFile = async function(data) {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
-                console.log(`💾 Saved ${data.length} packages to workspace: ${workspaceId}`);
-                return true;
-            } catch (error) {
-                console.error('❌ Workspace Excel write error:', error);
-                return false;
+        // Initialize package counter based on existing packages
+        if (packages.length > 0) {
+            const stationNumber = workspaceId.replace('station-', '');
+            const counterKey = `packageCounter_station_${stationNumber}`;
+            
+            // Find the highest existing package number
+            let highestNumber = 0;
+            packages.forEach(pkg => {
+                if (pkg.package_no && pkg.package_no.startsWith(`ST${stationNumber}-`)) {
+                    const numberPart = pkg.package_no.split('-')[1];
+                    if (numberPart && numberPart.length === 9) {
+                        const number = parseInt(numberPart);
+                        if (number > highestNumber) {
+                            highestNumber = number;
+                        }
+                    }
+                }
+            });
+            
+            // Set counter to highest found number
+            if (highestNumber > 0) {
+                localStorage.setItem(counterKey, highestNumber.toString());
+                console.log(`🔢 Package counter initialized to: ${highestNumber}`);
             }
-        };
+        }
         
-        // Initialize excelPackages for current workspace
-        this.loadWorkspaceData();
+        return packages;
+    } catch (error) {
+        console.error('❌ Workspace Excel read error:', error);
+        return [];
     }
-  
+};
+
+ExcelJS.writeFile = async function(data) {
+    try {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(data));
+        console.log(`💾 Saved ${data.length} packages to workspace: ${workspaceId}`);
+        return true;
+    } catch (error) {
+        console.error('❌ Workspace Excel write error:', error);
+        return false;
+    }
+};
+
+        // Initialize package counters for all workspaces
+initializePackageCounters() {
+    console.log('🔢 Initializing package counters for all workspaces...');
+    
+    this.availableWorkspaces.forEach(workspace => {
+        const stationNumber = workspace.id.replace('station-', '');
+        const counterKey = `packageCounter_station_${stationNumber}`;
+        
+        // Only initialize if counter doesn't exist
+        if (!localStorage.getItem(counterKey)) {
+            localStorage.setItem(counterKey, '0');
+            console.log(`✅ Package counter initialized for ${workspace.name}: 0`);
+        }
+    });
+}
+
+        
     // Load workspace-specific data
     async loadWorkspaceData() {
         try {
