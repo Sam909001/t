@@ -122,9 +122,8 @@ window.getPrinterElectron = function() {
 };
 
 
-// ADD THE MISSING FUNCTION HERE:
-window.printSinglePackage = async function(packageData) {
-    console.log('🖨️ printSinglePackage called with:', packageData);
+window.printSinglePackage = async function(packageElementOrData) {
+    console.log('🖨️ printSinglePackage called with:', packageElementOrData);
     
     if (!window.printerElectron) {
         window.printerElectron = new PrinterServiceElectronWithSettings();
@@ -133,7 +132,28 @@ window.printSinglePackage = async function(packageData) {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     
     try {
-        console.log('📦 Single package to print:', packageData);
+        let packageData;
+        
+        // If it's an HTML element (button/row), extract the data
+        if (packageElementOrData instanceof HTMLElement) {
+            packageData = extractPackageDataFromRow(packageElementOrData);
+        } 
+        // If it's already a package object, use it directly
+        else if (typeof packageElementOrData === 'object') {
+            packageData = packageElementOrData;
+        }
+        // Fallback: try to get from current selection
+        else {
+            packageData = getPackageFromCurrentSelection();
+        }
+        
+        console.log('📦 Processed package data:', packageData);
+        
+        if (!packageData || !packageData.package_no) {
+            showAlert('Geçerli paket verisi bulunamadı ❌', 'error');
+            return false;
+        }
+        
         const success = await window.printerElectron.printLabel(packageData, settings);
         
         if (success) {
@@ -150,6 +170,74 @@ window.printSinglePackage = async function(packageData) {
     }
 };
 
+// Helper function to extract package data from table row
+function extractPackageDataFromRow(element) {
+    const row = element.closest('tr');
+    if (!row) {
+        console.error('No table row found for element:', element);
+        return null;
+    }
+    
+    const packageNo = row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}`;
+    const customerName = row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri';
+    
+    let items = [];
+    
+    // Method 1: Check data attribute (same as your printSelectedElectron)
+    const itemsData = row.getAttribute('data-items');
+    if (itemsData) {
+        try {
+            items = JSON.parse(itemsData);
+            console.log('✅ Found items in data attribute:', items);
+        } catch (e) {
+            console.error('Error parsing items data:', e);
+        }
+    }
+    
+    // Method 2: Extract from product and quantity columns
+    if (items.length === 0) {
+        const productText = row.cells[3]?.textContent?.trim();
+        const qtyText = row.cells[4]?.textContent?.trim();
+        
+        if (productText) {
+            const products = productText.split(/[,;]/).map(p => p.trim()).filter(p => p);
+            const quantities = qtyText ? qtyText.split(/[,;]/).map(q => parseInt(q.trim()) || 1) : [1];
+            
+            items = products.map((product, index) => ({
+                name: product,
+                qty: quantities[index] || 1
+            }));
+            
+            console.log('✅ Extracted items from columns:', items);
+        }
+    }
+    
+    // Method 3: Fallback to single item
+    if (items.length === 0) {
+        const productText = row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
+        const qtyText = row.cells[4]?.textContent?.trim();
+        const qty = qtyText ? parseInt(qtyText) : 1;
+        
+        items = [{ name: productText, qty: qty }];
+        console.log('✅ Using single item fallback:', items);
+    }
+    
+    return {
+        package_no: packageNo,
+        customer_name: customerName,
+        items: items,
+        created_at: row.cells[5]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
+    };
+}
+
+// Fallback function
+function getPackageFromCurrentSelection() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 1) {
+        return extractPackageDataFromRow(checkboxes[0]);
+    }
+    return null;
+}
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
