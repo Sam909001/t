@@ -4417,29 +4417,120 @@ function createSecureSupabaseClient() {
     });
 }
 
-async function completePackageSecure() {
-    // Validate inputs
-    const sanitizedItems = SecurityManager.sanitizeObject(currentPackage.items);
-    
-    if (Object.keys(sanitizedItems).length === 0) {
-        throw new Error('No valid items in package');
+// REPLACE the completePackage function with this:
+async function completePackage() {
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
     }
-    
-    // Check permissions
-    if (!securityManager.validateWorkspacePermission(
-        getCurrentWorkspaceId(), 
-        'create_package'
-    )) {
-        throw new Error('Insufficient permissions to create package');
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
     }
-    
-    // Apply rate limiting
-    if (securityManager.isRateLimited('complete_package', 10, 60000)) {
-        throw new Error('Too many package creation attempts. Please wait.');
+
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
     }
-    
-    // Proceed with secure operation
-    return await _internalCompletePackage(); 
+
+    try {
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        const stationNumber = workspaceId.replace('station-', '');
+
+        // GENERATE SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
+        const generateSequentialNumber = () => {
+            const counterKey = `packageCounter_station_${stationNumber}`;
+            
+            // Load current counter from localStorage
+            let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
+            
+            // Increment counter
+            currentCounter++;
+            
+            // Save updated counter
+            localStorage.setItem(counterKey, currentCounter.toString());
+            
+            // Format as 9-digit number with leading zeros
+            const sequentialNumber = String(currentCounter).padStart(9, '0');
+            
+            console.log(`🔢 Sequential number generated: ${sequentialNumber} (counter: ${currentCounter})`);
+            return sequentialNumber;
+        };
+
+        const sequentialNumber = generateSequentialNumber();
+        
+        // Create package IDs with format: ST1-000000001
+        const packageNo = `ST${stationNumber}-${sequentialNumber}`;
+        const packageId = packageNo.toLowerCase();
+        
+        console.log('🆕 Sequential Package:', packageNo);
+
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect?.value || '';
+
+        const packageData = {
+            id: packageId,
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name}: ${qty} adet`
+            ).join(', '),
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            workspace_id: workspaceId,
+            station_name: window.workspaceManager.currentWorkspace.name,
+            daily_file: ExcelStorage.getTodayDateString(),
+            source: 'app'
+        };
+
+        // Save to database and Excel
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+                await saveToExcel(packageData);
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+                isUsingExcel = true;
+            }
+        } else {
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+            isUsingExcel = true;
+        }
+
+        // Reset and refresh
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        await populatePackagesTable();
+        updateStorageIndicator();
+
+    } catch (error) {
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+    }
 }
 
 window.workspaceManager = new EnhancedWorkspaceManager();
