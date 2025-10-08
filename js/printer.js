@@ -124,24 +124,18 @@ window.getPrinterElectron = function() {
 
 
 async function printSinglePackage(packageId) {
-    // Wait until the row exists (max 2 seconds)
-    let packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
-    let attempts = 0;
-    while (!packageRow && attempts < 20) {
-        await new Promise(r => setTimeout(r, 100));
-        packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
-        attempts++;
+    // Try to find the checkbox first
+    const checkbox = document.querySelector(`#packagesTableBody input[data-package-id="${packageId}"]`);
+
+    if (!checkbox) {
+        showAlert('Paket bulunamadı ❌', 'error');
+        return false;
     }
 
+    // Get the closest <tr> from the checkbox
+    const packageRow = checkbox.closest('tr');
     if (!packageRow) {
-        console.warn(`Package row not found: ${packageId}, falling back to checkbox method`);
-        // fallback: select the checkbox corresponding to this package
-        const checkbox = document.querySelector(`#packagesTableBody input[data-package-id="${packageId}"]`);
-        if (checkbox) {
-            checkbox.checked = true;
-            return await window.printSelectedElectron();
-        }
-        showAlert('Paket bulunamadı ❌', 'error');
+        showAlert('Paket satırı bulunamadı ❌', 'error');
         return false;
     }
 
