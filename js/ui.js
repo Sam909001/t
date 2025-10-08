@@ -3219,51 +3219,33 @@ async function completePackage() {
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         const stationNumber = workspaceId.replace('station-', '');
 
-        // GENERATE UNIQUE 6-DIGIT NUMBER WITH BETTER DUPLICATE PROTECTION
-        const generateUniqueNumber = () => {
-            const today = new Date().toISOString().split('T')[0];
-            const usedNumbersKey = `usedPackageNumbers_${workspaceId}_${today}`;
+        // GENERATE SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
+        const generateSequentialNumber = () => {
+            const counterKey = `packageCounter_station_${stationNumber}`;
             
-            // Load used numbers for today from localStorage
-            let usedNumbers = JSON.parse(localStorage.getItem(usedNumbersKey) || '[]');
-            console.log(`📊 Used numbers today: ${usedNumbers.length}`);
+            // Load current counter from localStorage
+            let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
             
-            // If we've used many numbers today, increase the range
-            const startRange = usedNumbers.length > 100 ? 1000000 : 100000;
-            const endRange = usedNumbers.length > 100 ? 9999999 : 999999;
+            // Increment counter
+            currentCounter++;
             
-            let attempts = 0;
-            const maxAttempts = 100; // Increased attempts
+            // Save updated counter
+            localStorage.setItem(counterKey, currentCounter.toString());
             
-            while (attempts < maxAttempts) {
-                // Generate 6 or 7-digit number based on usage
-                const newNumber = String(Math.floor(startRange + Math.random() * (endRange - startRange + 1))).padStart(6, '0');
-                
-                // Check if number was used today
-                if (!usedNumbers.includes(newNumber)) {
-                    // Add to used numbers and save
-                    usedNumbers.push(newNumber);
-                    localStorage.setItem(usedNumbersKey, JSON.stringify(usedNumbers));
-                    console.log(`✅ Generated unique number: ${newNumber} (attempts: ${attempts + 1})`);
-                    return newNumber;
-                }
-                
-                attempts++;
-            }
+            // Format as 9-digit number with leading zeros
+            const sequentialNumber = String(currentCounter).padStart(9, '0');
             
-            // BETTER FALLBACK: Use random + counter to avoid timestamps
-            const fallbackNumber = String(Math.floor(100000 + Math.random() * 900000) + attempts).slice(-6);
-            console.warn(`⚠️ Using random fallback number: ${fallbackNumber}`);
-            return fallbackNumber;
+            console.log(`🔢 Sequential number generated: ${sequentialNumber} (counter: ${currentCounter})`);
+            return sequentialNumber;
         };
 
-        const uniqueSuffix = generateUniqueNumber();
+        const sequentialNumber = generateSequentialNumber();
         
-        // Create clean package IDs
-        const packageId = `pkg-st${stationNumber}-${uniqueSuffix}`;
-        const packageNo = `PKG-ST${stationNumber}-${uniqueSuffix}`;
+        // Create package IDs with format: ST1-000000001
+        const packageNo = `ST${stationNumber}-${sequentialNumber}`;
+        const packageId = packageNo.toLowerCase();
         
-        console.log('🆕 Generated Package:', packageNo);
+        console.log('🆕 Sequential Package:', packageNo);
 
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
@@ -3331,7 +3313,6 @@ async function completePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 // Add cleanup function to remove old used numbers (call this on app startup)
 function cleanupOldUsedNumbers() {
