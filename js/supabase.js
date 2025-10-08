@@ -3353,7 +3353,7 @@ console.log('✅ Reports module loaded successfully');
 
 
 
-async function completePackage() {
+async function _internalCompletePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
         return;
@@ -3371,23 +3371,21 @@ async function completePackage() {
     }
 
     try {
-      // ✅ PASTE THIS CORRECT CODE BLOCK
+        // 1. Get the current workspace ID (e.g., 'station-1')
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
 
-// 1. Get the current workspace ID (e.g., 'station-1')
-const workspaceId = window.workspaceManager.currentWorkspace.id;
+        // 2. Extract the station number from the ID
+        const stationNumber = workspaceId.replace('station-', '');
 
-// 2. Extract the station number from the ID
-const stationNumber = workspaceId.replace('station-', ''); // Result: '1'
+        // 3. Generate a 6-character random alphanumeric string
+        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-// 3. Generate a 6-character random alphanumeric string
-const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase(); // Result: 'A1B2C3'
+        // 4. Create ONE new, short, and unified package ID
+        const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
 
-// 4. Create ONE new, short, and unified package ID
-const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
-
-// 5. CRITICAL: Use this single ID for both the database and the display
-const packageId = newPackageId;
-const packageNo = newPackageId;
+        // 5. CRITICAL: Use this single ID for both the database and the display
+        const packageId = newPackageId;
+        const packageNo = newPackageId;
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
@@ -3420,7 +3418,7 @@ const packageNo = newPackageId;
 
         console.log('📦 Creating package with ID:', packageId);
 
-        // Save based on connectivity and workspace settings
+        // Save based on connectivity and workspace settings (rest of the logic remains)
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -3431,18 +3429,18 @@ const packageNo = newPackageId;
                 if (error) throw error;
 
                 showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData); // SAME packageData with SAME ID
+                await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
                 showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData); // SAME packageData with SAME ID
-            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
             showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
@@ -3454,7 +3452,7 @@ const packageNo = newPackageId;
         updateStorageIndicator();
 
     } catch (error) {
-        console.error('Error in completePackage:', error);
+        console.error('Error in _internalCompletePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
@@ -4403,7 +4401,6 @@ function createSecureSupabaseClient() {
     });
 }
 
-// Secure version of completePackage
 async function completePackageSecure() {
     // Validate inputs
     const sanitizedItems = SecurityManager.sanitizeObject(currentPackage.items);
@@ -4426,13 +4423,12 @@ async function completePackageSecure() {
     }
     
     // Proceed with secure operation
-    return await completePackage();
+    // CRITICAL FIX: Call the renamed function instead of the generic one.
+    return await _internalCompletePackage(); 
 }
 
-// Replace original functions with secure versions
-window.completePackage = completePackageSecure;
-window.supabase = createSecureSupabaseClient();
 
+window.completePackage = completePackageSecure;
 
 
 window.workspaceManager = new EnhancedWorkspaceManager();
