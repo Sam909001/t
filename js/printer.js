@@ -120,6 +120,90 @@ window.getPrinterElectron = function() {
     }
     return window.printerElectron;
 };
+
+
+
+window.printSinglePackage = async function(packageId) {
+    console.log('🖨️ Single package print requested for ID:', packageId);
+    
+    if (!packageId) {
+        console.error('❌ No package ID provided');
+        showAlert('Paket ID bulunamadı ❌', 'error');
+        return false;
+    }
+    
+    try {
+        // Method 1: Find and check the checkbox for this package
+        const packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
+        if (packageRow) {
+            const checkbox = packageRow.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+                // Uncheck all other packages
+                document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => {
+                    cb.checked = false;
+                });
+                
+                // Check only this package
+                checkbox.checked = true;
+                console.log('✅ Package selected:', packageId);
+                
+                // Use your main print function
+                return await window.printSelectedElectron();
+            }
+        }
+        
+        // Method 2: If row not found, fetch package data directly from Supabase
+        console.log('🔄 Package row not found, fetching from Supabase...');
+        const packageData = await fetchPackageById(packageId);
+        
+        if (packageData) {
+            if (!window.printerElectron) {
+                window.printerElectron = new PrinterServiceElectronWithSettings();
+            }
+            
+            const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+            return await window.printerElectron.printLabel(packageData, settings);
+        } else {
+            showAlert('Paket verisi bulunamadı ❌', 'error');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('Single package print error:', error);
+        showAlert('Yazdırma hatası: ' + error.message, 'error');
+        return false;
+    }
+};
+
+// Helper function to fetch package by ID from Supabase
+async function fetchPackageById(packageId) {
+    try {
+        // Use your existing Supabase client
+        if (window.supabase) {
+            const { data, error } = await window.supabase
+                .from('packages')
+                .select('*')
+                .eq('id', packageId)
+                .single();
+                
+            if (error) throw error;
+            
+            if (data) {
+                // Convert to the format your printer expects
+                return {
+                    package_no: data.package_no || data.id,
+                    customer_name: data.customer_name || 'Müşteri',
+                    items: data.items || [],
+                    created_at: data.created_at
+                };
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching package:', error);
+        return null;
+    }
+}
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
