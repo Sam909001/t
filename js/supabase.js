@@ -3353,7 +3353,8 @@ console.log('✅ Reports module loaded successfully');
 
 
 
-async function _internalCompletePackage() {
+// REPLACE the completePackage function with the corrected version
+window.completePackage = async function() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
         return;
@@ -3364,35 +3365,59 @@ async function _internalCompletePackage() {
         return;
     }
 
-    // Check workspace permissions
     if (!window.workspaceManager?.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
     try {
-        // 1. Get the current workspace ID (e.g., 'station-1')
         const workspaceId = window.workspaceManager.currentWorkspace.id;
-
-        // 2. Extract the station number from the ID
         const stationNumber = workspaceId.replace('station-', '');
 
-        // 3. Generate a 6-character random alphanumeric string
-        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+        // GENERATE UNIQUE 6-DIGIT RANDOM NUMBER (NOT SEQUENTIAL)
+        const generateUniqueNumber = () => {
+            const today = new Date().toISOString().split('T')[0];
+            const usedNumbersKey = `usedPackageNumbers_${workspaceId}_${today}`;
+            
+            let usedNumbers = JSON.parse(localStorage.getItem(usedNumbersKey) || '[]');
+            console.log(`📊 Used numbers today: ${usedNumbers.length}`);
+            
+            let attempts = 0;
+            const maxAttempts = 50;
+            
+            while (attempts < maxAttempts) {
+                // Generate 6-digit number (000001 to 999999)
+                const newNumber = String(Math.floor(Math.random() * 900000) + 100000).padStart(6, '0');
+                
+                if (!usedNumbers.includes(newNumber)) {
+                    usedNumbers.push(newNumber);
+                    localStorage.setItem(usedNumbersKey, JSON.stringify(usedNumbers));
+                    console.log(`✅ Generated unique number: ${newNumber}`);
+                    return newNumber;
+                }
+                
+                attempts++;
+            }
+            
+            // Fallback
+            const fallbackNumber = String(Date.now()).slice(-6).padStart(6, '0');
+            console.warn(`⚠️ Using fallback number: ${fallbackNumber}`);
+            return fallbackNumber;
+        };
 
-        // 4. Create ONE new, short, and unified package ID
-        const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
-
-        // 5. CRITICAL: Use this single ID for both the database and the display
-        const packageId = newPackageId;
-        const packageNo = newPackageId;
+        const uniqueSuffix = generateUniqueNumber();
         
+        // Create clean package IDs - USE RANDOM NUMBERS
+        const packageNo = `PKG-ST${stationNumber}-${uniqueSuffix}`;
+        const packageId = packageNo.toLowerCase();
+        
+        console.log('🆕 Generated Package:', packageNo);
+
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Enhanced package data with workspace info - USE THE SAME ID
         const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
@@ -3413,12 +3438,10 @@ async function _internalCompletePackage() {
             workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app' // Track source for sync
+            source: 'app'
         };
 
-        console.log('📦 Creating package with ID:', packageId);
-
-        // Save based on connectivity and workspace settings (rest of the logic remains)
+        // Save to database and Excel
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -3428,20 +3451,20 @@ async function _internalCompletePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
                 await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
                 await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
                 isUsingExcel = true;
             }
         } else {
             await saveToExcel(packageData);
             addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
             isUsingExcel = true;
         }
 
@@ -3452,11 +3475,12 @@ async function _internalCompletePackage() {
         updateStorageIndicator();
 
     } catch (error) {
-        console.error('Error in _internalCompletePackage:', error);
+        console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
-}
+};
 
+console.log('✅ completePackage function UPDATED with random 6-digit numbers!');
 
 // Delete selected packages
 async function deleteSelectedPackages() {
