@@ -123,44 +123,66 @@ window.getPrinterElectron = function() {
 
 
 
-// Global function
 window.printSinglePackage = async function(packageId) {
     console.log('🖨️ printSinglePackage called', packageId);
 
-    // Find the checkbox first
-    const checkbox = document.querySelector(`#packagesTableBody input[data-package-id="${packageId}"]`);
-    if (!checkbox) {
+    if (!window.printerElectron) {
+        window.printerElectron = new PrinterServiceElectronWithSettings();
+    }
+
+    // Attempt to find the exact row or fallback to "starts-with" match
+    let packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
+    if (!packageRow) {
+        packageRow = document.querySelector(`tr[data-package-id^="${packageId}"]`);
+    }
+
+    if (!packageRow) {
+        console.warn(`Package row not found for ID: ${packageId}`);
         showAlert('Paket bulunamadı ❌', 'error');
         return false;
     }
 
-    // Get the closest row
-    const packageRow = checkbox.closest('tr');
-    if (!packageRow) {
-        showAlert('Paket satırı bulunamadı ❌', 'error');
-        return false;
+    // Extract package data from the row
+    const packageNo = packageRow.querySelector('.package-no')?.textContent?.trim() || packageId;
+    const customerName = packageRow.querySelector('.customer-name')?.textContent?.trim() || 'Bilinmeyen Müşteri';
+
+    // Extract items
+    let items = [];
+    const itemRows = packageRow.querySelectorAll('.item-row');
+    if (itemRows.length > 0) {
+        items = Array.from(itemRows).map(row => {
+            const name = row.querySelector('.item-name')?.textContent?.trim() || 'Bilinmeyen Ürün';
+            const qtyText = row.querySelector('.item-qty')?.textContent?.trim() || '1';
+            const qty = parseInt(qtyText.replace(/\D/g, '')) || 1;
+            return { name, qty };
+        });
+    } else {
+        // fallback: try data-items attribute
+        const dataItems = packageRow.getAttribute('data-items');
+        if (dataItems) {
+            try {
+                items = JSON.parse(dataItems);
+            } catch (e) {
+                console.error('Error parsing data-items:', e);
+            }
+        }
     }
 
-    // Extract full package data from the table row
-    const packageData = extractPackageDataFromTableRow(packageRow);
-    if (!packageData) {
-        showAlert('Paket verisi çıkarılamadı ❌', 'error');
-        return false;
-    }
-
-    // Ensure package_no and items are defined
-    if (!packageData.package_no) packageData.package_no = `PKG-${Date.now()}`;
-    if (!packageData.items || packageData.items.length === 0) {
+    if (items.length === 0) {
+        // final fallback: single product/quantity columns
         const productText = packageRow.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
-        const qtyText = packageRow.cells[4]?.textContent?.trim();
-        const qty = qtyText ? parseInt(qtyText) : 1;
-        packageData.items = [{ name: productText, qty }];
+        const qtyText = packageRow.cells[4]?.textContent?.trim() || '1';
+        items = [{ name: productText, qty: parseInt(qtyText) || 1 }];
     }
 
-    // Print using your existing working printer service
-    if (!window.printerElectron) {
-        window.printerElectron = new PrinterServiceElectronWithSettings();
-    }
+    const packageData = {
+        package_no: packageNo,
+        customer_name: customerName,
+        items: items,
+        created_at: packageRow.querySelector('.created-at')?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
+    };
+
+    console.log('📦 Final packageData for printing:', packageData);
 
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
     return await window.printerElectron.printLabel(packageData, settings);
