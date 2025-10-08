@@ -139,7 +139,7 @@ window.printSinglePackage = async function(packageElementOrData) {
             packageData = extractPackageDataFromRow(packageElementOrData);
         } 
         // If it's already a package object, use it directly
-        else if (typeof packageElementOrData === 'object') {
+        else if (typeof packageElementOrData === 'object' && packageElementOrData !== null) {
             packageData = packageElementOrData;
         }
         // Fallback: try to get from current selection
@@ -150,8 +150,15 @@ window.printSinglePackage = async function(packageElementOrData) {
         console.log('📦 Processed package data:', packageData);
         
         if (!packageData || !packageData.package_no) {
+            console.error('❌ No valid package data found:', packageData);
             showAlert('Geçerli paket verisi bulunamadı ❌', 'error');
             return false;
+        }
+        
+        // Ensure items array exists
+        if (!packageData.items || !Array.isArray(packageData.items) || packageData.items.length === 0) {
+            console.warn('⚠️ No items found, adding default item');
+            packageData.items = [{ name: 'Ürün belirtilmemiş', qty: 1 }];
         }
         
         const success = await window.printerElectron.printLabel(packageData, settings);
@@ -170,12 +177,22 @@ window.printSinglePackage = async function(packageElementOrData) {
     }
 };
 
-// Helper function to extract package data from table row
+// Enhanced helper function with better debugging
 function extractPackageDataFromRow(element) {
+    console.log('🔍 Extracting data from element:', element);
+    
     const row = element.closest('tr');
     if (!row) {
-        console.error('No table row found for element:', element);
+        console.error('❌ No table row found for element:', element);
+        console.log('Element tag:', element.tagName, 'Element class:', element.className);
         return null;
+    }
+    
+    console.log('📋 Table row found:', row);
+    
+    // Debug: log all cell contents
+    for (let i = 0; i < row.cells.length; i++) {
+        console.log(`Cell ${i}:`, row.cells[i]?.textContent?.trim());
     }
     
     const packageNo = row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}`;
@@ -183,8 +200,9 @@ function extractPackageDataFromRow(element) {
     
     let items = [];
     
-    // Method 1: Check data attribute (same as your printSelectedElectron)
+    // Method 1: Check data attribute
     const itemsData = row.getAttribute('data-items');
+    console.log('📦 data-items attribute:', itemsData);
     if (itemsData) {
         try {
             items = JSON.parse(itemsData);
@@ -198,6 +216,9 @@ function extractPackageDataFromRow(element) {
     if (items.length === 0) {
         const productText = row.cells[3]?.textContent?.trim();
         const qtyText = row.cells[4]?.textContent?.trim();
+        
+        console.log('📦 Product text:', productText);
+        console.log('📦 Quantity text:', qtyText);
         
         if (productText) {
             const products = productText.split(/[,;]/).map(p => p.trim()).filter(p => p);
@@ -222,20 +243,31 @@ function extractPackageDataFromRow(element) {
         console.log('✅ Using single item fallback:', items);
     }
     
-    return {
+    const packageData = {
         package_no: packageNo,
         customer_name: customerName,
         items: items,
         created_at: row.cells[5]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
     };
+    
+    console.log('🎯 Final extracted package data:', packageData);
+    return packageData;
 }
 
-// Fallback function
+// Enhanced fallback function
 function getPackageFromCurrentSelection() {
+    console.log('🔍 Looking for currently selected packages...');
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    console.log('📋 Found checked checkboxes:', checkboxes.length);
+    
     if (checkboxes.length === 1) {
         return extractPackageDataFromRow(checkboxes[0]);
+    } else if (checkboxes.length > 1) {
+        console.warn('⚠️ Multiple packages selected, using first one');
+        return extractPackageDataFromRow(checkboxes[0]);
     }
+    
+    console.error('❌ No packages selected');
     return null;
 }
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
