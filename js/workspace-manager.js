@@ -180,44 +180,21 @@ class WorkspaceManager {
         
         // Override with workspace-specific versions
         ExcelJS.readFile = async function() {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-                const packages = data ? JSON.parse(data) : [];
-                console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
-                
-                // Initialize package counter based on existing packages
-                if (packages.length > 0) {
-                    const stationNumber = workspaceId.replace('station-', '');
-                    const counterKey = `packageCounter_station_${stationNumber}`;
-                    
-                    // Find the highest existing package number
-                    let highestNumber = 0;
-                    packages.forEach(pkg => {
-                        if (pkg.package_no && pkg.package_no.startsWith(`ST${stationNumber}-`)) {
-                            const numberPart = pkg.package_no.split('-')[1];
-                            if (numberPart && numberPart.length === 9) {
-                                const number = parseInt(numberPart);
-                                if (number > highestNumber) {
-                                    highestNumber = number;
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Set counter to highest found number
-                    if (highestNumber > 0) {
-                        localStorage.setItem(counterKey, highestNumber.toString());
-                        console.log(`🔢 Package counter initialized to: ${highestNumber}`);
-                    }
-                }
-                
-                return packages;
-            } catch (error) {
-                console.error('❌ Workspace Excel read error:', error);
-                return [];
-            }
-        };
+    try {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+        const packages = data ? JSON.parse(data) : [];
+        console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
+        
+        // 🚨 REMOVE THE COUNTER RESET LOGIC - KEEP SEQUENTIAL COUNTER SEPARATE
+        // Don't let existing data override your sequential numbering
+        
+        return packages;
+    } catch (error) {
+        console.error('❌ Workspace Excel read error:', error);
+        return [];
+    }
+};
         
         ExcelJS.writeFile = async function(data) {
             try {
