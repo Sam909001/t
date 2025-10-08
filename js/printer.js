@@ -121,7 +121,6 @@ window.getPrinterElectron = function() {
     return window.printerElectron;
 };
 
-
 window.printSinglePackage = async function(packageElementOrData) {
     console.log('🖨️ printSinglePackage called with:', packageElementOrData);
     
@@ -134,15 +133,20 @@ window.printSinglePackage = async function(packageElementOrData) {
     try {
         let packageData;
         
+        // If no parameter passed, try to get from current row
+        if (!packageElementOrData) {
+            console.log('⚠️ No parameter passed, trying to detect current row...');
+            packageData = getPackageFromCurrentRow();
+        }
         // If it's an HTML element (button/row), extract the data
-        if (packageElementOrData instanceof HTMLElement) {
+        else if (packageElementOrData instanceof HTMLElement) {
             packageData = extractPackageDataFromRow(packageElementOrData);
         } 
         // If it's already a package object, use it directly
         else if (typeof packageElementOrData === 'object' && packageElementOrData !== null) {
             packageData = packageElementOrData;
         }
-        // Fallback: try to get from current selection
+        // Final fallback
         else {
             packageData = getPackageFromCurrentSelection();
         }
@@ -150,15 +154,9 @@ window.printSinglePackage = async function(packageElementOrData) {
         console.log('📦 Processed package data:', packageData);
         
         if (!packageData || !packageData.package_no) {
-            console.error('❌ No valid package data found:', packageData);
-            showAlert('Geçerli paket verisi bulunamadı ❌', 'error');
+            console.error('❌ No valid package data found');
+            showAlert('Yazdırılacak paket bulunamadı. Lütfen bir paket seçin. ❌', 'error');
             return false;
-        }
-        
-        // Ensure items array exists
-        if (!packageData.items || !Array.isArray(packageData.items) || packageData.items.length === 0) {
-            console.warn('⚠️ No items found, adding default item');
-            packageData.items = [{ name: 'Ürün belirtilmemiş', qty: 1 }];
         }
         
         const success = await window.printerElectron.printLabel(packageData, settings);
@@ -177,98 +175,34 @@ window.printSinglePackage = async function(packageElementOrData) {
     }
 };
 
-// Enhanced helper function with better debugging
-function extractPackageDataFromRow(element) {
-    console.log('🔍 Extracting data from element:', element);
+// NEW FUNCTION: Try to detect the current row automatically
+function getPackageFromCurrentRow() {
+    console.log('🔍 Attempting to detect current package row...');
     
-    const row = element.closest('tr');
-    if (!row) {
-        console.error('❌ No table row found for element:', element);
-        console.log('Element tag:', element.tagName, 'Element class:', element.className);
-        return null;
+    // Method 1: Check if there's a focused or active row
+    const activeElement = document.activeElement;
+    if (activeElement && activeElement.closest('tr')) {
+        console.log('✅ Found active element in row');
+        return extractPackageDataFromRow(activeElement);
     }
     
-    console.log('📋 Table row found:', row);
-    
-    // Debug: log all cell contents
-    for (let i = 0; i < row.cells.length; i++) {
-        console.log(`Cell ${i}:`, row.cells[i]?.textContent?.trim());
+    // Method 2: Check if there's only one row in the table
+    const rows = document.querySelectorAll('#packagesTableBody tr');
+    if (rows.length === 1) {
+        console.log('✅ Only one row in table, using it');
+        return extractPackageDataFromRow(rows[0]);
     }
     
-    const packageNo = row.cells[1]?.textContent?.trim() || `PKG-${Date.now()}`;
-    const customerName = row.cells[2]?.textContent?.trim() || 'Bilinmeyen Müşteri';
-    
-    let items = [];
-    
-    // Method 1: Check data attribute
-    const itemsData = row.getAttribute('data-items');
-    console.log('📦 data-items attribute:', itemsData);
-    if (itemsData) {
-        try {
-            items = JSON.parse(itemsData);
-            console.log('✅ Found items in data attribute:', items);
-        } catch (e) {
-            console.error('Error parsing items data:', e);
-        }
+    // Method 3: Check for rows with specific classes (like selected/active)
+    const selectedRow = document.querySelector('tr.selected, tr.active, tr.highlight');
+    if (selectedRow) {
+        console.log('✅ Found selected row');
+        return extractPackageDataFromRow(selectedRow);
     }
     
-    // Method 2: Extract from product and quantity columns
-    if (items.length === 0) {
-        const productText = row.cells[3]?.textContent?.trim();
-        const qtyText = row.cells[4]?.textContent?.trim();
-        
-        console.log('📦 Product text:', productText);
-        console.log('📦 Quantity text:', qtyText);
-        
-        if (productText) {
-            const products = productText.split(/[,;]/).map(p => p.trim()).filter(p => p);
-            const quantities = qtyText ? qtyText.split(/[,;]/).map(q => parseInt(q.trim()) || 1) : [1];
-            
-            items = products.map((product, index) => ({
-                name: product,
-                qty: quantities[index] || 1
-            }));
-            
-            console.log('✅ Extracted items from columns:', items);
-        }
-    }
-    
-    // Method 3: Fallback to single item
-    if (items.length === 0) {
-        const productText = row.cells[3]?.textContent?.trim() || 'Bilinmeyen Ürün';
-        const qtyText = row.cells[4]?.textContent?.trim();
-        const qty = qtyText ? parseInt(qtyText) : 1;
-        
-        items = [{ name: productText, qty: qty }];
-        console.log('✅ Using single item fallback:', items);
-    }
-    
-    const packageData = {
-        package_no: packageNo,
-        customer_name: customerName,
-        items: items,
-        created_at: row.cells[5]?.textContent?.trim() || new Date().toLocaleDateString('tr-TR')
-    };
-    
-    console.log('🎯 Final extracted package data:', packageData);
-    return packageData;
-}
-
-// Enhanced fallback function
-function getPackageFromCurrentSelection() {
-    console.log('🔍 Looking for currently selected packages...');
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    console.log('📋 Found checked checkboxes:', checkboxes.length);
-    
-    if (checkboxes.length === 1) {
-        return extractPackageDataFromRow(checkboxes[0]);
-    } else if (checkboxes.length > 1) {
-        console.warn('⚠️ Multiple packages selected, using first one');
-        return extractPackageDataFromRow(checkboxes[0]);
-    }
-    
-    console.error('❌ No packages selected');
-    return null;
+    // Method 4: Fallback to selection
+    console.log('🔄 Falling back to selection check');
+    return getPackageFromCurrentSelection();
 }
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
