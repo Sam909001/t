@@ -3359,12 +3359,18 @@ async function completePackage() {
         return;
     }
 
-    // ADD DEBUGGING HERE
-    console.log('🔍 DEBUG: Starting completePackage function');
-    console.log('🔍 DEBUG: Current workspace:', window.workspaceManager?.currentWorkspace);
-    
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    // Check workspace permissions
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
     try {
-        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
       // ✅ PASTE THIS CORRECT CODE BLOCK
 
 // 1. Get the current workspace ID (e.g., 'station-1')
@@ -3382,15 +3388,6 @@ const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
 // 5. CRITICAL: Use this single ID for both the database and the display
 const packageId = newPackageId;
 const packageNo = newPackageId;
-        
-        // DEBUG THE GENERATED ID
-        console.log('🔍 DEBUG: Generated Package ID:', newPackageId);
-        
-        const packageId = newPackageId;
-        const packageNo = newPackageId;
-
-        console.log('🔍 DEBUG: Final packageId:', packageId);
-        console.log('🔍 DEBUG: Final packageNo:', packageNo);
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
@@ -3461,7 +3458,6 @@ const packageNo = newPackageId;
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 // Delete selected packages
