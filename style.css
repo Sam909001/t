@@ -2257,3 +2257,49 @@ body.modal-open {
     margin-top: 5px;
     line-height: 1.4;
 }
+
+
+
+
+/* ===== WORKSTATION INDICATOR BUTTON ===== */
+#workstationIndicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Hover effect */
+#workstationIndicator:hover {
+    background: linear-gradient(135deg, #0069d9, #004999);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Active (connected) state */
+#workstationIndicator.active {
+    background: linear-gradient(135deg, #28a745, #218838);
+}
+
+/* Inactive (disconnected/error) state */
+#workstationIndicator.inactive {
+    background: linear-gradient(135deg, #dc3545, #b02a37);
+}
+
+/* Icon support */
+#workstationIndicator i {
+    font-size: 16px;
+}
