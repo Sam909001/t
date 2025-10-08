@@ -121,89 +121,21 @@ window.getPrinterElectron = function() {
     return window.printerElectron;
 };
 
-window.printSinglePackage = async function(packageElementOrData) {
-    console.log('🖨️ printSinglePackage called with:', packageElementOrData);
+window.printSinglePackage = async function() {
+    console.log('🖨️ Single package print requested - triggering main print button');
     
-    if (!window.printerElectron) {
-        window.printerElectron = new PrinterServiceElectronWithSettings();
-    }
-    
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    
-    try {
-        let packageData;
-        
-        // If no parameter passed, try to get from current row
-        if (!packageElementOrData) {
-            console.log('⚠️ No parameter passed, trying to detect current row...');
-            packageData = getPackageFromCurrentRow();
-        }
-        // If it's an HTML element (button/row), extract the data
-        else if (packageElementOrData instanceof HTMLElement) {
-            packageData = extractPackageDataFromRow(packageElementOrData);
-        } 
-        // If it's already a package object, use it directly
-        else if (typeof packageElementOrData === 'object' && packageElementOrData !== null) {
-            packageData = packageElementOrData;
-        }
-        // Final fallback
-        else {
-            packageData = getPackageFromCurrentSelection();
-        }
-        
-        console.log('📦 Processed package data:', packageData);
-        
-        if (!packageData || !packageData.package_no) {
-            console.error('❌ No valid package data found');
-            showAlert('Yazdırılacak paket bulunamadı. Lütfen bir paket seçin. ❌', 'error');
-            return false;
-        }
-        
-        const success = await window.printerElectron.printLabel(packageData, settings);
-        
-        if (success) {
-            showAlert('Paket başarıyla yazdırıldı ✅', 'success');
-        } else {
-            showAlert('Yazdırma başarısız oldu ❌', 'error');
-        }
-        
-        return success;
-    } catch (error) {
-        console.error('Single package print error:', error);
-        showAlert('Yazdırma hatası: ' + error.message, 'error');
+    // Find and click the main print button
+    const mainPrintButton = document.getElementById('printBarcodeBtn');
+    if (mainPrintButton) {
+        console.log('✅ Found main print button, clicking it...');
+        mainPrintButton.click();
+        return true;
+    } else {
+        console.error('❌ Main print button not found');
+        showAlert('Yazdırma butonu bulunamadı ❌', 'error');
         return false;
     }
 };
-
-// NEW FUNCTION: Try to detect the current row automatically
-function getPackageFromCurrentRow() {
-    console.log('🔍 Attempting to detect current package row...');
-    
-    // Method 1: Check if there's a focused or active row
-    const activeElement = document.activeElement;
-    if (activeElement && activeElement.closest('tr')) {
-        console.log('✅ Found active element in row');
-        return extractPackageDataFromRow(activeElement);
-    }
-    
-    // Method 2: Check if there's only one row in the table
-    const rows = document.querySelectorAll('#packagesTableBody tr');
-    if (rows.length === 1) {
-        console.log('✅ Only one row in table, using it');
-        return extractPackageDataFromRow(rows[0]);
-    }
-    
-    // Method 3: Check for rows with specific classes (like selected/active)
-    const selectedRow = document.querySelector('tr.selected, tr.active, tr.highlight');
-    if (selectedRow) {
-        console.log('✅ Found selected row');
-        return extractPackageDataFromRow(selectedRow);
-    }
-    
-    // Method 4: Fallback to selection
-    console.log('🔄 Falling back to selection check');
-    return getPackageFromCurrentSelection();
-}
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
