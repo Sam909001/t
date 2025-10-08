@@ -405,13 +405,13 @@ class PrinterServiceElectronWithSettings {
                         </div>`;
                     }).join('');
 
-                    htmlContent += `
+htmlContent += `
 <div class="label">
     <div class="header">
        <div class="logo-section">
-    ${window.simpleLabelCustomizer && window.simpleLabelCustomizer.shouldUseCustomText() ? 
-        `<div class="custom-text-logo">${window.simpleLabelCustomizer.getCustomText()}</div>` : 
-        `<img src="${logoBase64}" class="logo-img" onerror="this.style.display='none'>`
+   ${window.labelCustomizer && window.labelCustomizer.shouldUseCustomText() ? 
+        `<div class="custom-text-logo">${window.labelCustomizer.getCustomText()}</div>` : 
+        `<img src="${logoBase64}" class="logo-img" onerror="this.style.display='none'">`
     }
 </div>
         <div class="barcode-section"><div class="barcode">${barcodeSVG}</div></div>
