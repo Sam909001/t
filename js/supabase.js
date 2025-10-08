@@ -3353,7 +3353,7 @@ console.log('✅ Reports module loaded successfully');
 
 
 
-async function _internalCompletePackage() {
+async function CompletePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
         return;
@@ -3377,23 +3377,47 @@ async function _internalCompletePackage() {
         // 2. Extract the station number from the ID
         const stationNumber = workspaceId.replace('station-', '');
 
-        // 3. GENERATE PROPER 6-DIGIT UNIQUE ID (FIXED)
-        const generateShortUniqueId = () => {
-            // Use last 4 characters of current timestamp in base36
-            const timePart = Date.now().toString(36).slice(-4).toUpperCase();
-            // Add 2 random characters
-            const randomPart = Math.random().toString(36).substring(2, 4).toUpperCase();
-            return timePart + randomPart; // Exactly 6 characters
+        // 3. GENERATE UNIQUE 6-DIGIT NUMBER WITH DUPLICATE PROTECTION
+        const generateUniqueNumber = () => {
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const usedNumbersKey = `usedPackageNumbers_${workspaceId}_${today}`;
+            
+            // Load used numbers for today from localStorage
+            let usedNumbers = JSON.parse(localStorage.getItem(usedNumbersKey) || '[]');
+            console.log(`📊 Used numbers today: ${usedNumbers.length}`);
+            
+            let attempts = 0;
+            const maxAttempts = 50; // Prevent infinite loop
+            
+            while (attempts < maxAttempts) {
+                // Generate 6-digit number (000001 to 999999)
+                const newNumber = String(Math.floor(Math.random() * 900000) + 100000).padStart(6, '0');
+                
+                // Check if number was used today
+                if (!usedNumbers.includes(newNumber)) {
+                    // Add to used numbers and save
+                    usedNumbers.push(newNumber);
+                    localStorage.setItem(usedNumbersKey, JSON.stringify(usedNumbers));
+                    console.log(`✅ Generated unique number: ${newNumber} (attempts: ${attempts + 1})`);
+                    return newNumber;
+                }
+                
+                attempts++;
+            }
+            
+            // If we can't find a unique number, use timestamp-based fallback
+            const fallbackNumber = String(Date.now()).slice(-6).padStart(6, '0');
+            console.warn(`⚠️ Using fallback number: ${fallbackNumber}`);
+            return fallbackNumber;
         };
 
-        const uniqueSuffix = generateShortUniqueId();
+        const uniqueSuffix = generateUniqueNumber();
         
-        // 4. Create clean package IDs (NO TIMESTAMP IN THE NAME)
+        // 4. Create clean package IDs
         const packageId = `pkg-st${stationNumber}-${uniqueSuffix}`;
         const packageNo = `PKG-ST${stationNumber}-${uniqueSuffix}`;
         
-        console.log('Generated Package ID:', packageId);
-        console.log('Generated Package No:', packageNo);
+        console.log('🆕 Generated Package:', packageNo);
 
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
@@ -3426,7 +3450,7 @@ async function _internalCompletePackage() {
 
         console.log('📦 Creating package:', packageNo);
 
-        // Save based on connectivity
+        // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -3436,20 +3460,20 @@ async function _internalCompletePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
                 await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
                 await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
             await saveToExcel(packageData);
             addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
 
@@ -3464,35 +3488,30 @@ async function _internalCompletePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-// Delete selected packages
-async function deleteSelectedPackages() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) {
-        showAlert('Silinecek paket seçin', 'error');
-        return;
-    }
 
-    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
-
-    try {
-        const packageIds = Array.from(checkboxes).map(cb => cb.value);
-
-        const { error } = await supabase
-            .from('packages')
-            .delete()
-            .in('id', packageIds);
-
-        if (error) throw error;
-
-        showAlert(`${packageIds.length} paket silindi`, 'success');
-        await populatePackagesTable();
-
-    } catch (error) {
-        console.error('Error in deleteSelectedPackages:', error);
-        showAlert('Paket silme hatası', 'error');
+// ADD THIS CLEANUP FUNCTION TO REMOVE OLD USED NUMBERS
+function cleanupOldUsedNumbers() {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('usedPackageNumbers_')) {
+            // Extract date from key (format: usedPackageNumbers_station-1_2024-01-15)
+            const dateMatch = key.match(/\d{4}-\d{2}-\d{2}$/);
+            if (dateMatch) {
+                const keyDate = new Date(dateMatch[0]);
+                if (keyDate < oneWeekAgo) {
+                    localStorage.removeItem(key);
+                    console.log(`🧹 Removed old used numbers: ${key}`);
+                }
+            }
+        }
     }
 }
 
+// Call cleanup on app startup
+cleanupOldUsedNumbers();
 
 
 async function sendToRamp(containerNo = null) {
@@ -4406,6 +4425,38 @@ function createSecureSupabaseClient() {
         }
     });
 }
+
+
+
+async function completePackageSecure() {
+    // Validate inputs
+    const sanitizedItems = SecurityManager.sanitizeObject(currentPackage.items);
+    
+    if (Object.keys(sanitizedItems).length === 0) {
+        throw new Error('No valid items in package');
+    }
+    
+    // Check permissions
+    if (!securityManager.validateWorkspacePermission(
+        getCurrentWorkspaceId(), 
+        'create_package'
+    )) {
+        throw new Error('Insufficient permissions to create package');
+    }
+    
+    // Apply rate limiting
+    if (securityManager.isRateLimited('complete_package', 10, 60000)) {
+        throw new Error('Too many package creation attempts. Please wait.');
+    }
+    
+    // Proceed with secure operation
+    return await _internalCompletePackage(); 
+}
+
+window.completePackage = completePackageSecure;
+
+
+
 
 window.workspaceManager = new EnhancedWorkspaceManager();
 
