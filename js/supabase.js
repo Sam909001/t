@@ -3365,10 +3365,23 @@ async function completePackage() {
     
     try {
         // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-        const workspaceId = window.workspaceManager.currentWorkspace.id;
-        const stationNumber = workspaceId.replace('station-', '');
-        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
+      // ✅ PASTE THIS CORRECT CODE BLOCK
+
+// 1. Get the current workspace ID (e.g., 'station-1')
+const workspaceId = window.workspaceManager.currentWorkspace.id;
+
+// 2. Extract the station number from the ID
+const stationNumber = workspaceId.replace('station-', ''); // Result: '1'
+
+// 3. Generate a 6-character random alphanumeric string
+const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase(); // Result: 'A1B2C3'
+
+// 4. Create ONE new, short, and unified package ID
+const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
+
+// 5. CRITICAL: Use this single ID for both the database and the display
+const packageId = newPackageId;
+const packageNo = newPackageId;
         
         // DEBUG THE GENERATED ID
         console.log('🔍 DEBUG: Generated Package ID:', newPackageId);
