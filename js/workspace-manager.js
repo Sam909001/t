@@ -213,23 +213,6 @@ ExcelJS.writeFile = async function(data) {
         return false;
     }
 };
-
-        // Initialize package counters for all workspaces
-initializePackageCounters() {
-    console.log('🔢 Initializing package counters for all workspaces...');
-    
-    this.availableWorkspaces.forEach(workspace => {
-        const stationNumber = workspace.id.replace('station-', '');
-        const counterKey = `packageCounter_station_${stationNumber}`;
-        
-        // Only initialize if counter doesn't exist
-        if (!localStorage.getItem(counterKey)) {
-            localStorage.setItem(counterKey, '0');
-            console.log(`✅ Package counter initialized for ${workspace.name}: 0`);
-        }
-    });
-}
-
         
     // Load workspace-specific data
     async loadWorkspaceData() {
