@@ -3377,18 +3377,24 @@ async function _internalCompletePackage() {
         // 2. Extract the station number from the ID
         const stationNumber = workspaceId.replace('station-', '');
 
-        // 3. Generate a UNIQUE 6-digit alphanumeric string
-        const generateUniqueId = () => {
-            const timestamp = Date.now().toString(36).slice(-4); // Last 4 chars of timestamp
-            const random = Math.random().toString(36).substring(2, 4); // 2 random chars
-            return (timestamp + random).toUpperCase().padStart(6, '0').slice(-6);
+        // 3. GENERATE PROPER 6-DIGIT UNIQUE ID (FIXED)
+        const generateShortUniqueId = () => {
+            // Use last 4 characters of current timestamp in base36
+            const timePart = Date.now().toString(36).slice(-4).toUpperCase();
+            // Add 2 random characters
+            const randomPart = Math.random().toString(36).substring(2, 4).toUpperCase();
+            return timePart + randomPart; // Exactly 6 characters
         };
 
-        // 4. Create unified package ID
-        const uniqueSuffix = generateUniqueId();
-        const packageId = `PKG-ST${stationNumber}-${uniqueSuffix}`;
-        const packageNo = packageId; // Use same ID for display
+        const uniqueSuffix = generateShortUniqueId();
         
+        // 4. Create clean package IDs (NO TIMESTAMP IN THE NAME)
+        const packageId = `pkg-st${stationNumber}-${uniqueSuffix}`;
+        const packageNo = `PKG-ST${stationNumber}-${uniqueSuffix}`;
+        
+        console.log('Generated Package ID:', packageId);
+        console.log('Generated Package No:', packageNo);
+
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
@@ -3418,9 +3424,9 @@ async function _internalCompletePackage() {
             source: 'app'
         };
 
-        console.log('📦 Creating package with ID:', packageId);
+        console.log('📦 Creating package:', packageNo);
 
-        // Save based on connectivity and workspace settings
+        // Save based on connectivity
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
                 const { data, error } = await supabase
@@ -3430,20 +3436,20 @@ async function _internalCompletePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
                 await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
                 await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
                 isUsingExcel = true;
             }
         } else {
             await saveToExcel(packageData);
             addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
             isUsingExcel = true;
         }
 
@@ -3458,7 +3464,6 @@ async function _internalCompletePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 // Delete selected packages
 async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
