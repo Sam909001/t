@@ -4407,31 +4407,6 @@ function createSecureSupabaseClient() {
     });
 }
 
-async function completePackageSecure() {
-    // Validate inputs
-    const sanitizedItems = SecurityManager.sanitizeObject(currentPackage.items);
-    
-    if (Object.keys(sanitizedItems).length === 0) {
-        throw new Error('No valid items in package');
-    }
-    
-    // Check permissions
-    if (!securityManager.validateWorkspacePermission(
-        getCurrentWorkspaceId(), 
-        'create_package'
-    )) {
-        throw new Error('Insufficient permissions to create package');
-    }
-    
-    // Apply rate limiting
-    if (securityManager.isRateLimited('complete_package', 10, 60000)) {
-        throw new Error('Too many package creation attempts. Please wait.');
-    }
-    
-    // Proceed with secure operation
-    return await _internalCompletePackage(); 
-}
-
 window.workspaceManager = new EnhancedWorkspaceManager();
 
-window.completePackage = completePackageSecure;
+
