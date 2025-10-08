@@ -3219,22 +3219,15 @@ async function completePackage() {
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         const stationNumber = workspaceId.replace('station-', '');
 
-        // SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
+        // GENERATE SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
         const generateSequentialNumber = () => {
             const counterKey = `packageCounter_station_${stationNumber}`;
             
-            // Load current counter from localStorage
             let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
-            
-            // Increment counter
             currentCounter++;
-            
-            // Save updated counter
             localStorage.setItem(counterKey, currentCounter.toString());
             
-            // Format as 9-digit number with leading zeros
             const sequentialNumber = String(currentCounter).padStart(9, '0');
-            
             console.log(`🔢 Sequential number generated: ${sequentialNumber} (counter: ${currentCounter})`);
             return sequentialNumber;
         };
@@ -3313,6 +3306,35 @@ async function completePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
+// Delete selected packages
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
+
+        if (error) throw error;
+
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
+    }
+}
+
 // Add cleanup function to remove old used numbers (call this on app startup)
 function cleanupOldUsedNumbers() {
     const oneWeekAgo = new Date();
