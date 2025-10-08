@@ -3426,33 +3426,32 @@ async function completePackage() {
             source: 'app'
         };
 
-        // Save to database and Excel
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
+      // Save to database and Excel
+if (supabase && navigator.onLine && !isUsingExcel) {
+    try {
+        const { data, error } = await supabase
+            .from('packages')
+            .insert([packageData])
+            .select();
 
-                if (error) throw error;
+        if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
-                isUsingExcel = true;
-            }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
-            isUsingExcel = true;
-        }
-
+        showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+        await saveToExcel(packageData);
+        
+    } catch (supabaseError) {
+        console.warn('Supabase save failed, saving to Excel:', supabaseError);
+        await saveToExcel(packageData);
+        addToSyncQueue('add', packageData);
+        showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+        isUsingExcel = true;
+    }
+} else {
+    await saveToExcel(packageData);
+    addToSyncQueue('add', packageData);
+    showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+    isUsingExcel = true;
+}
         // Reset and refresh
         currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
