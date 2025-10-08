@@ -3358,8 +3358,7 @@ console.log('✅ Reports module loaded successfully');
 
 
 
-// REPLACE the completePackage function with sequential 9-digit numbering
-window.completePackage = async function() {
+async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
         return;
@@ -3383,18 +3382,11 @@ window.completePackage = async function() {
         const generateSequentialNumber = () => {
             const counterKey = `packageCounter_station_${stationNumber}`;
             
-            // Load current counter from localStorage
             let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
-            
-            // Increment counter
             currentCounter++;
-            
-            // Save updated counter
             localStorage.setItem(counterKey, currentCounter.toString());
             
-            // Format as 9-digit number with leading zeros
             const sequentialNumber = String(currentCounter).padStart(9, '0');
-            
             console.log(`🔢 Sequential number generated: ${sequentialNumber} (counter: ${currentCounter})`);
             return sequentialNumber;
         };
@@ -3472,9 +3464,7 @@ window.completePackage = async function() {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
-};
-
-console.log('✅ Sequential 9-digit package numbering installed!');
+}
 // Delete selected packages
 async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
