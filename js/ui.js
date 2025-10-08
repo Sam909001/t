@@ -554,34 +554,105 @@ function selectCustomerFromModal(customer) {
 // Helper: Touch keyboard (POS-only)
 // ----------------------
 function showTouchKeyboardIfPOS() {
-    try {
-        // Detect touch capability
-        const hasTouch = (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
-        if (!hasTouch) return; // skip on non-touch devices
-
-        // Only run on Windows
-        if (typeof process === 'undefined' || process.platform !== 'win32') return;
-
-        // Try require safely (works if nodeIntegration is enabled or window.require exists)
-        let execFunc;
+    return new Promise((resolve) => {
         try {
-            // normal require
-            execFunc = require('child_process').exec;
-        } catch (e) {
-            // if contextIsolation is on but window.require exposed by preload
-            if (window && window.require) {
-                try { execFunc = window.require('child_process').exec; } catch (e2) { /* fallback */ }
-            }
-        }
-        if (!execFunc) return; // cannot open keyboard in this environment
+            // More robust touch detection
+            const hasTouch = (
+                (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
+                (navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 0) ||
+                ('ontouchstart' in window) ||
+                (window.DocumentTouch && document instanceof DocumentTouch)
+            );
 
-        const keyboardPath = `${process.env.SystemRoot}\\System32\\TabTip.exe`;
-        execFunc(`"${keyboardPath}"`, (err) => {
-            if (err) console.warn("⚠️ Touch keyboard not opened:", err.message || err);
-        });
-    } catch (err) {
-        console.warn("⚠️ showTouchKeyboardIfPOS error:", err && err.message ? err.message : err);
-    }
+            if (!hasTouch) {
+                console.log('🖐️ No touch capability detected - skipping keyboard');
+                resolve(false);
+                return;
+            }
+
+            console.log('🖐️ Touch device detected, opening keyboard...');
+
+            // Multiple execution methods
+            const openKeyboard = (method) => {
+                const keyboardPath = `${process.env.SystemRoot || 'C:\\Windows'}\\System32\\TabTip.exe`;
+                
+                switch(method) {
+                    case 'electronAPI':
+                        if (window.electronAPI && window.electronAPI.execCommand) {
+                            window.electronAPI.execCommand(`"${keyboardPath}"`)
+                                .then(() => {
+                                    console.log('✅ Keyboard opened via electronAPI');
+                                    resolve(true);
+                                })
+                                .catch(err => {
+                                    console.warn('❌ electronAPI failed:', err);
+                                    tryNextMethod();
+                                });
+                            return;
+                        }
+                        break;
+                        
+                    case 'require':
+                        try {
+                            const { exec } = require('child_process');
+                            exec(`"${keyboardPath}"`, (err) => {
+                                if (err) {
+                                    console.warn('❌ require failed:', err);
+                                    tryNextMethod();
+                                } else {
+                                    console.log('✅ Keyboard opened via require');
+                                    resolve(true);
+                                }
+                            });
+                            return;
+                        } catch (e) {
+                            console.warn('❌ require not available');
+                            tryNextMethod();
+                        }
+                        break;
+                        
+                    case 'windowRequire':
+                        try {
+                            const { exec } = window.require('child_process');
+                            exec(`"${keyboardPath}"`, (err) => {
+                                if (err) {
+                                    console.warn('❌ window.require failed:', err);
+                                    tryNextMethod();
+                                } else {
+                                    console.log('✅ Keyboard opened via window.require');
+                                    resolve(true);
+                                }
+                            });
+                            return;
+                        } catch (e) {
+                            console.warn('❌ window.require not available');
+                            tryNextMethod();
+                        }
+                        break;
+                }
+                
+                tryNextMethod();
+            };
+
+            let methodIndex = 0;
+            const methods = ['electronAPI', 'require', 'windowRequire'];
+            
+            const tryNextMethod = () => {
+                if (methodIndex < methods.length) {
+                    openKeyboard(methods[methodIndex++]);
+                } else {
+                    console.warn('❌ All keyboard methods failed');
+                    resolve(false);
+                }
+            };
+
+            tryNextMethod();
+
+        } catch (err) {
+            console.warn("⚠️ showTouchKeyboardIfPOS error:", err);
+            resolve(false);
+        }
+    });
 }
 
 function hideTouchKeyboard() {
@@ -604,13 +675,7 @@ function hideTouchKeyboard() {
     }
 }
 
-// ----------------------
-// Package operations (single, cleaned definitions)
-// ----------------------
 
-// Note: `elements` is assumed to exist and contain:
-// elements.quantityModal, elements.quantityModalTitle, elements.quantityInput
-// If not, functions fallback to document.getElementById('quantityInput') etc.
 
 function openQuantityModal(product) {
     selectedProduct = product;
