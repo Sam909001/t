@@ -121,6 +121,35 @@ window.getPrinterElectron = function() {
     return window.printerElectron;
 };
 
+
+// ADD THE MISSING FUNCTION HERE:
+window.printSinglePackage = async function(packageData) {
+    console.log('🖨️ printSinglePackage called with:', packageData);
+    
+    if (!window.printerElectron) {
+        window.printerElectron = new PrinterServiceElectronWithSettings();
+    }
+    
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    
+    try {
+        console.log('📦 Single package to print:', packageData);
+        const success = await window.printerElectron.printLabel(packageData, settings);
+        
+        if (success) {
+            showAlert('Paket başarıyla yazdırıldı ✅', 'success');
+        } else {
+            showAlert('Yazdırma başarısız oldu ❌', 'error');
+        }
+        
+        return success;
+    } catch (error) {
+        console.error('Single package print error:', error);
+        showAlert('Yazdırma hatası: ' + error.message, 'error');
+        return false;
+    }
+};
+
 // ================== ENHANCED PRINTER SERVICE FOR ELECTRON ==================
 class PrinterServiceElectronWithSettings {
     constructor() {
