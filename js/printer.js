@@ -123,23 +123,18 @@ window.getPrinterElectron = function() {
 
 
 
-window.printSinglePackage = async function(packageId) {
-    console.log('🖨️ Single package print requested for ID:', packageId);
-    
-    if (!packageId) {
-        console.error('❌ No package ID provided');
-        showAlert('Paket ID bulunamadı ❌', 'error');
+async function printSinglePackage(packageId) {
+    let packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
+    let attempts = 0;
+    while (!packageRow && attempts < 20) { // max 2 seconds wait
+        await new Promise(r => setTimeout(r, 100));
+        packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
+        attempts++;
+    }
+    if (!packageRow) {
+        showAlert('Paket bulunamadı ❌', 'error');
         return false;
     }
-    
-    try {
-        // Find the package row in the table
-        const packageRow = document.querySelector(`tr[data-package-id="${packageId}"]`);
-        if (!packageRow) {
-            console.error('❌ Package row not found for ID:', packageId);
-            showAlert('Paket tabloda bulunamadı ❌', 'error');
-            return false;
-        }
         
         // Extract package data directly from the table row (same as your main print function)
         const packageData = extractPackageDataFromTableRow(packageRow);
