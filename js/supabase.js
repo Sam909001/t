@@ -4426,8 +4426,6 @@ async function completePackageSecure() {
     return await _internalCompletePackage(); 
 }
 
+window.workspaceManager = new EnhancedWorkspaceManager();
 
 window.completePackage = completePackageSecure;
-
-
-window.workspaceManager = new EnhancedWorkspaceManager();
