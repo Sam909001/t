@@ -3219,7 +3219,7 @@ async function completePackage() {
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         const stationNumber = workspaceId.replace('station-', '');
 
-        // GENERATE SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
+        // SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
         const generateSequentialNumber = () => {
             const counterKey = `packageCounter_station_${stationNumber}`;
             
@@ -3313,7 +3313,6 @@ async function completePackage() {
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 // Add cleanup function to remove old used numbers (call this on app startup)
 function cleanupOldUsedNumbers() {
     const oneWeekAgo = new Date();
