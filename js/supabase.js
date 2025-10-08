@@ -3372,18 +3372,23 @@ async function completePackage() {
 
     try {
         // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-      const workspaceId = window.workspaceManager.currentWorkspace.id;
+// ================== PASTE THIS NEW CODE IN ITS PLACE ==================
 
-// Get or initialize counter for this workspace
-let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-packageCounter++;
-localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
+// 1. Get the current workspace ID (e.g., 'station-1')
+const workspaceId = window.workspaceManager.currentWorkspace.id;
 
-const timestamp = Date.now();
-const random = Math.random().toString(36).substr(2, 9);
+// 2. Extract the station number from the ID
+const stationNumber = workspaceId.replace('station-', ''); // Result: '1'
 
-const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+// 3. Generate a 6-character random alphanumeric string
+const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase(); // Result: 'A1B2C3'
+
+// 4. Create the new, short, and unified package ID
+const newPackageId = `PKG-ST${stationNumber}-${randomPart}`;
+
+// 5. CRITICAL: Use the new ID for both the unique ID and the package number
+const packageId = newPackageId;
+const packageNo = newPackageId;
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
