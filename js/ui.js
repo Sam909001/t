@@ -3265,7 +3265,7 @@ async function completePackage() {
             workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app'
+            source: 'Excel'
         };
 
         // Save to database and Excel
