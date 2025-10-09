@@ -3471,24 +3471,23 @@ async function sendToRamp(containerNo = null) {
                 const packageDataStr = cb.getAttribute('data-package');
                 if (packageDataStr) {
                     const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
-                    return packageData.id;
+                    return {
+                        id: packageData.id,
+                        isExcel: packageData.id.startsWith('pkg-') || packageData.id.startsWith('excel-'),
+                        data: packageData
+                    };
                 }
-                return cb.value;
+                return {
+                    id: cb.value,
+                    isExcel: cb.value.startsWith('pkg-') || cb.value.startsWith('excel-'),
+                    data: null
+                };
             });
         
         if (selectedPackages.length === 0) {
             showAlert('Sevk etmek için paket seçin', 'error');
             return;
         }
-
-        // Filter out Excel-style IDs that can't be used with Supabase directly
-        const validPackageIds = selectedPackages.filter(id => 
-            id && !id.startsWith('pkg-') && !id.startsWith('excel-')
-        );
-        
-        const excelStylePackageIds = selectedPackages.filter(id => 
-            id && (id.startsWith('pkg-') || id.startsWith('excel-'))
-        );
 
         // Use existing container or create a new one
         let containerId;
@@ -3498,19 +3497,25 @@ async function sendToRamp(containerNo = null) {
             const timestamp = new Date().getTime();
             containerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
+            // ✅ FIXED: Use customer_id instead of customer, and proper data types
+            const containerData = {
+                container_no: containerNo,
+                customer_id: selectedCustomer?.id || null, // ✅ Use customer_id (UUID)
+                package_count: selectedPackages.length,
+                total_quantity: await calculateTotalQuantity(selectedPackages.map(p => p.id)),
+                status: 'sevk-edildi'
+                // created_at is automatically set by DEFAULT
+            };
+            
             const { data: newContainer, error } = await supabase
                 .from('containers')
-                .insert([{
-                    container_no: containerNo,
-                    customer: selectedCustomer?.name || '',
-                    package_count: selectedPackages.length,
-                    total_quantity: await calculateTotalQuantity(selectedPackages),
-                    status: 'sevk-edildi',
-                    created_at: new Date().toISOString()
-                }])
+                .insert([containerData])
                 .select();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Container creation error:', error);
+                throw error;
+            }
             
             containerId = newContainer[0].id;
             currentContainer = containerNo;
@@ -3518,36 +3523,56 @@ async function sendToRamp(containerNo = null) {
             saveAppState();
         }
 
-        // Update valid Supabase packages
-        if (validPackageIds.length > 0 && supabase) {
-            const { error: updateError } = await supabase
-                .from('packages')
-                .update({ 
-                    container_id: containerId,
-                    status: 'sevk-edildi'
-                })
-                .in('id', validPackageIds);
+        // Separate Supabase packages and Excel packages
+        const supabasePackages = selectedPackages.filter(p => !p.isExcel);
+        const excelPackages = selectedPackages.filter(p => p.isExcel);
 
-            if (updateError) console.warn('Supabase update error:', updateError);
+        // Update valid Supabase packages (only real UUIDs)
+        if (supabasePackages.length > 0 && supabase) {
+            const validPackageIds = supabasePackages
+                .map(p => p.id)
+                .filter(id => isValidUUID(id)); // Only update valid UUIDs
+
+            if (validPackageIds.length > 0) {
+                const { error: updateError } = await supabase
+                    .from('packages')
+                    .update({ 
+                        container_id: containerId,
+                        status: 'sevk-edildi'
+                    })
+                    .in('id', validPackageIds);
+
+                if (updateError) {
+                    console.warn('Supabase package update error:', updateError);
+                } else {
+                    console.log(`Updated ${validPackageIds.length} Supabase packages`);
+                }
+            }
         }
 
         // Update Excel packages locally
-        if (excelStylePackageIds.length > 0) {
-            const currentPackages = await ExcelJS.readFile();
-            const updatedPackages = currentPackages.map(pkg => {
-                if (excelStylePackageIds.includes(pkg.id)) {
-                    return {
-                        ...pkg,
-                        container_id: containerId,
-                        status: 'sevk-edildi',
-                        updated_at: new Date().toISOString()
-                    };
-                }
-                return pkg;
-            });
-            
-            await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
-            excelPackages = updatedPackages;
+        if (excelPackages.length > 0) {
+            try {
+                const currentPackages = await ExcelJS.readFile();
+                const updatedPackages = currentPackages.map(pkg => {
+                    const selectedPkg = excelPackages.find(ep => ep.id === pkg.id);
+                    if (selectedPkg) {
+                        return {
+                            ...pkg,
+                            container_id: containerId,
+                            status: 'sevk-edildi',
+                            updated_at: new Date().toISOString()
+                        };
+                    }
+                    return pkg;
+                });
+                
+                await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
+                excelPackages = updatedPackages;
+                console.log(`Updated ${excelPackages.length} Excel packages locally`);
+            } catch (excelError) {
+                console.warn('Excel update error:', excelError);
+            }
         }
 
         showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
@@ -3562,6 +3587,12 @@ async function sendToRamp(containerNo = null) {
     }
 }
 
+// ✅ Add UUID validation helper
+function isValidUUID(uuid) {
+    if (!uuid || typeof uuid !== 'string') return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+}
 
 
 
