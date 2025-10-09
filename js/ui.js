@@ -4143,23 +4143,37 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// Initialize the buttons
 function initializeExcelButtons() {
+    console.log("🔍 DEBUG: Initializing Excel buttons...");
+    
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
+    console.log("🔍 Refresh button found:", !!refreshBtn);
+    console.log("🔍 Clear button found:", !!clearBtn);
+    
     if (refreshBtn) {
-        refreshBtn.addEventListener('click', refreshExcelData);
+        refreshBtn.addEventListener('click', function() {
+            console.log("🟢 Refresh button clicked!");
+            refreshExcelData();
+        });
         console.log('✅ Refresh Excel button initialized');
     }
     
     if (clearBtn) {
-        clearBtn.addEventListener('click', clearExcelDataWithAuth);
+        clearBtn.addEventListener('click', function() {
+            console.log("🟢 Clear button clicked!");
+            clearExcelDataWithAuth();
+        });
         console.log('✅ Clear Excel button initialized');
     }
 }
 
-// Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
+// Test if functions are available
+console.log("🔍 refreshExcelData available:", typeof refreshExcelData);
+console.log("🔍 clearExcelDataWithAuth available:", typeof clearExcelDataWithAuth);
+console.log("🔍 clearExcelData available:", typeof clearExcelData);
+// ✅ FIXED PATTERN (same as customer functions):
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
     
@@ -4173,9 +4187,17 @@ async function clearExcelDataWithAuth() {
         
         const passwordGuard = new PasswordGuard();
         
-        await passwordGuard.askPasswordAndRun(() => {
-            return clearExcelData();
-        }, 'Excel verilerini temizleme', 'clearData');
+        // ✅ FIX: Use bound function pattern
+        const clearAction = async () => {
+            if (typeof clearExcelData === 'function') {
+                return await clearExcelData();
+            } else {
+                showAlert('Excel temizleme fonksiyonu bulunamadı', 'error');
+                throw new Error('Function not found');
+            }
+        };
+        
+        await passwordGuard.askPasswordAndRun(clearAction, 'Excel verilerini temizleme', 'clearData');
         
     } catch (error) {
         if (error.message === 'User cancelled') {
