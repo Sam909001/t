@@ -3299,28 +3299,28 @@ function escapeHtml(unsafe) {
 
         
 
-  async function addNewCustomer() {
+async function addNewCustomer() {
     const code = document.getElementById('newCustomerCode').value.trim();
     const name = document.getElementById('newCustomerName').value.trim();
     const email = document.getElementById('newCustomerEmail').value.trim();
 
-    console.log("=== ADD CUSTOMER DEBUG ===");
-    console.log("Code:", code);
-    console.log("Name:", name);
-    console.log("Email:", email);
+    // ✅ SIMPLE VALIDATION (since validateForm doesn't exist)
+    if (!code) {
+        showAlert('Müşteri kodu giriniz!', 'error');
+        document.getElementById('newCustomerCode').focus();
+        return;
+    }
     
-    // Test the validateForm function directly
-    const validationResult = validateForm([
-        { id: 'newCustomerCode', errorId: 'customerCodeError', type: 'text', required: true },
-        { id: 'newCustomerName', errorId: 'customerNameError', type: 'text', required: true },
-        { id: 'newCustomerEmail', errorId: 'customerEmailError', type: 'email', required: false }
-    ]);
-    
-    console.log("Validation Result:", validationResult);
-    console.log("=== END DEBUG ===");
+    if (!name) {
+        showAlert('Müşteri adı giriniz!', 'error');
+        document.getElementById('newCustomerName').focus();
+        return;
+    }
 
-    if (!validationResult) {
-        showAlert('Lütfen müşteri adı ve kodunu girin. İşlem kontrol edin...', 'error');
+    // Optional: Email validation
+    if (email && !isValidEmail(email)) {
+        showAlert('Geçerli bir e-posta adresi giriniz!', 'error');
+        document.getElementById('newCustomerEmail').focus();
         return;
     }
 
@@ -3337,7 +3337,7 @@ function escapeHtml(unsafe) {
                 code, 
                 name, 
                 email: email || null,
-                workspace_id: workspaceId // ✅ CRITICAL: Always include workspace_id
+                workspace_id: workspaceId
             }]);
 
         if (error) {
@@ -3363,6 +3363,11 @@ function escapeHtml(unsafe) {
     }
 }
 
+// ✅ Add email validation helper
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
         
 
     async function deleteCustomer(customerId) {
