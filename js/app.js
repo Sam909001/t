@@ -1808,3 +1808,30 @@ window.deleteReport = async function(fileName) {
     }
 }
 
+
+async function addCustomer(name, code) {
+    if (!name || !code) {
+        showAlert('Geçersiz müşteri bilgisi', 'error');
+        return;
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('customers')
+            .insert([{ name, code }])
+            .select();
+
+        if (error) {
+            console.error('Müşteri eklenirken hata:', error);
+            showAlert('Müşteri ekleme hatası: ' + error.message, 'error');
+            return;
+        }
+
+        showAlert('Müşteri başarıyla eklendi', 'success');
+        await populateCustomers();
+    } catch (err) {
+        console.error('addCustomer error:', err);
+        showAlert('Müşteri ekleme sırasında beklenmedik hata', 'error');
+    }
+}
+
