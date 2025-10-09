@@ -868,3 +868,28 @@ class EnhancedWorkspaceManager extends WorkspaceManager {
 
 // Replace the existing WorkspaceManager
 window.workspaceManager = new EnhancedWorkspaceManager();
+
+
+
+async syncWorkspaceStorage() {
+    try {
+        const workspaceId = this.currentWorkspace?.id;
+        if (!workspaceId) return;
+        
+        // Read from main storage
+        const mainData = await this.originalExcelRead?.() || [];
+        
+        // Filter for current workspace
+        const workspaceData = mainData.filter(item => 
+            !item.workspace_id || item.workspace_id === workspaceId
+        );
+        
+        // Write to workspace storage
+        localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(workspaceData));
+        
+        console.log(`🔄 Synced workspace storage: ${workspaceData.length} packages`);
+        
+    } catch (error) {
+        console.error('Workspace storage sync error:', error);
+    }
+}
