@@ -1007,112 +1007,141 @@ function mergePackages(excelPackages, supabasePackages) {
 
 
 async function completePackage() {
-    if (!selectedCustomer) {
-        showAlert('Önce müşteri seçin', 'error');
-        return;
-    }
-
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
-    if (!window.workspaceManager?.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
     try {
-        const workspaceId = window.workspaceManager.currentWorkspace.id;
-        
-        // Generate short station number (st1, st2, st3, st4)
-        const stationNumber = workspaceId.replace('station-', 'st');
-        
-        // Get today's package count for this station to generate sequential number
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        
-        const todayPackages = await ExcelJS.readFile();
-        const todayStationPackages = todayPackages.filter(pkg => 
-            pkg.workspace_id === workspaceId && 
-            new Date(pkg.created_at) >= todayStart
-        );
-        
-        // Sequential number: pad to 6 digits
-        const sequentialNumber = (todayStationPackages.length + 1).toString().padStart(6, '0');
-        
-        // Generate SHORT package number: pkg-st1-000123
-        const packageNo = `pkg-${stationNumber}-${sequentialNumber}`;
-        
-        // Generate unique ID for database
-        const packageId = `pkg-${workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-        
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect?.value || '';
+        // Validate inputs
+        if (!selectedCustomer) {
+            showAlert('Lütfen müşteri seçin', 'error');
+            return;
+        }
 
-        const packageData = {
-            id: packageId, // Unique ID for database
-            package_no: packageNo, // SHORT display number
+        if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+            showAlert('Lütfen en az bir ürün ekleyin', 'error');
+            return;
+        }
+
+        const personnelId = elements.personnelSelect?.value;
+        if (!personnelId) {
+            showAlert('Lütfen personel seçin', 'error');
+            return;
+        }
+
+        showAlert('Paket oluşturuluyor...', 'info', 2000);
+
+        // Generate package number
+        const timestamp = new Date().getTime();
+        const packageNo = `PKG-${timestamp.toString().slice(-8)}`;
+
+        // Calculate total quantity
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+
+        // Get workspace ID
+        const workspaceId = getCurrentWorkspaceId();
+
+        // Create package object
+        const newPackage = {
+            id: generateUUID(),
+            package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
             customer_code: selectedCustomer.code,
             items: currentPackage.items,
-            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
-                name: name,
-                qty: qty
-            })),
-            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-                `${name}: ${qty} adet`
-            ).join(', '),
+            items_display: Object.entries(currentPackage.items)
+                .map(([product, quantity]) => `${product}: ${quantity} adet`)
+                .join(', '),
             total_quantity: totalQuantity,
+            personnel_id: personnelId,
             status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            container_id: null,
             workspace_id: workspaceId,
-            station_name: window.workspaceManager.currentWorkspace.name,
-            daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app'
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
 
-        // Save to database and Excel
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
+        // Add to window.packages array
+        if (!window.packages) {
+            window.packages = [];
+        }
+        window.packages.push(newPackage);
 
-                if (error) throw error;
+        // Save to Excel immediately
+        const excelData = ExcelJS.toExcelFormat(window.packages);
+        await ExcelJS.writeFile(excelData);
 
-                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
-                isUsingExcel = true;
+        // Save to Supabase if online
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('packages')
+                .insert([newPackage]);
+
+            if (error) {
+                console.error('Supabase insert error:', error);
+                // Continue anyway - Excel is saved
             }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
-            isUsingExcel = true;
         }
 
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
+        // CRITICAL: Refresh UI immediately
+        await populatePackagesTable(); // Refresh packages table
+        await updateStockQuantities(currentPackage.items); // Update stock
+        
+        // Clear form
+        currentPackage = { items: {} };
+        elements.packageDetailContent.innerHTML = '<p>Ürün eklenmedi</p>';
+        
+        // Reset customer selection if needed
+        // elements.customerSelect.value = '';
+        // selectedCustomer = null;
+
+        showAlert(`✅ Paket oluşturuldu: ${packageNo}`, 'success');
+
+        // Auto-print label if enabled
+        if (window.workspaceManager?.currentWorkspace) {
+            const autoPrint = confirm('Etiketi yazdırmak ister misiniz?');
+            if (autoPrint) {
+                await printForCurrentWorkstation(newPackage);
+            }
+        }
 
     } catch (error) {
-        console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+        console.error('Error completing package:', error);
+        showAlert('Paket oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
+
+
+
+async function updateStockQuantities(items) {
+    try {
+        for (const [productCode, quantity] of Object.entries(items)) {
+            // Find stock item
+            const stockItem = window.stockItems?.find(s => s.code === productCode);
+            
+            if (stockItem) {
+                const newQuantity = (stockItem.quantity || 0) - quantity;
+                
+                // Update in memory
+                stockItem.quantity = Math.max(0, newQuantity);
+                
+                // Update in Supabase if online
+                if (supabase && navigator.onLine) {
+                    await supabase
+                        .from('stock_items')
+                        .update({ 
+                            quantity: stockItem.quantity,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('code', productCode);
+                }
+            }
+        }
+        
+        // Refresh stock table
+        await populateStockTable();
+        
+    } catch (error) {
+        console.error('Stock update error:', error);
+    }
+}
+
 
 
 // Modified deleteSelectedPackages function
