@@ -223,14 +223,15 @@ async function clearDataWithAuth() {
     }
 }
 
-// ✅ 4. Delete Customer with Authentication - Uses 8823
-async function deleteCustomerWithAuth() {
+// ✅ CORRECT: Delete Customer with Authentication
+async function deleteCustomerWithAuth(customerId, customerName) {
     const passwordGuard = new PasswordGuard();
     
     try {
-        await passwordGuard.askPasswordAndRun(() => {
+        await passwordGuard.askPasswordAndRun(async () => {
+            // ✅ Pass the parameters to deleteCustomer
             if (typeof deleteCustomer === 'function') {
-                return deleteCustomer();
+                await deleteCustomer(customerId);
             } else {
                 showAlert('Müşteri silme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
