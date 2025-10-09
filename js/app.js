@@ -1,4 +1,4 @@
-// Top of app.js
+/// Top of app.js
 window.initializePrinter = function() {
     console.log("Printer initialized");
     if (typeof window.printer === 'undefined') {
