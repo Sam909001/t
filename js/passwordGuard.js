@@ -245,26 +245,24 @@ async function deleteCustomerWithAuth() {
 
 // ✅ 5. Add Customer with Authentication - Uses 8823
 async function addCustomerWithAuth() {
-    // Check if addCustomer function exists first
-    if (typeof addCustomer !== 'function') {
-        showAlert('Müşteri ekleme özelliği şu anda kullanılamıyor', 'error');
-        console.error('addCustomer function not found');
-        return;
-    }
-    
     const passwordGuard = new PasswordGuard();
     
     try {
         await passwordGuard.askPasswordAndRun(() => {
-            addCustomer(); // Safe to call now
+            if (typeof addCustomer === 'function') {
+                addCustomer();
+            } else {
+                showAlert('Müşteri ekleme fonksiyonu bulunamadı', 'error');
+                throw new Error('Function not found');
+            }
         }, 'müşteri ekleme', 'default');
     } catch (error) {
         if (error.message !== 'User cancelled') {
-            console.error('Add customer error:', error);
-            // Don't show alert for user cancellation
+            console.log('Add customer cancelled:', error.message);
         }
     }
 }
+
 // ✅ 6. Clear Excel with Authentication - Uses 8823
 async function clearExcelDataWithAuth() {
     const passwordGuard = new PasswordGuard();
