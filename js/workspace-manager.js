@@ -188,8 +188,8 @@ class WorkspaceManager {
         };
         
         // Initialize excelPackages for current workspace
-        this.loadWorkspaceData();
-    }
+        //this.loadWorkspaceData();
+    //}
   
     // Load workspace-specific data
     async loadWorkspaceData() {
