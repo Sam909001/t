@@ -3414,6 +3414,7 @@ async function viewReport(reportId) {
 
 function displayReportModal(report) {
     const modal = document.createElement('div');
+    modal.classList.add('modal'); // add the class for close button to work
     modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;';
     modal.innerHTML = `
         <div style="background:white; padding:2rem; border-radius:8px; max-width:800px; max-height:80vh; overflow:auto;">
@@ -3426,95 +3427,6 @@ function displayReportModal(report) {
         </div>
     `;
     document.body.appendChild(modal);
-}
-
-async function downloadReport(reportId) {
-    try {
-        let reportData = null;
-        
-        // First try localStorage
-        const fileName = `report_${reportId}`;
-        const localData = localStorage.getItem(fileName);
-        
-        if (localData) {
-            reportData = JSON.parse(localData);
-        } 
-        // Then try Supabase
-        else if (supabase && navigator.onLine) {
-            const { data, error } = await supabase
-                .from('reports')
-                .select('*')
-                .eq('fileName', reportId)
-                .single();
-                
-            if (!error && data) {
-                reportData = data;
-            }
-        }
-        
-        if (!reportData) {
-            showAlert('Rapor bulunamadı', 'error');
-            return;
-        }
-        
-        const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${reportId}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        showAlert('Rapor indirildi', 'success');
-    } catch (error) {
-        showAlert('İndirme hatası: ' + error.message, 'error');
-    }
-}
-
-// Delete report
-async function deleteReport(fileName) {
-    if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) {
-        return;
-    }
-    
-    try {
-        const reportKey = `report_${fileName}`;
-        localStorage.removeItem(reportKey);
-        
-        // Also delete from Supabase if exists
-        if (supabase && navigator.onLine) {
-            await supabase
-                .from('reports')
-                .delete()
-                .eq('fileName', fileName);
-        }
-        
-        showAlert('Rapor silindi', 'success');
-        await populateReportsTable();
-        
-    } catch (error) {
-        console.error('Error deleting report:', error);
-        showAlert('Rapor silinirken hata oluştu', 'error');
-    }
-}
-
-// Add to ui.js - Fix select all functionality
-function toggleSelectAllPackages() {
-    const selectAllCheckbox = document.getElementById('selectAllPackages');
-    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    
-    if (!selectAllCheckbox) {
-        console.error('Select all packages checkbox not found');
-        return;
-    }
-    
-    const isChecked = selectAllCheckbox.checked;
-    
-    packageCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-    });
-    
-    console.log(`${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
 }
 
 function toggleSelectAllContainers() {
@@ -4327,64 +4239,50 @@ async function clearExcelData() {
     }
 }
 
-// Enhanced clearAppState function
+// ✅ Unified Clear Application State Function
 function clearAppState() {
     console.log('🔄 Clearing application state...');
-    
-    // Clear global variables
-    window.packages = [];
-    window.containers = [];
-    window.currentPackage = {};
-    
-    // Clear selected customer
-    if (window.selectedCustomer) {
-        window.selectedCustomer = null;
-    }
-    
-    // Clear current container
-    if (window.currentContainer) {
+
+    try {
+        // Clear persistent state if used
+        localStorage.removeItem('procleanState');
+
+        // Clear global variables safely
+        window.packages = [];
+        window.containers = [];
+        window.currentPackage = {};
         window.currentContainer = null;
-    }
-    
-    // Reset UI elements
-    const elements = {
-        customerSelect: '',
-        personnelSelect: '',
-        containerNumber: 'Yok',
-        totalPackages: '0'
-    };
-    
-    Object.keys(elements).forEach(key => {
-        const element = document.getElementById(key);
-        if (element) {
-            if (element.tagName === 'SELECT') {
-                element.value = '';
-            } else {
-                element.textContent = elements[key];
+        window.selectedCustomer = null;
+
+        // Reset key UI elements
+        const resetValues = {
+            customerSelect: '',
+            personnelSelect: '',
+            containerNumber: 'Yok',
+            totalPackages: '0'
+        };
+
+        Object.keys(resetValues).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (el.tagName === 'SELECT') el.value = '';
+                else el.textContent = resetValues[id];
             }
+        });
+
+        // Reset all quantity badges
+        document.querySelectorAll('.quantity-badge').forEach(badge => {
+            badge.textContent = '0';
+        });
+
+        // Reset package detail section
+        const detail = document.getElementById('packageDetailContent');
+        if (detail) {
+            detail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
         }
-    });
-    
-    // Reset quantity badges
-    document.querySelectorAll('.quantity-badge').forEach(badge => {
-        badge.textContent = '0';
-    });
-    
-    // Clear package details
-    const packageDetail = document.getElementById('packageDetailContent');
-    if (packageDetail) {
-        packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+
+        console.log('✅ Application state fully cleared');
+    } catch (err) {
+        console.error('❌ Error while clearing app state:', err);
     }
-    
-    console.log('✅ Application state cleared');
 }
-
-// Make functions globally available
-window.clearExcelDataWithAuth = clearExcelDataWithAuth;
-window.refreshExcelData = refreshExcelData;
-window.clearExcelData = clearExcelData;
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(initializeExcelButtons, 3000);
-});
