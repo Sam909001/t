@@ -3282,8 +3282,9 @@ async function completePackage() {
             await safeSyncExcelWithSupabase();
         }
 
-        // Reset form
-        resetPackageForm();
+        // Reset form - REMOVED THE PROBLEMATIC LINE
+        // resetPackageForm(); // ← This line was causing the error
+        
         showAlert('Paket başarıyla oluşturuldu!', 'success');
 
         // Refresh packages table
@@ -3296,7 +3297,6 @@ async function completePackage() {
         showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
-
 // Reports tab functionality fixes
 async function populateReportsTable() {
     const reportsTableBody = document.getElementById('reportsTableBody');
