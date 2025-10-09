@@ -3650,44 +3650,19 @@ async function sendToRamp(containerNo = null) {
 
             if (!updateErr && Array.isArray(updatedRows)) {
                 successCount += updatedRows.length;
-                // --- REMOVED partial filtering here, handled by universal fix below ---
             }
         }
 
-        // Excel updates - COMPLETELY SAFE VERSION
+        // Excel updates
         const excelPackages = selectedPackages.filter(p => !isValidUUID(p.id));
         console.log('Excel packages to update:', excelPackages.length);
-        console.log('window.excelPackages state:', window.excelPackages);
 
         if (excelPackages.length > 0 && typeof ExcelJS !== 'undefined' && typeof ExcelJS.readFile === 'function') {
             try {
-                console.log('Starting Excel update process...');
-
-                // SAFE: Initialize window.excelPackages if it doesn't exist
-                if (!window.excelPackages || !Array.isArray(window.excelPackages)) {
-                    console.log('Initializing window.excelPackages as empty array');
-                    window.excelPackages = [];
-                }
-
-                // SAFE: Filter window.excelPackages immediately
-                window.excelPackages = window.excelPackages.filter(p => {
-                    if (!p || !p.id) return false; // Remove invalid entries
-                    // Filter out moved packages from the Excel state array
-                    return !movedPackageIds.includes(p.id); 
-                });
-
-                console.log('Updated window.excelPackages:', window.excelPackages);
-
                 // Read current Excel file
-                let currentExcel;
-                try {
-                    currentExcel = await ExcelJS.readFile();
-                    console.log('Excel file read successfully, records:', currentExcel.length);
-                } catch (readError) {
-                    console.error('Error reading Excel file:', readError);
-                    currentExcel = []; // Use empty array as fallback
-                }
-
+                let currentExcel = await ExcelJS.readFile();
+                console.log('Excel file read successfully, records:', currentExcel.length);
+                
                 let updatedCount = 0;
 
                 // Update packages in Excel data
@@ -3713,50 +3688,55 @@ async function sendToRamp(containerNo = null) {
                 });
 
                 // Write back to Excel file
-                try {
-                    await ExcelJS.writeFile(currentExcel);
-                    console.log('Excel file updated successfully');
-                    successCount += updatedCount;
-                } catch (writeError) {
-                    console.error('Error writing Excel file:', writeError);
-                    // Continue without counting this as success
-                }
-
+                await ExcelJS.writeFile(currentExcel);
+                console.log('Excel file updated successfully');
+                successCount += updatedCount;
+                
             } catch (exErr) {
                 console.error('Excel update process error:', exErr);
-                // Continue with the process even if Excel fails
             }
         }
 
-        // FAST UI REFRESH
+        // FINAL STATE MANAGEMENT - NO DATA RELOAD
         if (successCount > 0) {
-            
-            // =================================================================
-            // ⭐️ CORE FIX FOR SYNCHRONIZATION ⭐️
-            // Ensures the primary state array is clean before the fast refresh.
-            // This prevents the momentary reappearance bug.
-            if (Array.isArray(window.packages) && movedPackageIds.length > 0) {
+            // ⭐️ CORE FIX: Update all in-memory data sources
+            if (Array.isArray(window.packages)) {
                 const originalLength = window.packages.length;
-                
-                // Filter out any package whose ID was in the successfully moved list
                 window.packages = window.packages.filter(pkg => pkg && !movedPackageIds.includes(pkg.id));
-                
-                console.log(`✅ Universal state update: ${originalLength - window.packages.length} packages removed from window.packages.`);
+                console.log(`✅ Removed ${originalLength - window.packages.length} packages from window.packages`);
             }
-            // =================================================================
+            
+            if (window.excelPackages && Array.isArray(window.excelPackages)) {
+                const originalLength = window.excelPackages.length;
+                window.excelPackages = window.excelPackages.filter(pkg => pkg && !movedPackageIds.includes(pkg.id));
+                console.log(`✅ Removed ${originalLength - window.excelPackages.length} packages from window.excelPackages`);
+            }
 
             showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
 
-            // Ultra-fast refresh
-            await fastRefreshPackagesTable();
+            // 🚫 NO DATA RELOAD - Only update shipping table
             await populateShippingTable();
 
             currentContainer = null;
+            
         } else {
-            // Even if backend failed, UI is already updated
-            showAlert('Paketler konteynere eklenemedi, manuel kontrol edin.', 'error'); // Changed info to error here
-            // Re-render to undo the instant visual removal if the transaction failed
-            await fastRefreshPackagesTable(); 
+            // Failure case - restore UI without data reload
+            showAlert('Paketler konteynere eklenemedi, manuel kontrol edin.', 'error');
+            
+            // Restore the removed rows visually
+            movedPackageElements.forEach(row => {
+                if (row && row.parentNode) {
+                    row.style.display = '';
+                    row.style.opacity = '1';
+                }
+            });
+            
+            // Restore package count
+            const totalPackagesElement = document.getElementById('totalPackages');
+            if (totalPackagesElement) {
+                const currentRows = document.querySelectorAll('#packagesTableBody tr:not([style*="display: none"])');
+                totalPackagesElement.textContent = currentRows.length.toString();
+            }
         }
 
         console.log('✅ sendToRamp completed successfully');
@@ -3764,130 +3744,22 @@ async function sendToRamp(containerNo = null) {
     } catch (error) {
         console.error('❌ Error in sendToRamp:', error);
         showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
-        // Critical: If an error occurs, the front-end elements that were visually removed 
-        // need to be restored. Calling fastRefreshPackagesTable() here will reload the 
-        // full package list and correct the UI state.
-        try {
-             await fastRefreshPackagesTable();
-        } catch (e) {
-             console.error('Failed to run final refresh on error:', e);
-        }
-    }
-}
-
-
-// SAFE fastRefreshPackagesTable
-async function fastRefreshPackagesTable() {
-    try {
-        const tableBody = document.getElementById('packagesTableBody');
-        if (!tableBody) {
-            console.warn('packagesTableBody not found');
-            return;
-        }
-
-        // Clear table
-        tableBody.innerHTML = '';
-
-        let packagesToShow = [];
-
-        // Get packages safely
-        if (isUsingExcel || !supabase || !navigator.onLine) {
-            // SAFE: Use Excel data with initialization
-            if (window.excelPackages && Array.isArray(window.excelPackages)) {
-                packagesToShow = window.excelPackages;
-            } else {
-                packagesToShow = [];
-                window.excelPackages = []; // Initialize
+        
+        // Error case - restore UI without data reload
+        movedPackageElements.forEach(row => {
+            if (row && row.parentNode) {
+                row.style.display = '';
+                row.style.opacity = '1';
             }
-        } else {
-            // Use Supabase data
-            try {
-                const { data: supabasePackages, error } = await supabase
-                    .from('packages')
-                    .select(`*, customers (name, code)`)
-                    .is('container_id', null)
-                    .eq('status', 'beklemede')
-                    .order('created_at', { ascending: false });
-
-                if (!error && supabasePackages) {
-                    packagesToShow = supabasePackages;
-                    window.packages = supabasePackages;
-                }
-            } catch (supabaseError) {
-                console.error('Supabase fetch error:', supabaseError);
-            }
-        }
-
-        // SAFE: Filter packages
-        packagesToShow = (packagesToShow || []).filter(pkg => 
-            pkg && (!pkg.container_id || pkg.container_id === null) && 
-            pkg.status === 'beklemede'
-        );
-
-        // Render packages
-        if (packagesToShow.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="8" style="text-align:center; color:#666;">Henüz paket yok</td>`;
-            tableBody.appendChild(row);
-        } else {
-            packagesToShow.forEach(pkg => {
-                if (!pkg) return;
-                
-                const row = document.createElement('tr');
-                
-                let itemsArray = [];
-                if (pkg.items && typeof pkg.items === 'object') {
-                    if (Array.isArray(pkg.items)) {
-                        itemsArray = pkg.items;
-                    } else {
-                        itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ name, qty }));
-                    }
-                }
-
-                const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-                row.innerHTML = `
-                    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-                    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-                    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-                    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-                        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-                    </td>
-                    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-                        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-                    </td>
-                    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                    <td style="text-align: center;">
-                        <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
-                            <i class="fas fa-print"></i>
-                        </button>
-                    </td>
-                `;
-                
-                row.addEventListener('click', (e) => {
-                    if (e.target.type !== 'checkbox') selectPackage(pkg);
-                });
-
-                tableBody.appendChild(row);
-            });
-        }
-
-        // Update package count
+        });
+        
+        // Restore package count
         const totalPackagesElement = document.getElementById('totalPackages');
         if (totalPackagesElement) {
-            totalPackagesElement.textContent = packagesToShow.length.toString();
+            const currentRows = document.querySelectorAll('#packagesTableBody tr:not([style*="display: none"])');
+            totalPackagesElement.textContent = currentRows.length.toString();
         }
-
-    } catch (error) {
-        console.error('Fast refresh error:', error);
     }
-}
-
-// Initialize excelPackages at app start
-if (typeof window.excelPackages === 'undefined') {
-    window.excelPackages = [];
-    console.log('📦 window.excelPackages initialized');
 }
 
 // --- shipContainer: ship/mark a whole container as shipped (sevk-edildi) ---
