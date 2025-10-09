@@ -273,6 +273,7 @@ async function clearExcelDataWithAuth() {
             }
         };
         
+        // ✅ EXPLICITLY using 'default' which maps to 8823
         await passwordGuard.askPasswordAndRun(clearAction, 'Excel verilerini temizleme', 'default');
     } catch (error) {
         if (error.message !== 'User cancelled') {
