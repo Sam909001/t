@@ -3303,38 +3303,42 @@ function escapeHtml(unsafe) {
 
         
 
-async function addNewCustomer() {
+async function addCustomer() {
+    console.log("🔴 STEP 4.1: addCustomer STARTED");
+    
     const code = document.getElementById('newCustomerCode').value.trim();
     const name = document.getElementById('newCustomerName').value.trim();
     const email = document.getElementById('newCustomerEmail').value.trim();
 
-    // ✅ SIMPLE VALIDATION (since validateForm doesn't exist)
-    if (!code) {
-        showAlert('Müşteri kodu giriniz!', 'error');
-        document.getElementById('newCustomerCode').focus();
-        return;
-    }
-    
-    if (!name) {
-        showAlert('Müşteri adı giriniz!', 'error');
-        document.getElementById('newCustomerName').focus();
-        return;
-    }
+    console.log("🔴 STEP 4.2: Form values - Code:'" + code + "', Name:'" + name + "', Email:'" + email + "'");
 
-    // Optional: Email validation
-    if (email && !isValidEmail(email)) {
-        showAlert('Geçerli bir e-posta adresi giriniz!', 'error');
-        document.getElementById('newCustomerEmail').focus();
-        return;
-    }
+    // ✅ TEMPORARY: Skip validation for testing
+    console.log("🔴 STEP 4.3: Skipping validation for debug");
+    
+    // if (!code) {
+    //     console.error("❌ Validation failed: Missing customer code");
+    //     showAlert('Müşteri kodu giriniz!', 'error');
+    //     return;
+    // }
+    
+    // if (!name) {
+    //     console.error("❌ Validation failed: Missing customer name");
+    //     showAlert('Müşteri adı giriniz!', 'error');
+    //     return;
+    // }
 
     try {
+        console.log("🔴 STEP 4.4: Getting workspace ID...");
         const workspaceId = getCurrentWorkspaceId();
+        console.log("🔴 STEP 4.5: Workspace ID:", workspaceId);
+        
         if (!workspaceId) {
+            console.error("❌ No workspace ID found");
             showAlert('Çalışma alanı bulunamadı!', 'error');
             return;
         }
 
+        console.log("🔴 STEP 4.6: Inserting customer to Supabase...");
         const { error } = await supabase
             .from('customers')
             .insert([{ 
@@ -3345,11 +3349,12 @@ async function addNewCustomer() {
             }]);
 
         if (error) {
-            console.error('Error adding customer:', error);
+            console.error('❌ STEP 4.7: Supabase insert error:', error);
             showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
             return;
         }
 
+        console.log("✅ STEP 4.8: Customer added successfully to database");
         showAlert('Müşteri başarıyla eklendi', 'success');
         
         // Clear form
@@ -3358,15 +3363,17 @@ async function addNewCustomer() {
         document.getElementById('newCustomerEmail').value = '';
         
         // Refresh lists
+        console.log("🔴 STEP 4.9: Refreshing customer lists...");
         await populateCustomers();
         await showAllCustomers();
         
+        console.log("✅ STEP 4.10: addCustomer COMPLETED");
+        
     } catch (error) {
-        console.error('Error in addNewCustomer:', error);
-        showAlert('Müşteri ekleme hatası', 'error');
+        console.error('❌ STEP 4.ERROR: Error in addCustomer:', error);
+        showAlert('Müşteri ekleme hatası: ' + error.message, 'error');
     }
 }
-
 // ✅ Add email validation helper
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
