@@ -3531,182 +3531,113 @@ async function deleteSelectedPackages() {
 
 async function sendToRamp(containerNo = null) {
     try {
-        // Get selected packages
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
             .map(cb => {
-                const packageDataStr = cb.getAttribute('data-package');
-                if (packageDataStr) {
-                    try {
-                        return JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
-                    } catch (e) {
-                        console.error('Error parsing package data:', e);
-                        return null;
-                    }
-                }
-                return null;
+                const data = cb.getAttribute('data-package');
+                try { return JSON.parse(data.replace(/&quot;/g, '"')); } catch { return null; }
             })
-            .filter(pkg => pkg !== null);
-        
+            .filter(Boolean);
+
         if (selectedPackages.length === 0) {
             showAlert('Konteynere eklemek için paket seçin', 'error');
             return;
         }
 
-        console.log('🔄 Starting container creation for', selectedPackages.length, 'packages');
-
         let containerId;
         let finalContainerNo = containerNo;
-        let totalQuantity = 0;
-        let packageCount = selectedPackages.length;
-
-        // Calculate total quantity ONCE at the beginning
-        totalQuantity = selectedPackages.reduce((sum, pkg) => {
-            let quantity = 0;
-            if (pkg.items && typeof pkg.items === 'object') {
-                if (Array.isArray(pkg.items)) {
-                    quantity = pkg.items.reduce((itemSum, item) => itemSum + (parseInt(item.qty) || 1), 0);
-                } else {
-                    quantity = Object.values(pkg.items).reduce((itemSum, qty) => itemSum + (parseInt(qty) || 1), 0);
-                }
-            } else {
-                quantity = parseInt(pkg.total_quantity) || 1;
-            }
-            return sum + quantity;
+        const totalQuantity = selectedPackages.reduce((sum, pkg) => {
+            const qty = pkg.items
+                ? Array.isArray(pkg.items)
+                    ? pkg.items.reduce((s, i) => s + (parseInt(i.qty) || 1), 0)
+                    : Object.values(pkg.items).reduce((s, q) => s + (parseInt(q) || 1), 0)
+                : (parseInt(pkg.total_quantity) || 1);
+            return sum + qty;
         }, 0);
 
-        // Use existing container or create new one
+        // 🧱 Create or use existing container
         if (containerNo && currentContainer) {
             containerId = currentContainer;
-            finalContainerNo = containerNo;
-            console.log('Using existing container:', containerNo);
         } else {
-            // Create new container - USING ONLY EXISTING COLUMNS FROM YOUR SCHEMA
-            const timestamp = new Date().getTime();
+            const timestamp = Date.now();
             finalContainerNo = containerNo || `CONT-${timestamp.toString().slice(-6)}`;
-            
-            // CONTAINER DATA - ONLY USING COLUMNS THAT EXIST IN YOUR SCHEMA
             const containerData = {
                 container_no: finalContainerNo,
-                customer_id: null, // This exists and is nullable - SAFE to use
-                package_count: packageCount,
+                customer_id: null,
+                package_count: selectedPackages.length,
                 total_quantity: totalQuantity,
                 status: 'beklemede'
             };
-            
-            console.log("Creating container with valid schema:", containerData);
-            
-            if (supabase && navigator.onLine) {
-                // Save to Supabase - ONLY WITH EXISTING COLUMNS
-                const { data: newContainer, error } = await supabase
-                    .from('containers')
-                    .insert([containerData])
-                    .select();
 
-                if (error) {
-                    console.error('Container creation error:', error);
-                    throw error;
-                }
-                
-                containerId = newContainer[0].id;
-                console.log('✅ Container created with ID:', containerId);
+            if (supabase && navigator.onLine) {
+                const { data, error } = await supabase.from('containers').insert([containerData]).select();
+                if (error) throw error;
+                containerId = data[0].id;
             } else {
-                // Excel mode
                 containerId = `cont-${timestamp}`;
-                const excelContainerData = {
-                    ...containerData,
-                    id: containerId,
-                    created_at: new Date().toISOString()
-                };
-                
-                const existingContainers = JSON.parse(localStorage.getItem('excel_containers') || '[]');
-                existingContainers.push(excelContainerData);
-                localStorage.setItem('excel_containers', JSON.stringify(existingContainers));
-                console.log('✅ Container saved to Excel storage');
+                const stored = JSON.parse(localStorage.getItem('excel_containers') || '[]');
+                stored.push({ ...containerData, id: containerId, created_at: new Date().toISOString() });
+                localStorage.setItem('excel_containers', JSON.stringify(stored));
             }
-            
+
             currentContainer = containerId;
         }
 
-        // Update packages with container assignment
+        // 📨 Update packages status
         let successCount = 0;
-
-        // Update Supabase packages
         const supabasePackages = selectedPackages.filter(p => isValidUUID(p.id));
-        if (supabasePackages.length > 0 && supabase && navigator.onLine) {
-            const validPackageIds = supabasePackages.map(p => p.id);
-
-            const { error: updateError } = await supabase
-                .from('packages')
-                .update({ 
-                    container_id: containerId,
-                    status: 'sevk-edildi',
-                    updated_at: new Date().toISOString()
-                })
-                .in('id', validPackageIds);
-
-            if (updateError) {
-                console.error('Supabase package update error:', updateError);
-            } else {
-                successCount += validPackageIds.length;
-                console.log(`✅ Updated ${validPackageIds.length} Supabase packages`);
-            }
-        }
-
-        // Update Excel packages
         const excelPackages = selectedPackages.filter(p => !isValidUUID(p.id));
-        if (excelPackages.length > 0) {
-            try {
-                const currentExcelData = await ExcelJS.readFile();
-                let updatedCount = 0;
-                
-                excelPackages.forEach(selectedPkg => {
-                    const index = currentExcelData.findIndex(p => p.id === selectedPkg.id);
-                    if (index !== -1) {
-                        currentExcelData[index] = {
-                            ...currentExcelData[index],
-                            container_id: containerId,
-                            status: 'sevk-edildi',
-                            updated_at: new Date().toISOString()
-                        };
-                        updatedCount++;
-                    }
-                });
-                
-                await ExcelJS.writeFile(currentExcelData);
-                window.excelPackages = currentExcelData;
-                successCount += updatedCount;
-                console.log(`✅ Updated ${updatedCount} Excel packages`);
-            } catch (excelError) {
-                console.error('Excel update error:', excelError);
-            }
+
+        // --- Supabase updates ---
+        if (supabasePackages.length > 0 && supabase && navigator.onLine) {
+            const ids = supabasePackages.map(p => p.id);
+            const { error } = await supabase
+                .from('packages')
+                .update({ container_id: containerId, status: 'sevk-edildi', updated_at: new Date().toISOString() })
+                .in('id', ids);
+            if (!error) successCount += ids.length;
         }
 
-        // Show results - USING ONLY VARIABLES DEFINED AT TOP LEVEL
-        if (successCount > 0) {
-            showAlert(
-                `✅ ${successCount} paket konteynere eklendi!\n` +
-                `📦 Konteyner: ${finalContainerNo}\n` +
-                `📊 Paket Sayısı: ${packageCount}\n` +
-                `🔢 Toplam Adet: ${totalQuantity}`,
-                'success'
-            );
+        // --- Excel updates ---
+        if (excelPackages.length > 0) {
+            const currentExcel = await ExcelJS.readFile();
+            let updatedCount = 0;
 
-            // Refresh tables
-            await populatePackagesTable();
-            
-            setTimeout(async () => {
-                await populateShippingTable();
-                currentContainer = null;
-            }, 1000);
+            excelPackages.forEach(pkg => {
+                const idx = currentExcel.findIndex(p => p.id === pkg.id);
+                if (idx !== -1) {
+                    currentExcel[idx] = { ...currentExcel[idx], container_id: containerId, status: 'sevk-edildi' };
+                    updatedCount++;
+                }
+            });
+
+            await ExcelJS.writeFile(currentExcel);
+            window.excelPackages = currentExcel; // 🔥 Immediate in-memory update
+            successCount += updatedCount;
+        }
+
+        // --- Instant UI Update ---
+        if (successCount > 0) {
+            showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
+
+            // Directly update the visible rows to show new status
+            selectedPackages.forEach(pkg => {
+                const row = document.querySelector(`#packagesTableBody tr[data-id="${pkg.id}"]`);
+                if (row) row.querySelector('.status-cell').textContent = 'sevk-edildi';
+            });
+
+            await populatePackagesTable(); // ensures refreshed data
+            setTimeout(() => populateShippingTable(), 500);
+            currentContainer = null;
         } else {
             showAlert('Hiçbir paket güncellenemedi', 'error');
         }
-        
+
     } catch (error) {
         console.error('❌ Error in sendToRamp:', error);
         showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
     }
 }
+
         
       async function shipContainer(containerNo) {
     console.log('🚢 shipContainer called with:', containerNo);
