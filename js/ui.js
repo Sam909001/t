@@ -3000,43 +3000,105 @@ class UXEnhancer {
 // Initialize UX enhancer
 const uxEnhancer = new UXEnhancer();
 
-// Bulk selection functions
-function toggleSelectAll(tableId) {
-    const selectAll = document.getElementById(`selectAll-${tableId}`);
-    const rowSelects = document.querySelectorAll(`#${tableId} .row-select`);
-    
-    rowSelects.forEach(checkbox => {
-        checkbox.checked = selectAll.checked;
-    });
-    
-    updateBulkActions(tableId);
+// Fixed bulk selection functions — tolerant to both (event) and (tableId) calls
+function _resolveTableId(arg) {
+  // If arg is an Event (e.g. onchange handler passed event), extract dataset.tableId
+  if (arg && arg.target && arg.target.dataset && arg.target.dataset.tableId) {
+    return arg.target.dataset.tableId;
+  }
+  // If arg is an element (checkbox) passed directly
+  if (arg && arg.dataset && arg.dataset.tableId) {
+    return arg.dataset.tableId;
+  }
+  // If arg is a string tableId
+  if (typeof arg === 'string') return arg;
+  // Nothing usable found
+  return null;
 }
 
-function updateBulkActions(tableId) {
-    const selectedCount = document.querySelectorAll(`#${tableId} .row-select:checked`).length;
-    const toolbar = document.getElementById(`bulk-actions-${tableId}`);
-    const countElement = document.getElementById(`selectedCount-${tableId}`);
-    
-    if (countElement) {
-        countElement.textContent = selectedCount;
+function toggleSelectAll(arg) {
+  // Accept either event or tableId string or checkbox element
+  const tableId = _resolveTableId(arg);
+
+  // If caller passed the event but we still want to support that:
+  // find the selectAll checkbox element
+  let selectAll;
+  if (tableId) {
+    selectAll = document.getElementById(`selectAll-${tableId}`);
+  } else if (arg && arg.target) {
+    // fallback: event.target
+    selectAll = arg.target;
+  } else if (arg instanceof Element && arg.type === 'checkbox') {
+    selectAll = arg;
+  }
+
+  // If we still don't have a checkbox, silently return
+  if (!selectAll) return;
+
+  // Ensure we have a tableId for querying rows; try dataset if missing
+  const resolvedTableId = tableId || selectAll.dataset?.tableId || null;
+  if (!resolvedTableId) {
+    // fallback: try to find nearest table ancestor with id
+    const tableEl = selectAll.closest && selectAll.closest('table');
+    if (tableEl && tableEl.id) {
+      // toggle all inside that table
+      const rowSelects = tableEl.querySelectorAll('.row-select');
+      rowSelects.forEach(cb => { if (cb instanceof HTMLInputElement) cb.checked = selectAll.checked; });
+      updateBulkActions(tableEl.id);
+      return;
     }
-    
-    if (toolbar) {
-        toolbar.style.display = selectedCount > 0 ? 'flex' : 'none';
-    }
+    return; // nothing to do
+  }
+
+  // Find row checkboxes safely
+  const rowSelects = document.querySelectorAll(`#${CSS.escape(resolvedTableId)} .row-select`);
+  if (!rowSelects || rowSelects.length === 0) {
+    updateBulkActions(resolvedTableId);
+    return;
+  }
+
+  rowSelects.forEach(cb => { if (cb instanceof HTMLInputElement) cb.checked = selectAll.checked; });
+
+  updateBulkActions(resolvedTableId);
 }
 
-function clearSelection(tableId) {
-    const selectAll = document.getElementById(`selectAll-${tableId}`);
-    const rowSelects = document.querySelectorAll(`#${tableId} .row-select`);
-    
-    selectAll.checked = false;
-    rowSelects.forEach(checkbox => {
-        checkbox.checked = false;
-    });
-    
-    updateBulkActions(tableId);
+function updateBulkActions(arg) {
+  const tableId = _resolveTableId(arg);
+  if (!tableId) return;
+
+  const selectedCount = document.querySelectorAll(`#${CSS.escape(tableId)} .row-select:checked`).length;
+  const toolbar = document.getElementById(`bulk-actions-${tableId}`);
+  const countElement = document.getElementById(`selectedCount-${tableId}`);
+
+  if (countElement) countElement.textContent = String(selectedCount);
+  if (toolbar) toolbar.style.display = selectedCount > 0 ? 'flex' : 'none';
 }
+
+function clearSelection(arg) {
+  const tableId = _resolveTableId(arg);
+  if (!tableId) {
+    // try clearing from event target's table if possible
+    if (arg && arg.target) {
+      const tableEl = arg.target.closest && arg.target.closest('table');
+      if (tableEl && tableEl.id) {
+        const selectAll = document.getElementById(`selectAll-${tableEl.id}`);
+        if (selectAll) selectAll.checked = false;
+        document.querySelectorAll(`#${CSS.escape(tableEl.id)} .row-select`).forEach(cb => { if (cb instanceof HTMLInputElement) cb.checked = false; });
+        updateBulkActions(tableEl.id);
+      }
+    }
+    return;
+  }
+
+  const selectAll = document.getElementById(`selectAll-${tableId}`);
+  if (selectAll) selectAll.checked = false;
+
+  const rowSelects = document.querySelectorAll(`#${CSS.escape(tableId)} .row-select`);
+  rowSelects.forEach(cb => { if (cb instanceof HTMLInputElement) cb.checked = false; });
+
+  updateBulkActions(tableId);
+}
+
 
 // Enhanced sync with progress indicator
 async function syncWithProgress() {
