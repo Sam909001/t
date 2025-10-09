@@ -2035,7 +2035,8 @@ function getSelectedPackage() {
     };
 }
 
-function toggleSelectAllPackages(source) {
+// FIXED: Select All for Packages
+function toggleSelectAll(source) {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
     checkboxes.forEach(checkbox => {
         checkbox.checked = source.checked;
@@ -2501,7 +2502,7 @@ window.addEventListener('beforeunload', () => {
 // Add to initializeElementsObject() or setupEventListeners()
 const selectAllCheckbox = document.getElementById('selectAllPackages');
 if (selectAllCheckbox) {
-   selectAllCheckbox.addEventListener('change', toggleSelectAllPackages);
+    selectAllCheckbox.addEventListener('change', toggleSelectAll);
     console.log('✅ Select all checkbox listener attached');
 }
 // ==================== PERFORMANCE OPTIMIZATION ====================
@@ -3198,6 +3199,7 @@ class DataValidator {
     }
 }
 
+// Enhanced completePackage with validation
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -3209,44 +3211,24 @@ async function completePackage() {
         return;
     }
 
+    // Check workspace permissions
     if (!window.workspaceManager?.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
     try {
+        // Generate package data
         const workspaceId = window.workspaceManager.currentWorkspace.id;
-        const stationNumber = workspaceId.replace('station-', '');
-
-        // GENERATE SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
-       
-        // Generate proper UUID for database compatibility
-const generatePackageId = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-};
-
-// Generate sequential display number only for package_no (not for ID)
-const generateSequentialNumber = () => {
-    const counterKey = `packageCounter_station_${stationNumber}`;
-    let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
-    currentCounter++;
-    localStorage.setItem(counterKey, currentCounter.toString());
-    return String(currentCounter).padStart(9, '0');
-};
-
-const sequentialNumber = generateSequentialNumber();
-const packageNo = `ST${stationNumber}-${sequentialNumber}`;
-const packageId = generatePackageId(); // Use UUID for database ID
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+        const packageNo = `PKG-${workspaceId}-${timestamp}`;
         
-        console.log('🆕 Sequential Package:', packageNo);
-
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
+        // Create package data
         const packageData = {
             id: packageId,
             package_no: packageNo,
@@ -3259,118 +3241,62 @@ const packageId = generatePackageId(); // Use UUID for database ID
                 qty: qty
             })),
             items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-                `${name}: ${qty} adet`
+                `${name} (${qty})`
             ).join(', '),
             total_quantity: totalQuantity,
             status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            packer: selectedPersonnel,
             workspace_id: workspaceId,
-            station_name: window.workspaceManager.currentWorkspace.name,
-            daily_file: ExcelStorage.getTodayDateString(),
-            source: 'App'
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
 
-        // Save to database and Excel
-        // Save to Excel FIRST, then backup to Supabase
-try {
-    // Always save to Excel first
-    await saveToExcel(packageData);
-    showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-    
-    // Then try to backup to Supabase if available and online
-    if (supabase && navigator.onLine && !isUsingExcel) {
-        try {
-            const { data, error } = await supabase
-                .from('packages')
-                .insert([packageData])
-                .select();
-
-            if (error) throw error;
-            
-            console.log('✅ Backup saved to Supabase');
-            
-        } catch (supabaseError) {
-            console.warn('Supabase backup failed:', supabaseError);
-            addToSyncQueue('add', packageData);
-            showAlert('Supabase yedekleme başarısız, sıraya eklendi', 'warning');
+        // Validate and sanitize data
+        if (typeof DataValidator !== 'undefined') {
+            DataValidator.validatePackageData(packageData);
+            const sanitizedData = DataValidator.sanitizePackageData(packageData);
         }
-    } else {
-        // If Supabase not available, add to sync queue
-        addToSyncQueue('add', packageData);
-        console.log('📦 Added to sync queue for Supabase backup');
-    }
-    
-} catch (excelError) {
-    console.error('Excel save failed:', excelError);
-    showAlert('Excel kaydetme hatası: ' + excelError.message, 'error');
-}
 
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
+        // Save to Excel
+        const excelData = await ExcelJS.readFile();
+        excelData.push(packageData);
+        await ExcelJS.writeFile(excelData);
+
+        // Add to sync queue
+        const syncOperation = {
+            fingerprint: `${packageId}-${Date.now()}`,
+            type: 'add',
+            data: packageData,
+            status: 'pending',
+            workspace_id: workspaceId,
+            created_at: new Date().toISOString()
+        };
+        
+        if (window.excelSyncQueue) {
+            window.excelSyncQueue.push(syncOperation);
+            localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
+        }
+
+        // Try to sync immediately
+        if (supabase && navigator.onLine && typeof safeSyncExcelWithSupabase === 'function') {
+            await safeSyncExcelWithSupabase();
+        }
+
+        // Reset form
+        resetPackageForm();
+        showAlert('Paket başarıyla oluşturuldu!', 'success');
+
+        // Refresh packages table
+        if (typeof safePopulatePackagesTable === 'function') {
+            await safePopulatePackagesTable();
+        }
 
     } catch (error) {
-        console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
-    }
-}
-// Delete selected packages
-async function deleteSelectedPackages() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) {
-        showAlert('Silinecek paket seçin', 'error');
-        return;
-    }
-
-    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
-
-    try {
-        const packageIds = Array.from(checkboxes).map(cb => cb.value);
-
-        const { error } = await supabase
-            .from('packages')
-            .delete()
-            .in('id', packageIds);
-
-        if (error) throw error;
-
-        showAlert(`${packageIds.length} paket silindi`, 'success');
-        await populatePackagesTable();
-
-    } catch (error) {
-        console.error('Error in deleteSelectedPackages:', error);
-        showAlert('Paket silme hatası', 'error');
+        console.error('Error completing package:', error);
+        showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
 
-// Add cleanup function to remove old used numbers (call this on app startup)
-function cleanupOldUsedNumbers() {
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('usedPackageNumbers_')) {
-            const dateMatch = key.match(/\d{4}-\d{2}-\d{2}$/);
-            if (dateMatch) {
-                const keyDate = new Date(dateMatch[0]);
-                if (keyDate < oneWeekAgo) {
-                    localStorage.removeItem(key);
-                    console.log(`🧹 Removed old used numbers: ${key}`);
-                }
-            }
-        }
-    }
-}
-
-// Call cleanup when UI loads
-document.addEventListener('DOMContentLoaded', function() {
-    cleanupOldUsedNumbers();
-});
 // Reports tab functionality fixes
 async function populateReportsTable() {
     const reportsTableBody = document.getElementById('reportsTableBody');
