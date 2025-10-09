@@ -1890,14 +1890,16 @@ async function populatePackagesTable() {
         if (isUsingExcel || !supabase || !navigator.onLine) {
             // Use Excel data filtered by workspace with additional safety
             packages = excelPackages.filter(pkg => {
-                const isValidWorkspace = pkg.workspace_id === workspaceId;
+                // FIX: Handle packages with undefined workspace_id
+                const packageWorkspace = pkg.workspace_id || getCurrentWorkspaceId();
+                const isValidWorkspace = packageWorkspace === workspaceId;
                 const isWaiting = pkg.status === 'beklemede';
                 const hasNoContainer = !pkg.container_id || pkg.container_id === null;
                 
                 if (!isValidWorkspace) {
                     console.warn('Filtered out package from different workspace:', {
                         packageId: pkg.id,
-                        packageWorkspace: pkg.workspace_id,
+                        packageWorkspace: packageWorkspace,
                         currentWorkspace: workspaceId
                     });
                 }
@@ -1908,15 +1910,13 @@ async function populatePackagesTable() {
         } else {
             // Try to use Supabase data with workspace filter
             try {
-                const workspaceFilter = getWorkspaceFilter();
-                
+                // FIX: Remove duplicate workspace filter - use only one
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', getCurrentWorkspaceId()) // ADD THIS LINE
-                    .eq('workspace_id', workspaceId) // STRICT WORKSPACE FILTER
+                    .eq('workspace_id', workspaceId) // USE ONLY THIS ONE - remove the duplicate line
                     .order('created_at', { ascending: false });
 
                 if (error) {
@@ -1930,11 +1930,12 @@ async function populatePackagesTable() {
             } catch (error) {
                 console.warn('Supabase fetch failed, using Excel data:', error);
                 // Fallback to Excel with workspace filtering
-                packages = excelPackages.filter(pkg => 
-                    pkg.workspace_id === workspaceId &&
-                    pkg.status === 'beklemede' && 
-                    (!pkg.container_id || pkg.container_id === null)
-                );
+                packages = excelPackages.filter(pkg => {
+                    const packageWorkspace = pkg.workspace_id || getCurrentWorkspaceId();
+                    return packageWorkspace === workspaceId &&
+                           pkg.status === 'beklemede' && 
+                           (!pkg.container_id || pkg.container_id === null);
+                });
                 isUsingExcel = true;
             }
         }
@@ -1952,7 +1953,7 @@ async function populatePackagesTable() {
 
         // Render table rows with workspace validation
         packages.forEach(pkg => {
-            // Validate workspace access for each package
+            // FIX: Update workspace validation to handle undefined
             if (!validateWorkspaceAccess(pkg)) {
                 console.warn('Skipping package from different workspace:', pkg.id);
                 return; // Skip this package
@@ -1988,25 +1989,26 @@ async function populatePackagesTable() {
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-row.innerHTML = `
-    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-    </td>
-    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-    </td>
-    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-    <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
-    ${sourceIcon}
-    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
-        <i class="fas fa-print"></i>
-    </button>
-</td>
-`;
+            row.innerHTML = `
+                <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+                <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+                <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
+                <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+                </td>
+                <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+                </td>
+                <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    ${sourceIcon}
+                    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </td>
+            `;
+            
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
             });
@@ -2027,7 +2029,6 @@ row.innerHTML = `
         packagesTableLoading = false;
     }
 }
-
 
 
 
@@ -3528,7 +3529,6 @@ async function deleteSelectedPackages() {
 }
 
 
-
 async function sendToRamp(containerNo = null) {
     try {
         // Get selected packages with proper data parsing
@@ -3595,27 +3595,27 @@ async function sendToRamp(containerNo = null) {
             containerId = currentContainer;
             console.log('Using existing container:', containerNo);
         } else {
-            // Create new container
+            // Create new container - EXACTLY matching your schema
             const timestamp = new Date().getTime();
             finalContainerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
-            // Get customer_id from selected packages (use the first package's customer)
+            // Get customer_id from selected packages
             const customerId = selectedPackages[0]?.customer_id || selectedCustomer?.id || null;
             
+            // Create container data EXACTLY matching your schema
             const containerData = {
                 container_no: finalContainerNo,
-                customer_id: customerId, // Use customer_id instead of customer_name
-                package_count: selectedPackages.length, // REAL package count
-                total_quantity: realTotalQuantity, // REAL total quantity
-                status: 'beklemede',
-                workspace_id: getCurrentWorkspaceId(),
-                created_at: new Date().toISOString()
+                customer_id: customerId, // This exists in your schema
+                package_count: selectedPackages.length, // This exists in your schema
+                total_quantity: realTotalQuantity, // This exists in your schema
+                status: 'beklemede' // This exists in your schema
+                // id and created_at are auto-generated by database
             };
             
-            console.log("Creating new container:", containerData);
+            console.log("Creating container with exact schema match:", containerData);
             
             if (supabase && navigator.onLine) {
-                // Save to Supabase
+                // Save to Supabase with exact schema
                 const { data: newContainer, error } = await supabase
                     .from('containers')
                     .insert([containerData])
@@ -3632,6 +3632,7 @@ async function sendToRamp(containerNo = null) {
                 // Excel mode - generate local ID
                 containerId = `cont-${timestamp}`;
                 containerData.id = containerId;
+                containerData.created_at = new Date().toISOString();
                 
                 // Save to Excel storage
                 const existingContainers = JSON.parse(localStorage.getItem('excel_containers') || '[]');
@@ -3706,6 +3707,7 @@ async function sendToRamp(containerNo = null) {
             showAlert(
                 `✅ ${successCount} paket konteynere eklendi!\n` +
                 `📦 Konteyner: ${finalContainerNo}\n` +
+                `📊 Paket Sayısı: ${selectedPackages.length}\n` +
                 `🔢 Toplam Adet: ${realTotalQuantity}`,
                 'success'
             );
@@ -3733,7 +3735,6 @@ async function sendToRamp(containerNo = null) {
         showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
     }
 }
-
         
       async function shipContainer(containerNo) {
     console.log('🚢 shipContainer called with:', containerNo);
