@@ -1829,15 +1829,16 @@ async function addCustomer(name, code) {
 
 async function assignPackagesToContainer(packageIds, containerId) {
     try {
-        showAlert('Paketler konteynere ekleniyor...', 'info');
+        showAlert('Paketler sevk ediliyor...', 'info');
         
-        // Update packages in memory
+        // Update packages in memory with DIRECT "sevk edildi" status
         window.packages = window.packages.map(pkg => {
             if (packageIds.includes(pkg.id)) {
                 return {
                     ...pkg,
                     container_id: containerId,
-                    status: 'konteynerде', // or your status value
+                    status: 'sevk edildi', // DIRECT to shipped status
+                    shipped_at: new Date().toISOString(), // Add shipping timestamp
                     updated_at: new Date().toISOString()
                 };
             }
@@ -1854,7 +1855,8 @@ async function assignPackagesToContainer(packageIds, containerId) {
                 .from('packages')
                 .update({ 
                     container_id: containerId,
-                    status: 'konteynerде',
+                    status: 'sevk edildi', // DIRECT to shipped status
+                    shipped_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 })
                 .in('id', packageIds);
@@ -1864,14 +1866,14 @@ async function assignPackagesToContainer(packageIds, containerId) {
         
         // Reload and refresh UI
         await loadPackagesDataStrict();
-        await populatePackagesTable();
-        await populateShippingTable();
+        await populatePackagesTable(); // This will remove from pending
+        await populateShippingTable(); // This will show in reports/history
         
-        showAlert(`${packageIds.length} paket konteynere eklendi`, 'success');
+        showAlert(`✅ ${packageIds.length} paket sevk edildi`, 'success');
         
     } catch (error) {
         console.error('Container assignment error:', error);
-        showAlert('Paketler eklenirken hata oluştu', 'error');
+        showAlert('Paketler sevk edilirken hata oluştu', 'error');
     }
 }
 
