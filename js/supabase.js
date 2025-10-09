@@ -3299,17 +3299,28 @@ function escapeHtml(unsafe) {
 
         
 
-      async function addNewCustomer() {
+  async function addNewCustomer() {
     const code = document.getElementById('newCustomerCode').value.trim();
     const name = document.getElementById('newCustomerName').value.trim();
     const email = document.getElementById('newCustomerEmail').value.trim();
 
-    // Form validation
-    if (!validateForm([
+    console.log("=== ADD CUSTOMER DEBUG ===");
+    console.log("Code:", code);
+    console.log("Name:", name);
+    console.log("Email:", email);
+    
+    // Test the validateForm function directly
+    const validationResult = validateForm([
         { id: 'newCustomerCode', errorId: 'customerCodeError', type: 'text', required: true },
         { id: 'newCustomerName', errorId: 'customerNameError', type: 'text', required: true },
         { id: 'newCustomerEmail', errorId: 'customerEmailError', type: 'email', required: false }
-    ])) {
+    ]);
+    
+    console.log("Validation Result:", validationResult);
+    console.log("=== END DEBUG ===");
+
+    if (!validationResult) {
+        showAlert('Lütfen müşteri adı ve kodunu girin. İşlem kontrol edin...', 'error');
         return;
     }
 
