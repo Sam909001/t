@@ -2035,8 +2035,7 @@ function getSelectedPackage() {
     };
 }
 
-// FIXED: Select All for Packages
-function toggleSelectAll(source) {
+function toggleSelectAllPackages(source) {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
     checkboxes.forEach(checkbox => {
         checkbox.checked = source.checked;
@@ -2502,7 +2501,7 @@ window.addEventListener('beforeunload', () => {
 // Add to initializeElementsObject() or setupEventListeners()
 const selectAllCheckbox = document.getElementById('selectAllPackages');
 if (selectAllCheckbox) {
-    selectAllCheckbox.addEventListener('change', toggleSelectAll);
+   selectAllCheckbox.addEventListener('change', toggleSelectAllPackages);
     console.log('✅ Select all checkbox listener attached');
 }
 // ==================== PERFORMANCE OPTIMIZATION ====================
