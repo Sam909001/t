@@ -3532,24 +3532,45 @@ async function deleteSelectedPackages() {
 // --- sendToRamp: assign selected packages to a container, update DB/Excel and UI instantly ---
 async function sendToRamp(containerNo = null) {
     try {
-        // gather selected packages
-        const selectedPackages = Array.from(
-            document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked')
-        )
-        .map(cb => {
+        // Get selected packages and their DOM elements
+        const selectedCheckboxes = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'));
+        const selectedPackages = selectedCheckboxes.map(cb => {
             const data = cb.getAttribute('data-package');
             if (!data) return null;
             try { return JSON.parse(data.replace(/&quot;/g, '"')); }
             catch (e) { console.error('Error parsing package data:', e); return null; }
-        })
-        .filter(Boolean);
+        }).filter(Boolean);
 
         if (selectedPackages.length === 0) {
             showAlert('Konteynere eklemek için paket seçin', 'error');
             return;
         }
 
-        // compute total quantity
+        // Store package IDs for immediate UI removal
+        const movedPackageIds = selectedPackages.map(pkg => pkg.id);
+        const movedPackageElements = selectedCheckboxes.map(cb => cb.closest('tr'));
+
+        // IMMEDIATE UI UPDATE: Remove packages from view instantly
+        movedPackageElements.forEach(row => {
+            if (row) {
+                row.style.opacity = '0.3';
+                row.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    row.style.display = 'none';
+                    // Remove from DOM after animation
+                    setTimeout(() => row.remove(), 300);
+                }, 150);
+            }
+        });
+
+        // Update package count immediately
+        const totalPackagesElement = document.getElementById('totalPackages');
+        if (totalPackagesElement) {
+            const currentCount = parseInt(totalPackagesElement.textContent) || 0;
+            totalPackagesElement.textContent = Math.max(0, currentCount - selectedPackages.length).toString();
+        }
+
+        // Compute total quantity
         const totalQuantity = selectedPackages.reduce((sum, pkg) => {
             const qty = pkg.items
                 ? Array.isArray(pkg.items)
@@ -3559,7 +3580,7 @@ async function sendToRamp(containerNo = null) {
             return sum + qty;
         }, 0);
 
-        // create or reuse container
+        // Create or reuse container
         let containerId;
         let finalContainerNo = containerNo;
         const timestamp = Date.now();
@@ -3590,11 +3611,10 @@ async function sendToRamp(containerNo = null) {
                 stored.push({ ...containerData, id: containerId, created_at: new Date().toISOString() });
                 localStorage.setItem('excel_containers', JSON.stringify(stored));
             }
-
             currentContainer = containerId;
         }
 
-        // update packages in Supabase and Excel
+        // Update packages in Supabase and Excel
         let successCount = 0;
 
         // Supabase updates
@@ -3603,20 +3623,19 @@ async function sendToRamp(containerNo = null) {
             const ids = supabasePackages.map(p => p.id);
             const { data: updatedRows, error: updateErr } = await supabase
                 .from('packages')
-                .update({ container_id: containerId, status: 'sevk-edildi', updated_at: new Date().toISOString() })
+                .update({ 
+                    container_id: containerId, 
+                    status: 'sevk-edildi', 
+                    updated_at: new Date().toISOString() 
+                })
                 .in('id', ids)
                 .select();
 
-            if (updateErr) {
-                console.error('Supabase package update error:', updateErr);
-            } else if (Array.isArray(updatedRows)) {
+            if (!updateErr && Array.isArray(updatedRows)) {
                 successCount += updatedRows.length;
-                // sync in-memory data
+                // Update in-memory data
                 if (Array.isArray(window.packages)) {
-                    updatedRows.forEach(updated => {
-                        const idx = window.packages.findIndex(p => p.id === updated.id);
-                        if (idx !== -1) window.packages[idx] = { ...window.packages[idx], ...updated };
-                    });
+                    window.packages = window.packages.filter(p => !ids.includes(p.id));
                 }
             }
         }
@@ -3627,6 +3646,10 @@ async function sendToRamp(containerNo = null) {
             try {
                 const currentExcel = await ExcelJS.readFile();
                 let updatedCount = 0;
+                
+                // Remove from Excel data
+                window.excelPackages = window.excelPackages.filter(p => !movedPackageIds.includes(p.id));
+                
                 excelPackages.forEach(pkg => {
                     const idx = currentExcel.findIndex(p => p.id === pkg.id);
                     if (idx !== -1) {
@@ -3640,25 +3663,20 @@ async function sendToRamp(containerNo = null) {
                     }
                 });
                 await ExcelJS.writeFile(currentExcel);
-                window.excelPackages = currentExcel;
                 successCount += updatedCount;
             } catch (exErr) {
                 console.error('Excel update error:', exErr);
             }
         }
 
-        // --- UI REFRESH ---
+        // FAST UI REFRESH - No workspace dependency
         if (successCount > 0) {
             showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
-
-            // 🧹 Reload pending and shipping lists cleanly
-            if (typeof loadPackagesDataStrict === 'function') {
-                await loadPackagesDataStrict(); // reload pending (fresh)
-            } else {
-                await populatePackagesTable(); // fallback
-            }
-
-            await populateShippingTable(); // refresh containers view
+            
+            // Ultra-fast refresh without workspace filtering
+            await fastRefreshPackagesTable();
+            await populateShippingTable();
+            
             currentContainer = null;
         } else {
             showAlert('Hiçbir paket güncellenemedi', 'error');
@@ -3670,6 +3688,99 @@ async function sendToRamp(containerNo = null) {
     }
 }
 
+// Add this FAST refresh function (workspace-independent)
+async function fastRefreshPackagesTable() {
+    try {
+        const tableBody = document.getElementById('packagesTableBody');
+        if (!tableBody) return;
+
+        // Clear table
+        tableBody.innerHTML = '';
+
+        let packagesToShow = [];
+
+        // Get packages WITHOUT workspace filtering for speed
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Use Excel data without workspace filtering
+            packagesToShow = window.excelPackages || [];
+        } else {
+            // Use Supabase data with minimal filtering
+            const { data: supabasePackages, error } = await supabase
+                .from('packages')
+                .select(`*, customers (name, code)`)
+                .is('container_id', null)
+                .eq('status', 'beklemede')
+                .order('created_at', { ascending: false });
+
+            if (!error && supabasePackages) {
+                packagesToShow = supabasePackages;
+                window.packages = supabasePackages;
+            }
+        }
+
+        // Filter to only show packages without containers and in 'beklemede' status
+        packagesToShow = packagesToShow.filter(pkg => 
+            (!pkg.container_id || pkg.container_id === null) && 
+            pkg.status === 'beklemede'
+        );
+
+        // Render packages
+        if (packagesToShow.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="8" style="text-align:center; color:#666;">Henüz paket yok</td>`;
+            tableBody.appendChild(row);
+        } else {
+            packagesToShow.forEach(pkg => {
+                const row = document.createElement('tr');
+                
+                let itemsArray = [];
+                if (pkg.items && typeof pkg.items === 'object') {
+                    if (Array.isArray(pkg.items)) {
+                        itemsArray = pkg.items;
+                    } else {
+                        itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ name, qty }));
+                    }
+                }
+
+                const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+                row.innerHTML = `
+                    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+                    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+                    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
+                    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+                        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+                    </td>
+                    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+                        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+                    </td>
+                    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                    <td style="text-align: center;">
+                        <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </td>
+                `;
+                
+                row.addEventListener('click', (e) => {
+                    if (e.target.type !== 'checkbox') selectPackage(pkg);
+                });
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Update package count
+        const totalPackagesElement = document.getElementById('totalPackages');
+        if (totalPackagesElement) {
+            totalPackagesElement.textContent = packagesToShow.length.toString();
+        }
+
+    } catch (error) {
+        console.error('Fast refresh error:', error);
+    }
+}
 
 // --- shipContainer: ship/mark a whole container as shipped (sevk-edildi) ---
 async function shipContainer(containerNo) {
