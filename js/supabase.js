@@ -3660,27 +3660,38 @@ async function sendToRamp(containerNo = null) {
             });
 
             // Short success message
-            showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
+           // --- Instant UI Update ---
+if (successCount > 0) {
+    showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
 
-            // Refresh both tables to ensure consistent data (fetches fresh from Supabase/Excel)
-        // ✅ Instantly remove from pending packages in memory & UI
-if (Array.isArray(window.packages)) {
-    window.packages = window.packages.filter(p => !selectedPackages.some(sp => sp.id === p.id));
-}
+    // Instantly remove from visible table
+    selectedPackages.forEach(pkg => {
+        const row = document.querySelector(`#packagesTableBody tr[data-id="${pkg.id}"]`);
+        if (row) row.remove();
+    });
 
-// ✅ Refresh tables to reflect removal and new shipping data
-if (typeof populatePackagesTable === 'function') await populatePackagesTable();
-if (typeof populateShippingTable === 'function') await populateShippingTable();
-
-currentContainer = null;
-        } else {
-            showAlert('Hiçbir paket güncellenemedi', 'error');
+    // Force re-fetch from Supabase (not cache)
+    if (supabase && navigator.onLine && typeof supabase.from === 'function') {
+        console.log("🔄 Fetching fresh packages list from Supabase...");
+        const { data: freshPackages, error } = await supabase
+            .from('packages')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (!error && freshPackages) {
+            window.packages = freshPackages;
         }
-
-    } catch (error) {
-        console.error('❌ Error in sendToRamp:', error);
-        showAlert('Konteynere ekleme hatası: ' + (error.message || error), 'error');
+    } else if (typeof ExcelJS !== 'undefined') {
+        console.log("📄 Reloading from Excel local file...");
+        window.packages = await ExcelJS.readFile();
     }
+
+    // Now rebuild both tables
+    if (typeof populatePackagesTable === 'function') await populatePackagesTable();
+    if (typeof populateShippingTable === 'function') await populateShippingTable();
+
+    currentContainer = null;
+} else {
+    showAlert('Hiçbir paket güncellenemedi', 'error');
 }
 
 
