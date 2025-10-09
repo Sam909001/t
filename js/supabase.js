@@ -3528,7 +3528,6 @@ async function deleteSelectedPackages() {
     }
 }
 
-
 // --- sendToRamp: assign selected packages to a container, update DB/Excel and UI instantly ---
 async function sendToRamp(containerNo = null) {
     try {
@@ -3633,22 +3632,27 @@ async function sendToRamp(containerNo = null) {
 
             if (!updateErr && Array.isArray(updatedRows)) {
                 successCount += updatedRows.length;
-                // Update in-memory data
+                // Update in-memory data safely
                 if (Array.isArray(window.packages)) {
                     window.packages = window.packages.filter(p => !ids.includes(p.id));
                 }
             }
         }
 
-        // Excel updates
+        // Excel updates - FIXED: Proper error handling for window.excelPackages
         const excelPackages = selectedPackages.filter(p => !isValidUUID(p.id));
         if (excelPackages.length > 0 && typeof ExcelJS !== 'undefined' && typeof ExcelJS.readFile === 'function') {
             try {
                 const currentExcel = await ExcelJS.readFile();
                 let updatedCount = 0;
                 
-                // Remove from Excel data
-                window.excelPackages = window.excelPackages.filter(p => !movedPackageIds.includes(p.id));
+                // FIX: Safely handle window.excelPackages
+                if (window.excelPackages && Array.isArray(window.excelPackages)) {
+                    window.excelPackages = window.excelPackages.filter(p => !movedPackageIds.includes(p.id));
+                } else {
+                    // Initialize if undefined
+                    window.excelPackages = [];
+                }
                 
                 excelPackages.forEach(pkg => {
                     const idx = currentExcel.findIndex(p => p.id === pkg.id);
@@ -3662,10 +3666,13 @@ async function sendToRamp(containerNo = null) {
                         updatedCount++;
                     }
                 });
+                
                 await ExcelJS.writeFile(currentExcel);
                 successCount += updatedCount;
+                
             } catch (exErr) {
                 console.error('Excel update error:', exErr);
+                // Continue even if Excel update fails - UI is already updated
             }
         }
 
@@ -3688,7 +3695,7 @@ async function sendToRamp(containerNo = null) {
     }
 }
 
-// Add this FAST refresh function (workspace-independent)
+// Enhanced fastRefreshPackagesTable with better error handling
 async function fastRefreshPackagesTable() {
     try {
         const tableBody = document.getElementById('packagesTableBody');
@@ -3701,26 +3708,46 @@ async function fastRefreshPackagesTable() {
 
         // Get packages WITHOUT workspace filtering for speed
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use Excel data without workspace filtering
-            packagesToShow = window.excelPackages || [];
+            // Use Excel data without workspace filtering - with safety check
+            packagesToShow = (window.excelPackages && Array.isArray(window.excelPackages)) 
+                ? window.excelPackages 
+                : [];
+                
+            // If empty, try to load from Excel file
+            if (packagesToShow.length === 0 && typeof ExcelJS !== 'undefined') {
+                try {
+                    packagesToShow = await ExcelJS.readFile();
+                    window.excelPackages = packagesToShow; // Cache for future use
+                } catch (error) {
+                    console.warn('Could not load Excel data:', error);
+                    packagesToShow = [];
+                }
+            }
         } else {
             // Use Supabase data with minimal filtering
-            const { data: supabasePackages, error } = await supabase
-                .from('packages')
-                .select(`*, customers (name, code)`)
-                .is('container_id', null)
-                .eq('status', 'beklemede')
-                .order('created_at', { ascending: false });
+            try {
+                const { data: supabasePackages, error } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .is('container_id', null)
+                    .eq('status', 'beklemede')
+                    .order('created_at', { ascending: false });
 
-            if (!error && supabasePackages) {
-                packagesToShow = supabasePackages;
-                window.packages = supabasePackages;
+                if (!error && supabasePackages) {
+                    packagesToShow = supabasePackages;
+                    window.packages = supabasePackages;
+                } else {
+                    packagesToShow = [];
+                }
+            } catch (supabaseError) {
+                console.error('Supabase fetch error:', supabaseError);
+                packagesToShow = [];
             }
         }
 
         // Filter to only show packages without containers and in 'beklemede' status
         packagesToShow = packagesToShow.filter(pkg => 
-            (!pkg.container_id || pkg.container_id === null) && 
+            pkg && (!pkg.container_id || pkg.container_id === null) && 
             pkg.status === 'beklemede'
         );
 
@@ -3731,6 +3758,8 @@ async function fastRefreshPackagesTable() {
             tableBody.appendChild(row);
         } else {
             packagesToShow.forEach(pkg => {
+                if (!pkg) return; // Skip undefined packages
+                
                 const row = document.createElement('tr');
                 
                 let itemsArray = [];
@@ -3781,6 +3810,16 @@ async function fastRefreshPackagesTable() {
         console.error('Fast refresh error:', error);
     }
 }
+
+// Add this initialization function to ensure excelPackages is always defined
+function initializeExcelPackages() {
+    if (!window.excelPackages || !Array.isArray(window.excelPackages)) {
+        window.excelPackages = [];
+    }
+}
+
+// Call this when your app starts
+initializeExcelPackages();
 
 // --- shipContainer: ship/mark a whole container as shipped (sevk-edildi) ---
 async function shipContainer(containerNo) {
