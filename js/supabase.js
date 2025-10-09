@@ -3332,8 +3332,8 @@ async function addNewCustomer() {
         let workspaceId = getCurrentWorkspaceId();
         console.log("🔴 STEP 4.5: Workspace ID:", workspaceId, "Type:", typeof workspaceId);
         
-        // ✅ FIX: If workspaceId is not a valid UUID, use default
-        if (!workspaceId || !isValidUUID(workspaceId)) {
+        // ✅ SIMPLIFIED FIX: Check if it looks like a UUID
+        if (!workspaceId || typeof workspaceId !== 'string' || workspaceId.length !== 36) {
             console.warn("⚠️ Invalid workspace ID, using default...");
             workspaceId = '00000000-0000-0000-0000-000000000000'; // Default workspace UUID
         }
@@ -3380,12 +3380,6 @@ async function addNewCustomer() {
         showAlert('Müşteri ekleme hatası: ' + error.message, 'error');
         return { success: false, error: error.message };
     }
-}
-
-// ✅ Add UUID validation helper
-function isValidUUID(uuid) {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
 }
 
     async function deleteCustomer(customerId) {
