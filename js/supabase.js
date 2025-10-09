@@ -2033,21 +2033,77 @@ row.innerHTML = `
 
         
         
-       // Calculate total quantity of selected packages
-async function calculateTotalQuantity(packageIds) {
+     async function calculateTotalQuantity(packageIds) {
     try {
-        const { data: packages, error } = await supabase
-            .from('packages')
-            .select('total_quantity')
-            .in('id', packageIds);
+        console.log("Calculating total quantity for packages:", packageIds);
+        
+        let total = 0;
+        
+        // Separate UUID packages and Excel packages
+        const uuidPackages = packageIds.filter(id => isValidUUID(id));
+        const excelPackages = packageIds.filter(id => !isValidUUID(id));
+        
+        console.log("UUID packages:", uuidPackages);
+        console.log("Excel packages:", excelPackages);
 
-        if (error) throw error;
+        // Calculate from Supabase for valid UUIDs
+        if (uuidPackages.length > 0) {
+            const { data, error } = await supabase
+                .from('packages')
+                .select('total_quantity')
+                .in('id', uuidPackages);
 
-        return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+            if (error) {
+                console.warn('Supabase quantity query error:', error);
+            } else if (data) {
+                total += data.reduce((sum, pkg) => sum + (pkg.total_quantity || 1), 0);
+                console.log("Supabase packages total:", total);
+            }
+        }
+        
+        // Calculate from Excel packages for non-UUIDs
+        if (excelPackages.length > 0) {
+            let excelTotal = 0;
+            excelPackages.forEach(id => {
+                // Try to find in excelPackages array
+                const pkg = window.excelPackages?.find(p => p.id === id);
+                if (pkg) {
+                    excelTotal += pkg.total_quantity || 1;
+                } else {
+                    // Fallback: check data-package attribute
+                    const checkbox = document.querySelector(`input[data-package*="${id}"]`);
+                    if (checkbox) {
+                        try {
+                            const packageDataStr = checkbox.getAttribute('data-package');
+                            const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
+                            excelTotal += packageData.total_quantity || 1;
+                        } catch (e) {
+                            excelTotal += 1; // Default fallback
+                        }
+                    } else {
+                        excelTotal += 1; // Default fallback
+                    }
+                }
+            });
+            total += excelTotal;
+            console.log("Excel packages total:", excelTotal);
+        }
+        
+        console.log("Final total quantity:", total);
+        return total;
+        
     } catch (error) {
         console.error('Error calculating total quantity:', error);
-        return packageIds.length; // fallback
+        // Safe fallback: return package count
+        return packageIds.length;
     }
+}
+
+// ✅ UUID validation helper
+function isValidUUID(uuid) {
+    if (!uuid || typeof uuid !== 'string') return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
 }
 
 
