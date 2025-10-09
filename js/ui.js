@@ -3199,7 +3199,7 @@ class DataValidator {
     }
 }
 
-// Enhanced completePackage with validation
+// ✅ Enhanced completePackage with live UI update and safe refresh
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -3218,17 +3218,15 @@ async function completePackage() {
     }
 
     try {
-        // Generate package data
+        // 🔹 Generate package data
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         const timestamp = Date.now();
         const random = Math.random().toString(36).substr(2, 9);
         const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
         const packageNo = `PKG-${workspaceId}-${timestamp}`;
-        
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Create package data
         const packageData = {
             id: packageId,
             package_no: packageNo,
@@ -3236,13 +3234,8 @@ async function completePackage() {
             customer_name: selectedCustomer.name,
             customer_code: selectedCustomer.code,
             items: currentPackage.items,
-            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
-                name: name,
-                qty: qty
-            })),
-            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-                `${name} (${qty})`
-            ).join(', '),
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({ name, qty })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => `${name} (${qty})`).join(', '),
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel,
@@ -3251,18 +3244,18 @@ async function completePackage() {
             updated_at: new Date().toISOString()
         };
 
-        // Validate and sanitize data
+        // 🔹 Optional validation
         if (typeof DataValidator !== 'undefined') {
             DataValidator.validatePackageData(packageData);
-            const sanitizedData = DataValidator.sanitizePackageData(packageData);
+            DataValidator.sanitizePackageData(packageData);
         }
 
-        // Save to Excel
+        // 🔹 Save locally to Excel
         const excelData = await ExcelJS.readFile();
         excelData.push(packageData);
         await ExcelJS.writeFile(excelData);
 
-        // Add to sync queue
+        // 🔹 Add to sync queue
         const syncOperation = {
             fingerprint: `${packageId}-${Date.now()}`,
             type: 'add',
@@ -3271,24 +3264,38 @@ async function completePackage() {
             workspace_id: workspaceId,
             created_at: new Date().toISOString()
         };
-        
+
         if (window.excelSyncQueue) {
             window.excelSyncQueue.push(syncOperation);
             localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
         }
 
-        // Try to sync immediately
+        // 🔹 Try to sync immediately
         if (supabase && navigator.onLine && typeof safeSyncExcelWithSupabase === 'function') {
             await safeSyncExcelWithSupabase();
         }
 
-        // Reset form - REMOVED THE PROBLEMATIC LINE
-        // resetPackageForm(); // ← This line was causing the error
-        
+        // ✅ Instant UI feedback
         showAlert('Paket başarıyla oluşturuldu!', 'success');
 
-        // Refresh packages table
-        if (typeof safePopulatePackagesTable === 'function') {
+        // ✅ Instantly show in table without page reload
+        const tbody = document.querySelector('#packagesTableBody');
+        if (tbody) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${packageData.package_no}</td>
+                <td>${packageData.customer_name || '-'}</td>
+                <td>${packageData.total_quantity || 0}</td>
+                <td>${packageData.status}</td>
+                <td>${new Date(packageData.created_at).toLocaleString('tr-TR')}</td>
+            `;
+            tbody.prepend(row);
+        }
+
+        // ✅ Try full table refresh if available
+        if (typeof populatePackagesTable === 'function') {
+            await populatePackagesTable();
+        } else if (typeof safePopulatePackagesTable === 'function') {
             await safePopulatePackagesTable();
         }
 
@@ -3297,6 +3304,7 @@ async function completePackage() {
         showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
     }
 }
+
 // Reports tab functionality fixes
 async function populateReportsTable() {
     const reportsTableBody = document.getElementById('reportsTableBody');
