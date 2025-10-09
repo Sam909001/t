@@ -246,39 +246,29 @@ async function deleteCustomerWithAuth(customerId, customerName) {
         }
     }
 }
-// ✅ DEBUG VERSION: Add Customer with Authentication
+// ✅ FIXED: Add Customer with Authentication - Uses 8823
 async function addCustomerWithAuth() {
-    console.log("🔴 STEP 1: addCustomerWithAuth STARTED");
-    
     const passwordGuard = new PasswordGuard();
-    console.log("🔴 STEP 2: PasswordGuard created");
     
     try {
         const addAction = async () => {
-            console.log("🔴 STEP 3: Inside addAction (PasswordGuard executed this)");
-            console.log("🔴 addCustomer function type:", typeof addCustomer);
+            console.log("🔐 PasswordGuard executing add customer action");
+            console.log("🟢 Checking function name: addNewCustomer exists:", typeof addNewCustomer);
             
-            if (typeof addCustomer === 'function') {
-                console.log("🔴 STEP 4: Calling addCustomer()...");
-                const result = await addCustomer();
-                console.log("🔴 STEP 5: addCustomer completed, result:", result);
-                return result;
+            if (typeof addNewCustomer === 'function') {
+                console.log("🟢 Calling addNewCustomer function...");
+                await addNewCustomer();
             } else {
-                console.error("❌ addCustomer function not found!");
+                console.error("❌ addNewCustomer function not found!");
                 showAlert('Müşteri ekleme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
             }
         };
         
-        console.log("🔴 STEP 2.5: Calling askPasswordAndRun...");
         await passwordGuard.askPasswordAndRun(addAction, 'müşteri ekleme', 'default');
-        console.log("✅ STEP 6: addCustomerWithAuth COMPLETED SUCCESSFULLY");
-        
     } catch (error) {
-        console.error("❌ STEP ERROR: addCustomerWithAuth failed:", error);
         if (error.message !== 'User cancelled') {
             console.log('Add customer cancelled:', error.message);
-            showAlert('Müşteri ekleme iptal edildi: ' + error.message, 'warning');
         }
     }
 }
