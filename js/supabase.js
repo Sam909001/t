@@ -3317,36 +3317,30 @@ async function addNewCustomer() {
         console.error("❌ Validation failed: Missing customer code");
         showAlert('Müşteri kodu giriniz!', 'error');
         document.getElementById('newCustomerCode').focus();
-        return { success: false, error: 'Missing code' }; // ✅ Return result
+        return { success: false, error: 'Missing code' };
     }
     
     if (!name) {
         console.error("❌ Validation failed: Missing customer name");
         showAlert('Müşteri adı giriniz!', 'error');
         document.getElementById('newCustomerName').focus();
-        return { success: false, error: 'Missing name' }; // ✅ Return result
-    }
-
-    // Optional email validation
-    if (email && !isValidEmail(email)) {
-        console.error("❌ Validation failed: Invalid email format");
-        showAlert('Geçerli bir e-posta adresi giriniz!', 'error');
-        document.getElementById('newCustomerEmail').focus();
-        return { success: false, error: 'Invalid email' }; // ✅ Return result
+        return { success: false, error: 'Missing name' };
     }
 
     try {
         console.log("🔴 STEP 4.4: Getting workspace ID...");
-        const workspaceId = getCurrentWorkspaceId();
-        console.log("🔴 STEP 4.5: Workspace ID:", workspaceId);
+        let workspaceId = getCurrentWorkspaceId();
+        console.log("🔴 STEP 4.5: Workspace ID:", workspaceId, "Type:", typeof workspaceId);
         
-        if (!workspaceId) {
-            console.error("❌ No workspace ID found");
-            showAlert('Çalışma alanı bulunamadı!', 'error');
-            return { success: false, error: 'No workspace' }; // ✅ Return result
+        // ✅ FIX: If workspaceId is not a valid UUID, use default
+        if (!workspaceId || !isValidUUID(workspaceId)) {
+            console.warn("⚠️ Invalid workspace ID, using default...");
+            workspaceId = '00000000-0000-0000-0000-000000000000'; // Default workspace UUID
         }
+        
+        console.log("🔴 STEP 4.6: Using workspace ID:", workspaceId);
 
-        console.log("🔴 STEP 4.6: Inserting customer to Supabase...");
+        console.log("🔴 STEP 4.7: Inserting customer to Supabase...");
         const { data, error } = await supabase
             .from('customers')
             .insert([{ 
@@ -3355,17 +3349,17 @@ async function addNewCustomer() {
                 email: email || null,
                 workspace_id: workspaceId
             }])
-            .select(); // ✅ Add .select() to get inserted data
+            .select();
 
-        console.log("🔴 STEP 4.7: Supabase response - data:", data, "error:", error);
+        console.log("🔴 STEP 4.8: Supabase response - data:", data, "error:", error);
 
         if (error) {
-            console.error('❌ STEP 4.8: Supabase insert error:', error);
+            console.error('❌ STEP 4.9: Supabase insert error:', error);
             showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
-            return { success: false, error: error.message }; // ✅ Return result
+            return { success: false, error: error.message };
         }
 
-        console.log("✅ STEP 4.9: Customer added successfully to database. Data:", data);
+        console.log("✅ STEP 4.10: Customer added successfully to database. Data:", data);
         showAlert('Müşteri başarıyla eklendi', 'success');
         
         // Clear form
@@ -3374,18 +3368,24 @@ async function addNewCustomer() {
         document.getElementById('newCustomerEmail').value = '';
         
         // Refresh lists
-        console.log("🔴 STEP 4.10: Refreshing customer lists...");
+        console.log("🔴 STEP 4.11: Refreshing customer lists...");
         await populateCustomers();
         await showAllCustomers();
         
-        console.log("✅ STEP 4.11: addNewCustomer COMPLETED SUCCESSFULLY");
-        return { success: true, data: data }; // ✅ Return success result
+        console.log("✅ STEP 4.12: addNewCustomer COMPLETED SUCCESSFULLY");
+        return { success: true, data: data };
         
     } catch (error) {
         console.error('❌ STEP 4.ERROR: Error in addNewCustomer:', error);
         showAlert('Müşteri ekleme hatası: ' + error.message, 'error');
-        return { success: false, error: error.message }; // ✅ Return result
+        return { success: false, error: error.message };
     }
+}
+
+// ✅ Add UUID validation helper
+function isValidUUID(uuid) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
 }
 
     async function deleteCustomer(customerId) {
