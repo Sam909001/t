@@ -3543,6 +3543,7 @@ async function sendToRamp(containerNo = null) {
                             package_no: packageData.package_no,
                             total_quantity: packageData.total_quantity || 1,
                             items: packageData.items,
+                            customer_id: packageData.customer_id,
                             customer_name: packageData.customer_name || packageData.customers?.name,
                             isExcel: packageData.id.startsWith('pkg-') || packageData.id.startsWith('excel-'),
                             data: packageData
@@ -3598,10 +3599,12 @@ async function sendToRamp(containerNo = null) {
             const timestamp = new Date().getTime();
             finalContainerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
+            // Get customer_id from selected packages (use the first package's customer)
+            const customerId = selectedPackages[0]?.customer_id || selectedCustomer?.id || null;
+            
             const containerData = {
                 container_no: finalContainerNo,
-                customer_id: selectedCustomer?.id || null,
-                customer_name: selectedCustomer?.name || selectedPackages[0]?.customer_name || 'Genel',
+                customer_id: customerId, // Use customer_id instead of customer_name
                 package_count: selectedPackages.length, // REAL package count
                 total_quantity: realTotalQuantity, // REAL total quantity
                 status: 'beklemede',
@@ -3624,6 +3627,7 @@ async function sendToRamp(containerNo = null) {
                 }
                 
                 containerId = newContainer[0].id;
+                console.log('Container created with ID:', containerId);
             } else {
                 // Excel mode - generate local ID
                 containerId = `cont-${timestamp}`;
@@ -3633,6 +3637,7 @@ async function sendToRamp(containerNo = null) {
                 const existingContainers = JSON.parse(localStorage.getItem('excel_containers') || '[]');
                 existingContainers.push(containerData);
                 localStorage.setItem('excel_containers', JSON.stringify(existingContainers));
+                console.log('Container saved to Excel storage');
             }
             
             currentContainer = containerId;
@@ -3643,6 +3648,8 @@ async function sendToRamp(containerNo = null) {
         const excelPackages = selectedPackages.filter(p => p.isExcel);
 
         console.log(`Updating ${supabasePackages.length} Supabase packages and ${excelPackages.length} Excel packages`);
+
+        let successCount = 0;
 
         // Update Supabase packages
         if (supabasePackages.length > 0 && supabase && navigator.onLine) {
@@ -3659,8 +3666,8 @@ async function sendToRamp(containerNo = null) {
 
             if (updateError) {
                 console.error('Supabase package update error:', updateError);
-                // Continue with Excel packages even if Supabase fails
             } else {
+                successCount += validPackageIds.length;
                 console.log(`Updated ${validPackageIds.length} Supabase packages`);
             }
         }
@@ -3686,6 +3693,7 @@ async function sendToRamp(containerNo = null) {
                 
                 await ExcelJS.writeFile(currentExcelData);
                 window.excelPackages = currentExcelData;
+                successCount += updatedCount;
                 
                 console.log(`Updated ${updatedCount} Excel packages`);
             } catch (excelError) {
@@ -3693,42 +3701,38 @@ async function sendToRamp(containerNo = null) {
             }
         }
 
-        // Show success message with real numbers
-        showAlert(
-            `✅ ${selectedPackages.length} paket konteynere eklendi!\n` +
-            `📦 Konteyner: ${finalContainerNo}\n` +
-            `🔢 Toplam Adet: ${realTotalQuantity}`,
-            'success'
-        );
+        // Show success message
+        if (successCount > 0) {
+            showAlert(
+                `✅ ${successCount} paket konteynere eklendi!\n` +
+                `📦 Konteyner: ${finalContainerNo}\n` +
+                `🔢 Toplam Adet: ${realTotalQuantity}`,
+                'success'
+            );
 
-        // Auto-refresh and switch to shipping tab
-        setTimeout(async () => {
-            await populatePackagesTable();
-            await populateShippingTable();
-            
-            // Switch to shipping tab to see the result
-            const shippingTab = document.querySelector('[data-tab="shipping"]');
-            if (shippingTab) {
-                shippingTab.click();
-            }
-            
-            // Clear selection
-            currentContainer = null;
-        }, 1500);
+            // Auto-refresh and switch to shipping tab
+            setTimeout(async () => {
+                await populatePackagesTable();
+                await populateShippingTable();
+                
+                // Switch to shipping tab to see the result
+                const shippingTab = document.querySelector('[data-tab="shipping"]');
+                if (shippingTab) {
+                    shippingTab.click();
+                }
+                
+                // Clear selection
+                currentContainer = null;
+            }, 1500);
+        } else {
+            showAlert('Hiçbir paket güncellenemedi', 'error');
+        }
         
     } catch (error) {
         console.error('Error in sendToRamp:', error);
         showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
     }
 }
-
-// Helper function to validate UUID
-function isValidUUID(uuid) {
-    if (!uuid || typeof uuid !== 'string') return false;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
-}
-
 
         
       async function shipContainer(containerNo) {
