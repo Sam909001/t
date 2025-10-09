@@ -4601,3 +4601,54 @@ window.printSinglePackage = async function(packageId) {
 
 
 window.workspaceManager = new EnhancedWorkspaceManager();
+
+
+
+async function getContainerColumns() {
+    try {
+        if (supabase) {
+            // Try to get the actual structure by inserting a minimal container
+            const testData = {
+                container_no: 'TEST-COLUMNS',
+                status: 'beklemede'
+            };
+            
+            const { data, error } = await supabase
+                .from('containers')
+                .insert([testData])
+                .select();
+            
+            if (error) {
+                console.error('Error testing container columns:', error);
+                
+                // Try a different approach - get any existing container
+                const { data: existingContainers, error: selectError } = await supabase
+                    .from('containers')
+                    .select('*')
+                    .limit(1);
+                
+                if (selectError) {
+                    console.error('Error selecting containers:', selectError);
+                    return ['container_no', 'status']; // Default minimal columns
+                }
+                
+                if (existingContainers && existingContainers.length > 0) {
+                    const columns = Object.keys(existingContainers[0]);
+                    console.log('Existing container columns:', columns);
+                    return columns;
+                }
+            } else if (data && data.length > 0) {
+                const columns = Object.keys(data[0]);
+                console.log('Container table columns:', columns);
+                return columns;
+            }
+        }
+    } catch (error) {
+        console.error('Error in getContainerColumns:', error);
+    }
+    
+    return ['container_no', 'status']; // Fallback to minimal columns
+}
+
+// Run this to see what columns your containers table has
+getContainerColumns();
