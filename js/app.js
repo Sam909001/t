@@ -937,47 +937,83 @@ async function loadPackagesData() {
     try {
         const workspaceId = getCurrentWorkspaceId();
         
+        console.log('🔄 loadPackagesData started. Current packages:', window.packages ? window.packages.length : 0);
+        
+        // PRESERVE existing packages that are already processed
+        const existingPackages = window.packages || [];
+        const existingPackageIds = new Set(existingPackages.map(p => p.id));
+        
+        // Track which packages we want to keep from existing data
+        const packagesToKeep = existingPackages.filter(pkg => 
+            pkg && (pkg.container_id || pkg.status === 'sevk-edildi')
+        );
+        
+        console.log('📦 Packages to preserve:', packagesToKeep.length);
+        
         // Load from workspace-specific Excel
         const excelData = await ExcelJS.readFile();
         const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
         
-        // STRICT workspace filtering
+        // STRICT workspace filtering - ONLY get pending packages from Excel
         const workspacePackages = excelPackagesList.filter(pkg => {
             const isValid = pkg.workspace_id === workspaceId;
+            const isPending = (!pkg.container_id || pkg.container_id === null) && pkg.status === 'beklemede';
+            
             if (!isValid) {
                 console.warn('Filtered package from different workspace during load:', pkg.id);
+                return false;
             }
-            return isValid;
+            
+            // Only include if it's not already in our preserved packages
+            return isPending && !existingPackageIds.has(pkg.id);
         });
         
-        console.log(`Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
-        window.packages = workspacePackages;
+        console.log(`📊 Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'NEW packages');
         
-        // Load from Supabase with STRICT workspace filtering
+        // Load from Supabase with STRICT workspace filtering - ONLY pending packages
+        let supabasePackages = [];
         if (supabase && navigator.onLine) {
             try {
-                const { data: supabasePackages, error } = await supabase
+                const { data, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', workspaceId) // STRICT FILTER
+                    .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
                 
-                if (!error && supabasePackages && supabasePackages.length > 0) {
-                    console.log(`Loaded from Supabase:`, supabasePackages.length, 'packages');
+                if (!error && data && data.length > 0) {
+                    console.log(`📡 Loaded from Supabase:`, data.length, 'NEW packages');
                     
-                    // Merge with Excel data (Supabase takes priority)
-                    const mergedPackages = mergePackages(workspacePackages, supabasePackages);
-                    window.packages = mergedPackages;
-                    
-                    // Update Excel storage with merged data
-                    const excelData = ExcelJS.toExcelFormat(mergedPackages);
-                    await ExcelJS.writeFile(excelData);
+                    // Filter out packages we already have
+                    supabasePackages = data.filter(pkg => !existingPackageIds.has(pkg.id));
+                    console.log(`📡 After deduplication:`, supabasePackages.length, 'NEW packages from Supabase');
                 }
             } catch (supabaseError) {
-                console.warn('Supabase load failed, using Excel data:', supabaseError);
+                console.warn('Supabase load failed, using existing data:', supabaseError);
             }
+        }
+        
+        // MERGE: Preserved packages + new Excel packages + new Supabase packages
+        const mergedPackages = [
+            ...packagesToKeep,    // Keep shipped packages
+            ...workspacePackages, // New pending from Excel
+            ...supabasePackages   // New pending from Supabase
+        ];
+        
+        window.packages = mergedPackages;
+        console.log('✅ Final merged packages:', mergedPackages.length);
+        console.log('   - Preserved shipped:', packagesToKeep.length);
+        console.log('   - New from Excel:', workspacePackages.length);
+        console.log('   - New from Supabase:', supabasePackages.length);
+        
+        // Update Excel storage with merged data (optional)
+        try {
+            const excelData = ExcelJS.toExcelFormat(mergedPackages);
+            await ExcelJS.writeFile(excelData);
+            console.log('💾 Updated Excel storage with merged data');
+        } catch (writeError) {
+            console.warn('Could not update Excel storage:', writeError);
         }
         
         await populatePackagesTable();
