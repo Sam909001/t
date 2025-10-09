@@ -19,6 +19,7 @@ class WorkspaceManager {
         await this.loadWorkspaces();
         await this.loadCurrentWorkspace();
         this.initializeWorkspaceStorage();
+        this.initializePackageCounters(); // ← ADDED THIS LINE
         
         this.initialized = true;
         console.log('✅ Workspace system ready:', this.currentWorkspace);
@@ -146,6 +147,22 @@ class WorkspaceManager {
         return types[ws.type] || ws.type || 'Genel';
     }
     
+    // Initialize package counters for all workspaces
+    initializePackageCounters() {
+        console.log('🔢 Initializing package counters for all workspaces...');
+        
+        this.availableWorkspaces.forEach(workspace => {
+            const stationNumber = workspace.id.replace('station-', '');
+            const counterKey = `packageCounter_station_${stationNumber}`;
+            
+            // Only initialize if counter doesn't exist
+            if (!localStorage.getItem(counterKey)) {
+                localStorage.setItem(counterKey, '0');
+                console.log(`✅ Package counter initialized for ${workspace.name}: 0`);
+            }
+        });
+    }
+    
     // Initialize workspace-specific Excel storage
     initializeWorkspaceStorage() {
         if (!this.currentWorkspace) {
@@ -163,17 +180,21 @@ class WorkspaceManager {
         
         // Override with workspace-specific versions
         ExcelJS.readFile = async function() {
-            try {
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-                const packages = data ? JSON.parse(data) : [];
-                console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
-                return packages;
-            } catch (error) {
-                console.error('❌ Workspace Excel read error:', error);
-                return [];
-            }
-        };
+    try {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+        const packages = data ? JSON.parse(data) : [];
+        console.log(`📁 Loaded ${packages.length} packages from workspace: ${workspaceId}`);
+        
+        // 🚨 REMOVE THE COUNTER RESET LOGIC - KEEP SEQUENTIAL COUNTER SEPARATE
+        // Don't let existing data override your sequential numbering
+        
+        return packages;
+    } catch (error) {
+        console.error('❌ Workspace Excel read error:', error);
+        return [];
+    }
+};
         
         ExcelJS.writeFile = async function(data) {
             try {
@@ -424,12 +445,14 @@ class WorkspaceManager {
             return;
         }
         
-        const newWorkspace = {
-            id: 'station-' + Date.now(),
-            name: name.trim(),
-            type: 'packaging',
-            created: new Date().toISOString()
-        };
+       // Generate clean sequential workspace ID
+const nextStationNumber = this.availableWorkspaces.length + 1;
+const newWorkspace = {
+    id: 'station-' + nextStationNumber,  // ← FIXED: station-1, station-2, etc.
+    name: name.trim(),
+    type: 'packaging',
+    created: new Date().toISOString()
+};
         
         this.availableWorkspaces.push(newWorkspace);
         this.saveWorkspaces();
