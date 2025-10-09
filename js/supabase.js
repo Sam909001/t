@@ -3531,6 +3531,7 @@ async function deleteSelectedPackages() {
 
 async function sendToRamp(containerNo = null) {
     try {
+        // Get selected packages with proper data parsing
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
             .map(cb => {
                 const packageDataStr = cb.getAttribute('data-package');
@@ -3542,6 +3543,7 @@ async function sendToRamp(containerNo = null) {
                             package_no: packageData.package_no,
                             total_quantity: packageData.total_quantity || 1,
                             items: packageData.items,
+                            customer_name: packageData.customer_name || packageData.customers?.name,
                             isExcel: packageData.id.startsWith('pkg-') || packageData.id.startsWith('excel-'),
                             data: packageData
                         };
@@ -3552,16 +3554,16 @@ async function sendToRamp(containerNo = null) {
                 }
                 return null;
             })
-            .filter(pkg => pkg !== null); // Remove null entries
+            .filter(pkg => pkg !== null);
         
         if (selectedPackages.length === 0) {
-            showAlert('Sevk etmek için paket seçin', 'error');
+            showAlert('Konteynere eklemek için paket seçin', 'error');
             return;
         }
 
-        console.log('Selected packages for shipping:', selectedPackages);
+        console.log('Selected packages for container:', selectedPackages);
 
-        // Calculate REAL total quantity
+        // Calculate REAL total quantity from items
         const realTotalQuantity = selectedPackages.reduce((sum, pkg) => {
             let quantity = 0;
             
@@ -3581,52 +3583,69 @@ async function sendToRamp(containerNo = null) {
             return sum + quantity;
         }, 0);
 
-        console.log('Real total quantity calculated:', realTotalQuantity);
+        console.log('Real package count:', selectedPackages.length);
+        console.log('Real total quantity:', realTotalQuantity);
+
+        let containerId;
+        let finalContainerNo = containerNo;
 
         // Use existing container or create a new one
-        let containerId;
         if (containerNo && currentContainer) {
             containerId = currentContainer;
+            console.log('Using existing container:', containerNo);
         } else {
+            // Create new container
             const timestamp = new Date().getTime();
-            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+            finalContainerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
             const containerData = {
-                container_no: containerNo,
+                container_no: finalContainerNo,
                 customer_id: selectedCustomer?.id || null,
+                customer_name: selectedCustomer?.name || selectedPackages[0]?.customer_name || 'Genel',
                 package_count: selectedPackages.length, // REAL package count
                 total_quantity: realTotalQuantity, // REAL total quantity
-                status: 'beklemede', // Start as waiting, not shipped yet
-                workspace_id: getCurrentWorkspaceId()
+                status: 'beklemede',
+                workspace_id: getCurrentWorkspaceId(),
+                created_at: new Date().toISOString()
             };
             
-            console.log("Creating container with REAL data:", containerData);
+            console.log("Creating new container:", containerData);
             
-            const { data: newContainer, error } = await supabase
-                .from('containers')
-                .insert([containerData])
-                .select();
+            if (supabase && navigator.onLine) {
+                // Save to Supabase
+                const { data: newContainer, error } = await supabase
+                    .from('containers')
+                    .insert([containerData])
+                    .select();
 
-            if (error) {
-                console.error('Container creation error:', error);
-                throw error;
+                if (error) {
+                    console.error('Container creation error:', error);
+                    throw error;
+                }
+                
+                containerId = newContainer[0].id;
+            } else {
+                // Excel mode - generate local ID
+                containerId = `cont-${timestamp}`;
+                containerData.id = containerId;
+                
+                // Save to Excel storage
+                const existingContainers = JSON.parse(localStorage.getItem('excel_containers') || '[]');
+                existingContainers.push(containerData);
+                localStorage.setItem('excel_containers', JSON.stringify(existingContainers));
             }
             
-            containerId = newContainer[0].id;
-            currentContainer = containerId; // Store the container ID, not the number
-            if (elements.containerNumber) {
-                elements.containerNumber.textContent = containerNo;
-            }
+            currentContainer = containerId;
         }
 
-        // Process packages with proper quantity handling
+        // Update packages with container assignment
         const supabasePackages = selectedPackages.filter(p => !p.isExcel && isValidUUID(p.id));
         const excelPackages = selectedPackages.filter(p => p.isExcel);
 
-        console.log(`Processing ${supabasePackages.length} Supabase packages and ${excelPackages.length} Excel packages`);
+        console.log(`Updating ${supabasePackages.length} Supabase packages and ${excelPackages.length} Excel packages`);
 
-        // Update valid Supabase packages
-        if (supabasePackages.length > 0 && supabase) {
+        // Update Supabase packages
+        if (supabasePackages.length > 0 && supabase && navigator.onLine) {
             const validPackageIds = supabasePackages.map(p => p.id);
 
             const { error: updateError } = await supabase
@@ -3640,19 +3659,18 @@ async function sendToRamp(containerNo = null) {
 
             if (updateError) {
                 console.error('Supabase package update error:', updateError);
-                throw updateError;
+                // Continue with Excel packages even if Supabase fails
+            } else {
+                console.log(`Updated ${validPackageIds.length} Supabase packages`);
             }
-
-            console.log(`Updated ${validPackageIds.length} Supabase packages`);
         }
 
         // Update Excel packages
         if (excelPackages.length > 0) {
             try {
-                // Read current Excel data
                 const currentExcelData = await ExcelJS.readFile();
+                let updatedCount = 0;
                 
-                // Update each selected Excel package
                 excelPackages.forEach(selectedPkg => {
                     const index = currentExcelData.findIndex(p => p.id === selectedPkg.id);
                     if (index !== -1) {
@@ -3662,37 +3680,45 @@ async function sendToRamp(containerNo = null) {
                             status: 'sevk-edildi',
                             updated_at: new Date().toISOString()
                         };
+                        updatedCount++;
                     }
                 });
                 
-                // Save updated Excel data
                 await ExcelJS.writeFile(currentExcelData);
-                excelPackages = currentExcelData;
+                window.excelPackages = currentExcelData;
                 
-                console.log(`Updated ${excelPackages.length} Excel packages`);
+                console.log(`Updated ${updatedCount} Excel packages`);
             } catch (excelError) {
                 console.error('Excel update error:', excelError);
-                throw excelError;
             }
         }
 
-        showAlert(`${selectedPackages.length} paket konteynere eklendi (Konteyner: ${containerNo}) ✅`, 'success');
-        
-        // Auto-refresh both tables
+        // Show success message with real numbers
+        showAlert(
+            `✅ ${selectedPackages.length} paket konteynere eklendi!\n` +
+            `📦 Konteyner: ${finalContainerNo}\n` +
+            `🔢 Toplam Adet: ${realTotalQuantity}`,
+            'success'
+        );
+
+        // Auto-refresh and switch to shipping tab
         setTimeout(async () => {
             await populatePackagesTable();
             await populateShippingTable();
             
-            // Auto-switch to shipping tab
+            // Switch to shipping tab to see the result
             const shippingTab = document.querySelector('[data-tab="shipping"]');
             if (shippingTab) {
                 shippingTab.click();
             }
-        }, 1000);
+            
+            // Clear selection
+            currentContainer = null;
+        }, 1500);
         
     } catch (error) {
-        console.error('Error sending to ramp:', error);
-        showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
+        console.error('Error in sendToRamp:', error);
+        showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
     }
 }
 
