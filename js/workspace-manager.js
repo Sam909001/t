@@ -191,24 +191,30 @@ class WorkspaceManager {
         //this.loadWorkspaceData();
     //}
   
-    // Load workspace-specific data
-    async loadWorkspaceData() {
-        try {
-            const workspaceId = this.currentWorkspace?.id || 'default';
-            const data = localStorage.getItem(`excelPackages_${workspaceId}`);
-            const packages = data ? JSON.parse(data) : [];
-            
-            // Make sure excelPackages global variable is updated
-            excelPackages = packages;
-            
-            console.log(`📦 Workspace data loaded: ${excelPackages.length} packages for workspace: ${workspaceId}`);
-            return packages;
-        } catch (error) {
-            console.error('❌ Error loading workspace data:', error);
-            excelPackages = [];
-            return [];
+   // In workspace-manager.js - UPDATE THIS METHOD:
+async loadWorkspaceData() {
+    try {
+        const workspaceId = this.currentWorkspace?.id || 'default';
+        const data = localStorage.getItem(`excelPackages_${workspaceId}`);
+        const newPackages = data ? JSON.parse(data) : [];
+        
+        // 🆕 PRESERVE existing packages instead of replacing them
+        if (Array.isArray(excelPackages) && excelPackages.length > 0) {
+            // Merge new packages with existing ones, preferring existing data
+            const existingPackageIds = new Set(excelPackages.map(p => p.id));
+            const uniqueNewPackages = newPackages.filter(p => !existingPackageIds.has(p.id));
+            excelPackages = [...excelPackages, ...uniqueNewPackages];
+        } else {
+            excelPackages = newPackages;
         }
+        
+        console.log(`📦 Workspace data merged: ${excelPackages.length} packages for workspace: ${workspaceId}`);
+        return excelPackages;
+    } catch (error) {
+        console.error('❌ Error loading workspace data:', error);
+        return excelPackages || [];
     }
+}
   
     // Show workspace selection modal - WITH CLOSE/CANCEL OPTION
     async showWorkspaceSelection() {
