@@ -3663,11 +3663,16 @@ async function sendToRamp(containerNo = null) {
             showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
 
             // Refresh both tables to ensure consistent data (fetches fresh from Supabase/Excel)
-            await Promise.all([
-                typeof populatePackagesTable === 'function' ? populatePackagesTable() : Promise.resolve(),
-                typeof populateShippingTable === 'function' ? populateShippingTable() : Promise.resolve()
-            ]);
-            currentContainer = null;
+        // ✅ Instantly remove from pending packages in memory & UI
+if (Array.isArray(window.packages)) {
+    window.packages = window.packages.filter(p => !selectedPackages.some(sp => sp.id === p.id));
+}
+
+// ✅ Refresh tables to reflect removal and new shipping data
+if (typeof populatePackagesTable === 'function') await populatePackagesTable();
+if (typeof populateShippingTable === 'function') await populateShippingTable();
+
+currentContainer = null;
         } else {
             showAlert('Hiçbir paket güncellenemedi', 'error');
         }
