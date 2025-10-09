@@ -3324,33 +3324,33 @@ console.log('✅ Reports module loaded successfully');
 
         
 
-       // Check if customerId is defined before deleting
-async function deleteCustomer(customerId) {
-  if (!customerId) {
-    console.error('Customer ID is undefined');
-    return { error: new Error('Customer ID is required') };
-  }
+        async function deleteCustomer(customerId) {
+            if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
 
-  const { data, error } = await supabase
-    .from('customers')
-    .delete()
-    .eq('id', customerId);
+            try {
+                const { error } = await supabase
+                    .from('customers')
+                    .delete()
+                    .eq('id', customerId);
 
-  if (error) {
-    console.error('Error deleting customer:', error);
-    return { error };
-  }
+                if (error) {
+                    console.error('Error deleting customer:', error);
+                    showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+                    return;
+                }
 
-  return { data };
-}
+                showAlert('Müşteri başarıyla silindi', 'success');
+                
+                // Refresh lists
+                await populateCustomers();
+                await showAllCustomers();
+                
+            } catch (error) {
+                console.error('Error in deleteCustomer:', error);
+                showAlert('Müşteri silme hatası', 'error');
+            }
+        }
 
-// Usage - always validate the ID
-const customerId = getCustomerId(); // Your function to get the ID
-if (customerId && isValidUUID(customerId)) {
-  await deleteCustomer(customerId);
-} else {
-  console.error('Invalid customer ID:', customerId);
-}
 
 
 async function completePackage() {
