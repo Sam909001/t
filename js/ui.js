@@ -4144,68 +4144,39 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 function initializeExcelButtons() {
-    console.log("🚀 initializeExcelButtons() IS BEING CALLED!");
-    
-    // More detailed debugging
-    console.log("🔍 Searching for buttons...");
+    console.log("🔄 Initializing Excel buttons...");
     
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
-    console.log("🔍 Refresh button:", refreshBtn);
-    console.log("🔍 Clear button:", clearBtn);
-    
-    // Check if buttons exist and have the right IDs
-    console.log("🔍 All buttons on page:", document.querySelectorAll('button'));
-    console.log("🔍 All elements with IDs:", document.querySelectorAll('[id]'));
-    
     if (refreshBtn) {
-        console.log("✅ Found refresh button, adding event listener...");
-        refreshBtn.addEventListener('click', function() {
+        // Remove any existing listeners
+        refreshBtn.replaceWith(refreshBtn.cloneNode(true));
+        const newRefreshBtn = document.getElementById('refreshExcelBtn');
+        
+        newRefreshBtn.onclick = function() {
             console.log("🎯 REFRESH BUTTON CLICKED!");
             refreshExcelData();
-        });
-        // Also add onclick as backup
-        refreshBtn.onclick = function() {
-            console.log("🎯 REFRESH BUTTON CLICKED (onclick)!");
-            refreshExcelData();
         };
-    } else {
-        console.error("❌ refreshExcelBtn NOT FOUND!");
-        // Let's search for similar buttons
-        const possibleRefreshBtns = document.querySelectorAll('button');
-        possibleRefreshBtns.forEach((btn, index) => {
-            if (btn.textContent.includes('Güncelle') || btn.textContent.includes('refresh') || btn.textContent.includes('sync')) {
-                console.log(`🔍 Possible refresh button ${index}:`, btn);
-            }
-        });
+        console.log('✅ Refresh Excel button initialized with onclick');
     }
     
     if (clearBtn) {
-        console.log("✅ Found clear button, adding event listener...");
-        clearBtn.addEventListener('click', function() {
+        // Remove any existing listeners
+        clearBtn.replaceWith(clearBtn.cloneNode(true));
+        const newClearBtn = document.getElementById('clearExcelBtn');
+        
+        newClearBtn.onclick = function() {
             console.log("🎯 CLEAR BUTTON CLICKED!");
             clearExcelDataWithAuth();
-        });
-        // Also add onclick as backup
-        clearBtn.onclick = function() {
-            console.log("🎯 CLEAR BUTTON CLICKED (onclick)!");
-            clearExcelDataWithAuth();
         };
-    } else {
-        console.error("❌ clearExcelBtn NOT FOUND!");
-        // Let's search for similar buttons
-        const possibleClearBtns = document.querySelectorAll('button');
-        possibleClearBtns.forEach((btn, index) => {
-            if (btn.textContent.includes('Temizle') || btn.textContent.includes('clear') || btn.textContent.includes('trash')) {
-                console.log(`🔍 Possible clear button ${index}:`, btn);
-            }
-        });
+        console.log('✅ Clear Excel button initialized with onclick');
     }
 }
 
-// Call it again to make sure
-setTimeout(initializeExcelButtons, 1000);
+// Call it now
+initializeExcelButtons();
+console.log("✅ Buttons should work now. Test them!");
 
 
 async function clearExcelDataWithAuth() {
