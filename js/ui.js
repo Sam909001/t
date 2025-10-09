@@ -3219,23 +3219,28 @@ async function completePackage() {
         const stationNumber = workspaceId.replace('station-', '');
 
         // GENERATE SEQUENTIAL 9-DIGIT NUMBER (000000001 to 999999999)
-        const generateSequentialNumber = () => {
-            const counterKey = `packageCounter_station_${stationNumber}`;
-            
-            let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
-            currentCounter++;
-            localStorage.setItem(counterKey, currentCounter.toString());
-            
-            const sequentialNumber = String(currentCounter).padStart(9, '0');
-            console.log(`🔢 Sequential number generated: ${sequentialNumber} (counter: ${currentCounter})`);
-            return sequentialNumber;
-        };
+       
+        // Generate proper UUID for database compatibility
+const generatePackageId = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
 
-        const sequentialNumber = generateSequentialNumber();
-        
-        // Create package IDs with format: ST1-000000001
-        const packageNo = `ST${stationNumber}-${sequentialNumber}`;
-        const packageId = packageNo.toLowerCase();
+// Generate sequential display number only for package_no (not for ID)
+const generateSequentialNumber = () => {
+    const counterKey = `packageCounter_station_${stationNumber}`;
+    let currentCounter = parseInt(localStorage.getItem(counterKey)) || 0;
+    currentCounter++;
+    localStorage.setItem(counterKey, currentCounter.toString());
+    return String(currentCounter).padStart(9, '0');
+};
+
+const sequentialNumber = generateSequentialNumber();
+const packageNo = `ST${stationNumber}-${sequentialNumber}`;
+const packageId = generatePackageId(); // Use UUID for database ID
         
         console.log('🆕 Sequential Package:', packageNo);
 
