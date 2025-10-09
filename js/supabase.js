@@ -868,50 +868,63 @@ ExcelStorage.exportDailyFile = function(dateString) {
 
 
     
-// INITIALIZE SUPABASE - uses direct key (from localStorage or hardcoded above)
-// Singleton pattern with safe fallback to Excel mode if no key
+// FIXED INITIALIZE SUPABASE
 function initializeSupabase() {
     // If client already created and API key exists, return it
-    if (supabase && SUPABASE_ANON_KEY) {
-        return supabase;
+    if (window.supabase && SUPABASE_ANON_KEY) {
+        return window.supabase;
     }
     
     if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'REPLACE_WITH_YOUR_ANON_KEY') {
         console.warn('Supabase API key is not set. Running in Excel (offline) mode.');
-        isUsingExcel = true;
+        window.isUsingExcel = true;
         showAlert('Excel modu aktif: Çevrimdışı çalışıyorsunuz', 'warning');
         return null;
     }
     
     try {
         // If a global supabase factory exists, prefer it; otherwise create minimal wrapper
-        if (window.supabase && typeof window.supabase.createClient === 'function') {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        if (typeof window.supabase?.createClient === 'function') {
+            window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } else if (typeof createClient === 'function') {
-            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } else {
-            // Try to use @supabase/supabase-js if loaded as supabaseClient
-            if (window.SupabaseClient) {
-                supabase = new window.SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } else {
-                console.warn('Supabase client factory not found - supabase operations will fail if attempted');
-                supabase = null;
-            }
+            // Last resort: try to import dynamically
+            import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
+                .then(({ createClient }) => {
+                    window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('✅ Supabase client initialized via dynamic import');
+                })
+                .catch(error => {
+                    console.error('Dynamic import failed:', error);
+                    window.supabase = null;
+                });
         }
-        if (supabase) {
-            console.log('Supabase client initialized successfully');
-            isUsingExcel = false;
-            return supabase;
+        
+        if (window.supabase) {
+            console.log('✅ Supabase client initialized successfully');
+            window.isUsingExcel = false;
+            return window.supabase;
         } else {
             throw new Error('Supabase client creation returned null');
         }
     } catch (error) {
         console.error('Supabase initialization error:', error);
         showAlert('Supabase başlatılamadı. Excel moduna geçiliyor.', 'warning');
-        isUsingExcel = true;
+        window.isUsingExcel = true;
         return null;
     }
 }
+
+// ✅ Auto-initialize on app start
+(function autoInitializeSupabase() {
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeSupabase);
+    } else {
+        initializeSupabase();
+    }
+})();
 
 async function initializeExcelStorage() {
     try {
