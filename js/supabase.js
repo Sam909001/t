@@ -1890,16 +1890,14 @@ async function populatePackagesTable() {
         if (isUsingExcel || !supabase || !navigator.onLine) {
             // Use Excel data filtered by workspace with additional safety
             packages = excelPackages.filter(pkg => {
-                // FIX: Handle packages with undefined workspace_id
-                const packageWorkspace = pkg.workspace_id || getCurrentWorkspaceId();
-                const isValidWorkspace = packageWorkspace === workspaceId;
+                const isValidWorkspace = pkg.workspace_id === workspaceId;
                 const isWaiting = pkg.status === 'beklemede';
                 const hasNoContainer = !pkg.container_id || pkg.container_id === null;
                 
                 if (!isValidWorkspace) {
                     console.warn('Filtered out package from different workspace:', {
                         packageId: pkg.id,
-                        packageWorkspace: packageWorkspace,
+                        packageWorkspace: pkg.workspace_id,
                         currentWorkspace: workspaceId
                     });
                 }
@@ -1910,13 +1908,15 @@ async function populatePackagesTable() {
         } else {
             // Try to use Supabase data with workspace filter
             try {
-                // FIX: Remove duplicate workspace filter - use only one
+                const workspaceFilter = getWorkspaceFilter();
+                
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', workspaceId) // USE ONLY THIS ONE - remove the duplicate line
+                    .eq('workspace_id', getCurrentWorkspaceId()) // ADD THIS LINE
+                    .eq('workspace_id', workspaceId) // STRICT WORKSPACE FILTER
                     .order('created_at', { ascending: false });
 
                 if (error) {
@@ -1930,12 +1930,11 @@ async function populatePackagesTable() {
             } catch (error) {
                 console.warn('Supabase fetch failed, using Excel data:', error);
                 // Fallback to Excel with workspace filtering
-                packages = excelPackages.filter(pkg => {
-                    const packageWorkspace = pkg.workspace_id || getCurrentWorkspaceId();
-                    return packageWorkspace === workspaceId &&
-                           pkg.status === 'beklemede' && 
-                           (!pkg.container_id || pkg.container_id === null);
-                });
+                packages = excelPackages.filter(pkg => 
+                    pkg.workspace_id === workspaceId &&
+                    pkg.status === 'beklemede' && 
+                    (!pkg.container_id || pkg.container_id === null)
+                );
                 isUsingExcel = true;
             }
         }
@@ -1953,7 +1952,7 @@ async function populatePackagesTable() {
 
         // Render table rows with workspace validation
         packages.forEach(pkg => {
-            // FIX: Update workspace validation to handle undefined
+            // Validate workspace access for each package
             if (!validateWorkspaceAccess(pkg)) {
                 console.warn('Skipping package from different workspace:', pkg.id);
                 return; // Skip this package
@@ -1989,26 +1988,25 @@ async function populatePackagesTable() {
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-            row.innerHTML = `
-                <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-                <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-                <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-                <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-                    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-                </td>
-                <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-                    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-                </td>
-                <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    ${sourceIcon}
-                    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
-                        <i class="fas fa-print"></i>
-                    </button>
-                </td>
-            `;
-            
+row.innerHTML = `
+    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
+    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+    </td>
+    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+    </td>
+    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+    <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+    ${sourceIcon}
+    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+        <i class="fas fa-print"></i>
+    </button>
+</td>
+`;
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
             });
@@ -2029,6 +2027,7 @@ async function populatePackagesTable() {
         packagesTableLoading = false;
     }
 }
+
 
 
 
@@ -2116,6 +2115,9 @@ const pageSize = 20; // number of containers per page
 let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
 
+// COMPLETE FIXED populateShippingTable function
+// Replace the existing one in supabase (36).js (around line 950-1100)
+
 async function populateShippingTable(page = 0) {
     if (isShippingTableLoading) {
         console.log('Shipping table already loading, skipping...');
@@ -2144,11 +2146,10 @@ async function populateShippingTable(page = 0) {
             console.log('🔄 Fetching containers from Supabase...');
             
             try {
-               const { data: supabaseContainers, error } = await supabase
-    .from('containers')
-    .select('*')
-    .order('created_at', { ascending: false });
-
+                const { data: supabaseContainers, error } = await supabase
+                    .from('containers')
+                    .select('*')
+                    .order('created_at', { ascending: false });
 
                 if (error) {
                     console.error('❌ Supabase containers error:', error);
@@ -2254,72 +2255,60 @@ async function populateShippingTable(page = 0) {
             folderContent.className = 'folder-content';
             folderContent.style.cssText = 'padding: 0; display: none;';
 
-           // In populateShippingTable function, replace the table row generation with:
-const table = document.createElement('table');
-table.style.cssText = 'width: 100%; border-collapse: collapse;';
-table.innerHTML = `
-    <thead>
-        <tr style="background: var(--light);">
-            <th style="padding:12px; border:1px solid var(--border); width:30px;">
-                <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
-            </th>
-            <th style="padding:12px; border:1px solid var(--border;">Konteyner No</th>
-            <th style="padding:12px; border:1px solid var(--border);">Müşteri</th>
-            <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
-            <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
-            <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
-            <th style="padding:12px; border:1px solid var(--border);">Durum</th>
-            <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
-        </tr>
-    </thead>
-    <tbody>
-        ${customerContainers.map(container => {
-            // Get packages for this container to show real customer name
-            const containerPackages = packagesData.filter(p => p.container_id === container.id);
-            const customerNames = [...new Set(containerPackages.map(p => p.customers?.name).filter(Boolean))];
-            const customerName = customerNames.length > 0 ? customerNames.join(', ') : 'Genel';
-            
-            return `
-                <tr>
-                    <td style="padding:10px; border:1px solid var(--border); text-align:center;">
-                        <input type="checkbox" value="${container.id}" class="container-checkbox">
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border;">
-                        <strong>${escapeHtml(container.container_no)}</strong>
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border);">
-                        ${escapeHtml(customerName)}
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border); text-align:center; font-weight:bold;">
-                        ${container.package_count || 0}
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border); text-align:center; font-weight:bold; color:#2196F3;">
-                        ${container.total_quantity || 0}
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border);">
-                        ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border);">
-                        <span class="status-${container.status || 'beklemede'}">
-                            ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
-                        </span>
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border);">
-                        <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
-                            <i class="fas fa-eye"></i> Detay
-                        </button>
-                        <button onclick="addMorePackagesToContainer('${container.id}', '${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
-                            <i class="fas fa-plus"></i> Paket Ekle
-                        </button>
-                        <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
-                            <i class="fas fa-ship"></i> Sevk Et
-                        </button>
-                    </td>
-                </tr>
+            const table = document.createElement('table');
+            table.style.cssText = 'width: 100%; border-collapse: collapse;';
+            table.innerHTML = `
+                <thead>
+                    <tr style="background: var(--light);">
+                        <th style="padding:12px; border:1px solid var(--border); width:30px;">
+                            <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
+                        </th>
+                        <th style="padding:12px; border:1px solid var(--border);">Konteyner No</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Durum</th>
+                        <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${customerContainers.map(container => `
+                        <tr>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                <input type="checkbox" value="${container.id}" class="container-checkbox">
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <strong>${escapeHtml(container.container_no)}</strong>
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                ${container.package_count || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                ${container.total_quantity || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <span class="status-${container.status || 'beklemede'}">
+                                    ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                                </span>
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
+                                    <i class="fas fa-eye"></i> Detay
+                                </button>
+                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
+                                    <i class="fas fa-plus"></i> Paket Ekle
+                                </button>
+                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
+                                    <i class="fas fa-ship"></i> Sevk Et
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
             `;
-        }).join('')}
-    </tbody>
-`;
 
             folderContent.appendChild(table);
             folderDiv.appendChild(folderHeader);
@@ -3530,181 +3519,144 @@ async function deleteSelectedPackages() {
 }
 
 
+
 async function sendToRamp(containerNo = null) {
     try {
-        // Get selected packages
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
             .map(cb => {
                 const packageDataStr = cb.getAttribute('data-package');
                 if (packageDataStr) {
-                    try {
-                        return JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
-                    } catch (e) {
-                        console.error('Error parsing package data:', e);
-                        return null;
-                    }
+                    const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
+                    return {
+                        id: packageData.id,
+                        isExcel: packageData.id.startsWith('pkg-') || packageData.id.startsWith('excel-'),
+                        data: packageData
+                    };
                 }
-                return null;
-            })
-            .filter(pkg => pkg !== null);
+                return {
+                    id: cb.value,
+                    isExcel: cb.value.startsWith('pkg-') || cb.value.startsWith('excel-'),
+                    data: null
+                };
+            });
         
         if (selectedPackages.length === 0) {
-            showAlert('Konteynere eklemek için paket seçin', 'error');
+            showAlert('Sevk etmek için paket seçin', 'error');
             return;
         }
 
-        console.log('🔄 Starting container creation for', selectedPackages.length, 'packages');
-
+        // Use existing container or create a new one
         let containerId;
-        let finalContainerNo = containerNo;
-
-        // Use existing container or create new one
         if (containerNo && currentContainer) {
             containerId = currentContainer;
-            finalContainerNo = containerNo;
-            console.log('Using existing container:', containerNo);
         } else {
-            // Create new container - USING ONLY EXISTING COLUMNS FROM YOUR SCHEMA
             const timestamp = new Date().getTime();
-            finalContainerNo = containerNo || `CONT-${timestamp.toString().slice(-6)}`;
+            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
-            // Calculate total quantity
-            const totalQuantity = selectedPackages.reduce((sum, pkg) => {
-                let quantity = 0;
-                if (pkg.items && typeof pkg.items === 'object') {
-                    if (Array.isArray(pkg.items)) {
-                        quantity = pkg.items.reduce((itemSum, item) => itemSum + (parseInt(item.qty) || 1), 0);
-                    } else {
-                        quantity = Object.values(pkg.items).reduce((itemSum, qty) => itemSum + (parseInt(qty) || 1), 0);
-                    }
-                } else {
-                    quantity = parseInt(pkg.total_quantity) || 1;
-                }
-                return sum + quantity;
-            }, 0);
-
-            // CONTAINER DATA - ONLY USING COLUMNS THAT EXIST IN YOUR SCHEMA
+            // ✅ FIXED: Use the correct column name - customer_id instead of customer
             const containerData = {
-                container_no: finalContainerNo,
-                customer_id: null, // This exists and is nullable - SAFE to use
+                container_no: containerNo,
+                customer_id: selectedCustomer?.id || null, // ✅ CORRECT: customer_id (UUID)
                 package_count: selectedPackages.length,
-                total_quantity: totalQuantity,
-                status: 'beklemede'
-                // DO NOT include: workspace_id (doesn't exist)
-                // created_at is auto-generated by database
+                total_quantity: await calculateTotalQuantity(selectedPackages.map(p => p.id)),
+                status: 'sevk-edildi'
+                // created_at is automatically set by DEFAULT
             };
             
-            console.log("Creating container with valid schema:", containerData);
+            console.log("Creating container with data:", containerData);
             
-            if (supabase && navigator.onLine) {
-                // Save to Supabase - ONLY WITH EXISTING COLUMNS
-                const { data: newContainer, error } = await supabase
-                    .from('containers')
-                    .insert([containerData])
-                    .select();
+            const { data: newContainer, error } = await supabase
+                .from('containers')
+                .insert([containerData])
+                .select();
 
-                if (error) {
-                    console.error('Container creation error:', error);
-                    throw error;
+            if (error) {
+                console.error('Container creation error:', error);
+                throw error;
+            }
+            
+            containerId = newContainer[0].id;
+            currentContainer = containerNo;
+            if (elements.containerNumber) {
+                elements.containerNumber.textContent = containerNo;
+            }
+            saveAppState();
+        }
+
+        // Separate Supabase packages and Excel packages
+        const supabasePackages = selectedPackages.filter(p => !p.isExcel);
+        const excelPackages = selectedPackages.filter(p => p.isExcel);
+
+        // Update valid Supabase packages (only real UUIDs)
+        if (supabasePackages.length > 0 && supabase) {
+            const validPackageIds = supabasePackages
+                .map(p => p.id)
+                .filter(id => isValidUUID(id)); // Only update valid UUIDs
+
+            if (validPackageIds.length > 0) {
+                const { error: updateError } = await supabase
+                    .from('packages')
+                    .update({ 
+                        container_id: containerId,
+                        status: 'sevk-edildi'
+                    })
+                    .in('id', validPackageIds);
+
+                if (updateError) {
+                    console.warn('Supabase package update error:', updateError);
+                } else {
+                    console.log(`Updated ${validPackageIds.length} Supabase packages`);
                 }
-                
-                containerId = newContainer[0].id;
-                console.log('✅ Container created with ID:', containerId);
-            } else {
-                // Excel mode
-                containerId = `cont-${timestamp}`;
-                containerData.id = containerId;
-                containerData.created_at = new Date().toISOString();
-                
-                const existingContainers = JSON.parse(localStorage.getItem('excel_containers') || '[]');
-                existingContainers.push(containerData);
-                localStorage.setItem('excel_containers', JSON.stringify(existingContainers));
-                console.log('✅ Container saved to Excel storage');
-            }
-            
-            currentContainer = containerId;
-        }
-
-        // Update packages with container assignment
-        let successCount = 0;
-
-        // Update Supabase packages
-        const supabasePackages = selectedPackages.filter(p => isValidUUID(p.id));
-        if (supabasePackages.length > 0 && supabase && navigator.onLine) {
-            const validPackageIds = supabasePackages.map(p => p.id);
-
-            const { error: updateError } = await supabase
-                .from('packages')
-                .update({ 
-                    container_id: containerId,
-                    status: 'sevk-edildi',
-                    updated_at: new Date().toISOString()
-                })
-                .in('id', validPackageIds);
-
-            if (updateError) {
-                console.error('Supabase package update error:', updateError);
-            } else {
-                successCount += validPackageIds.length;
-                console.log(`✅ Updated ${validPackageIds.length} Supabase packages`);
             }
         }
 
-        // Update Excel packages
-        const excelPackages = selectedPackages.filter(p => !isValidUUID(p.id));
+        // Update Excel packages locally
         if (excelPackages.length > 0) {
             try {
-                const currentExcelData = await ExcelJS.readFile();
-                let updatedCount = 0;
-                
+                // Update excelPackages array
                 excelPackages.forEach(selectedPkg => {
-                    const index = currentExcelData.findIndex(p => p.id === selectedPkg.id);
+                    const index = excelPackages.findIndex(p => p.id === selectedPkg.id);
                     if (index !== -1) {
-                        currentExcelData[index] = {
-                            ...currentExcelData[index],
+                        excelPackages[index] = {
+                            ...excelPackages[index],
                             container_id: containerId,
                             status: 'sevk-edildi',
                             updated_at: new Date().toISOString()
                         };
-                        updatedCount++;
                     }
                 });
                 
-                await ExcelJS.writeFile(currentExcelData);
-                window.excelPackages = currentExcelData;
-                successCount += updatedCount;
-                console.log(`✅ Updated ${updatedCount} Excel packages`);
+                // Save to localStorage as fallback
+                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(excelPackages));
+                
+                console.log(`Updated ${excelPackages.length} Excel packages locally`);
             } catch (excelError) {
-                console.error('Excel update error:', excelError);
+                console.warn('Excel update error:', excelError);
             }
         }
 
-        // Show results
-        if (successCount > 0) {
-            showAlert(
-                `✅ ${successCount} paket konteynere eklendi!\n` +
-                `📦 Konteyner: ${finalContainerNo}\n` +
-                `📊 Paket Sayısı: ${selectedPackages.length}\n` +
-                `🔢 Toplam Adet: ${containerData.total_quantity}`,
-                'success'
-            );
-
-            // Refresh tables
-            await populatePackagesTable();
-            
-            setTimeout(async () => {
-                await populateShippingTable();
-                currentContainer = null;
-            }, 1000);
-        } else {
-            showAlert('Hiçbir paket güncellenemedi', 'error');
-        }
+        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        
+        // Refresh tables
+        await populatePackagesTable();
+        await populateShippingTable();
         
     } catch (error) {
-        console.error('❌ Error in sendToRamp:', error);
-        showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
+        console.error('Error sending to ramp:', error);
+        showAlert('Paketler sevk edilirken hata oluştu: ' + error.message, 'error');
     }
 }
+
+// ✅ Add UUID validation helper
+function isValidUUID(uuid) {
+    if (!uuid || typeof uuid !== 'string') return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+}
+
+
+
         
       async function shipContainer(containerNo) {
     console.log('🚢 shipContainer called with:', containerNo);
