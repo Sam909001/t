@@ -246,19 +246,23 @@ async function deleteCustomerWithAuth(customerId, customerName) {
         }
     }
 }
-// ✅ 5. Add Customer with Authentication - Uses 8823
+// ✅ FIXED: Add Customer with Authentication - Uses 8823
 async function addCustomerWithAuth() {
     const passwordGuard = new PasswordGuard();
     
     try {
-        await passwordGuard.askPasswordAndRun(() => {
+        // ✅ FIX: Create a bound function that preserves the context
+        const addAction = async () => {
+            console.log("🔐 PasswordGuard executing add customer action");
             if (typeof addCustomer === 'function') {
-                addCustomer();
+                await addCustomer();
             } else {
                 showAlert('Müşteri ekleme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
             }
-        }, 'müşteri ekleme', 'default');
+        };
+        
+        await passwordGuard.askPasswordAndRun(addAction, 'müşteri ekleme', 'default');
     } catch (error) {
         if (error.message !== 'User cancelled') {
             console.log('Add customer cancelled:', error.message);
