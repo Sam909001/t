@@ -4329,17 +4329,6 @@ async function completePackageSecure() {
     return await completePackage();
 }
 
-// Replace original functions with secure versions
-window.completePackage = completePackageSecure;
-window.supabase = createSecureSupabaseClient();
-
-
-
-window.workspaceManager = new EnhancedWorkspaceManager();
-
-
-
-
 
 // Print single package function
 window.printSinglePackage = async function(packageId) {
@@ -4369,3 +4358,6 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
+
+
+window.workspaceManager = new EnhancedWorkspaceManager();
