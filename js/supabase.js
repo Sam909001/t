@@ -2144,10 +2144,11 @@ async function populateShippingTable(page = 0) {
             console.log('🔄 Fetching containers from Supabase...');
             
             try {
-                const { data: supabaseContainers, error } = await supabase
-                    .from('containers')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+               const { data: supabaseContainers, error } = await supabase
+    .from('containers')
+    .select('*')
+    .order('created_at', { ascending: false });
+
 
                 if (error) {
                     console.error('❌ Supabase containers error:', error);
