@@ -3554,23 +3554,27 @@ async function sendToRamp(containerNo = null) {
 
         console.log('🔄 Starting container creation for', selectedPackages.length, 'packages');
 
-        // UNIVERSAL FIX: ALWAYS use NULL for customer_id to avoid workspace conflicts
-        const customerId = null;
-
-        // Calculate total quantity
-        const realTotalQuantity = selectedPackages.reduce((sum, pkg) => {
-            let quantity = 0;
-            if (pkg.items && typeof pkg.items === 'object') {
-                if (Array.isArray(pkg.items)) {
-                    quantity = pkg.items.reduce((itemSum, item) => itemSum + (parseInt(item.qty) || 1), 0);
+        // FIX: Remove customer_id entirely to avoid foreign key issues
+        const containerData = {
+            container_no: `CONT-${new Date().getTime().toString().slice(-6)}`,
+            customer_id: null, // Always null to avoid foreign key issues
+            package_count: selectedPackages.length,
+            total_quantity: selectedPackages.reduce((sum, pkg) => {
+                let quantity = 0;
+                if (pkg.items && typeof pkg.items === 'object') {
+                    if (Array.isArray(pkg.items)) {
+                        quantity = pkg.items.reduce((itemSum, item) => itemSum + (parseInt(item.qty) || 1), 0);
+                    } else {
+                        quantity = Object.values(pkg.items).reduce((itemSum, qty) => itemSum + (parseInt(qty) || 1), 0);
+                    }
                 } else {
-                    quantity = Object.values(pkg.items).reduce((itemSum, qty) => itemSum + (parseInt(qty) || 1), 0);
+                    quantity = parseInt(pkg.total_quantity) || 1;
                 }
-            } else {
-                quantity = parseInt(pkg.total_quantity) || 1;
-            }
-            return sum + quantity;
-        }, 0);
+                return sum + quantity;
+            }, 0),
+            status: 'beklemede'
+            // FIX: Remove workspace_id since it doesn't exist in containers table
+        };
 
         let containerId;
         let finalContainerNo = containerNo;
@@ -3578,26 +3582,16 @@ async function sendToRamp(containerNo = null) {
         // Use existing container or create new one
         if (containerNo && currentContainer) {
             containerId = currentContainer;
+            finalContainerNo = containerNo;
             console.log('Using existing container:', containerNo);
         } else {
             // Create new container
-            const timestamp = new Date().getTime();
-            finalContainerNo = `CONT-${timestamp.toString().slice(-6)}`;
-            
-            // UNIVERSAL CONTAINER DATA - No customer_id conflicts
-            const containerData = {
-                container_no: finalContainerNo,
-                customer_id: null, // ALWAYS NULL to avoid foreign key issues
-                package_count: selectedPackages.length,
-                total_quantity: realTotalQuantity,
-                status: 'beklemede',
-                workspace_id: getCurrentWorkspaceId() // Critical for workspace isolation
-            };
+            finalContainerNo = containerData.container_no;
             
             console.log("Creating container:", containerData);
             
             if (supabase && navigator.onLine) {
-                // Save to Supabase
+                // Save to Supabase - WITHOUT workspace_id
                 const { data: newContainer, error } = await supabase
                     .from('containers')
                     .insert([containerData])
@@ -3605,14 +3599,33 @@ async function sendToRamp(containerNo = null) {
 
                 if (error) {
                     console.error('Container creation error:', error);
-                    throw error;
+                    
+                    // If there's still a foreign key error, try without customer_id entirely
+                    if (error.code === '23503') {
+                        console.log('Retrying without customer_id...');
+                        delete containerData.customer_id;
+                        
+                        const { data: retryContainer, error: retryError } = await supabase
+                            .from('containers')
+                            .insert([containerData])
+                            .select();
+                            
+                        if (retryError) {
+                            throw retryError;
+                        }
+                        
+                        containerId = retryContainer[0].id;
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    containerId = newContainer[0].id;
                 }
                 
-                containerId = newContainer[0].id;
                 console.log('✅ Container created with ID:', containerId);
             } else {
                 // Excel mode
-                containerId = `cont-${timestamp}`;
+                containerId = `cont-${new Date().getTime()}`;
                 containerData.id = containerId;
                 containerData.created_at = new Date().toISOString();
                 
@@ -3685,7 +3698,7 @@ async function sendToRamp(containerNo = null) {
                 `✅ ${successCount} paket konteynere eklendi!\n` +
                 `📦 Konteyner: ${finalContainerNo}\n` +
                 `📊 Paket Sayısı: ${selectedPackages.length}\n` +
-                `🔢 Toplam Adet: ${realTotalQuantity}`,
+                `🔢 Toplam Adet: ${containerData.total_quantity}`,
                 'success'
             );
 
