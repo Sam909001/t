@@ -3239,7 +3239,7 @@ console.log('✅ Reports module loaded successfully');
 
         
 
-        async function showAllCustomers() {
+async function showAllCustomers() {
     try {
         elements.allCustomersList.innerHTML = '';
         
@@ -3259,7 +3259,7 @@ console.log('✅ Reports module loaded successfully');
                 const div = document.createElement('div');
                 div.className = 'customer-item';
                 
-                // ✅ FIXED: Use proper element creation instead of innerHTML
+                // ✅ FIXED: Use proper element creation
                 const customerInfo = document.createElement('div');
                 customerInfo.innerHTML = `
                     <strong>${escapeHtml(customer.name)}</strong> (${escapeHtml(customer.code)})<br>
@@ -3269,7 +3269,11 @@ console.log('✅ Reports module loaded successfully');
                 const deleteButton = document.createElement('button');
                 deleteButton.textContent = 'Sil';
                 deleteButton.className = 'btn btn-danger btn-sm';
+                
+                // ✅ CORRECT: Pass the actual customer object properties
                 deleteButton.onclick = function() {
+                    console.log("Delete button clicked - Customer:", customer);
+                    console.log("Customer ID:", customer.id);
                     deleteCustomerWithAuth(customer.id, customer.name);
                 };
                 
@@ -3286,8 +3290,9 @@ console.log('✅ Reports module loaded successfully');
     }
 }
 
-// Add this helper function for safety
+// Add escape helper if not exists
 function escapeHtml(unsafe) {
+    if (!unsafe) return '';
     return unsafe
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -3295,7 +3300,6 @@ function escapeHtml(unsafe) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
-
 
         
 
