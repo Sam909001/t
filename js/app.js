@@ -1809,29 +1809,43 @@ window.deleteReport = async function(fileName) {
 }
 
 
+// Make sure you import UUID generator if not already
+// npm install uuid
+// import { v4 as uuidv4 } from 'uuid';
+
 async function addCustomer(name, code) {
     if (!name || !code) {
-        showAlert('Geçersiz müşteri bilgisi', 'error');
+        showAlert('Lütfen müşteri adı ve kodu girin', 'warning');
         return;
     }
 
     try {
+        // Generate UUID for new customer
+        const customerId = uuidv4();
+
+        // Insert into Supabase
         const { data, error } = await supabase
             .from('customers')
-            .insert([{ name, code }])
-            .select();
+            .insert([{ id: customerId, name, code }])
+            .select(); // optional: return inserted row(s)
 
         if (error) {
-            console.error('Müşteri eklenirken hata:', error);
-            showAlert('Müşteri ekleme hatası: ' + error.message, 'error');
+            console.error('Müşteri ekleme hatası:', error);
+            showAlert('Müşteri eklenemedi: ' + error.message, 'error');
             return;
         }
 
-        showAlert('Müşteri başarıyla eklendi', 'success');
-        await populateCustomers();
+        if (data && data.length > 0) {
+            showAlert(`Müşteri başarıyla eklendi: ${data[0].name}`, 'success');
+
+            // Refresh dropdown / table
+            await populateCustomers();
+        } else {
+            showAlert('Müşteri eklenemedi: veri dönmedi', 'error');
+        }
+
     } catch (err) {
-        console.error('addCustomer error:', err);
-        showAlert('Müşteri ekleme sırasında beklenmedik hata', 'error');
+        console.error('Beklenmedik hata:', err);
+        showAlert('Müşteri eklerken beklenmedik hata oluştu', 'error');
     }
 }
-
