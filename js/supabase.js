@@ -2115,9 +2115,6 @@ const pageSize = 20; // number of containers per page
 let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
 
-// COMPLETE FIXED populateShippingTable function
-// Replace the existing one in supabase (36).js (around line 950-1100)
-
 async function populateShippingTable(page = 0) {
     if (isShippingTableLoading) {
         console.log('Shipping table already loading, skipping...');
@@ -2255,60 +2252,72 @@ async function populateShippingTable(page = 0) {
             folderContent.className = 'folder-content';
             folderContent.style.cssText = 'padding: 0; display: none;';
 
-            const table = document.createElement('table');
-            table.style.cssText = 'width: 100%; border-collapse: collapse;';
-            table.innerHTML = `
-                <thead>
-                    <tr style="background: var(--light);">
-                        <th style="padding:12px; border:1px solid var(--border); width:30px;">
-                            <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
-                        </th>
-                        <th style="padding:12px; border:1px solid var(--border);">Konteyner No</th>
-                        <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
-                        <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
-                        <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
-                        <th style="padding:12px; border:1px solid var(--border);">Durum</th>
-                        <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${customerContainers.map(container => `
-                        <tr>
-                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
-                                <input type="checkbox" value="${container.id}" class="container-checkbox">
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border);">
-                                <strong>${escapeHtml(container.container_no)}</strong>
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
-                                ${container.package_count || 0}
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
-                                ${container.total_quantity || 0}
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border);">
-                                ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border);">
-                                <span class="status-${container.status || 'beklemede'}">
-                                    ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
-                                </span>
-                            </td>
-                            <td style="padding:10px; border:1px solid var(--border);">
-                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
-                                    <i class="fas fa-eye"></i> Detay
-                                </button>
-                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
-                                    <i class="fas fa-plus"></i> Paket Ekle
-                                </button>
-                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
-                                    <i class="fas fa-ship"></i> Sevk Et
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
+           // In populateShippingTable function, replace the table row generation with:
+const table = document.createElement('table');
+table.style.cssText = 'width: 100%; border-collapse: collapse;';
+table.innerHTML = `
+    <thead>
+        <tr style="background: var(--light);">
+            <th style="padding:12px; border:1px solid var(--border); width:30px;">
+                <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
+            </th>
+            <th style="padding:12px; border:1px solid var(--border;">Konteyner No</th>
+            <th style="padding:12px; border:1px solid var(--border);">Müşteri</th>
+            <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
+            <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
+            <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
+            <th style="padding:12px; border:1px solid var(--border);">Durum</th>
+            <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
+        </tr>
+    </thead>
+    <tbody>
+        ${customerContainers.map(container => {
+            // Get packages for this container to show real customer name
+            const containerPackages = packagesData.filter(p => p.container_id === container.id);
+            const customerNames = [...new Set(containerPackages.map(p => p.customers?.name).filter(Boolean))];
+            const customerName = customerNames.length > 0 ? customerNames.join(', ') : 'Genel';
+            
+            return `
+                <tr>
+                    <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                        <input type="checkbox" value="${container.id}" class="container-checkbox">
+                    </td>
+                    <td style="padding:10px; border:1px solid var(--border;">
+                        <strong>${escapeHtml(container.container_no)}</strong>
+                    </td>
+                    <td style="padding:10px; border:1px solid var(--border);">
+                        ${escapeHtml(customerName)}
+                    </td>
+                    <td style="padding:10px; border:1px solid var(--border); text-align:center; font-weight:bold;">
+                        ${container.package_count || 0}
+                    </td>
+                    <td style="padding:10px; border:1px solid var(--border); text-align:center; font-weight:bold; color:#2196F3;">
+                        ${container.total_quantity || 0}
+                    </td>
+                    <td style="padding:10px; border:1px solid var(--border);">
+                        ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
+                    </td>
+                    <td style="padding:10px; border:1px solid var(--border);">
+                        <span class="status-${container.status || 'beklemede'}">
+                            ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                        </span>
+                    </td>
+                    <td style="padding:10px; border:1px solid var(--border);">
+                        <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
+                            <i class="fas fa-eye"></i> Detay
+                        </button>
+                        <button onclick="addMorePackagesToContainer('${container.id}', '${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
+                            <i class="fas fa-plus"></i> Paket Ekle
+                        </button>
+                        <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
+                            <i class="fas fa-ship"></i> Sevk Et
+                        </button>
+                    </td>
+                </tr>
             `;
+        }).join('')}
+    </tbody>
+`;
 
             folderContent.appendChild(table);
             folderDiv.appendChild(folderHeader);
@@ -3526,24 +3535,53 @@ async function sendToRamp(containerNo = null) {
             .map(cb => {
                 const packageDataStr = cb.getAttribute('data-package');
                 if (packageDataStr) {
-                    const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
-                    return {
-                        id: packageData.id,
-                        isExcel: packageData.id.startsWith('pkg-') || packageData.id.startsWith('excel-'),
-                        data: packageData
-                    };
+                    try {
+                        const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
+                        return {
+                            id: packageData.id,
+                            package_no: packageData.package_no,
+                            total_quantity: packageData.total_quantity || 1,
+                            items: packageData.items,
+                            isExcel: packageData.id.startsWith('pkg-') || packageData.id.startsWith('excel-'),
+                            data: packageData
+                        };
+                    } catch (e) {
+                        console.error('Error parsing package data:', e);
+                        return null;
+                    }
                 }
-                return {
-                    id: cb.value,
-                    isExcel: cb.value.startsWith('pkg-') || cb.value.startsWith('excel-'),
-                    data: null
-                };
-            });
+                return null;
+            })
+            .filter(pkg => pkg !== null); // Remove null entries
         
         if (selectedPackages.length === 0) {
             showAlert('Sevk etmek için paket seçin', 'error');
             return;
         }
+
+        console.log('Selected packages for shipping:', selectedPackages);
+
+        // Calculate REAL total quantity
+        const realTotalQuantity = selectedPackages.reduce((sum, pkg) => {
+            let quantity = 0;
+            
+            if (pkg.items && typeof pkg.items === 'object') {
+                if (Array.isArray(pkg.items)) {
+                    // Array format: [{name: "Product", qty: 5}]
+                    quantity = pkg.items.reduce((itemSum, item) => itemSum + (parseInt(item.qty) || 1), 0);
+                } else {
+                    // Object format: {"Product1": 5, "Product2": 3}
+                    quantity = Object.values(pkg.items).reduce((itemSum, qty) => itemSum + (parseInt(qty) || 1), 0);
+                }
+            } else {
+                // Fallback to total_quantity field
+                quantity = parseInt(pkg.total_quantity) || 1;
+            }
+            
+            return sum + quantity;
+        }, 0);
+
+        console.log('Real total quantity calculated:', realTotalQuantity);
 
         // Use existing container or create a new one
         let containerId;
@@ -3553,17 +3591,16 @@ async function sendToRamp(containerNo = null) {
             const timestamp = new Date().getTime();
             containerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
-            // ✅ FIXED: Use the correct column name - customer_id instead of customer
             const containerData = {
                 container_no: containerNo,
-                customer_id: selectedCustomer?.id || null, // ✅ CORRECT: customer_id (UUID)
-                package_count: selectedPackages.length,
-                total_quantity: await calculateTotalQuantity(selectedPackages.map(p => p.id)),
-                status: 'sevk-edildi'
-                // created_at is automatically set by DEFAULT
+                customer_id: selectedCustomer?.id || null,
+                package_count: selectedPackages.length, // REAL package count
+                total_quantity: realTotalQuantity, // REAL total quantity
+                status: 'beklemede', // Start as waiting, not shipped yet
+                workspace_id: getCurrentWorkspaceId()
             };
             
-            console.log("Creating container with data:", containerData);
+            console.log("Creating container with REAL data:", containerData);
             
             const { data: newContainer, error } = await supabase
                 .from('containers')
@@ -3576,49 +3613,51 @@ async function sendToRamp(containerNo = null) {
             }
             
             containerId = newContainer[0].id;
-            currentContainer = containerNo;
+            currentContainer = containerId; // Store the container ID, not the number
             if (elements.containerNumber) {
                 elements.containerNumber.textContent = containerNo;
             }
-            saveAppState();
         }
 
-        // Separate Supabase packages and Excel packages
-        const supabasePackages = selectedPackages.filter(p => !p.isExcel);
+        // Process packages with proper quantity handling
+        const supabasePackages = selectedPackages.filter(p => !p.isExcel && isValidUUID(p.id));
         const excelPackages = selectedPackages.filter(p => p.isExcel);
 
-        // Update valid Supabase packages (only real UUIDs)
+        console.log(`Processing ${supabasePackages.length} Supabase packages and ${excelPackages.length} Excel packages`);
+
+        // Update valid Supabase packages
         if (supabasePackages.length > 0 && supabase) {
-            const validPackageIds = supabasePackages
-                .map(p => p.id)
-                .filter(id => isValidUUID(id)); // Only update valid UUIDs
+            const validPackageIds = supabasePackages.map(p => p.id);
 
-            if (validPackageIds.length > 0) {
-                const { error: updateError } = await supabase
-                    .from('packages')
-                    .update({ 
-                        container_id: containerId,
-                        status: 'sevk-edildi'
-                    })
-                    .in('id', validPackageIds);
+            const { error: updateError } = await supabase
+                .from('packages')
+                .update({ 
+                    container_id: containerId,
+                    status: 'sevk-edildi',
+                    updated_at: new Date().toISOString()
+                })
+                .in('id', validPackageIds);
 
-                if (updateError) {
-                    console.warn('Supabase package update error:', updateError);
-                } else {
-                    console.log(`Updated ${validPackageIds.length} Supabase packages`);
-                }
+            if (updateError) {
+                console.error('Supabase package update error:', updateError);
+                throw updateError;
             }
+
+            console.log(`Updated ${validPackageIds.length} Supabase packages`);
         }
 
-        // Update Excel packages locally
+        // Update Excel packages
         if (excelPackages.length > 0) {
             try {
-                // Update excelPackages array
+                // Read current Excel data
+                const currentExcelData = await ExcelJS.readFile();
+                
+                // Update each selected Excel package
                 excelPackages.forEach(selectedPkg => {
-                    const index = excelPackages.findIndex(p => p.id === selectedPkg.id);
+                    const index = currentExcelData.findIndex(p => p.id === selectedPkg.id);
                     if (index !== -1) {
-                        excelPackages[index] = {
-                            ...excelPackages[index],
+                        currentExcelData[index] = {
+                            ...currentExcelData[index],
                             container_id: containerId,
                             status: 'sevk-edildi',
                             updated_at: new Date().toISOString()
@@ -3626,33 +3665,35 @@ async function sendToRamp(containerNo = null) {
                     }
                 });
                 
-                // Save to localStorage as fallback
-                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(excelPackages));
+                // Save updated Excel data
+                await ExcelJS.writeFile(currentExcelData);
+                excelPackages = currentExcelData;
                 
-                console.log(`Updated ${excelPackages.length} Excel packages locally`);
+                console.log(`Updated ${excelPackages.length} Excel packages`);
             } catch (excelError) {
-                console.warn('Excel update error:', excelError);
+                console.error('Excel update error:', excelError);
+                throw excelError;
             }
         }
 
-        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        showAlert(`${selectedPackages.length} paket konteynere eklendi (Konteyner: ${containerNo}) ✅`, 'success');
         
-        // Refresh tables
-        await populatePackagesTable();
-        await populateShippingTable();
+        // Auto-refresh both tables
+        setTimeout(async () => {
+            await populatePackagesTable();
+            await populateShippingTable();
+            
+            // Auto-switch to shipping tab
+            const shippingTab = document.querySelector('[data-tab="shipping"]');
+            if (shippingTab) {
+                shippingTab.click();
+            }
+        }, 1000);
         
     } catch (error) {
         console.error('Error sending to ramp:', error);
-        showAlert('Paketler sevk edilirken hata oluştu: ' + error.message, 'error');
+        showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
     }
-}
-
-// ✅ Add UUID validation helper
-function isValidUUID(uuid) {
-    if (!uuid || typeof uuid !== 'string') return false;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
 }
 
 
