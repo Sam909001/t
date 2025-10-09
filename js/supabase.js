@@ -3702,33 +3702,35 @@ async function sendToRamp(containerNo = null) {
             }
         }
 
-        // Show success message
-        if (successCount > 0) {
-            showAlert(
-                `✅ ${successCount} paket konteynere eklendi!\n` +
-                `📦 Konteyner: ${finalContainerNo}\n` +
-                `📊 Paket Sayısı: ${selectedPackages.length}\n` +
-                `🔢 Toplam Adet: ${realTotalQuantity}`,
-                'success'
-            );
+       // Show success message
+if (successCount > 0) {
+    showAlert(
+        `✅ ${successCount} paket konteynere eklendi!\n` +
+        `📦 Konteyner: ${finalContainerNo}\n` +
+        `📊 Paket Sayısı: ${selectedPackages.length}\n` +
+        `🔢 Toplam Adet: ${realTotalQuantity}`,
+        'success'
+    );
 
-            // Auto-refresh and switch to shipping tab
-            setTimeout(async () => {
-                await populatePackagesTable();
-                await populateShippingTable();
-                
-                // Switch to shipping tab to see the result
-                const shippingTab = document.querySelector('[data-tab="shipping"]');
-                if (shippingTab) {
-                    shippingTab.click();
-                }
-                
-                // Clear selection
-                currentContainer = null;
-            }, 1500);
-        } else {
-            showAlert('Hiçbir paket güncellenemedi', 'error');
+    // IMMEDIATELY refresh the packages table to remove sent packages
+    await populatePackagesTable();
+    
+    // Auto-refresh and switch to shipping tab
+    setTimeout(async () => {
+        await populateShippingTable();
+        
+        // Switch to shipping tab to see the result
+        const shippingTab = document.querySelector('[data-tab="shipping"]');
+        if (shippingTab) {
+            shippingTab.click();
         }
+        
+        // Clear selection
+        currentContainer = null;
+    }, 1000);
+} else {
+    showAlert('Hiçbir paket güncellenemedi', 'error');
+}
         
     } catch (error) {
         console.error('Error in sendToRamp:', error);
