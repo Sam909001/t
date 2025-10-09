@@ -1093,14 +1093,6 @@ async function completePackage() {
 
         showAlert(`✅ Paket oluşturuldu: ${packageNo}`, 'success');
 
-        // Auto-print label if enabled
-        if (window.workspaceManager?.currentWorkspace) {
-            const autoPrint = confirm('Etiketi yazdırmak ister misiniz?');
-            if (autoPrint) {
-                await printForCurrentWorkstation(newPackage);
-            }
-        }
-
     } catch (error) {
         console.error('Error completing package:', error);
         showAlert('Paket oluşturulurken hata oluştu: ' + error.message, 'error');
