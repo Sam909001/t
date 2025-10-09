@@ -3240,41 +3240,61 @@ console.log('✅ Reports module loaded successfully');
         
 
         async function showAllCustomers() {
-            try {
-                elements.allCustomersList.innerHTML = '';
-                
-                const { data: customers, error } = await supabase
-                    .from('customers')
-                    .select('*')
-                    .order('name');
+    try {
+        elements.allCustomersList.innerHTML = '';
+        
+        const { data: customers, error } = await supabase
+            .from('customers')
+            .select('*')
+            .order('name');
 
-                if (error) {
-                    console.error('Error loading customers:', error);
-                    showAlert('Müşteri verileri yüklenemedi', 'error');
-                    return;
-                }
-
-                if (customers && customers.length > 0) {
-                    customers.forEach(customer => {
-                        const div = document.createElement('div');
-                        div.className = 'customer-item';
-                        div.innerHTML = `
-                            <div>
-                                <strong>${customer.name}</strong> (${customer.code})<br>
-                                <small>${customer.email || 'E-posta yok'}</small>
-                            </div>
-                            <button onclick="deleteCustomerWithAuth('${customer.id}', '${customer.name}')" class="btn btn-danger btn-sm">Sil</button>
-                        `;
-                        elements.allCustomersList.appendChild(div);
-                    });
-                }
-                
-                document.getElementById('allCustomersModal').style.display = 'flex';
-            } catch (error) {
-                console.error('Error in showAllCustomers:', error);
-                showAlert('Müşteri yönetimi yükleme hatası', 'error');
-            }
+        if (error) {
+            console.error('Error loading customers:', error);
+            showAlert('Müşteri verileri yüklenemedi', 'error');
+            return;
         }
+
+        if (customers && customers.length > 0) {
+            customers.forEach(customer => {
+                const div = document.createElement('div');
+                div.className = 'customer-item';
+                
+                // ✅ FIXED: Use proper element creation instead of innerHTML
+                const customerInfo = document.createElement('div');
+                customerInfo.innerHTML = `
+                    <strong>${escapeHtml(customer.name)}</strong> (${escapeHtml(customer.code)})<br>
+                    <small>${escapeHtml(customer.email || 'E-posta yok')}</small>
+                `;
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Sil';
+                deleteButton.className = 'btn btn-danger btn-sm';
+                deleteButton.onclick = function() {
+                    deleteCustomerWithAuth(customer.id, customer.name);
+                };
+                
+                div.appendChild(customerInfo);
+                div.appendChild(deleteButton);
+                elements.allCustomersList.appendChild(div);
+            });
+        }
+        
+        document.getElementById('allCustomersModal').style.display = 'flex';
+    } catch (error) {
+        console.error('Error in showAllCustomers:', error);
+        showAlert('Müşteri yönetimi yükleme hatası', 'error');
+    }
+}
+
+// Add this helper function for safety
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 
         
