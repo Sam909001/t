@@ -3548,64 +3548,40 @@ async function deleteSelectedPackages() {
     }
 }
 
-// --- sendToRamp: assign selected packages to a container, update DB/Excel and UI instantly ---
 async function sendToRamp(containerNo = null) {
     try {
         console.log('🚀 sendToRamp started');
 
-        // Get selected packages and their DOM elements
         const selectedCheckboxes = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'));
         console.log('Selected checkboxes:', selectedCheckboxes.length);
 
         const selectedPackages = selectedCheckboxes.map(cb => {
             const data = cb.getAttribute('data-package');
-            if (!data) {
-                console.warn('No data-package attribute found for checkbox');
-                return null;
-            }
+            if (!data) return null;
             try { 
                 return JSON.parse(data.replace(/&quot;/g, '"')); 
             } catch (e) { 
-                console.error('Error parsing package data:', e, 'Data:', data); 
+                console.error('Error parsing package data:', e);
                 return null; 
             }
         }).filter(Boolean);
-
-        console.log('Selected packages:', selectedPackages);
 
         if (selectedPackages.length === 0) {
             showAlert('Konteynere eklemek için paket seçin', 'error');
             return;
         }
 
-        // Store package IDs for immediate UI removal
         const movedPackageIds = selectedPackages.map(pkg => pkg.id);
         const movedPackageElements = selectedCheckboxes.map(cb => cb.closest('tr'));
 
-        // IMMEDIATE UI UPDATE: Remove packages from view instantly (Visual effect)
+        // Visual feedback
         movedPackageElements.forEach(row => {
             if (row) {
                 row.style.opacity = '0.3';
                 row.style.transition = 'all 0.3s ease';
-                setTimeout(() => {
-                    row.style.display = 'none';
-                    setTimeout(() => {
-                        if (row.parentNode) {
-                            row.remove();
-                        }
-                    }, 300);
-                }, 150);
             }
         });
 
-        // Update package count immediately
-        const totalPackagesElement = document.getElementById('totalPackages');
-        if (totalPackagesElement) {
-            const currentCount = parseInt(totalPackagesElement.textContent) || 0;
-            totalPackagesElement.textContent = Math.max(0, currentCount - selectedPackages.length).toString();
-        }
-
-        // Compute total quantity
         const totalQuantity = selectedPackages.reduce((sum, pkg) => {
             const qty = pkg.items
                 ? Array.isArray(pkg.items)
@@ -3615,7 +3591,6 @@ async function sendToRamp(containerNo = null) {
             return sum + qty;
         }, 0);
 
-        // Create or reuse container
         let containerId;
         let finalContainerNo = containerNo;
         const timestamp = Date.now();
@@ -3629,7 +3604,7 @@ async function sendToRamp(containerNo = null) {
                 customer_id: null,
                 package_count: selectedPackages.length,
                 total_quantity: totalQuantity,
-                status: 'beklemede'
+                status: 'sevk edildi'  // ✅ Fixed
             };
 
             if (supabase && navigator.onLine) {
@@ -3640,7 +3615,6 @@ async function sendToRamp(containerNo = null) {
                 if (insertErr) throw insertErr;
                 containerId = inserted[0].id;
             } else {
-                // Excel/local mode
                 containerId = `cont-${timestamp}`;
                 const stored = JSON.parse(localStorage.getItem('excel_containers') || '[]');
                 stored.push({ ...containerData, id: containerId, created_at: new Date().toISOString() });
@@ -3649,12 +3623,10 @@ async function sendToRamp(containerNo = null) {
             currentContainer = containerId;
         }
 
-        // Update packages in Supabase and Excel
         let successCount = 0;
 
         // Supabase updates
         const supabasePackages = selectedPackages.filter(p => isValidUUID(p.id));
-        console.log('Supabase packages to update:', supabasePackages.length);
 
         if (supabasePackages.length > 0 && supabase && navigator.onLine) {
             const ids = supabasePackages.map(p => p.id);
@@ -3662,7 +3634,8 @@ async function sendToRamp(containerNo = null) {
                 .from('packages')
                 .update({ 
                     container_id: containerId, 
-                    status: 'sevk-edildi', 
+                    status: 'sevk edildi',  // ✅ Fixed - no hyphen
+                    shipped_at: new Date().toISOString(),  // ✅ Added
                     updated_at: new Date().toISOString() 
                 })
                 .in('id', ids)
@@ -3675,112 +3648,79 @@ async function sendToRamp(containerNo = null) {
 
         // Excel updates
         const excelPackages = selectedPackages.filter(p => !isValidUUID(p.id));
-        console.log('Excel packages to update:', excelPackages.length);
 
-        if (excelPackages.length > 0 && typeof ExcelJS !== 'undefined' && typeof ExcelJS.readFile === 'function') {
+        if (excelPackages.length > 0 && typeof ExcelJS !== 'undefined') {
             try {
-                // Read current Excel file
                 let currentExcel = await ExcelJS.readFile();
-                console.log('Excel file read successfully, records:', currentExcel.length);
-                
                 let updatedCount = 0;
 
-                // Update packages in Excel data
                 excelPackages.forEach(pkg => {
-                    if (!pkg || !pkg.id) {
-                        console.warn('Skipping invalid package:', pkg);
-                        return;
-                    }
+                    if (!pkg || !pkg.id) return;
 
                     const idx = currentExcel.findIndex(p => p && p.id === pkg.id);
                     if (idx !== -1) {
                         currentExcel[idx] = { 
                             ...currentExcel[idx], 
                             container_id: containerId, 
-                            status: 'sevk-edildi', 
+                            status: 'sevk edildi',  // ✅ Fixed - no hyphen
+                            shipped_at: new Date().toISOString(),  // ✅ Added
                             updated_at: new Date().toISOString() 
                         };
                         updatedCount++;
-                        console.log('Updated Excel package:', pkg.id);
-                    } else {
-                        console.warn('Package not found in Excel:', pkg.id);
                     }
                 });
 
-                // Write back to Excel file
                 await ExcelJS.writeFile(currentExcel);
-                console.log('Excel file updated successfully');
                 successCount += updatedCount;
                 
             } catch (exErr) {
-                console.error('Excel update process error:', exErr);
+                console.error('Excel update error:', exErr);
             }
         }
 
-        // FINAL STATE MANAGEMENT - NO DATA RELOAD
         if (successCount > 0) {
-            // ⭐️ CORE FIX: Update all in-memory data sources
+            // Update in-memory data
             if (Array.isArray(window.packages)) {
-                const originalLength = window.packages.length;
-                window.packages = window.packages.filter(pkg => pkg && !movedPackageIds.includes(pkg.id));
-                console.log(`✅ Removed ${originalLength - window.packages.length} packages from window.packages`);
+                window.packages = window.packages.filter(pkg => !movedPackageIds.includes(pkg.id));
             }
             
             if (window.excelPackages && Array.isArray(window.excelPackages)) {
-                const originalLength = window.excelPackages.length;
-                window.excelPackages = window.excelPackages.filter(pkg => pkg && !movedPackageIds.includes(pkg.id));
-                console.log(`✅ Removed ${originalLength - window.excelPackages.length} packages from window.excelPackages`);
+                window.excelPackages = window.excelPackages.filter(pkg => !movedPackageIds.includes(pkg.id));
             }
 
-            showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
+            // Remove from DOM
+            movedPackageElements.forEach(row => {
+                if (row && row.parentNode) {
+                    row.remove();
+                }
+            });
 
-            // 🚫 NO DATA RELOAD - Only update shipping table
+            // Update count
+            const totalPackagesElement = document.getElementById('totalPackages');
+            if (totalPackagesElement) {
+                const currentCount = parseInt(totalPackagesElement.textContent) || 0;
+                totalPackagesElement.textContent = Math.max(0, currentCount - selectedPackages.length).toString();
+            }
+
+            showAlert(`✅ ${successCount} paket sevk edildi`, 'success');
+
             await populateShippingTable();
-
             currentContainer = null;
             
         } else {
-            // Failure case - restore UI without data reload
-            showAlert('Paketler konteynere eklenemedi, manuel kontrol edin.', 'error');
-            
-            // Restore the removed rows visually
+            showAlert('Paketler sevk edilemedi', 'error');
             movedPackageElements.forEach(row => {
-                if (row && row.parentNode) {
-                    row.style.display = '';
-                    row.style.opacity = '1';
-                }
+                if (row) row.style.opacity = '1';
             });
-            
-            // Restore package count
-            const totalPackagesElement = document.getElementById('totalPackages');
-            if (totalPackagesElement) {
-                const currentRows = document.querySelectorAll('#packagesTableBody tr:not([style*="display: none"])');
-                totalPackagesElement.textContent = currentRows.length.toString();
-            }
         }
-
-        console.log('✅ sendToRamp completed successfully');
 
     } catch (error) {
         console.error('❌ Error in sendToRamp:', error);
-        showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
-        
-        // Error case - restore UI without data reload
-        movedPackageElements.forEach(row => {
-            if (row && row.parentNode) {
-                row.style.display = '';
-                row.style.opacity = '1';
-            }
-        });
-        
-        // Restore package count
-        const totalPackagesElement = document.getElementById('totalPackages');
-        if (totalPackagesElement) {
-            const currentRows = document.querySelectorAll('#packagesTableBody tr:not([style*="display: none"])');
-            totalPackagesElement.textContent = currentRows.length.toString();
-        }
+        showAlert('Sevkiyat hatası: ' + error.message, 'error');
     }
 }
+
+
 
 // --- shipContainer: ship/mark a whole container as shipped (sevk-edildi) ---
 async function shipContainer(containerNo) {
