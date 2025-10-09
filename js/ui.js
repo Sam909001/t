@@ -4141,8 +4141,7 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// EXCEL MANAGEMENT FUNCTIONS - WITH PROPER PASSWORD GUARD HANDLING
-// REPLACE YOUR PREVIOUS VERSION WITH THIS ONE
+
 
 // Initialize the buttons
 function initializeExcelButtons() {
