@@ -270,19 +270,22 @@ async function addCustomerWithAuth() {
     }
 }
 
-// ✅ 6. Clear Excel with Authentication - Uses 8823
+// ✅ FIXED: Clear Excel with Authentication - Uses 8823
 async function clearExcelDataWithAuth() {
     const passwordGuard = new PasswordGuard();
     
     try {
-        await passwordGuard.askPasswordAndRun(() => {
+        // ✅ FIX: Create a bound function
+        const clearAction = async () => {
             if (typeof clearExcelData === 'function') {
-                return clearExcelData();
+                return await clearExcelData();
             } else {
                 showAlert('Excel temizleme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
             }
-        }, 'Excel verilerini temizleme', 'default'); // Uses 8823
+        };
+        
+        await passwordGuard.askPasswordAndRun(clearAction, 'Excel verilerini temizleme', 'default');
     } catch (error) {
         if (error.message !== 'User cancelled') {
             console.log('Excel clear cancelled:', error.message);
