@@ -2033,21 +2033,46 @@ row.innerHTML = `
 
         
         
-       // Calculate total quantity of selected packages
-async function calculateTotalQuantity(packageIds) {
-    try {
-        const { data: packages, error } = await supabase
-            .from('packages')
-            .select('total_quantity')
-            .in('id', packageIds);
+     // Calculate total quantity of selected packages
+async function calculateTotalQuantity(packageIds = []) {
+  try {
+    // Normalize and validate IDs
+    const validIds = packageIds
+      .filter(id => typeof id === 'string' && id.trim() !== '')
+      .map(id => id.toLowerCase().trim());
 
-        if (error) throw error;
-
-        return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
-    } catch (error) {
-        console.error('Error calculating total quantity:', error);
-        return packageIds.length; // fallback
+    if (!validIds.length) {
+      console.warn('⚠️ No valid package IDs provided to calculateTotalQuantity');
+      return 0;
     }
+
+    // If offline or Supabase unavailable → fallback to local Excel data
+    if (!navigator.onLine || !window.supabase) {
+      console.log('📦 Offline mode: using Excel data for total quantity');
+      const localPackages = await ExcelStorage.getPackagesByIds(validIds);
+      return localPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
+    }
+
+    // Fetch from Supabase
+    const { data: packages, error } = await supabase
+      .from('packages')
+      .select('id, total_quantity')
+      .in('id', validIds);
+
+    if (error) throw error;
+
+    // Sum quantities
+    const total = (packages || []).reduce(
+      (sum, pkg) => sum + (pkg.total_quantity || 0),
+      0
+    );
+
+    console.log(`📊 Total quantity for ${validIds.length} packages: ${total}`);
+    return total;
+  } catch (error) {
+    console.error('❌ Error calculating total quantity:', error);
+    return 0; // safe fallback
+  }
 }
 
 
