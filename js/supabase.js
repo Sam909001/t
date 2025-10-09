@@ -3532,7 +3532,7 @@ async function deleteSelectedPackages() {
 // --- sendToRamp: assign selected packages to a container, update DB/Excel and UI instantly ---
 async function sendToRamp(containerNo = null) {
     try {
-        // gather selected packages (data-package must be JSON-serialised)
+        // gather selected packages
         const selectedPackages = Array.from(
             document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked')
         )
@@ -3549,7 +3549,7 @@ async function sendToRamp(containerNo = null) {
             return;
         }
 
-        // compute totals
+        // compute total quantity
         const totalQuantity = selectedPackages.reduce((sum, pkg) => {
             const qty = pkg.items
                 ? Array.isArray(pkg.items)
@@ -3601,7 +3601,6 @@ async function sendToRamp(containerNo = null) {
         const supabasePackages = selectedPackages.filter(p => isValidUUID(p.id));
         if (supabasePackages.length > 0 && supabase && navigator.onLine) {
             const ids = supabasePackages.map(p => p.id);
-            // request returned rows to update local in-memory copy
             const { data: updatedRows, error: updateErr } = await supabase
                 .from('packages')
                 .update({ container_id: containerId, status: 'sevk-edildi', updated_at: new Date().toISOString() })
@@ -3612,7 +3611,7 @@ async function sendToRamp(containerNo = null) {
                 console.error('Supabase package update error:', updateErr);
             } else if (Array.isArray(updatedRows)) {
                 successCount += updatedRows.length;
-                // update any in-memory window.packages array (if exists)
+                // sync in-memory data
                 if (Array.isArray(window.packages)) {
                     updatedRows.forEach(updated => {
                         const idx = window.packages.findIndex(p => p.id === updated.id);
@@ -3631,67 +3630,44 @@ async function sendToRamp(containerNo = null) {
                 excelPackages.forEach(pkg => {
                     const idx = currentExcel.findIndex(p => p.id === pkg.id);
                     if (idx !== -1) {
-                        currentExcel[idx] = { ...currentExcel[idx], container_id: containerId, status: 'sevk-edildi', updated_at: new Date().toISOString() };
+                        currentExcel[idx] = { 
+                            ...currentExcel[idx], 
+                            container_id: containerId, 
+                            status: 'sevk-edildi', 
+                            updated_at: new Date().toISOString() 
+                        };
                         updatedCount++;
                     }
                 });
                 await ExcelJS.writeFile(currentExcel);
-                window.excelPackages = currentExcel; // immediate in-memory update
+                window.excelPackages = currentExcel;
                 successCount += updatedCount;
             } catch (exErr) {
                 console.error('Excel update error:', exErr);
             }
         }
 
-        // INSTANT UI UPDATE & SHORT ALERT
+        // --- UI REFRESH ---
         if (successCount > 0) {
-            // Update DOM rows immediately (requires rows to have tr[data-id="{pkg.id}"] and a '.status-cell' element)
-            selectedPackages.forEach(pkg => {
-                const selector = `#packagesTableBody tr[data-id="${CSS.escape(pkg.id)}"]`;
-                const row = document.querySelector(selector);
-                if (row) {
-                    const statusCell = row.querySelector('.status-cell');
-                    if (statusCell) {
-                        statusCell.textContent = 'sevk-edildi';
-                        statusCell.classList.remove('status-beklemede');
-                        statusCell.classList.add('status-sevk-edildi');
-                    }
-                }
-            });
+            showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
 
-            // Short success message
-           // --- Instant UI Update ---
-if (successCount > 0) {
-    showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
+            // 🧹 Reload pending and shipping lists cleanly
+            if (typeof loadPackagesDataStrict === 'function') {
+                await loadPackagesDataStrict(); // reload pending (fresh)
+            } else {
+                await populatePackagesTable(); // fallback
+            }
 
-    // Instantly remove from visible table
-    selectedPackages.forEach(pkg => {
-        const row = document.querySelector(`#packagesTableBody tr[data-id="${pkg.id}"]`);
-        if (row) row.remove();
-    });
-
-    // Force re-fetch from Supabase (not cache)
-    if (supabase && navigator.onLine && typeof supabase.from === 'function') {
-        console.log("🔄 Fetching fresh packages list from Supabase...");
-        const { data: freshPackages, error } = await supabase
-            .from('packages')
-            .select('*')
-            .order('created_at', { ascending: false });
-        if (!error && freshPackages) {
-            window.packages = freshPackages;
+            await populateShippingTable(); // refresh containers view
+            currentContainer = null;
+        } else {
+            showAlert('Hiçbir paket güncellenemedi', 'error');
         }
-    } else if (typeof ExcelJS !== 'undefined') {
-        console.log("📄 Reloading from Excel local file...");
-        window.packages = await ExcelJS.readFile();
+
+    } catch (error) {
+        console.error('❌ Error in sendToRamp:', error);
+        showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
     }
-
-    // Now rebuild both tables
-    if (typeof populatePackagesTable === 'function') await populatePackagesTable();
-    if (typeof populateShippingTable === 'function') await populateShippingTable();
-
-    currentContainer = null;
-} else {
-    showAlert('Hiçbir paket güncellenemedi', 'error');
 }
 
 
