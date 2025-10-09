@@ -124,24 +124,6 @@ function loadAppState() {
     }
 }
 
-function clearAppState() {
-    localStorage.removeItem('procleanState');
-    selectedCustomer = null;
-    elements.customerSelect.value = '';
-    elements.personnelSelect.value = '';
-    currentContainer = null;
-    elements.containerNumber.textContent = 'Yok';
-    currentPackage = {};
-    
-    // Reset quantity badges
-    document.querySelectorAll('.quantity-badge').forEach(badge => {
-        badge.textContent = '0';
-    });
-    
-    // Clear package details
-    document.getElementById('packageDetailContent').innerHTML = 
-        '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
-}
 
 async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
@@ -1024,118 +1006,6 @@ function mergePackages(excelPackages, supabasePackages) {
 }
 
 
-
-
-async function completePackage() {
-    if (!selectedCustomer) {
-        showAlert('Önce müşteri seçin', 'error');
-        return;
-    }
-
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
-    if (!window.workspaceManager?.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
-    try {
-        const workspaceId = window.workspaceManager.currentWorkspace.id;
-        
-        // Generate short station number (st1, st2, st3, st4)
-        const stationNumber = workspaceId.replace('station-', 'st');
-        
-        // Get today's package count for this station to generate sequential number
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        
-        const todayPackages = await ExcelJS.readFile();
-        const todayStationPackages = todayPackages.filter(pkg => 
-            pkg.workspace_id === workspaceId && 
-            new Date(pkg.created_at) >= todayStart
-        );
-        
-        // Sequential number: pad to 6 digits
-        const sequentialNumber = (todayStationPackages.length + 1).toString().padStart(6, '0');
-        
-        // Generate SHORT package number: pkg-st1-000123
-        const packageNo = `pkg-${stationNumber}-${sequentialNumber}`;
-        
-        // Generate unique ID for database
-        const packageId = `pkg-${workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-        
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect?.value || '';
-
-        const packageData = {
-            id: packageId, // Unique ID for database
-            package_no: packageNo, // SHORT display number
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name,
-            customer_code: selectedCustomer.code,
-            items: currentPackage.items,
-            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
-                name: name,
-                qty: qty
-            })),
-            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-                `${name}: ${qty} adet`
-            ).join(', '),
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            workspace_id: workspaceId,
-            station_name: window.workspaceManager.currentWorkspace.name,
-            daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app'
-        };
-
-        // Save to database and Excel
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
-
-                if (error) throw error;
-
-                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-                await saveToExcel(packageData);
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
-                isUsingExcel = true;
-            }
-        } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
-            isUsingExcel = true;
-        }
-
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
-
-    } catch (error) {
-        console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
-    }
-}
-
-
-
 // Modified deleteSelectedPackages function
 async function deleteSelectedPackages() {
     const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
@@ -1694,21 +1564,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-// Fix for Select All Packages
+// ✅ Single Source of Truth
 window.toggleSelectAllPackages = function() {
     const selectAllCheckbox = document.getElementById('selectAllPackages');
     if (!selectAllCheckbox) return;
-    
+
     const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:not(#selectAllPackages)');
-    
+
     packageCheckboxes.forEach(checkbox => {
         checkbox.checked = selectAllCheckbox.checked;
     });
-    
-    console.log(`Selected ${packageCheckboxes.length} packages`);
-}
 
-// Make sure the checkbox has the right event listener
+    console.log(`Selected ${packageCheckboxes.length} packages`);
+};
+
+// ✅ Event listener setup
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         const selectAllCheckbox = document.getElementById('selectAllPackages');
@@ -1723,17 +1593,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-
-// Working Report Functions
-window.viewReport = async function(fileName) {
+// Opens report as a JSON/PDF file in a new tab
+window.viewReportFile = async function(fileName) {
     try {
         const reportKey = `report_${fileName}`;
         const reportData = localStorage.getItem(reportKey);
         
         if (!reportData) {
-            // Try to fetch from Supabase
             if (supabase && navigator.onLine) {
-                const { data, error } = await supabase
+                const { data } = await supabase
                     .from('reports')
                     .select('*')
                     .eq('fileName', fileName)
@@ -1747,8 +1615,7 @@ window.viewReport = async function(fileName) {
             showAlert('Rapor bulunamadı', 'error');
             return;
         }
-        
-        // Open report in new tab
+
         const blob = new Blob([reportData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
@@ -1757,7 +1624,8 @@ window.viewReport = async function(fileName) {
         console.error('View report error:', error);
         showAlert('Rapor görüntülenemedi', 'error');
     }
-}
+};
+
 
 window.downloadReport = function(fileName) {
     try {
