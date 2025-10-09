@@ -3324,32 +3324,39 @@ console.log('✅ Reports module loaded successfully');
 
         
 
-        async function deleteCustomer(customerId) {
-            if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
+      async function deleteCustomer(customerId) {
+    console.log("Deleting customer with id:", customerId); // debug
 
-            try {
-                const { error } = await supabase
-                    .from('customers')
-                    .delete()
-                    .eq('id', customerId);
+    if (!customerId) {
+        showAlert('Geçersiz müşteri ID! Silme işlemi yapılamıyor.', 'error');
+        return;
+    }
 
-                if (error) {
-                    console.error('Error deleting customer:', error);
-                    showAlert('Müşteri silinirken hata: ' + error.message, 'error');
-                    return;
-                }
+    if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
 
-                showAlert('Müşteri başarıyla silindi', 'success');
-                
-                // Refresh lists
-                await populateCustomers();
-                await showAllCustomers();
-                
-            } catch (error) {
-                console.error('Error in deleteCustomer:', error);
-                showAlert('Müşteri silme hatası', 'error');
-            }
+    try {
+        const { error } = await supabase
+            .from('customers')
+            .delete()
+            .eq('id', customerId);
+
+        if (error) {
+            console.error('Error deleting customer:', error);
+            showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+            return;
         }
+
+        showAlert('Müşteri başarıyla silindi', 'success');
+        
+        // Refresh lists
+        await populateCustomers();
+        await showAllCustomers();
+        
+    } catch (error) {
+        console.error('Error in deleteCustomer:', error);
+        showAlert('Müşteri silme hatası', 'error');
+    }
+}
 
 
 
