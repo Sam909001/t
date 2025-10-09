@@ -3648,28 +3648,36 @@ async function sendToRamp(containerNo = null) {
         }
 
         // --- UI REFRESH ---
-   // In the success section of sendToRamp:
-if (successCount > 0) {
-    showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
-    
-    // Get the package IDs that were moved
-    const movedPackageIds = selectedPackages.map(pkg => pkg.id);
-    
-    // Immediately remove from UI
-    removePackagesFromUI(movedPackageIds);
-    
-    // Refresh shipping table
-    await populateShippingTable();
-    
-    // Full data refresh after a short delay
-    setTimeout(async () => {
-        await refreshAllTables();
-    }, 1000);
-    
-    currentContainer = null;
+        if (successCount > 0) {
+            showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
+            
+            // Get the package IDs that were moved
+            const movedPackageIds = selectedPackages.map(pkg => pkg.id);
+            
+            // Immediately remove from UI
+            removePackagesFromUI(movedPackageIds);
+            
+            // Refresh shipping table
+            await populateShippingTable();
+            
+            // Full data refresh after a short delay
+            setTimeout(async () => {
+                await refreshAllTables();
+            }, 1000);
+            
+            currentContainer = null;
+        } else {
+            showAlert('Hiçbir paket güncellenemedi', 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Error in sendToRamp:', error);
+        showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
+    }
 }
 
-        function removePackagesFromUI(packageIds) {
+// MOVE THIS FUNCTION OUTSIDE sendToRamp - it should be a separate function
+function removePackagesFromUI(packageIds) {
     const tableBody = document.getElementById('packagesTableBody');
     if (!tableBody) return;
     
@@ -3691,7 +3699,61 @@ if (successCount > 0) {
     }
 }
 
+// Add this refresh function (place it outside sendToRamp)
+async function refreshAllTables() {
+    try {
+        console.log('🔄 Force refreshing all tables...');
         
+        // Clear current data to force fresh load
+        if (window.packages) {
+            window.packages = [];
+        }
+        
+        // Force refresh pending packages with workspace filtering
+        const workspaceId = getCurrentWorkspaceId();
+        let refreshedPackages = [];
+        
+        if (isUsingExcel || !supabase || !navigator.onLine) {
+            // Refresh from Excel
+            const excelData = await ExcelJS.readFile();
+            refreshedPackages = excelData.filter(pkg => {
+                const packageWorkspace = pkg.workspace_id || getCurrentWorkspaceId();
+                return packageWorkspace === workspaceId &&
+                       pkg.status === 'beklemede' && 
+                       (!pkg.container_id || pkg.container_id === null);
+            });
+            window.packages = refreshedPackages;
+        } else {
+            // Refresh from Supabase
+            const { data: supabasePackages, error } = await supabase
+                .from('packages')
+                .select(`*, customers (name, code)`)
+                .is('container_id', null)
+                .eq('status', 'beklemede')
+                .eq('workspace_id', workspaceId)
+                .order('created_at', { ascending: false });
+                
+            if (!error && supabasePackages) {
+                window.packages = supabasePackages;
+            }
+        }
+        
+        // Clear and repopulate the table
+        const tableBody = document.getElementById('packagesTableBody');
+        if (tableBody) {
+            tableBody.innerHTML = '';
+        }
+        
+        await populatePackagesTable();
+        await populateShippingTable();
+        
+        console.log('✅ Tables refreshed successfully');
+        
+    } catch (error) {
+        console.error('❌ Error refreshing tables:', error);
+    }
+}
+
 // --- shipContainer: ship/mark a whole container as shipped (sevk-edildi) ---
 async function shipContainer(containerNo) {
     try {
@@ -3780,7 +3842,6 @@ async function shipContainer(containerNo) {
         showAlert('Konteyner sevk edilirken hata oluştu: ' + (error.message || error), 'error');
     }
 }
-
 
 
         
