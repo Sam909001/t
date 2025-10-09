@@ -3324,11 +3324,22 @@ console.log('✅ Reports module loaded successfully');
 
         
 
-      async function deleteCustomer(customerId) {
-    console.log("Deleting customer with id:", customerId); // debug
-
-    if (!customerId) {
+    async function deleteCustomer(customerId) {
+    console.log("Deleting customer with id:", customerId); 
+    console.log("Customer ID type:", typeof customerId);
+    console.log("Customer ID length:", customerId ? customerId.length : 'null');
+    
+    // Better validation
+    if (!customerId || customerId === '' || customerId === 'null' || customerId === 'undefined') {
         showAlert('Geçersiz müşteri ID! Silme işlemi yapılamıyor.', 'error');
+        return;
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(customerId)) {
+        console.error('Invalid UUID format:', customerId);
+        showAlert('Geçersiz müşteri ID formatı!', 'error');
         return;
     }
 
@@ -3342,7 +3353,13 @@ console.log('✅ Reports module loaded successfully');
 
         if (error) {
             console.error('Error deleting customer:', error);
-            showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+            
+            // Handle foreign key constraint errors
+            if (error.code === '23503') {
+                showAlert('Bu müşteriye ait kayıtlar bulunduğu için silinemez! Önce ilişkili paket ve barkodları silin.', 'error');
+            } else {
+                showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+            }
             return;
         }
 
@@ -3357,7 +3374,6 @@ console.log('✅ Reports module loaded successfully');
         showAlert('Müşteri silme hatası', 'error');
     }
 }
-
 
 
 // Delete selected packages
