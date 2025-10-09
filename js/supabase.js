@@ -1781,11 +1781,16 @@ async function testConnection() {
 
 
 
-  async function populateCustomers() {
+ async function populateCustomers() {
     try {
+        const workspaceId = getCurrentWorkspaceId();
+        
+        console.log(`Loading customers for workspace: ${workspaceId}`);
+        
         const { data: customers, error } = await supabase
             .from('customers')
             .select('id, name, code')
+            .eq('workspace_id', workspaceId) // CRITICAL: Filter by workspace
             .order('name', { ascending: true });
 
         if (error) {
@@ -1796,7 +1801,6 @@ async function testConnection() {
         const customerSelect = document.getElementById('customerSelect');
         if (!customerSelect) return;
 
-        // Clear old options
         customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
 
         // Deduplicate by customer code
@@ -1807,7 +1811,6 @@ async function testConnection() {
             }
         });
 
-        // Append unique customers
         Object.values(uniqueCustomers).forEach(cust => {
             const opt = document.createElement('option');
             opt.value = cust.id;
@@ -1815,12 +1818,39 @@ async function testConnection() {
             customerSelect.appendChild(opt);
         });
 
+        console.log(`Loaded ${Object.keys(uniqueCustomers).length} customers for workspace ${workspaceId}`);
+
     } catch (err) {
         console.error('populateCustomers error:', err);
     }
 }
 
 
+// Validate customer exists in current workspace
+async function validateCustomerAccess(customerId) {
+    if (!customerId) return { valid: true, customer: null };
+    
+    try {
+        const workspaceId = getCurrentWorkspaceId();
+        const { data: customer, error } = await supabase
+            .from('customers')
+            .select('id, name, code')
+            .eq('id', customerId)
+            .eq('workspace_id', workspaceId)
+            .single();
+
+        if (error || !customer) {
+            return { 
+                valid: false, 
+                error: `Customer ${customerId} not found in workspace ${workspaceId}` 
+            };
+        }
+
+        return { valid: true, customer: customer };
+    } catch (error) {
+        return { valid: false, error: error.message };
+    }
+}
 
 
 
