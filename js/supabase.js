@@ -3332,9 +3332,9 @@ async function addNewCustomer() {
         let workspaceId = getCurrentWorkspaceId();
         console.log("🔴 STEP 4.5: Workspace ID:", workspaceId, "Type:", typeof workspaceId);
         
-        // ✅ SIMPLIFIED FIX: Check if it looks like a UUID
-        if (!workspaceId || typeof workspaceId !== 'string' || workspaceId.length !== 36) {
-            console.warn("⚠️ Invalid workspace ID, using default...");
+        // ✅ BETTER FIX: Check specifically for "station-1" and other invalid values
+        if (!workspaceId || workspaceId === "station-1" || workspaceId === "station-2" || workspaceId.length !== 36) {
+            console.warn("⚠️ Invalid workspace ID '" + workspaceId + "', using default...");
             workspaceId = '00000000-0000-0000-0000-000000000000'; // Default workspace UUID
         }
         
@@ -3381,7 +3381,6 @@ async function addNewCustomer() {
         return { success: false, error: error.message };
     }
 }
-
     async function deleteCustomer(customerId) {
     console.log("Deleting customer with id:", customerId); 
     console.log("Customer ID type:", typeof customerId);
