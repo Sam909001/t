@@ -1824,3 +1824,55 @@ async function addCustomer(name, code) {
         showAlert('Beklenmeyen bir hata oluştu', 'error');
     }
 }
+
+
+
+async function assignPackagesToContainer(packageIds, containerId) {
+    try {
+        showAlert('Paketler konteynere ekleniyor...', 'info');
+        
+        // Update packages in memory
+        window.packages = window.packages.map(pkg => {
+            if (packageIds.includes(pkg.id)) {
+                return {
+                    ...pkg,
+                    container_id: containerId,
+                    status: 'konteynerде', // or your status value
+                    updated_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        
+        // Save to Excel immediately
+        const excelData = ExcelJS.toExcelFormat(window.packages);
+        await ExcelJS.writeFile(excelData);
+        
+        // Update in Supabase if online
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('packages')
+                .update({ 
+                    container_id: containerId,
+                    status: 'konteynerде',
+                    updated_at: new Date().toISOString()
+                })
+                .in('id', packageIds);
+            
+            if (error) throw error;
+        }
+        
+        // Reload and refresh UI
+        await loadPackagesDataStrict();
+        await populatePackagesTable();
+        await populateShippingTable();
+        
+        showAlert(`${packageIds.length} paket konteynere eklendi`, 'success');
+        
+    } catch (error) {
+        console.error('Container assignment error:', error);
+        showAlert('Paketler eklenirken hata oluştu', 'error');
+    }
+}
+
+
