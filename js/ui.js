@@ -1,4 +1,4 @@
-// Ensure a global elements object exists and initialize it once
+/// Ensure a global elements object exists and initialize it once
 if (!window.elements) window.elements = {};
 if (!window._elementsInitialized) {
     document.addEventListener('DOMContentLoaded', function() {
