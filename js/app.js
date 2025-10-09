@@ -1808,44 +1808,42 @@ window.deleteReport = async function(fileName) {
     }
 }
 
-
-// Make sure you import UUID generator if not already
-// npm install uuid
-// import { v4 as uuidv4 } from 'uuid';
-
+// Adds a new customer safely
 async function addCustomer(name, code) {
     if (!name || !code) {
-        showAlert('Lütfen müşteri adı ve kodu girin', 'warning');
+        showAlert('Lütfen müşteri adı ve kodunu girin', 'error');
         return;
     }
 
     try {
-        // Generate UUID for new customer
-        const customerId = uuidv4();
+        const workspaceId = getCurrentWorkspaceId(); // get current workspace if applicable
+        const customerId = crypto.randomUUID(); // generate valid UUID
 
-        // Insert into Supabase
         const { data, error } = await supabase
             .from('customers')
-            .insert([{ id: customerId, name, code }])
-            .select(); // optional: return inserted row(s)
+            .insert([{
+                id: customerId,
+                name: name.trim(),
+                code: code.trim(),
+                workspace_id: workspaceId,   // include all required NOT NULL columns
+                created_at: new Date().toISOString() // include timestamp if NOT NULL
+            }])
+            .select(); // ensures we get the inserted row back
 
         if (error) {
-            console.error('Müşteri ekleme hatası:', error);
+            console.error('Customer insert failed:', error);
             showAlert('Müşteri eklenemedi: ' + error.message, 'error');
             return;
         }
 
-        if (data && data.length > 0) {
-            showAlert(`Müşteri başarıyla eklendi: ${data[0].name}`, 'success');
+        console.log('Customer added successfully:', data);
+        showAlert('Müşteri başarıyla eklendi', 'success');
 
-            // Refresh dropdown / table
-            await populateCustomers();
-        } else {
-            showAlert('Müşteri eklenemedi: veri dönmedi', 'error');
-        }
+        // Refresh customer dropdown/table
+        await populateCustomers();
 
     } catch (err) {
-        console.error('Beklenmedik hata:', err);
-        showAlert('Müşteri eklerken beklenmedik hata oluştu', 'error');
+        console.error('Unexpected error while adding customer:', err);
+        showAlert('Beklenmeyen bir hata oluştu', 'error');
     }
 }
