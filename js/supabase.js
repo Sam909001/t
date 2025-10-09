@@ -3299,7 +3299,7 @@ function escapeHtml(unsafe) {
 
         
 
-        async function addNewCustomer() {
+      async function addNewCustomer() {
     const code = document.getElementById('newCustomerCode').value.trim();
     const name = document.getElementById('newCustomerName').value.trim();
     const email = document.getElementById('newCustomerEmail').value.trim();
@@ -3326,7 +3326,7 @@ function escapeHtml(unsafe) {
                 code, 
                 name, 
                 email: email || null,
-                workspace_id: workspaceId // ✅ NOW INCLUDED
+                workspace_id: workspaceId // ✅ CRITICAL: Always include workspace_id
             }]);
 
         if (error) {
@@ -3337,11 +3337,12 @@ function escapeHtml(unsafe) {
 
         showAlert('Müşteri başarıyla eklendi', 'success');
         
-        // Clear form and refresh
+        // Clear form
         document.getElementById('newCustomerCode').value = '';
         document.getElementById('newCustomerName').value = '';
         document.getElementById('newCustomerEmail').value = '';
         
+        // Refresh lists
         await populateCustomers();
         await showAllCustomers();
         
