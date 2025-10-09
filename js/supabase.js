@@ -937,7 +937,7 @@ async function initializeExcelStorage() {
     }
 }
 
-// REPLACE the existing saveToExcel function with this:
+// REPLACE the saveToExcel function with this FIXED version:
 async function saveToExcel(packageData) {
     try {
         // Enhanced package data with customer and product info
@@ -963,10 +963,15 @@ async function saveToExcel(packageData) {
         // Read current daily file
         const currentPackages = await ExcelJS.readFile();
         
-        // Yeni paketi ekle veya güncelle
+        // 🚨 FIX: Check by ID, but NEVER overwrite the ID
         const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
         if (existingIndex >= 0) {
-            currentPackages[existingIndex] = enhancedPackageData;
+            // Preserve the original ID but update other data
+            currentPackages[existingIndex] = {
+                ...currentPackages[existingIndex], // Keep original ID
+                ...enhancedPackageData,            // Update other fields
+                id: currentPackages[existingIndex].id // 🚨 CRITICAL: Preserve original ID
+            };
         } else {
             currentPackages.push(enhancedPackageData);
         }
@@ -975,7 +980,6 @@ async function saveToExcel(packageData) {
         const success = await ExcelJS.writeFile(currentPackages);
         
         if (success) {
-            // Global excelPackages değişkenini güncelle
             excelPackages = currentPackages;
             console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
             return true;
@@ -987,6 +991,7 @@ async function saveToExcel(packageData) {
         return false;
     }
 }
+
 
 async function deleteFromExcel(packageId) {
     try {
@@ -3352,142 +3357,6 @@ console.log('✅ Reports module loaded successfully');
         }
 
 
-
-async function completePackage() {
-    if (!selectedCustomer) {
-        showAlert('Önce müşteri seçin', 'error');
-        return;
-    }
-
-    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-        showAlert('Pakete ürün ekleyin', 'error');
-        return;
-    }
-
-    // Check workspace permissions
-    if (!window.workspaceManager?.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
-    try {
-        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-      const workspaceId = window.workspaceManager.currentWorkspace.id;
-
-// Get or initialize counter for this workspace
-let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-packageCounter++;
-localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
-
-const timestamp = Date.now();
-const random = Math.random().toString(36).substr(2, 9);
-
-const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
-        
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect?.value || '';
-
-        // Enhanced package data with workspace info - USE THE SAME ID
-        const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
-            package_no: packageNo,
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name,
-            customer_code: selectedCustomer.code,
-            items: currentPackage.items,
-            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
-                name: name,
-                qty: qty
-            })),
-            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-                `${name}: ${qty} adet`
-            ).join(', '),
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            workspace_id: workspaceId,
-            station_name: window.workspaceManager.currentWorkspace.name,
-            daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app' // Track source for sync
-        };
-
-        console.log('📦 Creating package with ID:', packageId);
-
-        // Save based on connectivity and workspace settings
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
-
-                if (error) throw error;
-
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-                isUsingExcel = true;
-            }
-        } else {
-            await saveToExcel(packageData); // SAME packageData with SAME ID
-            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-            isUsingExcel = true;
-        }
-
-        // Reset and refresh
-        currentPackage = {};
-        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
-        await populatePackagesTable();
-        updateStorageIndicator();
-
-    } catch (error) {
-        console.error('Error in completePackage:', error);
-        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
-    }
-}
-
-
-
-// Delete selected packages
-async function deleteSelectedPackages() {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-    if (checkboxes.length === 0) {
-        showAlert('Silinecek paket seçin', 'error');
-        return;
-    }
-
-    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
-
-    try {
-        const packageIds = Array.from(checkboxes).map(cb => cb.value);
-
-        const { error } = await supabase
-            .from('packages')
-            .delete()
-            .in('id', packageIds);
-
-        if (error) throw error;
-
-        showAlert(`${packageIds.length} paket silindi`, 'success');
-        await populatePackagesTable();
-
-    } catch (error) {
-        console.error('Error in deleteSelectedPackages:', error);
-        showAlert('Paket silme hatası', 'error');
-    }
-}
-
-
-
 async function sendToRamp(containerNo = null) {
     try {
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
@@ -4426,43 +4295,6 @@ async function completePackageSecure() {
     return await completePackage();
 }
 
-// Replace original functions with secure versions
-window.completePackage = completePackageSecure;
-window.supabase = createSecureSupabaseClient();
-
-
-
 window.workspaceManager = new EnhancedWorkspaceManager();
 
-
-
-
-
-// Print single package function
-window.printSinglePackage = async function(packageId) {
-    console.log('🖨️ Printing package:', packageId);
-    
-    const checkbox = document.querySelector(`#packagesTableBody input[value="${packageId}"]`);
-    
-    if (!checkbox) {
-        alert('Paket bulunamadı!');
-        return;
-    }
-    
-    // Uncheck all other checkboxes
-    const allCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    allCheckboxes.forEach(cb => cb.checked = false);
-    
-    // Check only this package
-    checkbox.checked = true;
-    
-    // Wait a moment for the checkbox to update
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Call the main print function
-    if (typeof window.printSelectedElectron === 'function') {
-        await window.printSelectedElectron();
-    } else {
-        alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
-    }
-};
+window.completePackage = completePackageSecure;
