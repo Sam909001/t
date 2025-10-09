@@ -3300,47 +3300,56 @@ function escapeHtml(unsafe) {
         
 
         async function addNewCustomer() {
-            const code = document.getElementById('newCustomerCode').value.trim();
-            const name = document.getElementById('newCustomerName').value.trim();
-            const email = document.getElementById('newCustomerEmail').value.trim();
+    const code = document.getElementById('newCustomerCode').value.trim();
+    const name = document.getElementById('newCustomerName').value.trim();
+    const email = document.getElementById('newCustomerEmail').value.trim();
 
-            // Form doğrulama
-            if (!validateForm([
-                { id: 'newCustomerCode', errorId: 'customerCodeError', type: 'text', required: true },
-                { id: 'newCustomerName', errorId: 'customerNameError', type: 'text', required: true },
-                { id: 'newCustomerEmail', errorId: 'customerEmailError', type: 'email', required: false }
-            ])) {
-                return;
-            }
+    // Form validation
+    if (!validateForm([
+        { id: 'newCustomerCode', errorId: 'customerCodeError', type: 'text', required: true },
+        { id: 'newCustomerName', errorId: 'customerNameError', type: 'text', required: true },
+        { id: 'newCustomerEmail', errorId: 'customerEmailError', type: 'email', required: false }
+    ])) {
+        return;
+    }
 
-            try {
-                const { error } = await supabase
-                    .from('customers')
-                    .insert([{ code, name, email: email || null }]);
-
-                if (error) {
-                    console.error('Error adding customer:', error);
-                    showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
-                    return;
-                }
-
-                showAlert('Müşteri başarıyla eklendi', 'success');
-                
-                // Clear form
-                document.getElementById('newCustomerCode').value = '';
-                document.getElementById('newCustomerName').value = '';
-                document.getElementById('newCustomerEmail').value = '';
-                
-                // Refresh lists
-                await populateCustomers();
-                await showAllCustomers();
-                
-            } catch (error) {
-                console.error('Error in addNewCustomer:', error);
-                showAlert('Müşteri ekleme hatası', 'error');
-            }
+    try {
+        const workspaceId = getCurrentWorkspaceId();
+        if (!workspaceId) {
+            showAlert('Çalışma alanı bulunamadı!', 'error');
+            return;
         }
 
+        const { error } = await supabase
+            .from('customers')
+            .insert([{ 
+                code, 
+                name, 
+                email: email || null,
+                workspace_id: workspaceId // ✅ NOW INCLUDED
+            }]);
+
+        if (error) {
+            console.error('Error adding customer:', error);
+            showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
+            return;
+        }
+
+        showAlert('Müşteri başarıyla eklendi', 'success');
+        
+        // Clear form and refresh
+        document.getElementById('newCustomerCode').value = '';
+        document.getElementById('newCustomerName').value = '';
+        document.getElementById('newCustomerEmail').value = '';
+        
+        await populateCustomers();
+        await showAllCustomers();
+        
+    } catch (error) {
+        console.error('Error in addNewCustomer:', error);
+        showAlert('Müşteri ekleme hatası', 'error');
+    }
+}
 
         
 
