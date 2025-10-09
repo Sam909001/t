@@ -3303,8 +3303,8 @@ function escapeHtml(unsafe) {
 
         
 
-async function addCustomer() {
-    console.log("🔴 STEP 4.1: addCustomer STARTED");
+async function addNewCustomer() {
+    console.log("🔴 STEP 4.1: addNewCustomer STARTED");
     
     const code = document.getElementById('newCustomerCode').value.trim();
     const name = document.getElementById('newCustomerName').value.trim();
@@ -3312,20 +3312,28 @@ async function addCustomer() {
 
     console.log("🔴 STEP 4.2: Form values - Code:'" + code + "', Name:'" + name + "', Email:'" + email + "'");
 
-    // ✅ TEMPORARY: Skip validation for testing
-    console.log("🔴 STEP 4.3: Skipping validation for debug");
+    // ✅ PROPER VALIDATION
+    if (!code) {
+        console.error("❌ Validation failed: Missing customer code");
+        showAlert('Müşteri kodu giriniz!', 'error');
+        document.getElementById('newCustomerCode').focus();
+        return;
+    }
     
-    // if (!code) {
-    //     console.error("❌ Validation failed: Missing customer code");
-    //     showAlert('Müşteri kodu giriniz!', 'error');
-    //     return;
-    // }
-    
-    // if (!name) {
-    //     console.error("❌ Validation failed: Missing customer name");
-    //     showAlert('Müşteri adı giriniz!', 'error');
-    //     return;
-    // }
+    if (!name) {
+        console.error("❌ Validation failed: Missing customer name");
+        showAlert('Müşteri adı giriniz!', 'error');
+        document.getElementById('newCustomerName').focus();
+        return;
+    }
+
+    // Optional email validation
+    if (email && !isValidEmail(email)) {
+        console.error("❌ Validation failed: Invalid email format");
+        showAlert('Geçerli bir e-posta adresi giriniz!', 'error');
+        document.getElementById('newCustomerEmail').focus();
+        return;
+    }
 
     try {
         console.log("🔴 STEP 4.4: Getting workspace ID...");
@@ -3367,13 +3375,20 @@ async function addCustomer() {
         await populateCustomers();
         await showAllCustomers();
         
-        console.log("✅ STEP 4.10: addCustomer COMPLETED");
+        console.log("✅ STEP 4.10: addNewCustomer COMPLETED");
         
     } catch (error) {
-        console.error('❌ STEP 4.ERROR: Error in addCustomer:', error);
+        console.error('❌ STEP 4.ERROR: Error in addNewCustomer:', error);
         showAlert('Müşteri ekleme hatası: ' + error.message, 'error');
     }
 }
+
+// ✅ Add email validation helper if not exists
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
 // ✅ Add email validation helper
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
