@@ -223,27 +223,29 @@ async function clearDataWithAuth() {
     }
 }
 
-// ✅ CORRECT: Delete Customer with Authentication
+// ✅ FIXED: Delete Customer with Authentication
 async function deleteCustomerWithAuth(customerId, customerName) {
     const passwordGuard = new PasswordGuard();
     
     try {
-        await passwordGuard.askPasswordAndRun(async () => {
-            // ✅ Pass the parameters to deleteCustomer
+        // ✅ FIX: Create a bound function that preserves the parameters
+        const deleteAction = async () => {
+            console.log("🔐 PasswordGuard executing delete for customer:", customerId);
             if (typeof deleteCustomer === 'function') {
                 await deleteCustomer(customerId);
             } else {
                 showAlert('Müşteri silme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
             }
-        }, 'müşteri silme', 'default');
+        };
+        
+        await passwordGuard.askPasswordAndRun(deleteAction, 'müşteri silme', 'default');
     } catch (error) {
         if (error.message !== 'User cancelled') {
             console.log('Delete customer cancelled:', error.message);
         }
     }
 }
-
 // ✅ 5. Add Customer with Authentication - Uses 8823
 async function addCustomerWithAuth() {
     const passwordGuard = new PasswordGuard();
