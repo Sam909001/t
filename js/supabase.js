@@ -3615,28 +3615,34 @@ async function sendToRamp(containerNo = null) {
             successCount += updatedCount;
         }
 
-        // --- Instant UI Update ---
-        if (successCount > 0) {
-            showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
+      // --- Instant UI Update ---
+if (successCount > 0) {
+    showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
 
-            // Directly update the visible rows to show new status
-            selectedPackages.forEach(pkg => {
-                const row = document.querySelector(`#packagesTableBody tr[data-id="${pkg.id}"]`);
-                if (row) row.querySelector('.status-cell').textContent = 'sevk-edildi';
-            });
-
-            await populatePackagesTable(); // ensures refreshed data
-            setTimeout(() => populateShippingTable(), 500);
-            currentContainer = null;
-        } else {
-            showAlert('Hiçbir paket güncellenemedi', 'error');
+    // Instantly update rows to reflect new status
+    selectedPackages.forEach(pkg => {
+        const row = document.querySelector(`#packagesTableBody tr[data-id="${pkg.id}"]`);
+        if (row) {
+            const statusCell = row.querySelector('.status-cell');
+            if (statusCell) {
+                statusCell.textContent = 'sevk-edildi';
+                statusCell.classList.remove('status-beklemede');
+                statusCell.classList.add('status-sevk-edildi');
+            }
         }
+    });
 
-    } catch (error) {
-        console.error('❌ Error in sendToRamp:', error);
-        showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
-    }
+    // Immediately refresh both tables for accurate data
+    await Promise.all([
+        populatePackagesTable(),
+        populateShippingTable()
+    ]);
+
+    currentContainer = null;
+} else {
+    showAlert('Hiçbir paket güncellenemedi', 'error');
 }
+
 
         
       async function shipContainer(containerNo) {
