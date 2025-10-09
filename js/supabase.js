@@ -3497,15 +3497,17 @@ async function sendToRamp(containerNo = null) {
             const timestamp = new Date().getTime();
             containerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
-            // ✅ FIXED: Use customer_id instead of customer, and proper data types
+            // ✅ FIXED: Use the correct column name - customer_id instead of customer
             const containerData = {
                 container_no: containerNo,
-                customer_id: selectedCustomer?.id || null, // ✅ Use customer_id (UUID)
+                customer_id: selectedCustomer?.id || null, // ✅ CORRECT: customer_id (UUID)
                 package_count: selectedPackages.length,
                 total_quantity: await calculateTotalQuantity(selectedPackages.map(p => p.id)),
                 status: 'sevk-edildi'
                 // created_at is automatically set by DEFAULT
             };
+            
+            console.log("Creating container with data:", containerData);
             
             const { data: newContainer, error } = await supabase
                 .from('containers')
@@ -3519,7 +3521,9 @@ async function sendToRamp(containerNo = null) {
             
             containerId = newContainer[0].id;
             currentContainer = containerNo;
-            elements.containerNumber.textContent = containerNo;
+            if (elements.containerNumber) {
+                elements.containerNumber.textContent = containerNo;
+            }
             saveAppState();
         }
 
@@ -3553,22 +3557,23 @@ async function sendToRamp(containerNo = null) {
         // Update Excel packages locally
         if (excelPackages.length > 0) {
             try {
-                const currentPackages = await ExcelJS.readFile();
-                const updatedPackages = currentPackages.map(pkg => {
-                    const selectedPkg = excelPackages.find(ep => ep.id === pkg.id);
-                    if (selectedPkg) {
-                        return {
-                            ...pkg,
+                // Update excelPackages array
+                excelPackages.forEach(selectedPkg => {
+                    const index = excelPackages.findIndex(p => p.id === selectedPkg.id);
+                    if (index !== -1) {
+                        excelPackages[index] = {
+                            ...excelPackages[index],
                             container_id: containerId,
                             status: 'sevk-edildi',
                             updated_at: new Date().toISOString()
                         };
                     }
-                    return pkg;
                 });
                 
-                await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
-                excelPackages = updatedPackages;
+                // Save to localStorage as fallback
+                const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+                localStorage.setItem(`excelPackages_${workspaceId}`, JSON.stringify(excelPackages));
+                
                 console.log(`Updated ${excelPackages.length} Excel packages locally`);
             } catch (excelError) {
                 console.warn('Excel update error:', excelError);
@@ -3593,8 +3598,6 @@ function isValidUUID(uuid) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return uuidRegex.test(uuid);
 }
-
-
 
 
 
