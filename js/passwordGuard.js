@@ -6,7 +6,6 @@ class PasswordGuard {
         // Simple password protection - no attempt limits
         this.passwords = {
             'clearData': '7142',
-            'changeApiKey': '7142',
             'default': '8823' // For all other actions
         };
     }
@@ -153,7 +152,6 @@ class PasswordGuard {
     getPasswordHint(actionType) {
         switch(actionType) {
             case 'clearData':
-            case 'changeApiKey':
                 return 'Yönetici Şifresi';
             default:
                 return 'Operatör Şifresi';
@@ -168,14 +166,16 @@ async function deletePackageWithAuth() {
     const passwordGuard = new PasswordGuard();
     
     try {
-        await passwordGuard.askPasswordAndRun(() => {
+        const deleteAction = async () => {
             if (typeof deleteSelectedPackages === 'function') {
-                return deleteSelectedPackages();
+                return await deleteSelectedPackages();
             } else {
                 showAlert('Paket silme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
             }
-        }, 'paket silme', 'default');
+        };
+        
+        await passwordGuard.askPasswordAndRun(deleteAction, 'paket silme', 'default');
     } catch (error) {
         if (error.message !== 'User cancelled') {
             console.log('Delete package cancelled:', error.message);
@@ -183,39 +183,21 @@ async function deletePackageWithAuth() {
     }
 }
 
-// ✅ 2. Change API Key with Authentication - Uses 7142
-async function changeApiKeyWithAuth() {
-    const passwordGuard = new PasswordGuard();
-    
-    try {
-        await passwordGuard.askPasswordAndRun(() => {
-            if (typeof showApiKeyModal === 'function') {
-                showApiKeyModal();
-            } else {
-                showAlert('API anahtarı fonksiyonu bulunamadı', 'error');
-                throw new Error('Function not found');
-            }
-        }, 'API anahtarı değiştirme', 'changeApiKey');
-    } catch (error) {
-        if (error.message !== 'User cancelled') {
-            console.log('API key change cancelled:', error.message);
-        }
-    }
-}
-
-// ✅ 3. Clear Data with Authentication - Uses 7142
+// ✅ 2. Clear Data with Authentication - Uses 7142
 async function clearDataWithAuth() {
     const passwordGuard = new PasswordGuard();
     
     try {
-        await passwordGuard.askPasswordAndRun(() => {
+        const clearAction = async () => {
             if (typeof clearFrontendData === 'function') {
-                return clearFrontendData();
+                return await clearFrontendData();
             } else {
                 showAlert('Veri temizleme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
             }
-        }, 'veri temizleme', 'clearData');
+        };
+        
+        await passwordGuard.askPasswordAndRun(clearAction, 'veri temizleme', 'clearData');
     } catch (error) {
         if (error.message !== 'User cancelled') {
             console.log('Clear data cancelled:', error.message);
@@ -223,12 +205,11 @@ async function clearDataWithAuth() {
     }
 }
 
-// ✅ FIXED: Delete Customer with Authentication
+// ✅ 3. Delete Customer with Authentication - Uses 8823
 async function deleteCustomerWithAuth(customerId, customerName) {
     const passwordGuard = new PasswordGuard();
     
     try {
-        // ✅ FIX: Create a bound function that preserves the parameters
         const deleteAction = async () => {
             console.log("🔐 PasswordGuard executing delete for customer:", customerId);
             if (typeof deleteCustomer === 'function') {
@@ -246,7 +227,8 @@ async function deleteCustomerWithAuth(customerId, customerName) {
         }
     }
 }
-// ✅ FIXED: Add Customer with Authentication
+
+// ✅ 4. Add Customer with Authentication - Uses 8823
 async function addCustomerWithAuth() {
     const passwordGuard = new PasswordGuard();
     
@@ -257,7 +239,7 @@ async function addCustomerWithAuth() {
                 console.log("🟢 Calling addNewCustomer function...");
                 const result = await addNewCustomer();
                 console.log("🔐 addNewCustomer completed with result:", result);
-                return result; // ✅ Return the result
+                return result;
             } else {
                 console.error("❌ addNewCustomer function not found!");
                 showAlert('Müşteri ekleme fonksiyonu bulunamadı', 'error');
@@ -276,12 +258,12 @@ async function addCustomerWithAuth() {
         return { success: false, error: error.message };
     }
 }
-// ✅ FIXED: Clear Excel with Authentication - Uses 8823
+
+// ✅ 5. Clear Excel with Authentication - Uses 8823
 async function clearExcelDataWithAuth() {
     const passwordGuard = new PasswordGuard();
     
     try {
-        // ✅ FIX: Create a bound function
         const clearAction = async () => {
             if (typeof clearExcelData === 'function') {
                 return await clearExcelData();
@@ -299,19 +281,21 @@ async function clearExcelDataWithAuth() {
     }
 }
 
-// ✅ 7. Delete Container with Authentication - Uses 8823
+// ✅ 6. Delete Container with Authentication - Uses 8823
 async function deleteContainerWithAuth() {
     const passwordGuard = new PasswordGuard();
     
     try {
-        await passwordGuard.askPasswordAndRun(() => {
+        const deleteAction = async () => {
             if (typeof deleteContainer === 'function') {
-                return deleteContainer();
+                return await deleteContainer();
             } else {
                 showAlert('Konteyner silme fonksiyonu bulunamadı', 'error');
                 throw new Error('Function not found');
             }
-        }, 'konteyner silme', 'default');
+        };
+        
+        await passwordGuard.askPasswordAndRun(deleteAction, 'konteyner silme', 'default');
     } catch (error) {
         if (error.message !== 'User cancelled') {
             console.log('Delete container cancelled:', error.message);
@@ -324,7 +308,6 @@ async function deleteContainerWithAuth() {
 // Make only essential functions globally available
 window.PasswordGuard = PasswordGuard;
 window.deletePackageWithAuth = deletePackageWithAuth;
-window.changeApiKeyWithAuth = changeApiKeyWithAuth;
 window.clearDataWithAuth = clearDataWithAuth;
 window.deleteCustomerWithAuth = deleteCustomerWithAuth;
 window.addCustomerWithAuth = addCustomerWithAuth;
@@ -353,12 +336,11 @@ if (!document.getElementById('passwordGuardStyles')) {
     document.head.appendChild(style);
 }
 
-console.log('✅ Clean PasswordGuard loaded (No attempt references)');
+console.log('✅ Clean PasswordGuard loaded');
 console.log('🔐 Password protection system active');
-console.log('   - Delete Package: Protected');
-console.log('   - Add Customer: Protected'); 
-console.log('   - Delete Customer: Protected');
-console.log('   - Clear Excel: Protected');
-console.log('   - Delete Container: Protected');
-console.log('   - Clear Data: Protected');
-console.log('   - Change API Key: Protected');
+console.log('   - Delete Package: Protected (8823)');
+console.log('   - Add Customer: Protected (8823)'); 
+console.log('   - Delete Customer: Protected (8823)');
+console.log('   - Clear Excel: Protected (8823)');
+console.log('   - Delete Container: Protected (8823)');
+console.log('   - Clear Data: Protected (7142)');
