@@ -5,8 +5,8 @@ class PasswordGuard {
     constructor() {
         // Simple password protection - no attempt limits
         this.passwords = {
-            'clearData': '7142',
-            'default': '8823' // For all other actions
+            'clearData': '9494',  // Only for clear app data
+            'default': '8823'     // For all other actions
         };
     }
 
@@ -152,9 +152,9 @@ class PasswordGuard {
     getPasswordHint(actionType) {
         switch(actionType) {
             case 'clearData':
-                return 'Yönetici Şifresi';
+                return 'Yönetici Şifresi (9494)';
             default:
-                return 'Operatör Şifresi';
+                return 'Operatör Şifresi (8823)';
         }
     }
 }
@@ -183,7 +183,7 @@ async function deletePackageWithAuth() {
     }
 }
 
-// ✅ 2. Clear Data with Authentication - Uses 7142
+// ✅ 2. Clear Data with Authentication - Uses 9494
 async function clearDataWithAuth() {
     const passwordGuard = new PasswordGuard();
     
@@ -273,7 +273,6 @@ async function clearExcelDataWithAuth() {
             }
         };
         
-        // ✅ EXPLICITLY using 'default' which maps to 8823
         await passwordGuard.askPasswordAndRun(clearAction, 'Excel verilerini temizleme', 'default');
     } catch (error) {
         if (error.message !== 'User cancelled') {
@@ -344,4 +343,4 @@ console.log('   - Add Customer: Protected (8823)');
 console.log('   - Delete Customer: Protected (8823)');
 console.log('   - Clear Excel: Protected (8823)');
 console.log('   - Delete Container: Protected (8823)');
-console.log('   - Clear Data: Protected (7142)');
+console.log('   - Clear Data: Protected (9494)');
