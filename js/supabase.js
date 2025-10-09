@@ -71,15 +71,13 @@ async function loadPackagesDataStrict() {
         
         console.log(`🔒 STRICT: Loading packages for workspace: ${workspaceId}`);
         
-        // Load from workspace-specific Excel with strict filtering
+        // Load from workspace-specific Excel with ONLY workspace filtering
         const excelData = await ExcelJS.readFile();
         const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
         
-        // STRICT workspace filtering with validation
+        // ONLY filter by workspace - allow all statuses and container states
         const workspacePackages = excelPackagesList.filter(pkg => {
             const isValidWorkspace = pkg.workspace_id === workspaceId;
-            const isWaiting = pkg.status === 'beklemede';
-            const hasNoContainer = !pkg.container_id || pkg.container_id === null;
             
             if (!isValidWorkspace) {
                 console.warn('🔒 STRICT: Filtered package from different workspace:', {
@@ -90,22 +88,18 @@ async function loadPackagesDataStrict() {
                 return false;
             }
             
-            return isWaiting && hasNoContainer;
+            return true; // Keep all packages from this workspace
         });
         
         console.log(`✅ STRICT: Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
         window.packages = workspacePackages;
         
-        // Load from Supabase with STRICT workspace filtering
+        // Load from Supabase with workspace filtering only
         if (supabase && navigator.onLine) {
             try {
-                const workspaceFilter = getStrictWorkspaceFilter('packages');
-                
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
-                    .is('container_id', null)
-                    .eq('status', 'beklemede')
                     .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
                 
@@ -113,7 +107,7 @@ async function loadPackagesDataStrict() {
                     console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
                     const validSupabasePackages = supabasePackages.filter(pkg => 
-                        validateWorkspaceAccessStrict(pkg)
+                        pkg.workspace_id === workspaceId
                     );
                     
                     const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
@@ -135,21 +129,25 @@ async function loadPackagesDataStrict() {
     }
 }
 
-
-// Strict merge function
 function mergePackagesStrict(excelPackages, supabasePackages) {
     const merged = [...excelPackages];
     const excelIds = new Set(excelPackages.map(p => p.id));
     
     for (const supabasePkg of supabasePackages) {
-        // Validate workspace access before merging
-        if (!validateWorkspaceAccessStrict(supabasePkg)) {
+        // Only validate workspace - don't filter by status or container
+        if (supabasePkg.workspace_id !== getCurrentWorkspaceId()) {
             console.warn('🔒 Skipping Supabase package from different workspace:', supabasePkg.id);
             continue;
         }
         
         if (!excelIds.has(supabasePkg.id)) {
             merged.push(supabasePkg);
+        } else {
+            // Update existing package with latest Supabase data
+            const index = merged.findIndex(p => p.id === supabasePkg.id);
+            if (index !== -1) {
+                merged[index] = { ...merged[index], ...supabasePkg };
+            }
         }
     }
     
@@ -1865,8 +1863,30 @@ async function populatePersonnel() {
 
 
 async function populatePackagesTable() {
-    if (packagesTableLoading) {
-        console.log('Package table already loading, skipping...');
+    if (!elements.packagesTableBody) {
+        console.error('Packages table body not found');
+        return;
+    }
+    
+    // FILTER FOR DISPLAY ONLY - show pending packages without containers
+    const pendingPackages = (window.packages || []).filter(pkg => 
+        pkg.status === 'beklemede' && 
+        (!pkg.container_id || pkg.container_id === null)
+    );
+    
+    console.log(`📦 Displaying ${pendingPackages.length} pending packages (total: ${window.packages?.length || 0})`);
+    
+    elements.packagesTableBody.innerHTML = '';
+    
+    if (pendingPackages.length === 0) {
+        elements.packagesTableBody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 2rem; color: #666;">
+                    <i class="fas fa-inbox"></i><br>
+                    Bekleyen paket yok
+                </td>
+            </tr>
+        `;
         return;
     }
     
