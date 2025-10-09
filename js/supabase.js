@@ -3532,11 +3532,11 @@ async function deleteSelectedPackages() {
 async function sendToRamp(containerNo = null) {
     try {
         console.log('🚀 sendToRamp started');
-        
+
         // Get selected packages and their DOM elements
         const selectedCheckboxes = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'));
         console.log('Selected checkboxes:', selectedCheckboxes.length);
-        
+
         const selectedPackages = selectedCheckboxes.map(cb => {
             const data = cb.getAttribute('data-package');
             if (!data) {
@@ -3562,7 +3562,7 @@ async function sendToRamp(containerNo = null) {
         const movedPackageIds = selectedPackages.map(pkg => pkg.id);
         const movedPackageElements = selectedCheckboxes.map(cb => cb.closest('tr'));
 
-        // IMMEDIATE UI UPDATE: Remove packages from view instantly
+        // IMMEDIATE UI UPDATE: Remove packages from view instantly (Visual effect)
         movedPackageElements.forEach(row => {
             if (row) {
                 row.style.opacity = '0.3';
@@ -3635,7 +3635,7 @@ async function sendToRamp(containerNo = null) {
         // Supabase updates
         const supabasePackages = selectedPackages.filter(p => isValidUUID(p.id));
         console.log('Supabase packages to update:', supabasePackages.length);
-        
+
         if (supabasePackages.length > 0 && supabase && navigator.onLine) {
             const ids = supabasePackages.map(p => p.id);
             const { data: updatedRows, error: updateErr } = await supabase
@@ -3650,10 +3650,7 @@ async function sendToRamp(containerNo = null) {
 
             if (!updateErr && Array.isArray(updatedRows)) {
                 successCount += updatedRows.length;
-                // Update in-memory data safely
-                if (Array.isArray(window.packages)) {
-                    window.packages = window.packages.filter(p => p && !ids.includes(p.id));
-                }
+                // --- REMOVED partial filtering here, handled by universal fix below ---
             }
         }
 
@@ -3661,25 +3658,26 @@ async function sendToRamp(containerNo = null) {
         const excelPackages = selectedPackages.filter(p => !isValidUUID(p.id));
         console.log('Excel packages to update:', excelPackages.length);
         console.log('window.excelPackages state:', window.excelPackages);
-        
+
         if (excelPackages.length > 0 && typeof ExcelJS !== 'undefined' && typeof ExcelJS.readFile === 'function') {
             try {
                 console.log('Starting Excel update process...');
-                
+
                 // SAFE: Initialize window.excelPackages if it doesn't exist
                 if (!window.excelPackages || !Array.isArray(window.excelPackages)) {
                     console.log('Initializing window.excelPackages as empty array');
                     window.excelPackages = [];
                 }
-                
-                // SAFE: Filter with null check
+
+                // SAFE: Filter window.excelPackages immediately
                 window.excelPackages = window.excelPackages.filter(p => {
                     if (!p || !p.id) return false; // Remove invalid entries
-                    return !movedPackageIds.includes(p.id);
+                    // Filter out moved packages from the Excel state array
+                    return !movedPackageIds.includes(p.id); 
                 });
-                
+
                 console.log('Updated window.excelPackages:', window.excelPackages);
-                
+
                 // Read current Excel file
                 let currentExcel;
                 try {
@@ -3689,16 +3687,16 @@ async function sendToRamp(containerNo = null) {
                     console.error('Error reading Excel file:', readError);
                     currentExcel = []; // Use empty array as fallback
                 }
-                
+
                 let updatedCount = 0;
-                
+
                 // Update packages in Excel data
                 excelPackages.forEach(pkg => {
                     if (!pkg || !pkg.id) {
                         console.warn('Skipping invalid package:', pkg);
                         return;
                     }
-                    
+
                     const idx = currentExcel.findIndex(p => p && p.id === pkg.id);
                     if (idx !== -1) {
                         currentExcel[idx] = { 
@@ -3713,7 +3711,7 @@ async function sendToRamp(containerNo = null) {
                         console.warn('Package not found in Excel:', pkg.id);
                     }
                 });
-                
+
                 // Write back to Excel file
                 try {
                     await ExcelJS.writeFile(currentExcel);
@@ -3723,7 +3721,7 @@ async function sendToRamp(containerNo = null) {
                     console.error('Error writing Excel file:', writeError);
                     // Continue without counting this as success
                 }
-                
+
             } catch (exErr) {
                 console.error('Excel update process error:', exErr);
                 // Continue with the process even if Excel fails
@@ -3732,16 +3730,33 @@ async function sendToRamp(containerNo = null) {
 
         // FAST UI REFRESH
         if (successCount > 0) {
-            showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
             
+            // =================================================================
+            // ⭐️ CORE FIX FOR SYNCHRONIZATION ⭐️
+            // Ensures the primary state array is clean before the fast refresh.
+            // This prevents the momentary reappearance bug.
+            if (Array.isArray(window.packages) && movedPackageIds.length > 0) {
+                const originalLength = window.packages.length;
+                
+                // Filter out any package whose ID was in the successfully moved list
+                window.packages = window.packages.filter(pkg => pkg && !movedPackageIds.includes(pkg.id));
+                
+                console.log(`✅ Universal state update: ${originalLength - window.packages.length} packages removed from window.packages.`);
+            }
+            // =================================================================
+
+            showAlert(`✅ ${successCount} paket konteynere eklendi`, 'success');
+
             // Ultra-fast refresh
             await fastRefreshPackagesTable();
             await populateShippingTable();
-            
+
             currentContainer = null;
         } else {
             // Even if backend failed, UI is already updated
-            showAlert('Paketler konteynere eklendi (UI güncellendi)', 'info');
+            showAlert('Paketler konteynere eklenemedi, manuel kontrol edin.', 'error'); // Changed info to error here
+            // Re-render to undo the instant visual removal if the transaction failed
+            await fastRefreshPackagesTable(); 
         }
 
         console.log('✅ sendToRamp completed successfully');
@@ -3749,8 +3764,17 @@ async function sendToRamp(containerNo = null) {
     } catch (error) {
         console.error('❌ Error in sendToRamp:', error);
         showAlert('Konteynere ekleme hatası: ' + error.message, 'error');
+        // Critical: If an error occurs, the front-end elements that were visually removed 
+        // need to be restored. Calling fastRefreshPackagesTable() here will reload the 
+        // full package list and correct the UI state.
+        try {
+             await fastRefreshPackagesTable();
+        } catch (e) {
+             console.error('Failed to run final refresh on error:', e);
+        }
     }
 }
+
 
 // SAFE fastRefreshPackagesTable
 async function fastRefreshPackagesTable() {
