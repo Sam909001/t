@@ -1876,48 +1876,77 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(addExportButtons, 2000); // Add after app initializes
 });
 
-function clearFrontendData() {
-    const password = prompt('Tüm frontend veriler silinecek. Lütfen şifreyi girin:');
+async function clearFrontendData() {
+    const password = prompt("⚠️ Gelişmiş fabrika sıfırlama işlemi. Devam etmek için şifreyi girin:");
 
-    if (password !== '8823') {
-        alert('⚠️ Şifre yanlış! İşlem iptal edildi.');
+    if (password !== "9494") {
+        alert("❌ Şifre yanlış! İşlem iptal edildi.");
         return;
     }
 
-    // ------------------- LOCALSTORAGE -------------------
-    localStorage.removeItem('procleanState');
-    localStorage.removeItem('procleanOfflineData');
-    localStorage.removeItem('procleanSettings');
+    if (!confirm("Tüm ayarlar sıfırlanacak, ancak paket, müşteri ve konteyner verileri korunacak. Devam edilsin mi?")) {
+        return;
+    }
 
-    // ------------------- TABLES -------------------
-    const tables = document.querySelectorAll('table');
-    tables.forEach(table => {
-        const tbody = table.querySelector('tbody');
-        if (tbody) tbody.innerHTML = '';
-    });
+    try {
+        console.log("🧹 Başlatılıyor: Factory reset (clearFrontendData)...");
 
-    // ------------------- INPUTS & TEXTAREAS -------------------
-    const inputs = document.querySelectorAll('input, textarea');
-    inputs.forEach(input => input.value = '');
+        // ✅ 1. Preserve important local data
+        const savedPackages = localStorage.getItem("packages");
+        const savedCustomers = localStorage.getItem("customers");
+        const savedContainers = localStorage.getItem("containers");
 
-    // ------------------- SELECTS -------------------
-    const selects = document.querySelectorAll('select');
-    selects.forEach(select => select.selectedIndex = 0);
+        // ✅ 2. Clear entire localStorage and sessionStorage
+        localStorage.clear();
+        sessionStorage.clear();
 
-    // ------------------- CONTAINERS -------------------
-    const containers = document.querySelectorAll(
-        '.container, .packages-container, .reports-container, .stock-container, .stock-items'
-    );
-    containers.forEach(container => container.innerHTML = '');
+        // ✅ 3. Restore critical datasets
+        if (savedPackages) localStorage.setItem("packages", savedPackages);
+        if (savedCustomers) localStorage.setItem("customers", savedCustomers);
+        if (savedContainers) localStorage.setItem("containers", savedContainers);
 
-    // ------------------- CHECKBOXES / TOGGLES -------------------
-    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(cb => cb.checked = false);
+        // ✅ 4. Reset ExcelStorage if available
+        if (window.ExcelStorage) {
+            try {
+                ExcelStorage.filePath = null;
+                ExcelStorage.cache = [];
+                console.log("📄 ExcelStorage cache cleared");
+            } catch (e) {
+                console.warn("⚠️ ExcelStorage reset failed:", e);
+            }
+        }
 
-    const toggles = document.querySelectorAll('input[type="radio"]');
-    toggles.forEach(toggle => toggle.checked = false);
+        // ✅ 5. Clear UI elements
+        document.querySelectorAll("table tbody").forEach(tbody => tbody.innerHTML = "");
+        document.querySelectorAll("input, textarea").forEach(i => i.value = "");
+        document.querySelectorAll("select").forEach(s => s.selectedIndex = 0);
+        document.querySelectorAll("input[type='checkbox'], input[type='radio']").forEach(i => i.checked = false);
+        document.querySelectorAll(".container, .packages-container, .reports-container, .stock-container, .stock-items")
+            .forEach(el => el.innerHTML = "");
 
-    showAlert('Tüm frontend veriler temizlendi', 'success');
+        // ✅ 6. Reset JS memory variables
+        if (window.createdPackageIds) window.createdPackageIds.clear?.();
+        window.selectedCustomer = null;
+        window.currentContainer = null;
+        window.currentPackage = {};
+        window.currentWorkspace = null;
+        window.pendingSyncQueue = [];
+        window.offlineChanges = [];
+
+        // ✅ 7. Reload Supabase package IDs
+        if (typeof loadExistingPackageIds === "function") {
+            await loadExistingPackageIds();
+        }
+
+        // ✅ 8. Inform user and restart clean
+        showAlert("✅ Uygulama fabrika ayarlarına döndürüldü. Yeniden başlatılıyor...", "success");
+        console.log("✅ Factory reset complete — reloading app");
+
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+        console.error("❌ clearFrontendData (factory reset) failed:", err);
+        showAlert("Bir hata oluştu, sıfırlama başarısız oldu.", "error");
+    }
 }
 
 function initializeSettings() {
