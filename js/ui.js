@@ -4375,25 +4375,62 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// EXCEL MANAGEMENT FUNCTIONS - WITH PROPER PASSWORD GUARD HANDLING
-// REPLACE YOUR PREVIOUS VERSION WITH THIS ONE
-
-// Initialize the buttons
+// PERMANENT FIX FOR EXCEL BUTTONS - Add this to your main JS file
 function initializeExcelButtons() {
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', refreshExcelData);
-        console.log('✅ Refresh Excel button initialized');
+    if (refreshBtn && typeof refreshExcelData === 'function') {
+        // Remove existing and re-add to ensure clean state
+        refreshBtn.replaceWith(refreshBtn.cloneNode(true));
+        const newRefreshBtn = document.getElementById('refreshExcelBtn');
+        newRefreshBtn.addEventListener('click', refreshExcelData);
+        console.log('✓ Excel Refresh button initialized');
     }
     
-    if (clearBtn) {
-        clearBtn.addEventListener('click', clearExcelDataWithAuth);
-        console.log('✅ Clear Excel button initialized');
+    if (clearBtn && typeof clearExcelData === 'function') {
+        clearBtn.replaceWith(clearBtn.cloneNode(true));
+        const newClearBtn = document.getElementById('clearExcelBtn');
+        newClearBtn.addEventListener('click', clearExcelData);
+        console.log('✓ Excel Clear button initialized');
     }
 }
 
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeExcelButtons();
+});
+
+// Also initialize after a delay for dynamic content
+setTimeout(initializeExcelButtons, 1000);
+setTimeout(initializeExcelButtons, 3000);
+
+// Monitor for DOM changes (if buttons are added dynamically)
+if (typeof MutationObserver !== 'undefined') {
+    const observer = new MutationObserver(function(mutations) {
+        let shouldInitialize = false;
+        mutations.forEach(function(mutation) {
+            if (mutation.addedNodes.length) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1) { // Element node
+                        if (node.id === 'refreshExcelBtn' || node.id === 'clearExcelBtn' || 
+                            node.querySelector('#refreshExcelBtn') || node.querySelector('#clearExcelBtn')) {
+                            shouldInitialize = true;
+                        }
+                    }
+                });
+            }
+        });
+        if (shouldInitialize) {
+            setTimeout(initializeExcelButtons, 100);
+        }
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
 // Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
