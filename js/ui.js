@@ -4375,77 +4375,94 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// ==================== EXCEL BUTTONS INITIALIZATION - PERMANENT FIX ====================
+// ==================== EXCEL BUTTONS PERMANENT INITIALIZATION ====================
 
-function initializeExcelButtons() {
-    console.log('🔄 Initializing Excel buttons...');
+function initializeExcelButtonsWhenReady() {
+    console.log('🔍 Checking for Excel buttons...');
     
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
-    console.log('Buttons found - Refresh:', !!refreshBtn, 'Clear:', !!clearBtn);
-    
-    if (refreshBtn && typeof refreshExcelData === 'function') {
-        // Use onclick for reliable binding
-        refreshBtn.onclick = refreshExcelData;
-        console.log('✅ Refresh button bound to refreshExcelData');
-    }
-    
-    if (clearBtn && typeof clearExcelDataWithAuth === 'function') {
-        // Use onclick for reliable binding
-        clearBtn.onclick = clearExcelDataWithAuth;
-        console.log('✅ Clear button bound to clearExcelDataWithAuth');
+    if (refreshBtn && clearBtn) {
+        // Buttons exist, initialize them
+        console.log('✅ Excel buttons found, initializing...');
+        
+        if (typeof refreshExcelData === 'function') {
+            refreshBtn.onclick = refreshExcelData;
+            console.log('✅ Refresh button bound');
+        }
+        
+        if (typeof clearExcelDataWithAuth === 'function') {
+            clearBtn.onclick = clearExcelDataWithAuth;
+            console.log('✅ Clear button bound');
+        }
+        
+        return true; // Success
+    } else {
+        console.log('⏳ Excel buttons not ready yet');
+        return false; // Not ready
     }
 }
 
-// ==================== AUTOMATIC INITIALIZATION ====================
-
-// Run immediately if DOM is already ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeExcelButtons);
-} else {
-    // DOM is already ready, run immediately
-    initializeExcelButtons();
+function waitForExcelButtons(maxAttempts = 30, interval = 500) {
+    let attempts = 0;
+    
+    const tryInitialize = () => {
+        attempts++;
+        const success = initializeExcelButtonsWhenReady();
+        
+        if (success) {
+            console.log('🎉 Excel buttons initialized successfully!');
+            return;
+        }
+        
+        if (attempts < maxAttempts) {
+            console.log(`🔄 Attempt ${attempts}/${maxAttempts}, retrying in ${interval}ms...`);
+            setTimeout(tryInitialize, interval);
+        } else {
+            console.log('❌ Failed to initialize Excel buttons after maximum attempts');
+        }
+    };
+    
+    tryInitialize();
 }
 
-// Additional safety nets - run multiple times
-const initializationTimes = [100, 500, 1000, 2000, 3000, 5000];
-initializationTimes.forEach(time => {
-    setTimeout(initializeExcelButtons, time);
+// ==================== MULTIPLE INITIALIZATION STRATEGIES ====================
+
+// Strategy 1: Start immediately
+console.log('🚀 Starting Excel buttons initialization...');
+waitForExcelButtons();
+
+// Strategy 2: Also start when DOM is fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOMContentLoaded - starting Excel buttons initialization');
+    waitForExcelButtons();
 });
 
-// Monitor for dynamic content changes
-if (typeof MutationObserver !== 'undefined') {
-    const observer = new MutationObserver(function(mutations) {
-        let shouldInitialize = false;
-        
-        mutations.forEach(function(mutation) {
-            if (mutation.addedNodes.length) {
-                mutation.addedNodes.forEach(function(node) {
-                    if (node.nodeType === 1) { // Element node
-                        if (node.id === 'refreshExcelBtn' || node.id === 'clearExcelBtn' || 
-                            (node.querySelector && (node.querySelector('#refreshExcelBtn') || node.querySelector('#clearExcelBtn')))) {
-                            shouldInitialize = true;
-                        }
-                    }
-                });
-            }
-        });
-        
-        if (shouldInitialize) {
-            console.log('🔄 Dynamic content detected - reinitializing Excel buttons');
-            setTimeout(initializeExcelButtons, 100);
-        }
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-}
+// Strategy 3: Start when window loads (all resources loaded)
+window.addEventListener('load', function() {
+    console.log('🖼️ Window loaded - starting Excel buttons initialization');
+    waitForExcelButtons();
+});
 
-console.log('✅ Excel buttons auto-initialization setup complete');
+// Strategy 4: Additional safety starts
+setTimeout(() => {
+    console.log('⏰ Safety timeout 1s - starting Excel buttons initialization');
+    waitForExcelButtons();
+}, 1000);
 
+setTimeout(() => {
+    console.log('⏰ Safety timeout 3s - starting Excel buttons initialization');
+    waitForExcelButtons();
+}, 3000);
+
+// Strategy 5: Final attempt after 5 seconds
+setTimeout(() => {
+    console.log('⏰ Final attempt 5s - starting Excel buttons initialization');
+    waitForExcelButtons();
+}, 5000);
+
+console.log('✅ Excel buttons permanent initialization setup complete');
 // Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
