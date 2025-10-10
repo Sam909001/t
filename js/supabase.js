@@ -3604,7 +3604,7 @@ async function sendToRamp(containerNo = null) {
                 customer_id: null,
                 package_count: selectedPackages.length,
                 total_quantity: totalQuantity,
-                status: 'sevk edildi'  // ✅ Fixed
+                status: 'sevk edildi'
             };
 
             if (supabase && navigator.onLine) {
@@ -3632,18 +3632,19 @@ async function sendToRamp(containerNo = null) {
             const ids = supabasePackages.map(p => p.id);
             const { data: updatedRows, error: updateErr } = await supabase
                 .from('packages')
-                .update({ 
-                    .update({ 
-                 container_id: containerId, 
-                 status: 'sevk edildi',  // ✅ Remove hyphen, add space
-                 shipped_at: new Date().toISOString(),  // ✅ Add this line too
-                updated_at: new Date().toISOString() 
-              })
+                .update({  // ✅ SINGLE .update() only
+                    container_id: containerId, 
+                    status: 'sevk edildi',
+                    shipped_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString() 
+                })
                 .in('id', ids)
                 .select();
 
             if (!updateErr && Array.isArray(updatedRows)) {
                 successCount += updatedRows.length;
+            } else if (updateErr) {
+                console.error('Supabase update error:', updateErr);
             }
         }
 
@@ -3660,14 +3661,13 @@ async function sendToRamp(containerNo = null) {
 
                     const idx = currentExcel.findIndex(p => p && p.id === pkg.id);
                     if (idx !== -1) {
-                        currentExcel[idx] = { 
-                          currentExcel[idx] = { 
-                   ...currentExcel[idx], 
-                   container_id: containerId, 
-                  status: 'sevk edildi',  // ✅ Remove hyphen, add space
-                  shipped_at: new Date().toISOString(),  // ✅ Add this line too
-               updated_at: new Date().toISOString() 
-              };
+                        currentExcel[idx] = {  // ✅ Fixed - no duplicate assignment
+                            ...currentExcel[idx], 
+                            container_id: containerId, 
+                            status: 'sevk edildi',
+                            shipped_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString() 
+                        };
                         updatedCount++;
                     }
                 });
@@ -3721,7 +3721,6 @@ async function sendToRamp(containerNo = null) {
         showAlert('Sevkiyat hatası: ' + error.message, 'error');
     }
 }
-
 
 
 // --- shipContainer: ship/mark a whole container as shipped (sevk-edildi) ---
