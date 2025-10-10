@@ -158,14 +158,154 @@ function mergePackagesStrict(excelPackages, supabasePackages) {
 
 
 
-// Generate proper UUID v4 for Excel packages
-function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
+// ==================== GUARANTEED UNIQUE PACKAGE ID SYSTEM ====================
+
+// Track all created package IDs globally
+const createdPackageIds = new Set();
+
+// Enhanced UUID v4 generator with collision detection
+function generateUniquePackageUUID() {
+    let attempts = 0;
+    let uuid;
+    
+    do {
+        // Generate cryptographically secure UUID
+        uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = (crypto.getRandomValues(new Uint8Array(1))[0] % 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+        
+        attempts++;
+        
+        // Prevent infinite loop (extremely unlikely)
+        if (attempts > 100) {
+            throw new Error('Failed to generate unique UUID after 100 attempts');
+        }
+        
+    } while (createdPackageIds.has(uuid));
+    
+    // Store the generated UUID
+    createdPackageIds.add(uuid);
+    
+    return uuid;
 }
+
+// Enhanced package number generator with timestamp + random
+function generateUniquePackageNumber() {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 9).toUpperCase();
+    const sequential = (createdPackageIds.size + 1).toString().padStart(4, '0');
+    
+    return `PKG-${timestamp}-${random}-${sequential}`;
+}
+
+// Main function to create package with guaranteed uniqueness
+async function createUniquePackage(packageData) {
+    try {
+        // Generate guaranteed unique identifiers
+        const packageId = generateUniquePackageUUID();
+        const packageNo = generateUniquePackageNumber();
+        
+        // Double-check uniqueness in Supabase
+        if (supabase && navigator.onLine) {
+            const { data: existingPackages } = await supabase
+                .from('packages')
+                .select('id, package_no')
+                .or(`id.eq.${packageId},package_no.eq.${packageNo}`);
+            
+            if (existingPackages && existingPackages.length > 0) {
+                console.warn('⚠️ Duplicate detected in database, regenerating...');
+                return createUniquePackage(packageData); // Recursive retry
+            }
+        }
+        
+        // Check uniqueness in localStorage
+        const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
+        const localDuplicate = localPackages.find(p => 
+            p.id === packageId || p.package_no === packageNo
+        );
+        
+        if (localDuplicate) {
+            console.warn('⚠️ Duplicate detected in localStorage, regenerating...');
+            return createUniquePackage(packageData); // Recursive retry
+        }
+        
+        // Create the unique package
+        const uniquePackage = {
+            ...packageData,
+            id: packageId,
+            package_no: packageNo,
+            created_at: new Date().toISOString(),
+            workspace_id: getCurrentWorkspaceId()
+        };
+        
+        // Save to Supabase
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('packages')
+                .insert([uniquePackage]);
+            
+            if (error) throw error;
+        }
+        
+        // Save to localStorage
+        localPackages.push(uniquePackage);
+        localStorage.setItem('packages', JSON.stringify(localPackages));
+        
+        // Save to Excel
+        if (window.packages) {
+            window.packages.push(uniquePackage);
+            await ExcelStorage.writeFile(window.packages);
+        }
+        
+        console.log(`✅ Created unique package: ${packageNo} (ID: ${packageId})`);
+        
+        return uniquePackage;
+        
+    } catch (error) {
+        console.error('Error creating unique package:', error);
+        throw error;
+    }
+}
+
+// Load existing package IDs on app start to prevent duplicates
+async function loadExistingPackageIds() {
+    try {
+        // Load from Supabase
+        if (supabase && navigator.onLine) {
+            const { data } = await supabase
+                .from('packages')
+                .select('id, package_no');
+            
+            if (data) {
+                data.forEach(pkg => {
+                    createdPackageIds.add(pkg.id);
+                });
+            }
+        }
+        
+        // Load from localStorage
+        const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
+        localPackages.forEach(pkg => {
+            createdPackageIds.add(pkg.id);
+        });
+        
+        console.log(`📦 Loaded ${createdPackageIds.size} existing package IDs`);
+        
+    } catch (error) {
+        console.error('Error loading package IDs:', error);
+    }
+}
+
+// Make globally available
+window.generateUniquePackageUUID = generateUniquePackageUUID;
+window.generateUniquePackageNumber = generateUniquePackageNumber;
+window.createUniquePackage = createUniquePackage;
+window.loadExistingPackageIds = loadExistingPackageIds;
+
+// Replace all generateUUID calls with generateUniquePackageUUID
+window.generateUUID = generateUniquePackageUUID;
 
 
 
