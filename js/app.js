@@ -1151,8 +1151,8 @@ function addPackageRowToTable(pkg) {
         <td>${pkg.customer_name || 'N/A'}</td>
         <td>${pkg.items_display || 'N/A'}</td>
         <td>${pkg.total_quantity || 0}</td>
-        <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
         <td><span class="status-badge status-beklemede">beklemede</span></td>
+        <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
         <td>
             <button onclick="viewPackageDetails('${pkg.id}')" class="btn-icon" title="Detay">
                 <i class="fas fa-eye"></i>
