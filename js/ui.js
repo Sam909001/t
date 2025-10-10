@@ -839,22 +839,25 @@ function closeSettingsModal() {
 function loadSettings() {
     const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
 
-    // Theme
+    // Electron-specific theme handling
+    const themeToggle = document.getElementById('themeToggle');
+    
+    // Force reflow for Electron
+    document.body.style.display = 'none';
+    document.body.offsetHeight; // Trigger reflow
+    
     if (settings.theme === 'dark') {
-        const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) themeToggle.checked = true;
         document.body.classList.add('dark-mode');
+    } else {
+        if (themeToggle) themeToggle.checked = false;
+        document.body.classList.remove('dark-mode');
     }
-
-    // Language
-    if (settings.language) {
-        const lang = document.getElementById('languageSelect');
-        if (lang) lang.value = settings.language;
-    }
-
-    // Auto-save
-    const auto = document.getElementById('autoSaveToggle');
-    if (auto) auto.checked = settings.autoSave !== false;
+    
+    // Restore display
+    document.body.style.display = '';
+    
+    console.log('Electron theme loaded:', settings.theme);
 }
 
 // ----------------------
