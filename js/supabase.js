@@ -177,7 +177,7 @@ function isValidEmail(email) {
 const elements = {};
 
 // Enhanced Excel Storage with Proper Daily Files
-const ExcelStorage = {
+window.ExcelStorage = {
     // Get today's date string for file naming
     getTodayDateString: function() {
         return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -357,7 +357,7 @@ convertToCSV: function(data) {
 };
 
 // Excel.js library (simple implementation) - Enhanced with ExcelStorage functionality
-const ExcelJS = {
+window.ExcelJS = {
     readFile: async function() {
         try {
             // Use the enhanced daily file system
