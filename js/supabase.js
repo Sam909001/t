@@ -4641,6 +4641,16 @@ window.printSinglePackage = async function(packageId) {
 };
 
 
-// Expose to global scope
+// ==================== GLOBAL EXPORTS ====================
+// Make functions and objects available globally
 window.ExcelStorage = ExcelStorage;
 window.ExcelJS = ExcelJS;
+window.ProfessionalExcelExport = ProfessionalExcelExport;
+
+// Also expose key functions
+window.populatePackagesTable = populatePackagesTable;
+window.populateShippingTable = populateShippingTable;
+window.syncExcelWithSupabase = syncExcelWithSupabase;
+window.saveToExcel = saveToExcel;
+
+console.log('✅ Supabase.js loaded - globals exported');
