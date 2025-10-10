@@ -1078,13 +1078,18 @@ async function completePackage() {
         // Get workspace ID
         const workspaceId = getCurrentWorkspaceId();
 
-        // Create package object - USE CORRECT COLUMN NAMES
+        // Create package object - WITH ALL REQUIRED COLUMNS
         const newPackage = {
             id: generateUUID(),
             package_no: packageNo,
-            customer_id: selectedCustomer.id, // Use customer_id NOT customer_name/customer_code
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name, // Add this for display
+            customer_code: selectedCustomer.code, // Add this for display
             status: 'beklemede',
             items: currentPackage.items,
+            items_display: Object.entries(currentPackage.items) // Add this for display
+                .map(([product, quantity]) => `${product}: ${quantity} adet`)
+                .join(', '),
             total_quantity: totalQuantity,
             personnel_id: personnelId,
             container_id: null,
@@ -1131,7 +1136,6 @@ async function completePackage() {
         showAlert('Paket oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
-
 
 function addPackageRowToTable(pkg) {
     const packagesTableBody = document.getElementById('packagesTableBody');
