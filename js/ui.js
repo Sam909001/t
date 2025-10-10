@@ -4415,14 +4415,14 @@ async function clearExcelDataWithAuth() {
     
     try {
         // Simple password check
-        const password = prompt('Excel verilerini temizlemek için şifre girin (7142):');
+        const password = prompt('Excel verilerini temizlemek için şifre girin (9494):');
         
         if (password === null) {
             console.log('User cancelled');
             return;
         }
         
-        if (password !== '7142') {
+         if (password === '9494') {
             alert('Hatalı şifre! İşlem iptal edildi.');
             return;
         }
