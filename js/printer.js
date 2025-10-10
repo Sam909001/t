@@ -501,7 +501,7 @@ class PrinterServiceElectronWithSettings {
     font-weight: bold;
     text-align: center;
     background: #f8f9fa;
-    border: 1px solid #ddd;
+    border: 1px solid #000;
     border-radius: 4px;
     padding: 5px;
     box-sizing: border-box;
