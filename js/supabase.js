@@ -3301,7 +3301,7 @@ async function addNewCustomer() {
         
         const workspaceId = getCurrentWorkspaceId();
         const newCustomer = {
-            id: generateUUID(),
+            id: crypto.randomUUID(),
             name: customerName.trim(),
             code: customerCode.trim(),
             workspace_id: workspaceId,
