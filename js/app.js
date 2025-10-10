@@ -1842,12 +1842,12 @@ function initializeExcelButtons() {
         // Add clean listener
         document.getElementById('clearExcelBtn').addEventListener('click', function() {
             console.log('🗑️ Clear Excel clicked');
-            if (typeof clearExcelData === 'function') {
+            if (typeof clearExcelWithPassword === 'function') {
                 if (confirm('Tüm Excel verilerini temizlemek istediğinize emin misiniz?')) {
-                    clearExcelData();
+                    clearExcelWithPassword();
                 }
             } else {
-                console.error('clearExcelData function not found');
+                console.error('clearExcelWithPassword function not found');
                 alert('Clear function not available');
             }
         });
