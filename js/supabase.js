@@ -1784,40 +1784,55 @@ async function testConnection() {
 
 
 
-  async function populateCustomers() {
+  // supabase.js
+
+async function populateCustomers() {
+    const customerSelect = document.getElementById('customerSelect');
+    if (!customerSelect) return;
+    customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
+
     try {
-        const { data: customers, error } = await supabase
-            .from('customers')
-            .select('id, name, code')
-            .order('name', { ascending: true });
+        if (supabase && navigator.onLine) {
+            const { data: customers, error } = await supabase
+                .from('customers')
+                .select('id, name, code')
+                .order('name', { ascending: true });
 
-        if (error) {
-            console.error('Error loading customers:', error);
-            return;
+            if (error) throw error;
+
+            const uniqueCustomers = {};
+            customers.forEach(cust => {
+                if (!uniqueCustomers[cust.code]) uniqueCustomers[cust.code] = cust;
+            });
+
+            Object.values(uniqueCustomers).forEach(cust => {
+                const opt = document.createElement('option');
+                opt.value = cust.id;
+                opt.textContent = `${cust.name} (${cust.code})`;
+                customerSelect.appendChild(opt);
+            });
+        } else {
+            // ✅ FALLBACK: Load customers from local package data
+            console.warn("Supabase not available. Loading customers from local Excel data.");
+            const localPackages = await ExcelJS.readFile();
+            const uniqueCustomers = {};
+            localPackages.forEach(pkg => {
+                if (pkg.customer_id && pkg.customer_name && !uniqueCustomers[pkg.customer_id]) {
+                    uniqueCustomers[pkg.customer_id] = {
+                        id: pkg.customer_id,
+                        name: pkg.customer_name,
+                        code: pkg.customer_code || ''
+                    };
+                }
+            });
+
+            Object.values(uniqueCustomers).forEach(cust => {
+                const opt = document.createElement('option');
+                opt.value = cust.id;
+                opt.textContent = `${cust.name} (${cust.code})`;
+                customerSelect.appendChild(opt);
+            });
         }
-
-        const customerSelect = document.getElementById('customerSelect');
-        if (!customerSelect) return;
-
-        // Clear old options
-        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
-
-        // Deduplicate by customer code
-        const uniqueCustomers = {};
-        customers.forEach(cust => {
-            if (!uniqueCustomers[cust.code]) {
-                uniqueCustomers[cust.code] = cust;
-            }
-        });
-
-        // Append unique customers
-        Object.values(uniqueCustomers).forEach(cust => {
-            const opt = document.createElement('option');
-            opt.value = cust.id;
-            opt.textContent = `${cust.name} (${cust.code})`;
-            customerSelect.appendChild(opt);
-        });
-
     } catch (err) {
         console.error('populateCustomers error:', err);
     }
@@ -1826,9 +1841,10 @@ async function testConnection() {
 
 
 
+// supabase.js
 
 async function populatePersonnel() {
-    if (personnelLoaded) return; // prevent duplicates
+    if (personnelLoaded) return; // Prevent duplicates
     personnelLoaded = true;
 
     const personnelSelect = document.getElementById('personnelSelect');
@@ -1837,28 +1853,58 @@ async function populatePersonnel() {
     personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
 
     try {
-        const { data: personnel, error } = await supabase
-            .from('personnel')
-            .select('id, name')
-            .order('name', { ascending: true });
+        // Main path: Try Supabase first if online
+        if (supabase && navigator.onLine) {
+            const { data: personnel, error } = await supabase
+                .from('personnel')
+                .select('id, name')
+                .order('name', { ascending: true });
 
-        if (error) {
-            console.error('Error fetching personnel:', error);
-            showAlert('Personel verileri yüklenemedi', 'error');
-            return;
+            if (error) {
+                console.error('Error fetching personnel:', error);
+                // Don't return, proceed to fallback
+            }
+
+            if (personnel && personnel.length > 0) {
+                personnel.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = p.name;
+                    personnelSelect.appendChild(option);
+                });
+                return; // Exit here if Supabase call was successful
+            }
         }
+        
+        // ✅ FALLBACK: If Supabase fails or is offline, load from local data
+        console.warn("Supabase not available. Loading personnel from local Excel data.");
+        const localPackages = await ExcelJS.readFile();
+        const uniquePersonnel = {}; // Use an object to handle duplicates
 
-        if (personnel && personnel.length > 0) {
-            personnel.forEach(p => {
+        localPackages.forEach(pkg => {
+            // Check for both personnel_id and a name for robustness
+            if (pkg.personnel_id && pkg.packer && !uniquePersonnel[pkg.personnel_id]) {
+                uniquePersonnel[pkg.personnel_id] = {
+                    id: pkg.personnel_id,
+                    name: pkg.packer // Assumes the 'packer' field holds the name
+                };
+            }
+        });
+
+        if (Object.keys(uniquePersonnel).length > 0) {
+            Object.values(uniquePersonnel).forEach(p => {
                 const option = document.createElement('option');
                 option.value = p.id;
                 option.textContent = p.name;
                 personnelSelect.appendChild(option);
             });
+        } else {
+            // If no personnel found in local data, show an informative message
+            personnelSelect.innerHTML = '<option value="">Personel listesi çevrimdışı alınamadı</option>';
         }
 
     } catch (err) {
-        console.error('Unexpected error:', err);
+        console.error('Unexpected error in populatePersonnel:', err);
         showAlert('Personel dropdown yükleme hatası', 'error');
     }
 }
