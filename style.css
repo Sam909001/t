@@ -760,37 +760,6 @@ body.dark-mode .stock-table tr:hover {
     font-size: 0.8rem; 
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-    .barcode-section, 
-    .package-details { 
-        min-width: 200px; 
-    }
-    
-    .pending-packages { 
-        flex: 1 1 60%; 
-    }
-}
-
-@media (max-width: 900px) {
-    .packaging-content { 
-        flex-direction: column; 
-        height: auto; 
-    }
-    
-    .barcode-section, 
-    .pending-packages, 
-    .package-details { 
-        flex: 1 1 auto; 
-        width: 100%; 
-        min-width: auto; 
-    }
-    
-    .tab-pane { 
-        height: auto; 
-    }
-}
-
 /* Selected row styling */
 .package-table tr.selected {
     background-color: #e3f2fd !important;
