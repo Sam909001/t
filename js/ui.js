@@ -4388,10 +4388,10 @@ function initializeExcelButtons() {
         console.log('✓ Excel Refresh button initialized');
     }
     
-    if (clearBtn && typeof clearExcelData === 'function') {
+    if (clearBtn && typeof clearExcelDataWithAuth === 'function') { // CHANGED: clearExcelDataWithAuth
         clearBtn.replaceWith(clearBtn.cloneNode(true));
         const newClearBtn = document.getElementById('clearExcelBtn');
-        newClearBtn.addEventListener('click', clearExcelData);
+        newClearBtn.addEventListener('click', clearExcelDataWithAuth); // CHANGED: clearExcelDataWithAuth
         console.log('✓ Excel Clear button initialized');
     }
 }
@@ -4431,6 +4431,7 @@ if (typeof MutationObserver !== 'undefined') {
         subtree: true
     });
 }
+
 // Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
@@ -4579,6 +4580,7 @@ async function clearExcelData() {
         }
     }
 }
+
 
 // Enhanced clearAppState function
 function clearAppState() {
