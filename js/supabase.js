@@ -1784,7 +1784,7 @@ async function testConnection() {
 
 
 
-  async function populateCustomers() {
+async function populateCustomers() {
     try {
         const { data: customers, error } = await supabase
             .from('customers')
@@ -1818,6 +1818,8 @@ async function testConnection() {
             customerSelect.appendChild(opt);
         });
 
+        console.log('✅ Customers populated:', Object.values(uniqueCustomers).length, 'options');
+
     } catch (err) {
         console.error('populateCustomers error:', err);
     }
@@ -1827,9 +1829,10 @@ async function testConnection() {
 
 
 
-async function populatePersonnel() {
-    if (personnelLoaded) return; // prevent duplicates
-    personnelLoaded = true;
+
+    async function populatePersonnel() {
+    if (window.personnelLoaded) return;
+    window.personnelLoaded = true;
 
     const personnelSelect = document.getElementById('personnelSelect');
     if (!personnelSelect) return;
@@ -1855,6 +1858,7 @@ async function populatePersonnel() {
                 option.textContent = p.name;
                 personnelSelect.appendChild(option);
             });
+            console.log('✅ Personnel populated:', personnel.length, 'options');
         }
 
     } catch (err) {
