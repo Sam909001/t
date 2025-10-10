@@ -1,76 +1,7 @@
-// Add this at the top of your app.js (before initApp function)
+// ==================== ADD THESE LINES AT THE TOP OF YOUR APP.JS ====================
 let initAppInProgress = false;
 let initAppCallQueue = [];
 
-async function initApp() {
-    // If initApp is already running, queue this call
-    if (initAppInProgress) {
-        console.log('🚫 initApp already in progress, queuing call...');
-        return new Promise((resolve) => {
-            initAppCallQueue.push(resolve);
-        });
-    }
-    
-    initAppInProgress = true;
-    console.log('🚀 Starting enhanced ProClean initialization...');
-    
-    try {
-        // ... your existing initApp code ...
-        
-        // CRITICAL: Make sure these lines are in your initApp
-        await populateCustomers();
-        await populatePersonnel();
-        
-        // ... rest of your initApp code ...
-        
-        const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
-        console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
-        showAlert('Uygulama başarıyla başlatıldı!', 'success', 3000);
-        
-    } catch (error) {
-        console.error('❌ Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
-    } finally {
-        initAppInProgress = false;
-        
-        // Process any queued calls
-        if (initAppCallQueue.length > 0) {
-            console.log(`🔄 Processing ${initAppCallQueue.length} queued initApp calls`);
-            const nextCall = initAppCallQueue.shift();
-            nextCall();
-        }
-    }
-}
-
-// Test the fix
-async function testInitAppFix() {
-    console.log('🧪 Testing initApp fix...');
-    
-    const personnelSelect = document.getElementById('personnelSelect');
-    const customerSelect = document.getElementById('customerSelect');
-    
-    // Reset
-    personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
-    customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
-    window.personnelLoaded = false;
-    
-    console.log('Before initApp:', {
-        personnel: personnelSelect.options.length,
-        customer: customerSelect.options.length
-    });
-    
-    // Call initApp multiple times to simulate auth state changes
-    await initApp();
-    await initApp(); // This should be queued
-    await initApp(); // This should be queued
-    
-    console.log('After initApp calls:', {
-        personnel: personnelSelect.options.length,
-        customer: customerSelect.options.length
-    });
-}
-
-testInitAppFix();
 
 
 /// Top of app.js
@@ -200,7 +131,18 @@ function loadAppState() {
 }
 
 
+
+// ==================== MODIFIED INITAPP FUNCTION ====================
 async function initApp() {
+    // If initApp is already running, queue this call
+    if (initAppInProgress) {
+        console.log('🚫 initApp already in progress, queuing call...');
+        return new Promise((resolve) => {
+            initAppCallQueue.push(resolve);
+        });
+    }
+    
+    initAppInProgress = true;
     console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
@@ -233,7 +175,6 @@ async function initApp() {
             window.isElectronApp = false;
         }
 
-      
         // 3. Initialize workspace-aware UI
         if (typeof initializeWorkspaceUI === 'function') {
             initializeWorkspaceUI();
@@ -276,10 +217,14 @@ async function initApp() {
             }
         }
         
-        // 10. Populate UI
+        // 10. Populate UI - CRITICAL: Reset personnelLoaded flag here
         if (elements.currentDate) {
             elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
         }
+        
+        // ⭐⭐⭐ CRITICAL FIX: Reset flags before populating ⭐⭐⭐
+        window.personnelLoaded = false;
+        
         await populateCustomers();
         await populatePersonnel();
         
@@ -314,6 +259,7 @@ async function initApp() {
                 }
             }, 5000);
         }
+        
         const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
         console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
         showAlert('Uygulama başarıyla başlatıldı!', 'success', 3000);
@@ -322,9 +268,18 @@ async function initApp() {
         console.error('❌ Critical error during initialization:', error);
         console.error('Error stack:', error.stack);
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+    } finally {
+        // ⭐⭐⭐ CRITICAL: Always reset the progress flag ⭐⭐⭐
+        initAppInProgress = false;
+        
+        // Process any queued calls
+        if (initAppCallQueue.length > 0) {
+            console.log(`🔄 Processing ${initAppCallQueue.length} queued initApp calls`);
+            const nextCall = initAppCallQueue.shift();
+            nextCall();
+        }
     }
 }
-
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
