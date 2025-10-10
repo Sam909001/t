@@ -144,8 +144,10 @@ function loadAppState() {
 
 
 // ==================== MODIFIED INITAPP FUNCTION ====================
+// app.js
+
 async function initApp() {
-    // If initApp is already running, queue this call
+    // If initApp is already running, queue this call to prevent conflicts
     if (initAppInProgress) {
         console.log('🚫 initApp already in progress, queuing call...');
         return new Promise((resolve) => {
@@ -154,136 +156,61 @@ async function initApp() {
     }
     
     initAppInProgress = true;
-    console.log('🚀 Starting enhanced ProClean initialization...');
+    console.log('🚀 Starting ProClean initialization...');
     
     try {
-        // 1. CRITICAL FIX: Initialize elements FIRST before anything else
-        if (typeof initializeElementsObject !== 'function') {
-            console.error('❌ initializeElementsObject function not loaded!');
-            // Fallback: load from ui.js if not available
-            if (typeof elements === 'undefined') {
-                window.elements = {};
-            }
-        } else {
-            initializeElementsObject();
-        }
+        // ✅ Step 1: Initialize UI Elements FIRST
+        // This is the most critical fix. It guarantees that all `elements` are found before any other code tries to use them.
+        initializeElementsObject();
         
-        // 2. Initialize workspace system
+        // ✅ Step 2: Set simple UI content that doesn't require data
+        if (elements.currentDate) {
+            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        }
+        updateStorageIndicator();
+
+        // ✅ Step 3: Initialize Backend Systems & Workspace
+        await initializeApiAndAuth(); // Handles Supabase connection and user session
         if (!window.workspaceManager) {
             window.workspaceManager = new WorkspaceManager();
         }
         await window.workspaceManager.initialize();
+        initializeWorkspaceUI();
+        setupWorkspaceAwareUI();
         
-        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
-        
-        // 0. Detect and log environment
-        const runningInElectron = isElectron();
-        if (runningInElectron) {
-            console.log('📱 Running in Electron environment');
-            window.isElectronApp = true;
-        } else {
-            console.log('🌐 Running in Web Browser environment');
-            window.isElectronApp = false;
-        }
-
-        // 3. Initialize workspace-aware UI
-        if (typeof initializeWorkspaceUI === 'function') {
-            initializeWorkspaceUI();
-        }
-        if (typeof setupWorkspaceAwareUI === 'function') {
-            setupWorkspaceAwareUI();
-        }
-        
-        // 4. Migrate existing data to workspace
-        if (typeof migrateExistingDataToWorkspace === 'function') {
-            await migrateExistingDataToWorkspace();
-        }
-        
-        // 5. Initialize sync system
-        if (typeof initializeSyncQueue === 'function') {
-            initializeSyncQueue();
-        }
-        if (typeof setupEnhancedSyncTriggers === 'function') {
-            setupEnhancedSyncTriggers();
-        }
-        
-        // 6. Setup event listeners
-        setupEventListeners();
-        
-        // 7. API key initialization
-        initializeApiAndAuth();
-        
-        // 8. Initialize settings
-        if (typeof initializeSettings === 'function') {
-            initializeSettings();
-        }
-        
-        // 9. Initialize daily Excel file system
-        if (typeof ExcelStorage !== 'undefined') {
-            if (typeof ExcelStorage.cleanupOldFiles === 'function') {
-                await ExcelStorage.cleanupOldFiles();
-            }
-            if (typeof ExcelStorage.readFile === 'function') {
-                await ExcelStorage.readFile();
-            }
-        }
-        
-        // 10. Populate UI - CRITICAL: Reset personnelLoaded flag here
-        if (elements.currentDate) {
-            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
-        }
-        
-        // ⭐⭐⭐ CRITICAL FIX: Reset flags before populating ⭐⭐⭐
-        window.personnelLoaded = false;
-        
+        // ✅ Step 4: Populate Core Dropdown Menus
+        // These need to be ready before we can restore the user's last session state.
+        window.personnelLoaded = false; // Reset flag to allow fresh population
         await populateCustomers();
         await populatePersonnel();
         
-        // 11. Load saved state
-        loadAppState();
-        
-        // 12. Load data
+        // ✅ Step 5: Load the Main Application Data
         await loadPackagesData();
         await populateStockTable();
         await populateShippingTable();
         
-        // 13. Test connection
-        if (supabase) {
-            await testConnection();
-        }
+        // ✅ Step 6: Restore the User's Previous State
+        // Now that all dropdowns and data are loaded, we can safely set the previous selections.
+        loadAppState();
         
-        // 14. Set up auto-save and offline support
-        setInterval(saveAppState, 30000);
+        // ✅ Step 7: Activate Event Listeners and Background Processes
+        setupEventListeners();
         setupOfflineSupport();
-        if (typeof setupBarcodeScanner === 'function') {
-            setupBarcodeScanner();
-        }
-        
-        // 15. Start daily auto-clear
+        setupBarcodeScanner();
         scheduleDailyClear();
-        
-        // 16. Auto-sync on startup if online and not in Electron
-        if (navigator.onLine && supabase && !runningInElectron) {
-            setTimeout(async () => {
-                if (typeof syncExcelWithSupabase === 'function') {
-                    await syncExcelWithSupabase();
-                }
-            }, 5000);
-        }
-        
+        setInterval(saveAppState, 30000); // Set a reasonable interval for auto-save
+
         const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
         console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
         showAlert('Uygulama başarıyla başlatıldı!', 'success', 3000);
         
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
-        console.error('Error stack:', error.stack);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
     } finally {
-        // ⭐⭐⭐ CRITICAL: Always reset the progress flag ⭐⭐⭐
         initAppInProgress = false;
         
-        // Process any queued calls
+        // Process any queued calls that were waiting for init to finish
         if (initAppCallQueue.length > 0) {
             console.log(`🔄 Processing ${initAppCallQueue.length} queued initApp calls`);
             const nextCall = initAppCallQueue.shift();
