@@ -60,6 +60,7 @@ if (typeof emailjs === 'undefined') {
    
 
 
+// Replace ALL data loading functions with strict versions
 async function loadPackagesDataStrict() {
     if (!window.workspaceManager?.currentWorkspace) {
         console.warn('Workspace not initialized, using default');
@@ -70,13 +71,15 @@ async function loadPackagesDataStrict() {
         
         console.log(`🔒 STRICT: Loading packages for workspace: ${workspaceId}`);
         
-        // Load from workspace-specific Excel with ONLY workspace filtering
+        // Load from workspace-specific Excel with strict filtering
         const excelData = await ExcelJS.readFile();
         const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
         
-        // ONLY filter by workspace - allow all statuses and container states
+        // STRICT workspace filtering with validation
         const workspacePackages = excelPackagesList.filter(pkg => {
             const isValidWorkspace = pkg.workspace_id === workspaceId;
+            const isWaiting = pkg.status === 'beklemede';
+            const hasNoContainer = !pkg.container_id || pkg.container_id === null;
             
             if (!isValidWorkspace) {
                 console.warn('🔒 STRICT: Filtered package from different workspace:', {
@@ -87,31 +90,30 @@ async function loadPackagesDataStrict() {
                 return false;
             }
             
-            return true; // Keep all packages from this workspace
+            return isWaiting && hasNoContainer;
         });
         
         console.log(`✅ STRICT: Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
         window.packages = workspacePackages;
         
-        // Load from Supabase - REMOVE CONFLICTING FILTERS
+        // Load from Supabase with STRICT workspace filtering
         if (supabase && navigator.onLine) {
             try {
+                const workspaceFilter = getStrictWorkspaceFilter('packages');
+                
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
-                    .eq('workspace_id', workspaceId)  // ✅ ONLY workspace filter
+                    .is('container_id', null)
+                    .eq('status', 'beklemede')
+                    .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
                 
-                if (error) {
-                    console.error('Supabase query error:', error);
-                    throw error;
-                }
-                
-                if (supabasePackages && supabasePackages.length > 0) {
+                if (!error && supabasePackages && supabasePackages.length > 0) {
                     console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
                     const validSupabasePackages = supabasePackages.filter(pkg => 
-                        pkg.workspace_id === workspaceId
+                        validateWorkspaceAccessStrict(pkg)
                     );
                     
                     const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
@@ -121,7 +123,7 @@ async function loadPackagesDataStrict() {
                     await ExcelJS.writeFile(excelData);
                 }
             } catch (supabaseError) {
-                console.error('Supabase load failed, using Excel data:', supabaseError);
+                console.warn('Supabase load failed, using Excel data:', supabaseError);
             }
         }
         
@@ -134,25 +136,20 @@ async function loadPackagesDataStrict() {
 }
 
 
+// Strict merge function
 function mergePackagesStrict(excelPackages, supabasePackages) {
     const merged = [...excelPackages];
     const excelIds = new Set(excelPackages.map(p => p.id));
     
     for (const supabasePkg of supabasePackages) {
-        // Only validate workspace - don't filter by status or container
-        if (supabasePkg.workspace_id !== getCurrentWorkspaceId()) {
+        // Validate workspace access before merging
+        if (!validateWorkspaceAccessStrict(supabasePkg)) {
             console.warn('🔒 Skipping Supabase package from different workspace:', supabasePkg.id);
             continue;
         }
         
         if (!excelIds.has(supabasePkg.id)) {
             merged.push(supabasePkg);
-        } else {
-            // Update existing package with latest Supabase data
-            const index = merged.findIndex(p => p.id === supabasePkg.id);
-            if (index !== -1) {
-                merged[index] = { ...merged[index], ...supabasePkg };
-            }
         }
     }
     
@@ -1784,55 +1781,40 @@ async function testConnection() {
 
 
 
-  // supabase.js
-
-async function populateCustomers() {
-    const customerSelect = document.getElementById('customerSelect');
-    if (!customerSelect) return;
-    customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
-
+  async function populateCustomers() {
     try {
-        if (supabase && navigator.onLine) {
-            const { data: customers, error } = await supabase
-                .from('customers')
-                .select('id, name, code')
-                .order('name', { ascending: true });
+        const { data: customers, error } = await supabase
+            .from('customers')
+            .select('id, name, code')
+            .order('name', { ascending: true });
 
-            if (error) throw error;
-
-            const uniqueCustomers = {};
-            customers.forEach(cust => {
-                if (!uniqueCustomers[cust.code]) uniqueCustomers[cust.code] = cust;
-            });
-
-            Object.values(uniqueCustomers).forEach(cust => {
-                const opt = document.createElement('option');
-                opt.value = cust.id;
-                opt.textContent = `${cust.name} (${cust.code})`;
-                customerSelect.appendChild(opt);
-            });
-        } else {
-            // ✅ FALLBACK: Load customers from local package data
-            console.warn("Supabase not available. Loading customers from local Excel data.");
-            const localPackages = await ExcelJS.readFile();
-            const uniqueCustomers = {};
-            localPackages.forEach(pkg => {
-                if (pkg.customer_id && pkg.customer_name && !uniqueCustomers[pkg.customer_id]) {
-                    uniqueCustomers[pkg.customer_id] = {
-                        id: pkg.customer_id,
-                        name: pkg.customer_name,
-                        code: pkg.customer_code || ''
-                    };
-                }
-            });
-
-            Object.values(uniqueCustomers).forEach(cust => {
-                const opt = document.createElement('option');
-                opt.value = cust.id;
-                opt.textContent = `${cust.name} (${cust.code})`;
-                customerSelect.appendChild(opt);
-            });
+        if (error) {
+            console.error('Error loading customers:', error);
+            return;
         }
+
+        const customerSelect = document.getElementById('customerSelect');
+        if (!customerSelect) return;
+
+        // Clear old options
+        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
+
+        // Deduplicate by customer code
+        const uniqueCustomers = {};
+        customers.forEach(cust => {
+            if (!uniqueCustomers[cust.code]) {
+                uniqueCustomers[cust.code] = cust;
+            }
+        });
+
+        // Append unique customers
+        Object.values(uniqueCustomers).forEach(cust => {
+            const opt = document.createElement('option');
+            opt.value = cust.id;
+            opt.textContent = `${cust.name} (${cust.code})`;
+            customerSelect.appendChild(opt);
+        });
+
     } catch (err) {
         console.error('populateCustomers error:', err);
     }
@@ -1841,10 +1823,9 @@ async function populateCustomers() {
 
 
 
-// supabase.js
 
 async function populatePersonnel() {
-    if (personnelLoaded) return; // Prevent duplicates
+    if (personnelLoaded) return; // prevent duplicates
     personnelLoaded = true;
 
     const personnelSelect = document.getElementById('personnelSelect');
@@ -1853,58 +1834,28 @@ async function populatePersonnel() {
     personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
 
     try {
-        // Main path: Try Supabase first if online
-        if (supabase && navigator.onLine) {
-            const { data: personnel, error } = await supabase
-                .from('personnel')
-                .select('id, name')
-                .order('name', { ascending: true });
+        const { data: personnel, error } = await supabase
+            .from('personnel')
+            .select('id, name')
+            .order('name', { ascending: true });
 
-            if (error) {
-                console.error('Error fetching personnel:', error);
-                // Don't return, proceed to fallback
-            }
-
-            if (personnel && personnel.length > 0) {
-                personnel.forEach(p => {
-                    const option = document.createElement('option');
-                    option.value = p.id;
-                    option.textContent = p.name;
-                    personnelSelect.appendChild(option);
-                });
-                return; // Exit here if Supabase call was successful
-            }
+        if (error) {
+            console.error('Error fetching personnel:', error);
+            showAlert('Personel verileri yüklenemedi', 'error');
+            return;
         }
-        
-        // ✅ FALLBACK: If Supabase fails or is offline, load from local data
-        console.warn("Supabase not available. Loading personnel from local Excel data.");
-        const localPackages = await ExcelJS.readFile();
-        const uniquePersonnel = {}; // Use an object to handle duplicates
 
-        localPackages.forEach(pkg => {
-            // Check for both personnel_id and a name for robustness
-            if (pkg.personnel_id && pkg.packer && !uniquePersonnel[pkg.personnel_id]) {
-                uniquePersonnel[pkg.personnel_id] = {
-                    id: pkg.personnel_id,
-                    name: pkg.packer // Assumes the 'packer' field holds the name
-                };
-            }
-        });
-
-        if (Object.keys(uniquePersonnel).length > 0) {
-            Object.values(uniquePersonnel).forEach(p => {
+        if (personnel && personnel.length > 0) {
+            personnel.forEach(p => {
                 const option = document.createElement('option');
                 option.value = p.id;
                 option.textContent = p.name;
                 personnelSelect.appendChild(option);
             });
-        } else {
-            // If no personnel found in local data, show an informative message
-            personnelSelect.innerHTML = '<option value="">Personel listesi çevrimdışı alınamadı</option>';
         }
 
     } catch (err) {
-        console.error('Unexpected error in populatePersonnel:', err);
+        console.error('Unexpected error:', err);
         showAlert('Personel dropdown yükleme hatası', 'error');
     }
 }
@@ -1914,30 +1865,8 @@ async function populatePersonnel() {
 
 
 async function populatePackagesTable() {
-    if (!elements.packagesTableBody) {
-        console.error('Packages table body not found');
-        return;
-    }
-    
-    // FILTER FOR DISPLAY ONLY - show pending packages without containers
-    const pendingPackages = (window.packages || []).filter(pkg => 
-        pkg.status === 'beklemede' && 
-        (!pkg.container_id || pkg.container_id === null)
-    );
-    
-    console.log(`📦 Displaying ${pendingPackages.length} pending packages (total: ${window.packages?.length || 0})`);
-    
-    elements.packagesTableBody.innerHTML = '';
-    
-    if (pendingPackages.length === 0) {
-        elements.packagesTableBody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 2rem; color: #666;">
-                    <i class="fas fa-inbox"></i><br>
-                    Bekleyen paket yok
-                </td>
-            </tr>
-        `;
+    if (packagesTableLoading) {
+        console.log('Package table already loading, skipping...');
         return;
     }
     
@@ -1961,16 +1890,14 @@ async function populatePackagesTable() {
         if (isUsingExcel || !supabase || !navigator.onLine) {
             // Use Excel data filtered by workspace with additional safety
             packages = excelPackages.filter(pkg => {
-                // FIX: Handle packages with undefined workspace_id
-                const packageWorkspace = pkg.workspace_id || getCurrentWorkspaceId();
-                const isValidWorkspace = packageWorkspace === workspaceId;
+                const isValidWorkspace = pkg.workspace_id === workspaceId;
                 const isWaiting = pkg.status === 'beklemede';
                 const hasNoContainer = !pkg.container_id || pkg.container_id === null;
                 
                 if (!isValidWorkspace) {
                     console.warn('Filtered out package from different workspace:', {
                         packageId: pkg.id,
-                        packageWorkspace: packageWorkspace,
+                        packageWorkspace: pkg.workspace_id,
                         currentWorkspace: workspaceId
                     });
                 }
@@ -1981,13 +1908,15 @@ async function populatePackagesTable() {
         } else {
             // Try to use Supabase data with workspace filter
             try {
-                // FIX: Remove duplicate workspace filter - use only one
+                const workspaceFilter = getWorkspaceFilter();
+                
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', workspaceId) // USE ONLY THIS ONE - remove the duplicate line
+                    .eq('workspace_id', getCurrentWorkspaceId()) // ADD THIS LINE
+                    .eq('workspace_id', workspaceId) // STRICT WORKSPACE FILTER
                     .order('created_at', { ascending: false });
 
                 if (error) {
@@ -2001,12 +1930,11 @@ async function populatePackagesTable() {
             } catch (error) {
                 console.warn('Supabase fetch failed, using Excel data:', error);
                 // Fallback to Excel with workspace filtering
-                packages = excelPackages.filter(pkg => {
-                    const packageWorkspace = pkg.workspace_id || getCurrentWorkspaceId();
-                    return packageWorkspace === workspaceId &&
-                           pkg.status === 'beklemede' && 
-                           (!pkg.container_id || pkg.container_id === null);
-                });
+                packages = excelPackages.filter(pkg => 
+                    pkg.workspace_id === workspaceId &&
+                    pkg.status === 'beklemede' && 
+                    (!pkg.container_id || pkg.container_id === null)
+                );
                 isUsingExcel = true;
             }
         }
@@ -2024,7 +1952,7 @@ async function populatePackagesTable() {
 
         // Render table rows with workspace validation
         packages.forEach(pkg => {
-            // FIX: Update workspace validation to handle undefined
+            // Validate workspace access for each package
             if (!validateWorkspaceAccess(pkg)) {
                 console.warn('Skipping package from different workspace:', pkg.id);
                 return; // Skip this package
@@ -2060,26 +1988,25 @@ async function populatePackagesTable() {
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-            row.innerHTML = `
-                <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-                <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-                <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-                <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-                    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-                </td>
-                <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-                    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-                </td>
-                <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-                <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    ${sourceIcon}
-                    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
-                        <i class="fas fa-print"></i>
-                    </button>
-                </td>
-            `;
-            
+row.innerHTML = `
+    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
+    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+    </td>
+    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+    </td>
+    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+    <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+    ${sourceIcon}
+    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+        <i class="fas fa-print"></i>
+    </button>
+</td>
+`;
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
             });
@@ -2103,79 +2030,24 @@ async function populatePackagesTable() {
 
 
 
+
         
         
-     async function calculateTotalQuantity(packageIds) {
+       // Calculate total quantity of selected packages
+async function calculateTotalQuantity(packageIds) {
     try {
-        console.log("Calculating total quantity for packages:", packageIds);
-        
-        let total = 0;
-        
-        // Separate UUID packages and Excel packages
-        const uuidPackages = packageIds.filter(id => isValidUUID(id));
-        const excelPackages = packageIds.filter(id => !isValidUUID(id));
-        
-        console.log("UUID packages:", uuidPackages);
-        console.log("Excel packages:", excelPackages);
+        const { data: packages, error } = await supabase
+            .from('packages')
+            .select('total_quantity')
+            .in('id', packageIds);
 
-        // Calculate from Supabase for valid UUIDs
-        if (uuidPackages.length > 0) {
-            const { data, error } = await supabase
-                .from('packages')
-                .select('total_quantity')
-                .in('id', uuidPackages);
+        if (error) throw error;
 
-            if (error) {
-                console.warn('Supabase quantity query error:', error);
-            } else if (data) {
-                total += data.reduce((sum, pkg) => sum + (pkg.total_quantity || 1), 0);
-                console.log("Supabase packages total:", total);
-            }
-        }
-        
-        // Calculate from Excel packages for non-UUIDs
-        if (excelPackages.length > 0) {
-            let excelTotal = 0;
-            excelPackages.forEach(id => {
-                // Try to find in excelPackages array
-                const pkg = window.excelPackages?.find(p => p.id === id);
-                if (pkg) {
-                    excelTotal += pkg.total_quantity || 1;
-                } else {
-                    // Fallback: check data-package attribute
-                    const checkbox = document.querySelector(`input[data-package*="${id}"]`);
-                    if (checkbox) {
-                        try {
-                            const packageDataStr = checkbox.getAttribute('data-package');
-                            const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
-                            excelTotal += packageData.total_quantity || 1;
-                        } catch (e) {
-                            excelTotal += 1; // Default fallback
-                        }
-                    } else {
-                        excelTotal += 1; // Default fallback
-                    }
-                }
-            });
-            total += excelTotal;
-            console.log("Excel packages total:", excelTotal);
-        }
-        
-        console.log("Final total quantity:", total);
-        return total;
-        
+        return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
     } catch (error) {
         console.error('Error calculating total quantity:', error);
-        // Safe fallback: return package count
-        return packageIds.length;
+        return packageIds.length; // fallback
     }
-}
-
-// ✅ UUID validation helper
-function isValidUUID(uuid) {
-    if (!uuid || typeof uuid !== 'string') return false;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
 }
 
 
@@ -2186,6 +2058,9 @@ const pageSize = 20; // number of containers per page
 
 let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
+
+// COMPLETE FIXED populateShippingTable function
+// Replace the existing one in supabase (36).js (around line 950-1100)
 
 async function populateShippingTable(page = 0) {
     if (isShippingTableLoading) {
@@ -2324,72 +2199,60 @@ async function populateShippingTable(page = 0) {
             folderContent.className = 'folder-content';
             folderContent.style.cssText = 'padding: 0; display: none;';
 
-           // In populateShippingTable function, replace the table row generation with:
-const table = document.createElement('table');
-table.style.cssText = 'width: 100%; border-collapse: collapse;';
-table.innerHTML = `
-    <thead>
-        <tr style="background: var(--light);">
-            <th style="padding:12px; border:1px solid var(--border); width:30px;">
-                <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
-            </th>
-            <th style="padding:12px; border:1px solid var(--border;">Konteyner No</th>
-            <th style="padding:12px; border:1px solid var(--border);">Müşteri</th>
-            <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
-            <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
-            <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
-            <th style="padding:12px; border:1px solid var(--border);">Durum</th>
-            <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
-        </tr>
-    </thead>
-    <tbody>
-        ${customerContainers.map(container => {
-            // Get packages for this container to show real customer name
-            const containerPackages = packagesData.filter(p => p.container_id === container.id);
-            const customerNames = [...new Set(containerPackages.map(p => p.customers?.name).filter(Boolean))];
-            const customerName = customerNames.length > 0 ? customerNames.join(', ') : 'Genel';
-            
-            return `
-                <tr>
-                    <td style="padding:10px; border:1px solid var(--border); text-align:center;">
-                        <input type="checkbox" value="${container.id}" class="container-checkbox">
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border;">
-                        <strong>${escapeHtml(container.container_no)}</strong>
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border);">
-                        ${escapeHtml(customerName)}
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border); text-align:center; font-weight:bold;">
-                        ${container.package_count || 0}
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border); text-align:center; font-weight:bold; color:#2196F3;">
-                        ${container.total_quantity || 0}
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border);">
-                        ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border);">
-                        <span class="status-${container.status || 'beklemede'}">
-                            ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
-                        </span>
-                    </td>
-                    <td style="padding:10px; border:1px solid var(--border);">
-                        <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
-                            <i class="fas fa-eye"></i> Detay
-                        </button>
-                        <button onclick="addMorePackagesToContainer('${container.id}', '${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
-                            <i class="fas fa-plus"></i> Paket Ekle
-                        </button>
-                        <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
-                            <i class="fas fa-ship"></i> Sevk Et
-                        </button>
-                    </td>
-                </tr>
+            const table = document.createElement('table');
+            table.style.cssText = 'width: 100%; border-collapse: collapse;';
+            table.innerHTML = `
+                <thead>
+                    <tr style="background: var(--light);">
+                        <th style="padding:12px; border:1px solid var(--border); width:30px;">
+                            <input type="checkbox" class="select-all-customer" onchange="toggleSelectAllCustomer(this)">
+                        </th>
+                        <th style="padding:12px; border:1px solid var(--border);">Konteyner No</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Paket Sayısı</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Toplam Adet</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Tarih</th>
+                        <th style="padding:12px; border:1px solid var(--border);">Durum</th>
+                        <th style="padding:12px; border:1px solid var(--border);">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${customerContainers.map(container => `
+                        <tr>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                <input type="checkbox" value="${container.id}" class="container-checkbox">
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <strong>${escapeHtml(container.container_no)}</strong>
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                ${container.package_count || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border); text-align:center;">
+                                ${container.total_quantity || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <span class="status-${container.status || 'beklemede'}">
+                                    ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                                </span>
+                            </td>
+                            <td style="padding:10px; border:1px solid var(--border);">
+                                <button onclick="viewContainerDetails('${container.id}')" class="btn btn-primary btn-sm" style="margin:2px;">
+                                    <i class="fas fa-eye"></i> Detay
+                                </button>
+                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
+                                    <i class="fas fa-plus"></i> Paket Ekle
+                                </button>
+                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
+                                    <i class="fas fa-ship"></i> Sevk Et
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
             `;
-        }).join('')}
-    </tbody>
-`;
 
             folderContent.appendChild(table);
             folderDiv.appendChild(folderHeader);
@@ -3376,198 +3239,222 @@ console.log('✅ Reports module loaded successfully');
 
         
 
-async function showAllCustomers() {
-    try {
-        elements.allCustomersList.innerHTML = '';
-        
-        const { data: customers, error } = await supabase
-            .from('customers')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading customers:', error);
-            showAlert('Müşteri verileri yüklenemedi', 'error');
-            return;
-        }
-
-        if (customers && customers.length > 0) {
-            customers.forEach(customer => {
-                const div = document.createElement('div');
-                div.className = 'customer-item';
+        async function showAllCustomers() {
+            try {
+                elements.allCustomersList.innerHTML = '';
                 
-                // ✅ FIXED: Use proper element creation
-                const customerInfo = document.createElement('div');
-                customerInfo.innerHTML = `
-                    <strong>${escapeHtml(customer.name)}</strong> (${escapeHtml(customer.code)})<br>
-                    <small>${escapeHtml(customer.email || 'E-posta yok')}</small>
-                `;
+                const { data: customers, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('name');
+
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    showAlert('Müşteri verileri yüklenemedi', 'error');
+                    return;
+                }
+
+                if (customers && customers.length > 0) {
+                    customers.forEach(customer => {
+                        const div = document.createElement('div');
+                        div.className = 'customer-item';
+                        div.innerHTML = `
+                            <div>
+                                <strong>${customer.name}</strong> (${customer.code})<br>
+                                <small>${customer.email || 'E-posta yok'}</small>
+                            </div>
+                            <button onclick="deleteCustomerWithAuth('${customer.id}', '${customer.name}')" class="btn btn-danger btn-sm">Sil</button>
+                        `;
+                        elements.allCustomersList.appendChild(div);
+                    });
+                }
                 
-                const deleteButton = document.createElement('button');
-                deleteButton.textContent = 'Sil';
-                deleteButton.className = 'btn btn-danger btn-sm';
-                
-                // ✅ CORRECT: Pass the actual customer object properties
-                deleteButton.onclick = function() {
-                    console.log("Delete button clicked - Customer:", customer);
-                    console.log("Customer ID:", customer.id);
-                    deleteCustomerWithAuth(customer.id, customer.name);
-                };
-                
-                div.appendChild(customerInfo);
-                div.appendChild(deleteButton);
-                elements.allCustomersList.appendChild(div);
-            });
-        }
-        
-        document.getElementById('allCustomersModal').style.display = 'flex';
-    } catch (error) {
-        console.error('Error in showAllCustomers:', error);
-        showAlert('Müşteri yönetimi yükleme hatası', 'error');
-    }
-}
-
-// Add escape helper if not exists
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-        
-
-async function addNewCustomer() {
-    console.log("🔴 STEP 4.1: addNewCustomer STARTED");
-    
-    const code = document.getElementById('newCustomerCode').value.trim();
-    const name = document.getElementById('newCustomerName').value.trim();
-    const email = document.getElementById('newCustomerEmail').value.trim();
-
-    console.log("🔴 STEP 4.2: Form values - Code:'" + code + "', Name:'" + name + "', Email:'" + email + "'");
-
-    // ✅ PROPER VALIDATION
-    if (!code) {
-        console.error("❌ Validation failed: Missing customer code");
-        showAlert('Müşteri kodu giriniz!', 'error');
-        document.getElementById('newCustomerCode').focus();
-        return { success: false, error: 'Missing code' };
-    }
-    
-    if (!name) {
-        console.error("❌ Validation failed: Missing customer name");
-        showAlert('Müşteri adı giriniz!', 'error');
-        document.getElementById('newCustomerName').focus();
-        return { success: false, error: 'Missing name' };
-    }
-
-    try {
-        console.log("🔴 STEP 4.4: Getting workspace ID...");
-        let workspaceId = getCurrentWorkspaceId();
-        console.log("🔴 STEP 4.5: Workspace ID:", workspaceId, "Type:", typeof workspaceId);
-        
-        // ✅ BETTER FIX: Check specifically for "station-1" and other invalid values
-        if (!workspaceId || workspaceId === "station-1" || workspaceId === "station-2" || workspaceId.length !== 36) {
-            console.warn("⚠️ Invalid workspace ID '" + workspaceId + "', using default...");
-            workspaceId = '00000000-0000-0000-0000-000000000000'; // Default workspace UUID
-        }
-        
-        console.log("🔴 STEP 4.6: Using workspace ID:", workspaceId);
-
-        console.log("🔴 STEP 4.7: Inserting customer to Supabase...");
-        const { data, error } = await supabase
-            .from('customers')
-            .insert([{ 
-                code, 
-                name, 
-                email: email || null,
-                workspace_id: workspaceId
-            }])
-            .select();
-
-        console.log("🔴 STEP 4.8: Supabase response - data:", data, "error:", error);
-
-        if (error) {
-            console.error('❌ STEP 4.9: Supabase insert error:', error);
-            showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
-            return { success: false, error: error.message };
-        }
-
-        console.log("✅ STEP 4.10: Customer added successfully to database. Data:", data);
-        showAlert('Müşteri başarıyla eklendi', 'success');
-        
-        // Clear form
-        document.getElementById('newCustomerCode').value = '';
-        document.getElementById('newCustomerName').value = '';
-        document.getElementById('newCustomerEmail').value = '';
-        
-        // Refresh lists
-        console.log("🔴 STEP 4.11: Refreshing customer lists...");
-        await populateCustomers();
-        await showAllCustomers();
-        
-        console.log("✅ STEP 4.12: addNewCustomer COMPLETED SUCCESSFULLY");
-        return { success: true, data: data };
-        
-    } catch (error) {
-        console.error('❌ STEP 4.ERROR: Error in addNewCustomer:', error);
-        showAlert('Müşteri ekleme hatası: ' + error.message, 'error');
-        return { success: false, error: error.message };
-    }
-}
-    async function deleteCustomer(customerId) {
-    console.log("Deleting customer with id:", customerId); 
-    console.log("Customer ID type:", typeof customerId);
-    console.log("Customer ID length:", customerId ? customerId.length : 'null');
-    
-    // Better validation
-    if (!customerId || customerId === '' || customerId === 'null' || customerId === 'undefined') {
-        showAlert('Geçersiz müşteri ID! Silme işlemi yapılamıyor.', 'error');
-        return;
-    }
-
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(customerId)) {
-        console.error('Invalid UUID format:', customerId);
-        showAlert('Geçersiz müşteri ID formatı!', 'error');
-        return;
-    }
-
-    if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
-
-    try {
-        const { error } = await supabase
-            .from('customers')
-            .delete()
-            .eq('id', customerId);
-
-        if (error) {
-            console.error('Error deleting customer:', error);
-            
-            // Handle foreign key constraint errors
-            if (error.code === '23503') {
-                showAlert('Bu müşteriye ait kayıtlar bulunduğu için silinemez! Önce ilişkili paket ve barkodları silin.', 'error');
-            } else {
-                showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+                document.getElementById('allCustomersModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error in showAllCustomers:', error);
+                showAlert('Müşteri yönetimi yükleme hatası', 'error');
             }
-            return;
         }
 
-        showAlert('Müşteri başarıyla silindi', 'success');
+
         
-        // Refresh lists
-        await populateCustomers();
-        await showAllCustomers();
+
+        async function addNewCustomer() {
+            const code = document.getElementById('newCustomerCode').value.trim();
+            const name = document.getElementById('newCustomerName').value.trim();
+            const email = document.getElementById('newCustomerEmail').value.trim();
+
+            // Form doğrulama
+            if (!validateForm([
+                { id: 'newCustomerCode', errorId: 'customerCodeError', type: 'text', required: true },
+                { id: 'newCustomerName', errorId: 'customerNameError', type: 'text', required: true },
+                { id: 'newCustomerEmail', errorId: 'customerEmailError', type: 'email', required: false }
+            ])) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('customers')
+                    .insert([{ code, name, email: email || null }]);
+
+                if (error) {
+                    console.error('Error adding customer:', error);
+                    showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showAlert('Müşteri başarıyla eklendi', 'success');
+                
+                // Clear form
+                document.getElementById('newCustomerCode').value = '';
+                document.getElementById('newCustomerName').value = '';
+                document.getElementById('newCustomerEmail').value = '';
+                
+                // Refresh lists
+                await populateCustomers();
+                await showAllCustomers();
+                
+            } catch (error) {
+                console.error('Error in addNewCustomer:', error);
+                showAlert('Müşteri ekleme hatası', 'error');
+            }
+        }
+
+
         
+
+        async function deleteCustomer(customerId) {
+            if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('customers')
+                    .delete()
+                    .eq('id', customerId);
+
+                if (error) {
+                    console.error('Error deleting customer:', error);
+                    showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+                    return;
+                }
+
+                showAlert('Müşteri başarıyla silindi', 'success');
+                
+                // Refresh lists
+                await populateCustomers();
+                await showAllCustomers();
+                
+            } catch (error) {
+                console.error('Error in deleteCustomer:', error);
+                showAlert('Müşteri silme hatası', 'error');
+            }
+        }
+
+
+
+async function completePackage() {
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    // Check workspace permissions
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
+    try {
+        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
+      const workspaceId = window.workspaceManager.currentWorkspace.id;
+
+// Get or initialize counter for this workspace
+let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
+packageCounter++;
+localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
+
+const timestamp = Date.now();
+const random = Math.random().toString(36).substr(2, 9);
+
+const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+        
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect?.value || '';
+
+        // Enhanced package data with workspace info - USE THE SAME ID
+        const packageData = {
+            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name}: ${qty} adet`
+            ).join(', '),
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            workspace_id: workspaceId,
+            station_name: window.workspaceManager.currentWorkspace.name,
+            daily_file: ExcelStorage.getTodayDateString(),
+            source: 'app' // Track source for sync
+        };
+
+        console.log('📦 Creating package with ID:', packageId);
+
+        // Save based on connectivity and workspace settings
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                await saveToExcel(packageData); // SAME packageData with SAME ID
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData); // SAME packageData with SAME ID
+                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                isUsingExcel = true;
+            }
+        } else {
+            await saveToExcel(packageData); // SAME packageData with SAME ID
+            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            isUsingExcel = true;
+        }
+
+        // Reset and refresh
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        await populatePackagesTable();
+        updateStorageIndicator();
+
     } catch (error) {
-        console.error('Error in deleteCustomer:', error);
-        showAlert('Müşteri silme hatası', 'error');
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
+
 
 
 // Delete selected packages
@@ -3599,236 +3486,227 @@ async function deleteSelectedPackages() {
     }
 }
 
-async function sendToRamp() {
+
+
+async function sendToRamp(containerNo = null) {
     try {
-        // 1. Get selected packages
-        const selectedCheckboxes = document.querySelectorAll('.package-checkbox:checked');
+        const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
+            .map(cb => {
+                const packageDataStr = cb.getAttribute('data-package');
+                if (packageDataStr) {
+                    const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
+                    return packageData.id;
+                }
+                return cb.value;
+            });
         
-        if (selectedCheckboxes.length === 0) {
-            showAlert('Lütfen konteynere eklenecek paketleri seçin', 'error');
+        if (selectedPackages.length === 0) {
+            showAlert('Sevk etmek için paket seçin', 'error');
             return;
         }
 
-        // 2. Validate container exists
-        if (!currentContainer || currentContainer === 'CONT-000000') {
-            const createNew = confirm('Aktif konteyner yok. Yeni konteyner oluşturulsun mu?');
-            if (createNew) {
-                await createNewContainer();
-            } else {
-                return;
-            }
-        }
+        // Filter out Excel-style IDs that can't be used with Supabase directly
+        const validPackageIds = selectedPackages.filter(id => 
+            id && !id.startsWith('pkg-') && !id.startsWith('excel-')
+        );
+        
+        const excelStylePackageIds = selectedPackages.filter(id => 
+            id && (id.startsWith('pkg-') || id.startsWith('excel-'))
+        );
 
-        // 3. Collect package IDs
-        const packageIds = Array.from(selectedCheckboxes).map(cb => {
-            return cb.getAttribute('data-package-id') || 
-                   cb.closest('tr')?.getAttribute('data-package-id') ||
-                   cb.value;
-        }).filter(id => id); // Remove nulls
-
-        if (packageIds.length === 0) {
-            showAlert('Geçerli paket seçimi bulunamadı', 'error');
-            return;
-        }
-
-        console.log('📦 Sending packages to container:', packageIds);
-        showAlert(`${packageIds.length} paket konteynere ekleniyor...`, 'info', 2000);
-
-        // 4. Update packages in database
-        if (supabase && navigator.onLine) {
-            const { data, error } = await supabase
-                .from('packages')
-                .update({ 
-                    container_no: currentContainer,
-                    status: 'konteynerde',
-                    updated_at: new Date().toISOString()
-                })
-                .in('package_no', packageIds)
+        // Use existing container or create a new one
+        let containerId;
+        if (containerNo && currentContainer) {
+            containerId = currentContainer;
+        } else {
+            const timestamp = new Date().getTime();
+            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+            
+            const { data: newContainer, error } = await supabase
+                .from('containers')
+                .insert([{
+                    container_no: containerNo,
+                    customer: selectedCustomer?.name || '',
+                    package_count: selectedPackages.length,
+                    total_quantity: await calculateTotalQuantity(selectedPackages),
+                    status: 'sevk-edildi',
+                    created_at: new Date().toISOString()
+                }])
                 .select();
 
-            if (error) {
-                console.error('Supabase update error:', error);
-                throw error;
-            }
-
-            console.log('✅ Database updated:', data);
+            if (error) throw error;
+            
+            containerId = newContainer[0].id;
+            currentContainer = containerNo;
+            elements.containerNumber.textContent = containerNo;
+            saveAppState();
         }
 
-        // 5. Update local storage (Excel)
-        const workspaceId = getCurrentWorkspaceId();
-        const storageKey = `excelPackages_${workspaceId}`;
-        let packages = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        
-        packages = packages.map(pkg => {
-            if (packageIds.includes(pkg.package_no)) {
-                return {
-                    ...pkg,
-                    container_no: currentContainer,
-                    status: 'konteynerde',
-                    updated_at: new Date().toISOString()
-                };
-            }
-            return pkg;
-        });
-        
-        localStorage.setItem(storageKey, JSON.stringify(packages));
+        // Update valid Supabase packages
+        if (validPackageIds.length > 0 && supabase) {
+            const { error: updateError } = await supabase
+                .from('packages')
+                .update({ 
+                    container_id: containerId,
+                    status: 'sevk-edildi'
+                })
+                .in('id', validPackageIds);
 
-        // 6. Update container totals
-        await updateContainerTotals(currentContainer);
+            if (updateError) console.warn('Supabase update error:', updateError);
+        }
 
-        // 7. Refresh UI
+        // Update Excel packages locally
+        if (excelStylePackageIds.length > 0) {
+            const currentPackages = await ExcelJS.readFile();
+            const updatedPackages = currentPackages.map(pkg => {
+                if (excelStylePackageIds.includes(pkg.id)) {
+                    return {
+                        ...pkg,
+                        container_id: containerId,
+                        status: 'sevk-edildi',
+                        updated_at: new Date().toISOString()
+                    };
+                }
+                return pkg;
+            });
+            
+            await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
+            excelPackages = updatedPackages;
+        }
+
+        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        
+        // Refresh tables
         await populatePackagesTable();
         await populateShippingTable();
-
-        // 8. Uncheck all checkboxes
-        selectedCheckboxes.forEach(cb => cb.checked = false);
-        document.getElementById('selectAllPackages').checked = false;
-
-        showAlert(`✅ ${packageIds.length} paket konteynere eklendi: ${currentContainer}`, 'success', 4000);
-
-    } catch (error) {
-        console.error('❌ Send to ramp error:', error);
-        showAlert(`Konteynere eklenirken hata: ${error.message}`, 'error', 5000);
-    }
-}
-
-// Helper function to update container totals
-async function updateContainerTotals(containerNo) {
-    try {
-        // Get all packages in this container
-        let packages = [];
-        
-        if (supabase && navigator.onLine) {
-            const { data, error } = await supabase
-                .from('packages')
-                .select('*')
-                .eq('container_no', containerNo);
-                
-            if (!error) packages = data;
-        } else {
-            // Offline: use local storage
-            const workspaceId = getCurrentWorkspaceId();
-            const storageKey = `excelPackages_${workspaceId}`;
-            const allPackages = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            packages = allPackages.filter(p => p.container_no === containerNo);
-        }
-
-        const totalPackages = packages.length;
-        const totalQuantity = packages.reduce((sum, pkg) => {
-            const items = pkg.items || {};
-            const pkgTotal = Object.values(items).reduce((a, b) => a + b, 0);
-            return sum + pkgTotal;
-        }, 0);
-
-        // Update container record
-        if (supabase && navigator.onLine) {
-            await supabase
-                .from('containers')
-                .update({
-                    package_count: totalPackages,
-                    total_quantity: totalQuantity,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('container_no', containerNo);
-        }
-
-        console.log(`📊 Container ${containerNo} updated: ${totalPackages} packages, ${totalQuantity} items`);
         
     } catch (error) {
-        console.error('Error updating container totals:', error);
+        console.error('Error sending to ramp:', error);
+        showAlert('Paketler sevk edilirken hata oluştu: ' + error.message, 'error');
     }
 }
 
 
-// --- shipContainer: ship/mark a whole container as shipped (sevk-edildi) ---
-async function shipContainer(containerNo) {
-    try {
-        if (!containerNo) {
-            showAlert('Konteyner numarası geçersiz', 'error');
-            return;
-        }
 
-        // get container record (Excel or Supabase)
-        let containerData = null;
+
+
+
+        
+      async function shipContainer(containerNo) {
+    console.log('🚢 shipContainer called with:', containerNo);
+    
+    if (!containerNo) {
+        showAlert('Konteyner numarası geçersiz', 'error');
+        return;
+    }
+
+    try {
+        // First get the container data safely
+        let containerData;
+        
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Excel mode - build containerData from excel packages
-            const allExcel = JSON.parse(localStorage.getItem('excel_containers') || '[]');
-            const found = allExcel.find(c => c.container_no === containerNo || c.id === containerNo);
-            if (found) {
-                containerData = found;
-            } else {
-                // fallback: compute package_count and total_quantity by scanning excelPackages
-                const packs = (window.excelPackages || []).filter(p => p.container_id === containerNo);
-                containerData = {
-                    id: containerNo,
-                    container_no: containerNo,
-                    package_count: packs.length,
-                    total_quantity: packs.reduce((s, p) => s + (p.total_quantity || 0), 0)
-                };
+            // Excel mode - find container in excelPackages
+            const containerPackages = excelPackages.filter(pkg => pkg.container_id === containerNo);
+            if (containerPackages.length === 0) {
+                throw new Error('Konteyner Excel verilerinde bulunamadı');
             }
+            
+            containerData = {
+                id: containerNo,
+                container_no: containerNo,
+                package_count: containerPackages.length,
+                total_quantity: containerPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0)
+            };
         } else {
+            // Supabase mode
             const { data: container, error: fetchError } = await supabase
                 .from('containers')
-                .select('id,container_no,package_count,total_quantity,status')
+                .select('id, container_no, package_count, total_quantity, status')
                 .eq('container_no', containerNo)
-                .single();
+                .single(); // Use single() to get one record
 
-            if (fetchError) throw fetchError;
+            if (fetchError) {
+                console.error('Container fetch error:', fetchError);
+                throw new Error('Konteyner veritabanında bulunamadı: ' + fetchError.message);
+            }
+            
+            if (!container) {
+                throw new Error('Konteyner bulunamadı: ' + containerNo);
+            }
+            
             containerData = container;
         }
 
-        if (!containerData) throw new Error('Konteyner bulunamadı: ' + containerNo);
+        console.log('Container data:', containerData);
 
-        // confirm
+        // Confirm shipment
         if (!confirm(`"${containerNo}" numaralı konteyneri sevk etmek istediğinize emin misiniz?\n\nPaket Sayısı: ${containerData.package_count || 0}\nToplam Adet: ${containerData.total_quantity || 0}`)) {
             return;
         }
 
+        // Update container status
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            // mark excel packages as shipped
-            const currentExcel = await ExcelJS.readFile();
-            let changed = false;
-            currentExcel.forEach(p => {
-                if (p.container_id === containerData.id || p.container_id === containerNo) {
-                    p.status = 'sevk-edildi';
-                    p.updated_at = new Date().toISOString();
-                    changed = true;
+            // Excel mode - update packages locally
+            excelPackages.forEach(pkg => {
+                if (pkg.container_id === containerNo) {
+                    pkg.status = 'sevk-edildi';
+                    pkg.updated_at = new Date().toISOString();
                 }
             });
-            if (changed) {
-                await ExcelJS.writeFile(currentExcel);
-                window.excelPackages = currentExcel;
-            }
+            
+            // Save to Excel
+            await ExcelJS.writeFile(ExcelJS.toExcelFormat(excelPackages));
+            
             showAlert(`Konteyner ${containerNo} Excel modunda sevk edildi`, 'success');
+            
         } else {
-            // update container status
-            const { error: cErr } = await supabase
+            // Supabase mode - update in database
+            const { error: updateError } = await supabase
                 .from('containers')
-                .update({ status: 'sevk-edildi', shipped_at: new Date().toISOString() })
+                .update({ 
+                    status: 'sevk-edildi',
+                    shipped_at: new Date().toISOString()
+                })
                 .eq('container_no', containerNo);
 
-            if (cErr) throw cErr;
+            if (updateError) {
+                console.error('Container update error:', updateError);
+                throw new Error('Konteyner güncellenirken hata oluştu: ' + updateError.message);
+            }
 
-            // update packages linked to container
-            const { error: pErr } = await supabase
+            // Also update packages status
+            const { error: packagesError } = await supabase
                 .from('packages')
-                .update({ status: 'sevk-edildi', updated_at: new Date().toISOString() })
+                .update({ status: 'sevk-edildi' })
                 .eq('container_id', containerData.id);
 
-            if (pErr) console.warn('Warning updating packages for container:', pErr);
+            if (packagesError) {
+                console.warn('Packages update warning:', packagesError);
+                // Don't throw error for packages update, just log it
+            }
 
             showAlert(`Konteyner ${containerNo} başarıyla sevk edildi ✅`, 'success');
         }
 
-        // Refresh shipping table
-        if (typeof populateShippingTable === 'function') await populateShippingTable();
-
+        // Refresh the shipping table
+        await populateShippingTable();
+        
     } catch (error) {
         console.error('❌ Error in shipContainer:', error);
-        showAlert('Konteyner sevk edilirken hata oluştu: ' + (error.message || error), 'error');
+        
+        let errorMessage = 'Konteyner sevk edilirken hata oluştu';
+        
+        if (error.message.includes('JSON')) {
+            errorMessage = 'Veri işleme hatası. Lütfen sayfayı yenileyin.';
+        } else if (error.message.includes('single row')) {
+            errorMessage = 'Konteyner bulunamadı veya birden fazla eşleşen kayıt var.';
+        } else {
+            errorMessage = error.message;
+        }
+        
+        showAlert(errorMessage, 'error');
     }
-}
-
+}  
 
 
         
@@ -4548,6 +4426,17 @@ async function completePackageSecure() {
     return await completePackage();
 }
 
+// Replace original functions with secure versions
+window.completePackage = completePackageSecure;
+window.supabase = createSecureSupabaseClient();
+
+
+
+window.workspaceManager = new EnhancedWorkspaceManager();
+
+
+
+
 
 // Print single package function
 window.printSinglePackage = async function(packageId) {
@@ -4577,6 +4466,3 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
-
-
-window.workspaceManager = new EnhancedWorkspaceManager();
