@@ -3633,11 +3633,12 @@ async function sendToRamp(containerNo = null) {
             const { data: updatedRows, error: updateErr } = await supabase
                 .from('packages')
                 .update({ 
-                    container_id: containerId, 
-                    status: 'sevk edildi',  // ✅ Fixed - no hyphen
-                    shipped_at: new Date().toISOString(),  // ✅ Added
-                    updated_at: new Date().toISOString() 
-                })
+                    .update({ 
+                 container_id: containerId, 
+                 status: 'sevk edildi',  // ✅ Remove hyphen, add space
+                 shipped_at: new Date().toISOString(),  // ✅ Add this line too
+                updated_at: new Date().toISOString() 
+              })
                 .in('id', ids)
                 .select();
 
@@ -3660,12 +3661,13 @@ async function sendToRamp(containerNo = null) {
                     const idx = currentExcel.findIndex(p => p && p.id === pkg.id);
                     if (idx !== -1) {
                         currentExcel[idx] = { 
-                            ...currentExcel[idx], 
-                            container_id: containerId, 
-                            status: 'sevk edildi',  // ✅ Fixed - no hyphen
-                            shipped_at: new Date().toISOString(),  // ✅ Added
-                            updated_at: new Date().toISOString() 
-                        };
+                          currentExcel[idx] = { 
+                   ...currentExcel[idx], 
+                   container_id: containerId, 
+                  status: 'sevk edildi',  // ✅ Remove hyphen, add space
+                  shipped_at: new Date().toISOString(),  // ✅ Add this line too
+               updated_at: new Date().toISOString() 
+              };
                         updatedCount++;
                     }
                 });
