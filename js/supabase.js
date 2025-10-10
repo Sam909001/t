@@ -3553,177 +3553,143 @@ async function deleteSelectedPackages() {
     }
 }
 
-async function sendToRamp(containerNo = null) {
+async function sendToRamp() {
     try {
-        console.log('🚀 sendToRamp started');
-
-        const selectedCheckboxes = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'));
-        console.log('Selected checkboxes:', selectedCheckboxes.length);
-
-        const selectedPackages = selectedCheckboxes.map(cb => {
-            const data = cb.getAttribute('data-package');
-            if (!data) return null;
-            try { 
-                return JSON.parse(data.replace(/&quot;/g, '"')); 
-            } catch (e) { 
-                console.error('Error parsing package data:', e);
-                return null; 
-            }
-        }).filter(Boolean);
-
-        if (selectedPackages.length === 0) {
-            showAlert('Konteynere eklemek için paket seçin', 'error');
+        // 1. Get selected packages
+        const selectedCheckboxes = document.querySelectorAll('.package-checkbox:checked');
+        
+        if (selectedCheckboxes.length === 0) {
+            showAlert('Lütfen konteynere eklenecek paketleri seçin', 'error');
             return;
         }
 
-        const movedPackageIds = selectedPackages.map(pkg => pkg.id);
-        const movedPackageElements = selectedCheckboxes.map(cb => cb.closest('tr'));
-
-        // Visual feedback
-        movedPackageElements.forEach(row => {
-            if (row) {
-                row.style.opacity = '0.3';
-                row.style.transition = 'all 0.3s ease';
-            }
-        });
-
-        const totalQuantity = selectedPackages.reduce((sum, pkg) => {
-            const qty = pkg.items
-                ? Array.isArray(pkg.items)
-                    ? pkg.items.reduce((s, i) => s + (parseInt(i.qty) || 1), 0)
-                    : Object.values(pkg.items).reduce((s, q) => s + (parseInt(q) || 1), 0)
-                : (parseInt(pkg.total_quantity) || 1);
-            return sum + qty;
-        }, 0);
-
-        let containerId;
-        let finalContainerNo = containerNo;
-        const timestamp = Date.now();
-
-        if (containerNo && currentContainer) {
-            containerId = currentContainer;
-        } else {
-            finalContainerNo = containerNo || `CONT-${timestamp.toString().slice(-6)}`;
-            const containerData = {
-                container_no: finalContainerNo,
-                customer_id: null,
-                package_count: selectedPackages.length,
-                total_quantity: totalQuantity,
-                status: 'sevk edildi'
-            };
-
-            if (supabase && navigator.onLine) {
-                const { data: inserted, error: insertErr } = await supabase
-                    .from('containers')
-                    .insert([containerData])
-                    .select();
-                if (insertErr) throw insertErr;
-                containerId = inserted[0].id;
+        // 2. Validate container exists
+        if (!currentContainer || currentContainer === 'CONT-000000') {
+            const createNew = confirm('Aktif konteyner yok. Yeni konteyner oluşturulsun mu?');
+            if (createNew) {
+                await createNewContainer();
             } else {
-                containerId = `cont-${timestamp}`;
-                const stored = JSON.parse(localStorage.getItem('excel_containers') || '[]');
-                stored.push({ ...containerData, id: containerId, created_at: new Date().toISOString() });
-                localStorage.setItem('excel_containers', JSON.stringify(stored));
+                return;
             }
-            currentContainer = containerId;
         }
 
-        let successCount = 0;
+        // 3. Collect package IDs
+        const packageIds = Array.from(selectedCheckboxes).map(cb => {
+            return cb.getAttribute('data-package-id') || 
+                   cb.closest('tr')?.getAttribute('data-package-id') ||
+                   cb.value;
+        }).filter(id => id); // Remove nulls
 
-        // Supabase updates
-        const supabasePackages = selectedPackages.filter(p => isValidUUID(p.id));
+        if (packageIds.length === 0) {
+            showAlert('Geçerli paket seçimi bulunamadı', 'error');
+            return;
+        }
 
-        if (supabasePackages.length > 0 && supabase && navigator.onLine) {
-            const ids = supabasePackages.map(p => p.id);
-            const { data: updatedRows, error: updateErr } = await supabase
+        console.log('📦 Sending packages to container:', packageIds);
+        showAlert(`${packageIds.length} paket konteynere ekleniyor...`, 'info', 2000);
+
+        // 4. Update packages in database
+        if (supabase && navigator.onLine) {
+            const { data, error } = await supabase
                 .from('packages')
-                .update({  // ✅ SINGLE .update() only
-                    container_id: containerId, 
-                    status: 'sevk edildi',
-                    shipped_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString() 
+                .update({ 
+                    container_no: currentContainer,
+                    status: 'konteynerde',
+                    updated_at: new Date().toISOString()
                 })
-                .in('id', ids)
+                .in('package_no', packageIds)
                 .select();
 
-            if (!updateErr && Array.isArray(updatedRows)) {
-                successCount += updatedRows.length;
-            } else if (updateErr) {
-                console.error('Supabase update error:', updateErr);
+            if (error) {
+                console.error('Supabase update error:', error);
+                throw error;
             }
+
+            console.log('✅ Database updated:', data);
         }
 
-        // Excel updates
-        const excelPackages = selectedPackages.filter(p => !isValidUUID(p.id));
-
-        if (excelPackages.length > 0 && typeof ExcelJS !== 'undefined') {
-            try {
-                let currentExcel = await ExcelJS.readFile();
-                let updatedCount = 0;
-
-                excelPackages.forEach(pkg => {
-                    if (!pkg || !pkg.id) return;
-
-                    const idx = currentExcel.findIndex(p => p && p.id === pkg.id);
-                    if (idx !== -1) {
-                        currentExcel[idx] = {  // ✅ Fixed - no duplicate assignment
-                            ...currentExcel[idx], 
-                            container_id: containerId, 
-                            status: 'sevk edildi',
-                            shipped_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString() 
-                        };
-                        updatedCount++;
-                    }
-                });
-
-                await ExcelJS.writeFile(currentExcel);
-                successCount += updatedCount;
-                
-            } catch (exErr) {
-                console.error('Excel update error:', exErr);
+        // 5. Update local storage (Excel)
+        const workspaceId = getCurrentWorkspaceId();
+        const storageKey = `excelPackages_${workspaceId}`;
+        let packages = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        
+        packages = packages.map(pkg => {
+            if (packageIds.includes(pkg.package_no)) {
+                return {
+                    ...pkg,
+                    container_no: currentContainer,
+                    status: 'konteynerde',
+                    updated_at: new Date().toISOString()
+                };
             }
-        }
+            return pkg;
+        });
+        
+        localStorage.setItem(storageKey, JSON.stringify(packages));
 
-        if (successCount > 0) {
-            // Update in-memory data
-            if (Array.isArray(window.packages)) {
-                window.packages = window.packages.filter(pkg => !movedPackageIds.includes(pkg.id));
-            }
-            
-            if (window.excelPackages && Array.isArray(window.excelPackages)) {
-                window.excelPackages = window.excelPackages.filter(pkg => !movedPackageIds.includes(pkg.id));
-            }
+        // 6. Update container totals
+        await updateContainerTotals(currentContainer);
 
-            // Remove from DOM
-            movedPackageElements.forEach(row => {
-                if (row && row.parentNode) {
-                    row.remove();
-                }
-            });
+        // 7. Refresh UI
+        await populatePackagesTable();
+        await populateShippingTable();
 
-            // Update count
-            const totalPackagesElement = document.getElementById('totalPackages');
-            if (totalPackagesElement) {
-                const currentCount = parseInt(totalPackagesElement.textContent) || 0;
-                totalPackagesElement.textContent = Math.max(0, currentCount - selectedPackages.length).toString();
-            }
+        // 8. Uncheck all checkboxes
+        selectedCheckboxes.forEach(cb => cb.checked = false);
+        document.getElementById('selectAllPackages').checked = false;
 
-            showAlert(`✅ ${successCount} paket sevk edildi`, 'success');
-
-            await populateShippingTable();
-            currentContainer = null;
-            
-        } else {
-            showAlert('Paketler sevk edilemedi', 'error');
-            movedPackageElements.forEach(row => {
-                if (row) row.style.opacity = '1';
-            });
-        }
+        showAlert(`✅ ${packageIds.length} paket konteynere eklendi: ${currentContainer}`, 'success', 4000);
 
     } catch (error) {
-        console.error('❌ Error in sendToRamp:', error);
-        showAlert('Sevkiyat hatası: ' + error.message, 'error');
+        console.error('❌ Send to ramp error:', error);
+        showAlert(`Konteynere eklenirken hata: ${error.message}`, 'error', 5000);
+    }
+}
+
+// Helper function to update container totals
+async function updateContainerTotals(containerNo) {
+    try {
+        // Get all packages in this container
+        let packages = [];
+        
+        if (supabase && navigator.onLine) {
+            const { data, error } = await supabase
+                .from('packages')
+                .select('*')
+                .eq('container_no', containerNo);
+                
+            if (!error) packages = data;
+        } else {
+            // Offline: use local storage
+            const workspaceId = getCurrentWorkspaceId();
+            const storageKey = `excelPackages_${workspaceId}`;
+            const allPackages = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            packages = allPackages.filter(p => p.container_no === containerNo);
+        }
+
+        const totalPackages = packages.length;
+        const totalQuantity = packages.reduce((sum, pkg) => {
+            const items = pkg.items || {};
+            const pkgTotal = Object.values(items).reduce((a, b) => a + b, 0);
+            return sum + pkgTotal;
+        }, 0);
+
+        // Update container record
+        if (supabase && navigator.onLine) {
+            await supabase
+                .from('containers')
+                .update({
+                    package_count: totalPackages,
+                    total_quantity: totalQuantity,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('container_no', containerNo);
+        }
+
+        console.log(`📊 Container ${containerNo} updated: ${totalPackages} packages, ${totalQuantity} items`);
+        
+    } catch (error) {
+        console.error('Error updating container totals:', error);
     }
 }
 
