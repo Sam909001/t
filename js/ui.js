@@ -1,9 +1,9 @@
-/// Ensure a global elements object exists and initialize it once
+// Ensure a global elements object exists and initialize it once
 if (!window.elements) window.elements = {};
 if (!window._elementsInitialized) {
     document.addEventListener('DOMContentLoaded', function() {
         // initializeElementsObject returns a map and sets elements[...] entries
-        try {
+        try {F
             // Call the existing helper if available
             if (typeof initializeElementsObject === 'function') {
                 window.elements = initializeElementsObject();
@@ -3000,105 +3000,43 @@ class UXEnhancer {
 // Initialize UX enhancer
 const uxEnhancer = new UXEnhancer();
 
-// Fixed bulk selection functions — tolerant to both (event) and (tableId) calls
-function _resolveTableId(arg) {
-  // If arg is an Event (e.g. onchange handler passed event), extract dataset.tableId
-  if (arg && arg.target && arg.target.dataset && arg.target.dataset.tableId) {
-    return arg.target.dataset.tableId;
-  }
-  // If arg is an element (checkbox) passed directly
-  if (arg && arg.dataset && arg.dataset.tableId) {
-    return arg.dataset.tableId;
-  }
-  // If arg is a string tableId
-  if (typeof arg === 'string') return arg;
-  // Nothing usable found
-  return null;
+// Bulk selection functions
+function toggleSelectAll(tableId) {
+    const selectAll = document.getElementById(`selectAll-${tableId}`);
+    const rowSelects = document.querySelectorAll(`#${tableId} .row-select`);
+    
+    rowSelects.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkActions(tableId);
 }
 
-function toggleSelectAll(arg) {
-  // Accept either event or tableId string or checkbox element
-  const tableId = _resolveTableId(arg);
-
-  // If caller passed the event but we still want to support that:
-  // find the selectAll checkbox element
-  let selectAll;
-  if (tableId) {
-    selectAll = document.getElementById(`selectAll-${tableId}`);
-  } else if (arg && arg.target) {
-    // fallback: event.target
-    selectAll = arg.target;
-  } else if (arg instanceof Element && arg.type === 'checkbox') {
-    selectAll = arg;
-  }
-
-  // If we still don't have a checkbox, silently return
-  if (!selectAll) return;
-
-  // Ensure we have a tableId for querying rows; try dataset if missing
-  const resolvedTableId = tableId || selectAll.dataset?.tableId || null;
-  if (!resolvedTableId) {
-    // fallback: try to find nearest table ancestor with id
-    const tableEl = selectAll.closest && selectAll.closest('table');
-    if (tableEl && tableEl.id) {
-      // toggle all inside that table
-      const rowSelects = tableEl.querySelectorAll('.row-select');
-      rowSelects.forEach(cb => { if (cb instanceof HTMLInputElement) cb.checked = selectAll.checked; });
-      updateBulkActions(tableEl.id);
-      return;
+function updateBulkActions(tableId) {
+    const selectedCount = document.querySelectorAll(`#${tableId} .row-select:checked`).length;
+    const toolbar = document.getElementById(`bulk-actions-${tableId}`);
+    const countElement = document.getElementById(`selectedCount-${tableId}`);
+    
+    if (countElement) {
+        countElement.textContent = selectedCount;
     }
-    return; // nothing to do
-  }
-
-  // Find row checkboxes safely
-  const rowSelects = document.querySelectorAll(`#${CSS.escape(resolvedTableId)} .row-select`);
-  if (!rowSelects || rowSelects.length === 0) {
-    updateBulkActions(resolvedTableId);
-    return;
-  }
-
-  rowSelects.forEach(cb => { if (cb instanceof HTMLInputElement) cb.checked = selectAll.checked; });
-
-  updateBulkActions(resolvedTableId);
-}
-
-function updateBulkActions(arg) {
-  const tableId = _resolveTableId(arg);
-  if (!tableId) return;
-
-  const selectedCount = document.querySelectorAll(`#${CSS.escape(tableId)} .row-select:checked`).length;
-  const toolbar = document.getElementById(`bulk-actions-${tableId}`);
-  const countElement = document.getElementById(`selectedCount-${tableId}`);
-
-  if (countElement) countElement.textContent = String(selectedCount);
-  if (toolbar) toolbar.style.display = selectedCount > 0 ? 'flex' : 'none';
-}
-
-function clearSelection(arg) {
-  const tableId = _resolveTableId(arg);
-  if (!tableId) {
-    // try clearing from event target's table if possible
-    if (arg && arg.target) {
-      const tableEl = arg.target.closest && arg.target.closest('table');
-      if (tableEl && tableEl.id) {
-        const selectAll = document.getElementById(`selectAll-${tableEl.id}`);
-        if (selectAll) selectAll.checked = false;
-        document.querySelectorAll(`#${CSS.escape(tableEl.id)} .row-select`).forEach(cb => { if (cb instanceof HTMLInputElement) cb.checked = false; });
-        updateBulkActions(tableEl.id);
-      }
+    
+    if (toolbar) {
+        toolbar.style.display = selectedCount > 0 ? 'flex' : 'none';
     }
-    return;
-  }
-
-  const selectAll = document.getElementById(`selectAll-${tableId}`);
-  if (selectAll) selectAll.checked = false;
-
-  const rowSelects = document.querySelectorAll(`#${CSS.escape(tableId)} .row-select`);
-  rowSelects.forEach(cb => { if (cb instanceof HTMLInputElement) cb.checked = false; });
-
-  updateBulkActions(tableId);
 }
 
+function clearSelection(tableId) {
+    const selectAll = document.getElementById(`selectAll-${tableId}`);
+    const rowSelects = document.querySelectorAll(`#${tableId} .row-select`);
+    
+    selectAll.checked = false;
+    rowSelects.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    updateBulkActions(tableId);
+}
 
 // Enhanced sync with progress indicator
 async function syncWithProgress() {
@@ -3261,6 +3199,104 @@ class DataValidator {
     }
 }
 
+// Enhanced completePackage with validation
+async function completePackage() {
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
+        return;
+    }
+
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
+    }
+
+    // Check workspace permissions
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
+
+    try {
+        // Generate package data
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+        const packageNo = `PKG-${workspaceId}-${timestamp}`;
+        
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect?.value || '';
+
+        // Create package data
+        const packageData = {
+            id: packageId,
+            package_no: packageNo,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name} (${qty})`
+            ).join(', '),
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel,
+            workspace_id: workspaceId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        // Validate and sanitize data
+        if (typeof DataValidator !== 'undefined') {
+            DataValidator.validatePackageData(packageData);
+            const sanitizedData = DataValidator.sanitizePackageData(packageData);
+        }
+
+        // Save to Excel
+        const excelData = await ExcelJS.readFile();
+        excelData.push(packageData);
+        await ExcelJS.writeFile(excelData);
+
+        // Add to sync queue
+        const syncOperation = {
+            fingerprint: `${packageId}-${Date.now()}`,
+            type: 'add',
+            data: packageData,
+            status: 'pending',
+            workspace_id: workspaceId,
+            created_at: new Date().toISOString()
+        };
+        
+        if (window.excelSyncQueue) {
+            window.excelSyncQueue.push(syncOperation);
+            localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
+        }
+
+        // Try to sync immediately
+        if (supabase && navigator.onLine && typeof safeSyncExcelWithSupabase === 'function') {
+            await safeSyncExcelWithSupabase();
+        }
+
+        // Reset form
+        resetPackageForm();
+        showAlert('Paket başarıyla oluşturuldu!', 'success');
+
+        // Refresh packages table
+        if (typeof safePopulatePackagesTable === 'function') {
+            await safePopulatePackagesTable();
+        }
+
+    } catch (error) {
+        console.error('Error completing package:', error);
+        showAlert(`Paket oluşturulamadı: ${error.message}`, 'error');
+    }
+}
+
 // Reports tab functionality fixes
 async function populateReportsTable() {
     const reportsTableBody = document.getElementById('reportsTableBody');
@@ -3378,7 +3414,6 @@ async function viewReport(reportId) {
 
 function displayReportModal(report) {
     const modal = document.createElement('div');
-    modal.classList.add('modal'); // add the class for close button to work
     modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;';
     modal.innerHTML = `
         <div style="background:white; padding:2rem; border-radius:8px; max-width:800px; max-height:80vh; overflow:auto;">
@@ -3391,6 +3426,95 @@ function displayReportModal(report) {
         </div>
     `;
     document.body.appendChild(modal);
+}
+
+async function downloadReport(reportId) {
+    try {
+        let reportData = null;
+        
+        // First try localStorage
+        const fileName = `report_${reportId}`;
+        const localData = localStorage.getItem(fileName);
+        
+        if (localData) {
+            reportData = JSON.parse(localData);
+        } 
+        // Then try Supabase
+        else if (supabase && navigator.onLine) {
+            const { data, error } = await supabase
+                .from('reports')
+                .select('*')
+                .eq('fileName', reportId)
+                .single();
+                
+            if (!error && data) {
+                reportData = data;
+            }
+        }
+        
+        if (!reportData) {
+            showAlert('Rapor bulunamadı', 'error');
+            return;
+        }
+        
+        const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${reportId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showAlert('Rapor indirildi', 'success');
+    } catch (error) {
+        showAlert('İndirme hatası: ' + error.message, 'error');
+    }
+}
+
+// Delete report
+async function deleteReport(fileName) {
+    if (!confirm('Bu raporu silmek istediğinize emin misiniz?')) {
+        return;
+    }
+    
+    try {
+        const reportKey = `report_${fileName}`;
+        localStorage.removeItem(reportKey);
+        
+        // Also delete from Supabase if exists
+        if (supabase && navigator.onLine) {
+            await supabase
+                .from('reports')
+                .delete()
+                .eq('fileName', fileName);
+        }
+        
+        showAlert('Rapor silindi', 'success');
+        await populateReportsTable();
+        
+    } catch (error) {
+        console.error('Error deleting report:', error);
+        showAlert('Rapor silinirken hata oluştu', 'error');
+    }
+}
+
+// Add to ui.js - Fix select all functionality
+function toggleSelectAllPackages() {
+    const selectAllCheckbox = document.getElementById('selectAllPackages');
+    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+    
+    if (!selectAllCheckbox) {
+        console.error('Select all packages checkbox not found');
+        return;
+    }
+    
+    const isChecked = selectAllCheckbox.checked;
+    
+    packageCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    
+    console.log(`${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
 }
 
 function toggleSelectAllContainers() {
@@ -4035,44 +4159,26 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
+// EXCEL MANAGEMENT FUNCTIONS - WITH PROPER PASSWORD GUARD HANDLING
+// REPLACE YOUR PREVIOUS VERSION WITH THIS ONE
 
-
+// Initialize the buttons
 function initializeExcelButtons() {
-    console.log("🔄 Initializing Excel buttons...");
-    
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
     if (refreshBtn) {
-        // Remove any existing listeners
-        refreshBtn.replaceWith(refreshBtn.cloneNode(true));
-        const newRefreshBtn = document.getElementById('refreshExcelBtn');
-        
-        newRefreshBtn.onclick = function() {
-            console.log("🎯 REFRESH BUTTON CLICKED!");
-            refreshExcelData();
-        };
-        console.log('✅ Refresh Excel button initialized with onclick');
+        refreshBtn.addEventListener('click', refreshExcelData);
+        console.log('✅ Refresh Excel button initialized');
     }
     
     if (clearBtn) {
-        // Remove any existing listeners
-        clearBtn.replaceWith(clearBtn.cloneNode(true));
-        const newClearBtn = document.getElementById('clearExcelBtn');
-        
-        newClearBtn.onclick = function() {
-            console.log("🎯 CLEAR BUTTON CLICKED!");
-            clearExcelDataWithAuth();
-        };
-        console.log('✅ Clear Excel button initialized with onclick');
+        clearBtn.addEventListener('click', clearExcelDataWithAuth);
+        console.log('✅ Clear Excel button initialized');
     }
 }
 
-// Call it now
-initializeExcelButtons();
-console.log("✅ Buttons should work now. Test them!");
-
-
+// Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
     
@@ -4086,17 +4192,9 @@ async function clearExcelDataWithAuth() {
         
         const passwordGuard = new PasswordGuard();
         
-        // ✅ FIX: Use bound function pattern
-        const clearAction = async () => {
-            if (typeof clearExcelData === 'function') {
-                return await clearExcelData();
-            } else {
-                showAlert('Excel temizleme fonksiyonu bulunamadı', 'error');
-                throw new Error('Function not found');
-            }
-        };
-        
-        await passwordGuard.askPasswordAndRun(clearAction, 'Excel verilerini temizleme', 'clearData');
+        await passwordGuard.askPasswordAndRun(() => {
+            return clearExcelData();
+        }, 'Excel verilerini temizleme', 'clearData');
         
     } catch (error) {
         if (error.message === 'User cancelled') {
@@ -4229,219 +4327,64 @@ async function clearExcelData() {
     }
 }
 
-// ✅ Unified Clear Application State Function
+// Enhanced clearAppState function
 function clearAppState() {
     console.log('🔄 Clearing application state...');
-
-    try {
-        // Clear persistent state if used
-        localStorage.removeItem('procleanState');
-
-        // Clear global variables safely
-        window.packages = [];
-        window.containers = [];
-        window.currentPackage = {};
-        window.currentContainer = null;
+    
+    // Clear global variables
+    window.packages = [];
+    window.containers = [];
+    window.currentPackage = {};
+    
+    // Clear selected customer
+    if (window.selectedCustomer) {
         window.selectedCustomer = null;
-
-        // Reset key UI elements
-        const resetValues = {
-            customerSelect: '',
-            personnelSelect: '',
-            containerNumber: 'Yok',
-            totalPackages: '0'
-        };
-
-        Object.keys(resetValues).forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                if (el.tagName === 'SELECT') el.value = '';
-                else el.textContent = resetValues[id];
-            }
-        });
-
-        // Reset all quantity badges
-        document.querySelectorAll('.quantity-badge').forEach(badge => {
-            badge.textContent = '0';
-        });
-
-        // Reset package detail section
-        const detail = document.getElementById('packageDetailContent');
-        if (detail) {
-            detail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
-        }
-
-        console.log('✅ Application state fully cleared');
-    } catch (err) {
-        console.error('❌ Error while clearing app state:', err);
-    }
-}
-
-
-
-
-// RFID-COMPATIBLE STOCK TABLE
-
-// Populate Stock Table with RFID Support
-async function populateStockTable() {
-    const stockTableBody = document.getElementById('stockTableBody');
-    if (!stockTableBody) {
-        console.error('Stock table body not found');
-        return;
     }
     
-    try {
-        showAlert('Stok tablosu yükleniyor...', 'info', 1000);
-        
-        const workspaceId = getCurrentWorkspaceId();
-        let stockItems = [];
-        
-        // Load from Supabase
-        if (supabase && navigator.onLine) {
-            const { data, error } = await supabase
-                .from('stock_items')
-                .select('*')
-                .eq('workspace_id', workspaceId)
-                .order('created_at', { ascending: false });
-            
-            if (error) throw error;
-            if (data) stockItems = data;
-        }
-        
-        // Fallback to localStorage
-        if (stockItems.length === 0) {
-            const localStock = JSON.parse(localStorage.getItem('stock_items') || '[]');
-            stockItems = localStock.filter(item => item.workspace_id === workspaceId);
-        }
-        
-        stockTableBody.innerHTML = '';
-        
-        if (stockItems.length === 0) {
-            stockTableBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Stok bulunamadı</td></tr>';
-            return;
-        }
-        
-        stockItems.forEach(item => {
-            const row = document.createElement('tr');
-            row.dataset.stockId = item.id;
-            row.dataset.rfidTag = item.rfid_tag || '';
-            
-            // Status badge
-            let statusClass, statusText;
-            if (item.quantity === 0) {
-                statusClass = 'status-kritik';
-                statusText = 'Tükendi';
-            } else if (item.quantity < 10) {
-                statusClass = 'status-az-stok';
-                statusText = 'Az Stok';
-            } else if (item.quantity < 50) {
-                statusClass = 'status-uyari';
-                statusText = 'Düşük';
+    // Clear current container
+    if (window.currentContainer) {
+        window.currentContainer = null;
+    }
+    
+    // Reset UI elements
+    const elements = {
+        customerSelect: '',
+        personnelSelect: '',
+        containerNumber: 'Yok',
+        totalPackages: '0'
+    };
+    
+    Object.keys(elements).forEach(key => {
+        const element = document.getElementById(key);
+        if (element) {
+            if (element.tagName === 'SELECT') {
+                element.value = '';
             } else {
-                statusClass = 'status-stokta';
-                statusText = 'Stokta';
+                element.textContent = elements[key];
             }
-            
-            row.innerHTML = `
-                <td>${item.code || 'N/A'}</td>
-                <td>${item.name || 'Bilinmeyen Ürün'}</td>
-                <td>${item.quantity || 0}</td>
-                <td>${item.rfid_tag || 'RFID Yok'}</td>
-                <td><span class="${statusClass}">${statusText}</span></td>
-                <td>${new Date(item.updated_at || item.created_at).toLocaleDateString('tr-TR')}</td>
-                <td>
-                    <button onclick="editStockItem('${item.code}')" class="btn-icon" title="Düzenle">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button onclick="scanRFID('${item.code}')" class="btn-icon" title="RFID Tara">
-                        <i class="fas fa-wifi"></i>
-                    </button>
-                    <button onclick="deleteStockItem('${item.code}')" class="btn-icon btn-danger" title="Sil">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
-            
-            stockTableBody.appendChild(row);
-        });
-        
-        console.log(`✅ Loaded ${stockItems.length} stock items`);
-        
-    } catch (error) {
-        console.error('Stock table error:', error);
-        showAlert('Stok tablosu yüklenirken hata oluştu', 'error');
-    }
-}
-
-// RFID Scanning Function
-async function scanRFID(itemCode) {
-    try {
-        const rfidTag = prompt('RFID etiket kodunu girin veya tarayıcı ile okutun:');
-        
-        if (!rfidTag) return;
-        
-        showAlert('RFID etiketi kaydediliyor...', 'info');
-        
-        // Update in Supabase
-        if (supabase && navigator.onLine) {
-            const { error } = await supabase
-                .from('stock_items')
-                .update({ 
-                    rfid_tag: rfidTag,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('code', itemCode);
-            
-            if (error) throw error;
         }
-        
-        // Update localStorage
-        const localStock = JSON.parse(localStorage.getItem('stock_items') || '[]');
-        const itemIndex = localStock.findIndex(item => item.code === itemCode);
-        if (itemIndex !== -1) {
-            localStock[itemIndex].rfid_tag = rfidTag;
-            localStock[itemIndex].updated_at = new Date().toISOString();
-            localStorage.setItem('stock_items', JSON.stringify(localStock));
-        }
-        
-        await populateStockTable();
-        showAlert(`✅ RFID etiketi kaydedildi: ${rfidTag}`, 'success');
-        
-    } catch (error) {
-        console.error('RFID scan error:', error);
-        showAlert('RFID kaydedilirken hata oluştu', 'error');
-    }
-}
-
-// Delete Stock Item
-async function deleteStockItem(itemCode) {
-    if (!confirm(`${itemCode} kodlu ürünü silmek istediğinize emin misiniz?`)) {
-        return;
+    });
+    
+    // Reset quantity badges
+    document.querySelectorAll('.quantity-badge').forEach(badge => {
+        badge.textContent = '0';
+    });
+    
+    // Clear package details
+    const packageDetail = document.getElementById('packageDetailContent');
+    if (packageDetail) {
+        packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
     }
     
-    try {
-        showAlert('Siliniyor...', 'info');
-        
-        // Delete from Supabase
-        if (supabase && navigator.onLine) {
-            const { error } = await supabase
-                .from('stock_items')
-                .delete()
-                .eq('code', itemCode);
-            
-            if (error) throw error;
-        }
-        
-        // Delete from localStorage
-        const localStock = JSON.parse(localStorage.getItem('stock_items') || '[]');
-        const updatedStock = localStock.filter(item => item.code !== itemCode);
-        localStorage.setItem('stock_items', JSON.stringify(updatedStock));
-        
-        await populateStockTable();
-        showAlert(`✅ ${itemCode} silindi`, 'success');
-        
-    } catch (error) {
-        console.error('Delete error:', error);
-        showAlert('Silme işlemi başarısız', 'error');
-    }
+    console.log('✅ Application state cleared');
 }
+
+// Make functions globally available
+window.clearExcelDataWithAuth = clearExcelDataWithAuth;
+window.refreshExcelData = refreshExcelData;
+window.clearExcelData = clearExcelData;
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initializeExcelButtons, 3000);
+});
