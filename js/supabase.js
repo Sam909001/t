@@ -3279,78 +3279,98 @@ console.log('✅ Reports module loaded successfully');
 
         
 
-        async function addNewCustomer() {
-            const code = document.getElementById('newCustomerCode').value.trim();
-            const name = document.getElementById('newCustomerName').value.trim();
-            const email = document.getElementById('newCustomerEmail').value.trim();
+      // ==================== FIXED CUSTOMER MANAGEMENT ====================
 
-            // Form doğrulama
-            if (!validateForm([
-                { id: 'newCustomerCode', errorId: 'customerCodeError', type: 'text', required: true },
-                { id: 'newCustomerName', errorId: 'customerNameError', type: 'text', required: true },
-                { id: 'newCustomerEmail', errorId: 'customerEmailError', type: 'email', required: false }
-            ])) {
-                return;
-            }
-
-            try {
-                const { error } = await supabase
-                    .from('customers')
-                    .insert([{ code, name, email: email || null }]);
-
-                if (error) {
-                    console.error('Error adding customer:', error);
-                    showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
-                    return;
-                }
-
-                showAlert('Müşteri başarıyla eklendi', 'success');
-                
-                // Clear form
-                document.getElementById('newCustomerCode').value = '';
-                document.getElementById('newCustomerName').value = '';
-                document.getElementById('newCustomerEmail').value = '';
-                
-                // Refresh lists
-                await populateCustomers();
-                await showAllCustomers();
-                
-            } catch (error) {
-                console.error('Error in addNewCustomer:', error);
-                showAlert('Müşteri ekleme hatası', 'error');
-            }
-        }
-
-
+async function addNewCustomer() {
+    console.log("🟢 addNewCustomer called");
+    
+    const customerName = prompt('Yeni müşteri adı:');
+    if (!customerName || customerName.trim() === '') {
+        showAlert('Müşteri adı gerekli', 'error');
+        return { success: false };
+    }
+    
+    const customerCode = prompt('Müşteri kodu:');
+    if (!customerCode || customerCode.trim() === '') {
+        showAlert('Müşteri kodu gerekli', 'error');
+        return { success: false };
+    }
+    
+    try {
+        showAlert('Müşteri ekleniyor...', 'info');
         
-
-        async function deleteCustomer(customerId) {
-            if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
-
-            try {
-                const { error } = await supabase
-                    .from('customers')
-                    .delete()
-                    .eq('id', customerId);
-
-                if (error) {
-                    console.error('Error deleting customer:', error);
-                    showAlert('Müşteri silinirken hata: ' + error.message, 'error');
-                    return;
-                }
-
-                showAlert('Müşteri başarıyla silindi', 'success');
-                
-                // Refresh lists
-                await populateCustomers();
-                await showAllCustomers();
-                
-            } catch (error) {
-                console.error('Error in deleteCustomer:', error);
-                showAlert('Müşteri silme hatası', 'error');
-            }
+        const workspaceId = getCurrentWorkspaceId();
+        const newCustomer = {
+            id: generateUUID(),
+            name: customerName.trim(),
+            code: customerCode.trim(),
+            workspace_id: workspaceId,
+            created_at: new Date().toISOString()
+        };
+        
+        // Save to Supabase
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('customers')
+                .insert([newCustomer]);
+            
+            if (error) throw error;
         }
+        
+        // Save to localStorage
+        const customers = JSON.parse(localStorage.getItem('customers') || '[]');
+        customers.push(newCustomer);
+        localStorage.setItem('customers', JSON.stringify(customers));
+        
+        await populateCustomers();
+        showAlert(`✅ Müşteri eklendi: ${customerName}`, 'success');
+        
+        return { success: true, customer: newCustomer };
+        
+    } catch (error) {
+        console.error('Add customer error:', error);
+        showAlert('Müşteri eklenirken hata oluştu', 'error');
+        return { success: false, error: error.message };
+    }
+}
 
+async function deleteCustomer(customerId) {
+    console.log("🔴 deleteCustomer called for:", customerId);
+    
+    try {
+        showAlert('Müşteri siliniyor...', 'info');
+        
+        // Delete from Supabase
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('customers')
+                .delete()
+                .eq('id', customerId);
+            
+            if (error) throw error;
+        }
+        
+        // Delete from localStorage
+        const customers = JSON.parse(localStorage.getItem('customers') || '[]');
+        const updatedCustomers = customers.filter(c => c.id !== customerId);
+        localStorage.setItem('customers', JSON.stringify(updatedCustomers));
+        
+        await populateCustomers();
+        showAlert('✅ Müşteri silindi', 'success');
+        
+        // Close modal if open
+        const modal = document.getElementById('allCustomersModal');
+        if (modal) modal.style.display = 'none';
+        
+    } catch (error) {
+        console.error('Delete customer error:', error);
+        showAlert('Müşteri silinirken hata oluştu', 'error');
+    }
+}
+
+// Make globally available
+window.addNewCustomer = addNewCustomer;
+window.deleteCustomer = deleteCustomer;
 
 
 async function completePackage() {
