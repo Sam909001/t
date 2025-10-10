@@ -1808,3 +1808,58 @@ window.deleteReport = async function(fileName) {
     }
 }
 
+
+// PERMANENT FIX: Excel buttons with clone method
+function initializeExcelButtons() {
+    console.log('🔄 Initializing Excel buttons...');
+    
+    // Refresh Excel Button
+    const refreshBtn = document.getElementById('refreshExcelBtn');
+    if (refreshBtn) {
+        // Clone to remove existing listeners
+        const newRefreshBtn = refreshBtn.cloneNode(true);
+        refreshBtn.parentNode.replaceChild(newRefreshBtn, refreshBtn);
+        
+        // Add clean listener
+        document.getElementById('refreshExcelBtn').addEventListener('click', function() {
+            console.log('🔄 Refresh Excel clicked');
+            if (typeof refreshExcelData === 'function') {
+                refreshExcelData();
+            } else {
+                console.error('refreshExcelData function not found');
+                alert('Refresh function not available');
+            }
+        });
+    }
+    
+    // Clear Excel Button
+    const clearBtn = document.getElementById('clearExcelBtn');
+    if (clearBtn) {
+        // Clone to remove existing listeners
+        const newClearBtn = clearBtn.cloneNode(true);
+        clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+        
+        // Add clean listener
+        document.getElementById('clearExcelBtn').addEventListener('click', function() {
+            console.log('🗑️ Clear Excel clicked');
+            if (typeof clearExcelData === 'function') {
+                if (confirm('Tüm Excel verilerini temizlemek istediğinize emin misiniz?')) {
+                    clearExcelData();
+                }
+            } else {
+                console.error('clearExcelData function not found');
+                alert('Clear function not available');
+            }
+        });
+    }
+    
+    console.log('✅ Excel buttons initialized permanently');
+}
+
+// Call this when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initializeExcelButtons, 1000);
+});
+
+// Also call when switching tabs or when needed
+window.reinitializeExcelButtons = initializeExcelButtons;
