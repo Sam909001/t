@@ -4292,236 +4292,125 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// EXCEL MANAGEMENT FUNCTIONS - WITH PROPER PASSWORD GUARD HANDLING
-// REPLACE YOUR PREVIOUS VERSION WITH THIS ONE
 
-// Initialize the buttons
-function initializeExcelButtons() {
+// ==================== EXCEL BUTTONS - PERMANENT FIX ====================
+console.log("📦 Loading Excel buttons in ui.js...");
+
+// Define functions in global scope
+window.refreshExcelData = async function() {
+    console.log('🎯 REFRESH EXCEL DATA CALLED');
+    try {
+        const btn = document.getElementById('refreshExcelBtn');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Güncelleniyor...';
+            btn.disabled = true;
+        }
+        
+        alert('Excel verileri güncelleniyor...');
+        
+        // Your refresh logic
+        if (typeof syncExcelWithSupabase === 'function') {
+            await syncExcelWithSupabase();
+        }
+        if (typeof populatePackagesTable === 'function') {
+            await populatePackagesTable();
+        }
+        if (typeof updateStorageIndicator === 'function') {
+            updateStorageIndicator();
+        }
+        
+        alert('✅ Excel verileri güncellendi!');
+        
+    } catch (error) {
+        console.error('Refresh error:', error);
+        alert('Güncelleme hatası: ' + error.message);
+    } finally {
+        const btn = document.getElementById('refreshExcelBtn');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Güncelle';
+            btn.disabled = false;
+        }
+    }
+};
+
+window.clearExcelWithPassword = async function() {
+    console.log('🎯 CLEAR EXCEL WITH PASSWORD CALLED');
+    const password = prompt('Excel verilerini temizlemek için şifre girin (9494):');
+    
+    if (password === '9494') {
+        try {
+            const btn = document.getElementById('clearExcelBtn');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Temizleniyor...';
+                btn.disabled = true;
+            }
+            
+            alert('Excel verileri temizleniyor...');
+            
+            // Your clear logic
+            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+            localStorage.removeItem(`excelPackages_${workspaceId}`);
+            
+            if (window.excelSyncQueue) {
+                window.excelSyncQueue = [];
+                localStorage.removeItem('excelSyncQueue');
+            }
+            
+            if (typeof populatePackagesTable === 'function') {
+                await populatePackagesTable();
+            }
+            if (typeof updateStorageIndicator === 'function') {
+                updateStorageIndicator();
+            }
+            
+            alert('✅ Excel verileri temizlendi!');
+            
+        } catch (error) {
+            console.error('Clear error:', error);
+            alert('Temizleme hatası: ' + error.message);
+        } finally {
+            const btn = document.getElementById('clearExcelBtn');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-trash"></i> Temizle';
+                btn.disabled = false;
+            }
+        }
+    } else if (password !== null) {
+        alert('❌ Hatalı şifre!');
+    }
+};
+
+// Auto-attach event listeners
+function attachExcelButtonListeners() {
+    console.log('🔗 Attaching Excel button listeners...');
+    
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
     if (refreshBtn) {
-        refreshBtn.addEventListener('click', refreshExcelData);
-        console.log('✅ Refresh Excel button initialized');
+        refreshBtn.onclick = window.refreshExcelData;
+        console.log('✅ Refresh listener attached');
     }
     
     if (clearBtn) {
-        clearBtn.addEventListener('click', clearExcelDataWithAuth);
-        console.log('✅ Clear Excel button initialized');
+        clearBtn.onclick = window.clearExcelWithPassword;
+        console.log('✅ Clear listener attached');
     }
 }
 
-// Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
-async function clearExcelDataWithAuth() {
-    console.log('🔒 Attempting to clear Excel data with auth...');
-    
-    try {
-        // Check if PasswordGuard is available
-        if (typeof PasswordGuard === 'undefined') {
-            console.warn('❌ PasswordGuard not available, using fallback...');
-            await fallbackPasswordCheck();
-            return;
-        }
-        
-        const passwordGuard = new PasswordGuard();
-        
-        await passwordGuard.askPasswordAndRun(() => {
-            return clearExcelData();
-        }, 'Excel verilerini temizleme', 'clearData');
-        
-    } catch (error) {
-        if (error.message === 'User cancelled') {
-            console.log('Excel clear cancelled by user');
-        } else {
-            console.error('Clear Excel error:', error);
-            showAlert('Excel temizleme hatası: ' + error.message, 'error');
-        }
-    }
+// Attach listeners when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachExcelButtonListeners);
+} else {
+    attachExcelButtonListeners();
 }
 
-// Simple fallback password check
-async function fallbackPasswordCheck() {
-    return new Promise((resolve, reject) => {
-        const password = prompt('Excel verilerini temizlemek için şifre girin (7142):');
-        
-        if (password === '7142') {
-            resolve();
-            clearExcelData();
-        } else if (password === null) {
-            reject(new Error('User cancelled'));
-        } else {
-            alert('Hatalı şifre! İşlem iptal edildi.');
-            reject(new Error('Wrong password'));
-        }
-    });
-}
+// Retry attachment multiple times
+setTimeout(attachExcelButtonListeners, 100);
+setTimeout(attachExcelButtonListeners, 500);
+setTimeout(attachExcelButtonListeners, 1000);
 
-// Refresh Excel Data Function - NO PASSWORD NEEDED
-async function refreshExcelData() {
-    console.log('🔄 Refreshing Excel data...');
-    
-    try {
-        showAlert('Excel verileri güncelleniyor...', 'info');
-        
-        // Show loading state
-        const refreshBtn = document.getElementById('refreshExcelBtn');
-        const originalText = refreshBtn.innerHTML;
-        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Güncelleniyor...';
-        refreshBtn.disabled = true;
-        
-        // 1. Sync with Supabase first
-        if (supabase && navigator.onLine) {
-            console.log('🔄 Syncing with Supabase...');
-            await syncExcelWithSupabase();
-        }
-        
-        // 2. Reload packages data
-        await loadPackagesData();
-        
-        // 3. Refresh all tables
-        await populatePackagesTable();
-        await populateStockTable();
-        await populateShippingTable();
-        
-        // 4. Update storage indicator
-        updateStorageIndicator();
-        
-        showAlert('✅ Excel verileri başarıyla güncellendi!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Excel refresh error:', error);
-        showAlert('Excel güncelleme hatası: ' + error.message, 'error');
-    } finally {
-        // Restore button state
-        const refreshBtn = document.getElementById('refreshExcelBtn');
-        if (refreshBtn) {
-            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Güncelle';
-            refreshBtn.disabled = false;
-        }
-    }
-}
-
-// Main Clear Excel Function (called after password verification)
-async function clearExcelData() {
-    console.log('🗑️ Clearing Excel data...');
-    
-    try {
-        showAlert('Excel verileri temizleniyor...', 'warning');
-        
-        // Show loading state
-        const clearBtn = document.getElementById('clearExcelBtn');
-        const originalText = clearBtn.innerHTML;
-        clearBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Temizleniyor...';
-        clearBtn.disabled = true;
-        
-        // 1. Clear Excel storage
-        if (typeof ExcelJS !== 'undefined' && typeof ExcelJS.clearFile === 'function') {
-            await ExcelJS.clearFile();
-            console.log('✅ Excel file cleared');
-        } else {
-            // Fallback: Clear from localStorage
-            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-            localStorage.removeItem(`excelPackages_${workspaceId}`);
-            localStorage.removeItem(`excelPackages`);
-            console.log('✅ Excel data cleared from localStorage');
-        }
-        
-        // 2. Clear sync queue
-        if (window.excelSyncQueue) {
-            window.excelSyncQueue = [];
-            localStorage.removeItem('excelSyncQueue');
-            console.log('✅ Sync queue cleared');
-        }
-        
-        // 3. Reset application state
-        clearAppState();
-        
-        // 4. Refresh all tables
-        await populatePackagesTable();
-        await populateStockTable();
-        await populateShippingTable();
-        
-        // 5. Update storage indicator
-        updateStorageIndicator();
-        
-        // 6. Show success message
-        showAlert('✅ Excel verileri başarıyla temizlendi!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Excel clear error:', error);
-        showAlert('Excel temizleme hatası: ' + error.message, 'error');
-    } finally {
-        // Restore button state
-        const clearBtn = document.getElementById('clearExcelBtn');
-        if (clearBtn) {
-            clearBtn.innerHTML = '<i class="fas fa-trash"></i> Temizle';
-            clearBtn.disabled = false;
-        }
-    }
-}
-
-// Enhanced clearAppState function
-function clearAppState() {
-    console.log('🔄 Clearing application state...');
-    
-    // Clear global variables
-    window.packages = [];
-    window.containers = [];
-    window.currentPackage = {};
-    
-    // Clear selected customer
-    if (window.selectedCustomer) {
-        window.selectedCustomer = null;
-    }
-    
-    // Clear current container
-    if (window.currentContainer) {
-        window.currentContainer = null;
-    }
-    
-    // Reset UI elements
-    const elements = {
-        customerSelect: '',
-        personnelSelect: '',
-        containerNumber: 'Yok',
-        totalPackages: '0'
-    };
-    
-    Object.keys(elements).forEach(key => {
-        const element = document.getElementById(key);
-        if (element) {
-            if (element.tagName === 'SELECT') {
-                element.value = '';
-            } else {
-                element.textContent = elements[key];
-            }
-        }
-    });
-    
-    // Reset quantity badges
-    document.querySelectorAll('.quantity-badge').forEach(badge => {
-        badge.textContent = '0';
-    });
-    
-    // Clear package details
-    const packageDetail = document.getElementById('packageDetailContent');
-    if (packageDetail) {
-        packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
-    }
-    
-    console.log('✅ Application state cleared');
-}
-
-// Make functions globally available
-window.clearExcelDataWithAuth = clearExcelDataWithAuth;
-window.refreshExcelData = refreshExcelData;
-window.clearExcelData = clearExcelData;
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(initializeExcelButtons, 3000);
-});
-
+console.log("✅ Excel buttons loaded in ui.js!");
 
 
 
