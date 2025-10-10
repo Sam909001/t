@@ -3433,14 +3433,25 @@ async function deleteReport(fileName) {
 
 // Add to ui.js - Fix select all functionality
 
-// SINGLE VERSION: Select All for Packages
-function toggleSelectAllPackages(source) {
+// Remove any existing conflicting functions first
+if (window.toggleSelectAll) delete window.toggleSelectAll;
+if (window.toggleSelectAllPackages) delete window.toggleSelectAllPackages;
+if (window.toggleSelectAllContainers) delete window.toggleSelectAllContainers;
+if (window.toggleSelectAllCustomer) delete window.toggleSelectAllCustomer;
+
+// MAIN FUNCTION: Select All for Packages (works with your HTML)
+window.toggleSelectAllPackages = function(source) {
     try {
         console.log('toggleSelectAllPackages called with:', source);
         
         // Handle both event object and checkbox element
-        const checkbox = source.target || source;
-        const isChecked = checkbox.checked;
+        const checkbox = source && source.target ? source.target : source;
+        const isChecked = checkbox ? checkbox.checked : false;
+        
+        if (!checkbox) {
+            console.error('No checkbox found in toggleSelectAllPackages');
+            return;
+        }
         
         const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
         
@@ -3448,7 +3459,7 @@ function toggleSelectAllPackages(source) {
             cb.checked = isChecked;
         });
         
-        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
+        console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${packageCheckboxes.length} packages`);
         
         // Update selection UI
         if (typeof updatePackageSelection === 'function') {
@@ -3456,18 +3467,23 @@ function toggleSelectAllPackages(source) {
         }
         
     } catch (error) {
-        console.error('Error in toggleSelectAllPackages:', error);
+        console.error('❌ Error in toggleSelectAllPackages:', error);
     }
-}
+};
 
-// SINGLE VERSION: Select All for Containers
-function toggleSelectAllContainers(source) {
+// MAIN FUNCTION: Select All for Containers
+window.toggleSelectAllContainers = function(source) {
     try {
         console.log('toggleSelectAllContainers called with:', source);
         
         // Handle both event object and checkbox element
-        const checkbox = source.target || source;
-        const isChecked = checkbox.checked;
+        const checkbox = source && source.target ? source.target : source;
+        const isChecked = checkbox ? checkbox.checked : false;
+        
+        if (!checkbox) {
+            console.error('No checkbox found in toggleSelectAllContainers');
+            return;
+        }
         
         const containerCheckboxes = document.querySelectorAll('.container-checkbox');
         
@@ -3475,7 +3491,7 @@ function toggleSelectAllContainers(source) {
             cb.checked = isChecked;
         });
         
-        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${containerCheckboxes.length} containers`);
+        console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${containerCheckboxes.length} containers`);
         
         // Update selection UI
         if (typeof updateContainerSelection === 'function') {
@@ -3483,17 +3499,23 @@ function toggleSelectAllContainers(source) {
         }
         
     } catch (error) {
-        console.error('Error in toggleSelectAllContainers:', error);
+        console.error('❌ Error in toggleSelectAllContainers:', error);
     }
-}
+};
 
-// SINGLE VERSION: Select All for Customer Folders
-function toggleSelectAllCustomer(source) {
+// MAIN FUNCTION: Select All for Customer Folders
+window.toggleSelectAllCustomer = function(source) {
     try {
         console.log('toggleSelectAllCustomer called with:', source);
         
         // Handle both event object and checkbox element
-        const checkbox = source.target || source;
+        const checkbox = source && source.target ? source.target : source;
+        
+        if (!checkbox) {
+            console.error('No checkbox found in toggleSelectAllCustomer');
+            return;
+        }
+        
         const folder = checkbox.closest('.customer-folder');
         
         if (!folder) {
@@ -3508,34 +3530,64 @@ function toggleSelectAllCustomer(source) {
             cb.checked = isChecked;
         });
         
-        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${checkboxes.length} containers in customer folder`);
+        console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${checkboxes.length} containers in customer folder`);
         
     } catch (error) {
-        console.error('Error in toggleSelectAllCustomer:', error);
+        console.error('❌ Error in toggleSelectAllCustomer:', error);
     }
-}
+};
 
-// GENERIC: Select All function for any table
-function toggleSelectAll(source, selector) {
+// FIXED GENERIC FUNCTION: Works with your HTML that calls toggleSelectAll() without parameters
+window.toggleSelectAll = function() {
     try {
-        console.log('toggleSelectAll called with:', source, selector);
+        console.log('toggleSelectAll called');
         
-        // Handle both event object and checkbox element
-        const checkbox = source.target || source;
+        // Get the event that triggered this function
+        const event = window.event || arguments.callee.caller.arguments[0];
+        if (!event) {
+            console.error('No event found in toggleSelectAll');
+            return;
+        }
+        
+        const checkbox = event.target || event.srcElement;
+        if (!checkbox) {
+            console.error('No checkbox found in toggleSelectAll');
+            return;
+        }
+        
         const isChecked = checkbox.checked;
         
-        const checkboxes = document.querySelectorAll(selector);
-        
-        checkboxes.forEach(cb => {
-            cb.checked = isChecked;
-        });
-        
-        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${checkboxes.length} items`);
+        // Determine which table based on checkbox ID
+        if (checkbox.id === 'selectAllPackages') {
+            const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+            packageCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+            });
+            console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${packageCheckboxes.length} packages`);
+            
+            if (typeof updatePackageSelection === 'function') {
+                updatePackageSelection();
+            }
+        }
+        else if (checkbox.id === 'selectAllContainers') {
+            const containerCheckboxes = document.querySelectorAll('.container-checkbox');
+            containerCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+            });
+            console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${containerCheckboxes.length} containers`);
+            
+            if (typeof updateContainerSelection === 'function') {
+                updateContainerSelection();
+            }
+        }
+        else {
+            console.warn('⚠️ Unknown checkbox ID in toggleSelectAll:', checkbox.id);
+        }
         
     } catch (error) {
-        console.error('Error in toggleSelectAll:', error);
+        console.error('❌ Error in toggleSelectAll:', error);
     }
-}
+};
 
 // Update package selection count and select-all checkbox state
 function updatePackageSelection() {
@@ -3549,10 +3601,10 @@ function updatePackageSelection() {
             selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
         }
         
-        console.log(`Packages selected: ${checkedBoxes.length}/${checkboxes.length}`);
+        console.log(`📦 Packages selected: ${checkedBoxes.length}/${checkboxes.length}`);
         
     } catch (error) {
-        console.error('Error in updatePackageSelection:', error);
+        console.error('❌ Error in updatePackageSelection:', error);
     }
 }
 
@@ -3568,17 +3620,17 @@ function updateContainerSelection() {
             selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
         }
         
-        console.log(`Containers selected: ${checkedBoxes.length}/${checkboxes.length}`);
+        console.log(`📦 Containers selected: ${checkedBoxes.length}/${checkboxes.length}`);
         
     } catch (error) {
-        console.error('Error in updateContainerSelection:', error);
+        console.error('❌ Error in updateContainerSelection:', error);
     }
 }
 
 // Setup event listeners for individual checkboxes
 function setupSelectionListeners() {
     try {
-        console.log('Setting up selection listeners...');
+        console.log('🔧 Setting up selection listeners...');
         
         // Package checkboxes
         const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
@@ -3594,10 +3646,10 @@ function setupSelectionListeners() {
             checkbox.addEventListener('change', handleContainerCheckboxChange);
         });
         
-        console.log(`Setup ${packageCheckboxes.length} package and ${containerCheckboxes.length} container listeners`);
+        console.log(`✅ Setup ${packageCheckboxes.length} package and ${containerCheckboxes.length} container listeners`);
         
     } catch (error) {
-        console.error('Error setting up selection listeners:', error);
+        console.error('❌ Error setting up selection listeners:', error);
     }
 }
 
@@ -3618,7 +3670,7 @@ function handleContainerCheckboxChange(event) {
 // Initialize selection system
 function initializeSelectionSystem() {
     try {
-        console.log('Initializing selection system...');
+        console.log('🚀 Initializing selection system...');
         
         // Setup listeners
         setupSelectionListeners();
@@ -3630,7 +3682,7 @@ function initializeSelectionSystem() {
         console.log('✅ Selection system initialized');
         
     } catch (error) {
-        console.error('Error initializing selection system:', error);
+        console.error('❌ Error initializing selection system:', error);
     }
 }
 
@@ -3674,17 +3726,53 @@ function testSelectionSystem() {
         console.log('✅ Selection system test completed');
         
     } catch (error) {
-        console.error('Test error:', error);
+        console.error('❌ Test error:', error);
+    }
+}
+
+// Quick fix for immediate use
+function quickFixSelection() {
+    try {
+        console.log('🔧 Applying quick selection fix...');
+        
+        // Ensure all functions are available
+        if (!window.toggleSelectAll) {
+            window.toggleSelectAll = function() {
+                const event = window.event;
+                if (event && event.target) {
+                    const checkbox = event.target;
+                    const isChecked = checkbox.checked;
+                    
+                    if (checkbox.id === 'selectAllPackages') {
+                        const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+                        checkboxes.forEach(cb => cb.checked = isChecked);
+                        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${checkboxes.length} packages`);
+                    }
+                }
+            };
+        }
+        
+        console.log('✅ Quick fix applied!');
+        
+    } catch (error) {
+        console.error('❌ Quick fix error:', error);
     }
 }
 
 // Auto-initialize when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeSelectionSystem);
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeSelectionSystem();
+        quickFixSelection();
+    });
 } else {
     initializeSelectionSystem();
+    quickFixSelection();
 }
 
+// Export for testing
+window.testSelectionSystem = testSelectionSystem;
+window.refreshSelectionSystem = refreshSelectionSystem;
 // ==================== REAL DATA COLLECTION FUNCTIONS ====================
 
 // ✅ FUNCTION: Get all packages (real data only)
