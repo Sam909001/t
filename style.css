@@ -2362,3 +2362,72 @@ body.modal-open {
         display: none; /* Hide type label on mobile to save space */
     }
 }
+
+
+
+/* ==================== RFID STOCK STYLES ==================== */
+
+.rfid-scanning {
+    border: 3px solid #4CAF50;
+    animation: rfid-pulse 1.5s infinite;
+}
+
+@keyframes rfid-pulse {
+    0%, 100% { border-color: #4CAF50; }
+    50% { border-color: #8BC34A; }
+}
+
+.rfid-highlight {
+    background-color: #fffacd !important;
+    animation: rfid-highlight-fade 2s ease-out;
+}
+
+@keyframes rfid-highlight-fade {
+    0% { background-color: #ffeb3b; }
+    100% { background-color: #fffacd; }
+}
+
+.status-temiz { background: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; }
+.status-kirli { background: #f44336; color: white; padding: 4px 8px; border-radius: 4px; }
+.status-yikanıyor { background: #2196F3; color: white; padding: 4px 8px; border-radius: 4px; }
+.status-hasarli { background: #FF9800; color: white; padding: 4px 8px; border-radius: 4px; }
+
+.stock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.stock-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.stock-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.stock-table th {
+    background: #2c3e50;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.stock-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.stock-table tr:hover {
+    background: #f5f5f5;
+}
