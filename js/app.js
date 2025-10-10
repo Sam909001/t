@@ -1808,3 +1808,49 @@ window.deleteReport = async function(fileName) {
     }
 }
 
+
+
+
+// SIMPLE FIX: Add button event listeners
+function initializeExcelButtons() {
+    console.log('🔄 Initializing Excel buttons...');
+    
+    const refreshBtn = document.getElementById('refreshExcelBtn');
+    const clearBtn = document.getElementById('clearExcelBtn');
+    
+    if (refreshBtn) {
+        // Remove any existing listeners first
+        refreshBtn.replaceWith(refreshBtn.cloneNode(true));
+        const newRefreshBtn = document.getElementById('refreshExcelBtn');
+        
+        newRefreshBtn.addEventListener('click', function() {
+            console.log('🔄 Refresh Excel clicked');
+            refreshExcelData();
+        });
+    }
+    
+    if (clearBtn) {
+        // Remove any existing listeners first  
+        clearBtn.replaceWith(clearBtn.cloneNode(true));
+        const newClearBtn = document.getElementById('clearExcelBtn');
+        
+        newClearBtn.addEventListener('click', function() {
+            console.log('🗑️ Clear Excel clicked');
+            if (confirm('Tüm Excel verilerini temizlemek istediğinize emin misiniz?')) {
+                clearExcelData();
+            }
+        });
+    }
+    
+    console.log('✅ Excel buttons initialized');
+}
+
+// Call this function when your app starts
+initializeExcelButtons();
+
+// Also call it when the tab becomes visible
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        setTimeout(initializeExcelButtons, 100);
+    }
+});
