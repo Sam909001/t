@@ -4292,6 +4292,7 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
+
 // ==================== EXCEL BUTTONS - FINAL WORKING VERSION ====================
 console.log("📦 Loading Excel buttons in ui.js...");
 
@@ -4334,6 +4335,73 @@ function refreshExcelData() {
     }
 }
 
+// Self-contained clear function that doesn't depend on external functions
+function clearExcelDataDirect() {
+    console.log('🎯 CLEAR EXCEL DATA DIRECT CALLED');
+    
+    const btn = document.getElementById('clearExcelBtn');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Temizleniyor...';
+        btn.disabled = true;
+    }
+    
+    showAlert('Excel verileri temizleniyor...', 'info');
+    
+    try {
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        
+        // Clear Excel packages
+        if (window.excelPackages) {
+            window.excelPackages = [];
+        }
+        
+        // Clear localStorage Excel files
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('packages_')) {
+                localStorage.removeItem(key);
+                console.log(`🗑️ Removed: ${key}`);
+            }
+        }
+        
+        // Clear sync queue
+        if (window.excelSyncQueue) {
+            window.excelSyncQueue = [];
+        }
+        localStorage.removeItem('excelSyncQueue');
+        localStorage.removeItem('excelSyncQueue_backup');
+        
+        // Clear workspace data
+        localStorage.removeItem(`excelPackages_${workspaceId}`);
+        localStorage.removeItem(`pkg_counter_${workspaceId}`);
+        
+        // Refresh UI
+        setTimeout(() => {
+            if (typeof populatePackagesTable === 'function') populatePackagesTable();
+            if (typeof populateShippingTable === 'function') populateShippingTable();
+            if (typeof updateStorageIndicator === 'function') updateStorageIndicator();
+            
+            showAlert('✅ Excel verileri temizlendi!', 'success');
+            
+            // Reset button
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-trash"></i> Temizle';
+                btn.disabled = false;
+            }
+        }, 500);
+        
+    } catch (error) {
+        console.error('Clear error:', error);
+        showAlert('Temizleme hatası: ' + error.message, 'error');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-trash"></i> Temizle';
+            btn.disabled = false;
+        }
+    }
+    
+    return Promise.resolve();
+}
+
 // Updated clear function using PasswordGuard
 function clearExcelWithPassword() {
     console.log('🎯 CLEAR EXCEL WITH PASSWORD GUARD CALLED');
@@ -4344,7 +4412,7 @@ function clearExcelWithPassword() {
         // Fallback to simple password prompt
         const password = prompt('Excel verilerini temizlemek için şifre girin (8823):');
         if (password === '8823') {
-            clearExcelData();
+            clearExcelDataDirect(); // Use our self-contained function
         } else if (password !== null) {
             showAlert('❌ Hatalı şifre!', 'error');
         }
@@ -4356,43 +4424,7 @@ function clearExcelWithPassword() {
     try {
         passwordGuard.askPasswordAndRun(() => {
             console.log('🔐 Password verified - clearing Excel data');
-            
-            const btn = document.getElementById('clearExcelBtn');
-            if (btn) {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Temizleniyor...';
-                btn.disabled = true;
-            }
-            
-            showAlert('Excel verileri temizleniyor...', 'info');
-            
-            // Clear Excel data
-            const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-            localStorage.removeItem(`excelPackages_${workspaceId}`);
-            
-            if (window.excelSyncQueue) {
-                window.excelSyncQueue = [];
-                localStorage.removeItem('excelSyncQueue');
-            }
-            
-            // Refresh UI
-            if (typeof populatePackagesTable === 'function') {
-                populatePackagesTable();
-            }
-            if (typeof updateStorageIndicator === 'function') {
-                updateStorageIndicator();
-            }
-            
-            showAlert('✅ Excel verileri temizlendi!', 'success');
-            
-            // Reset button state
-            setTimeout(() => {
-                const btn = document.getElementById('clearExcelBtn');
-                if (btn) {
-                    btn.innerHTML = '<i class="fas fa-trash"></i> Temizle';
-                    btn.disabled = false;
-                }
-            }, 1000);
-            
+            return clearExcelDataDirect(); // Use our self-contained function
         }, 'Excel verilerini temizleme', 'default');
         
     } catch (error) {
@@ -4412,6 +4444,7 @@ function clearExcelWithPassword() {
 // Make functions globally available
 window.refreshExcelData = refreshExcelData;
 window.clearExcelWithPassword = clearExcelWithPassword;
+window.clearExcelDataDirect = clearExcelDataDirect; // Also expose for direct use
 
 // SIMPLE WORKING SOLUTION - Use direct onclick assignment
 function initializeExcelButtons() {
