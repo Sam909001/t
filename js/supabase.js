@@ -2667,8 +2667,8 @@ let rfidScannerActive = false;
 let rfidScanBuffer = '';
 let rfidLastScanTime = 0;
 
-// Populate Stock Table with RFID Support
-async function populateRFIDStockTable() {
+// Populate Stock Table with RFID Support - UPDATED FOR YOUR SCHEMA
+async function populateStockTable() {
     const tbody = document.getElementById('stockTableBody');
     if (!tbody) {
         console.error('Stock table body not found');
@@ -2681,7 +2681,7 @@ async function populateRFIDStockTable() {
         const workspaceId = getCurrentWorkspaceId();
         let stockItems = [];
         
-        // Load from Supabase
+        // Load from Supabase - UPDATED QUERY
         if (supabase && navigator.onLine) {
             const { data, error } = await supabase
                 .from('stock_items')
@@ -2711,13 +2711,16 @@ async function populateRFIDStockTable() {
             row.dataset.rfidTag = item.rfid_tag_id || '';
             row.dataset.stockId = item.id;
             
-            // Status badge
+            // Status badge - UPDATED FOR YOUR STATUS TYPES
             let statusClass = 'status-stokta';
+            let statusText = item.status || 'Temiz';
+            
             switch(item.status) {
                 case 'Kirli': statusClass = 'status-kirli'; break;
                 case 'Yıkanıyor': statusClass = 'status-yikanıyor'; break;
                 case 'Temiz': statusClass = 'status-temiz'; break;
                 case 'Hasarlı': statusClass = 'status-hasarli'; break;
+                default: statusClass = 'status-temiz'; break;
             }
             
             row.innerHTML = `
@@ -2725,9 +2728,9 @@ async function populateRFIDStockTable() {
                 <td>${item.stock_code || 'N/A'}</td>
                 <td>${item.product_name || 'Bilinmeyen'}</td>
                 <td>${item.customer_name || '-'}</td>
-                <td><span class="${statusClass}">${item.status || 'Temiz'}</span></td>
+                <td><span class="${statusClass}">${statusText}</span></td>
                 <td>${item.step || 'Depo'}</td>
-                <td>${new Date(item.registration_date || item.created_at).toLocaleDateString('tr-TR')}</td>
+                <td>${formatDate(item.registration_date || item.created_at)}</td>
                 <td>${item.wash_age || 0} kez</td>
                 <td>
                     <button onclick="editRFIDStock('${item.id}')" class="btn-icon" title="Düzenle">
@@ -2750,6 +2753,16 @@ async function populateRFIDStockTable() {
     } catch (error) {
         console.error('RFID stock table error:', error);
         showAlert('Stok tablosu yüklenirken hata oluştu', 'error');
+    }
+}
+
+// Helper function for date formatting
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        return new Date(dateString).toLocaleDateString('tr-TR');
+    } catch (e) {
+        return 'Geçersiz Tarih';
     }
 }
 
@@ -2882,18 +2895,20 @@ async function processRFIDScan(rfidTag) {
     }
 }
 
+// Create New RFID Stock Item - UPDATED FOR YOUR SCHEMA
 async function createNewRFIDStock(rfidTag) {
     const stockCode = prompt('Stok Kodu:');
     if (!stockCode) return;
-
+    
     const productName = prompt('Ürün Adı:');
     if (!productName) return;
-
+    
     const customerName = prompt('Müşteri Adı (opsiyonel):') || '';
-
+    
     try {
+        const workspaceId = getCurrentWorkspaceId();
         const newItem = {
-            // DO NOT SET id manually! Let Supabase generate UUID
+            id: generateUUID(),
             rfid_tag_id: rfidTag,
             stock_code: stockCode,
             product_name: productName,
@@ -2901,34 +2916,63 @@ async function createNewRFIDStock(rfidTag) {
             status: 'Temiz',
             step: 'Depo',
             wash_age: 0,
-            workspace_id: getCurrentWorkspaceId(),
+            workspace_id: workspaceId,
             registration_date: new Date().toISOString(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
-
-        // Save to Supabase
+        
+        // Save to Supabase - UPDATED FOR YOUR SCHEMA
         if (supabase && navigator.onLine) {
             const { error } = await supabase
                 .from('stock_items')
                 .insert([newItem]);
-
-            if (error) throw error;
+            
+            if (error) {
+                // Handle unique constraint violation
+                if (error.code === '23505') {
+                    showAlert('Bu RFID tag zaten kullanılıyor!', 'error');
+                    return;
+                }
+                throw error;
+            }
         }
-
+        
         // Save to localStorage
         const localStock = JSON.parse(localStorage.getItem('rfid_stock_items') || '[]');
         localStock.push(newItem);
         localStorage.setItem('rfid_stock_items', JSON.stringify(localStock));
-
-        await populateRFIDStockTable();
+        
+        await populateStockTable();
         showAlert(`✅ RFID stok oluşturuldu: ${productName}`, 'success');
-
+        
     } catch (error) {
         console.error('Create RFID stock error:', error);
-        showAlert('RFID stok oluşturma hatası', 'error');
+        showAlert('RFID stok oluşturma hatası: ' + error.message, 'error');
     }
 }
+
+
+// Helper function to get current workspace ID
+function getCurrentWorkspaceId() {
+    if (window.workspaceManager?.currentWorkspace?.id) {
+        return window.workspaceManager.currentWorkspace.id;
+    }
+    
+    // Fallback: get from localStorage or use default
+    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
+    return settings.currentWorkspaceId || 'default-workspace';
+}
+
+// Helper function to generate UUID
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 
 // Show RFID Item Details
 function showRFIDItemDetails(item) {
@@ -3007,12 +3051,13 @@ function highlightRFIDRow(rfidTag) {
 }
 
 // Update RFID Status
+// Update RFID Status - UPDATED FOR YOUR SCHEMA
 async function updateRFIDStatus(itemId) {
     const newStatus = prompt('Yeni Durum:\n1. Temiz\n2. Kirli\n3. Yıkanıyor\n4. Hasarlı\n\nSeçim (1-4):');
     
     const statusMap = {
         '1': 'Temiz',
-        '2': 'Kirli',
+        '2': 'Kirli', 
         '3': 'Yıkanıyor',
         '4': 'Hasarlı'
     };
@@ -3033,7 +3078,16 @@ async function updateRFIDStatus(itemId) {
             if (error) throw error;
         }
         
-        await populateRFIDStockTable();
+        // Update localStorage
+        const localStock = JSON.parse(localStorage.getItem('rfid_stock_items') || '[]');
+        const itemIndex = localStock.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+            localStock[itemIndex].status = status;
+            localStock[itemIndex].updated_at = new Date().toISOString();
+            localStorage.setItem('rfid_stock_items', JSON.stringify(localStock));
+        }
+        
+        await populateStockTable();
         showAlert(`✅ Durum güncellendi: ${status}`, 'success');
         
         document.getElementById('rfidDetailsModal')?.remove();
@@ -3050,12 +3104,26 @@ async function editRFIDStock(itemId) {
     showAlert('Düzenleme özelliği yakında eklenecek', 'info');
 }
 
-// Assign RFID Tag
+// Assign RFID Tag - UPDATED FOR UNIQUE CONSTRAINT
 async function assignRFIDTag(itemId) {
     const rfidTag = prompt('RFID Tag ID girin veya tarayın:');
     if (!rfidTag) return;
     
     try {
+        // Check if RFID tag is already used
+        if (supabase && navigator.onLine) {
+            const { data: existing } = await supabase
+                .from('stock_items')
+                .select('id')
+                .eq('rfid_tag_id', rfidTag)
+                .single();
+            
+            if (existing && existing.id !== itemId) {
+                showAlert('Bu RFID tag başka bir üründe kullanılıyor!', 'error');
+                return;
+            }
+        }
+        
         if (supabase && navigator.onLine) {
             const { error } = await supabase
                 .from('stock_items')
@@ -3068,15 +3136,23 @@ async function assignRFIDTag(itemId) {
             if (error) throw error;
         }
         
-        await populateRFIDStockTable();
+        // Update localStorage
+        const localStock = JSON.parse(localStorage.getItem('rfid_stock_items') || '[]');
+        const itemIndex = localStock.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+            localStock[itemIndex].rfid_tag_id = rfidTag;
+            localStock[itemIndex].updated_at = new Date().toISOString();
+            localStorage.setItem('rfid_stock_items', JSON.stringify(localStock));
+        }
+        
+        await populateStockTable();
         showAlert(`✅ RFID atandı: ${rfidTag}`, 'success');
         
     } catch (error) {
         console.error('RFID assign error:', error);
-        showAlert('RFID atama hatası', 'error');
+        showAlert('RFID atama hatası: ' + error.message, 'error');
     }
 }
-
 // Delete RFID Stock
 async function deleteRFIDStock(itemId) {
     if (!confirm('Bu stok öğesini silmek istediğinize emin misiniz?')) return;
