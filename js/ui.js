@@ -3405,39 +3405,29 @@ window.toggleSelectAllContainers = function(source) {
     }
 };
 
-// MAIN FUNCTION: Select All for Customer Folders
+// 1️⃣ Define the function first
 window.toggleSelectAllCustomer = function(source) {
     try {
         console.log('toggleSelectAllCustomer called with:', source);
-        
-        // Handle both event object and checkbox element
         const checkbox = source && source.target ? source.target : source;
-        
-        if (!checkbox) {
-            console.error('No checkbox found in toggleSelectAllCustomer');
-            return;
-        }
-        
+        if (!checkbox) return console.error('No checkbox found');
+
         const folder = checkbox.closest('.customer-folder');
-        
-        if (!folder) {
-            console.error('Customer folder not found');
-            return;
-        }
-        
+        if (!folder) return console.error('Customer folder not found');
+
         const isChecked = checkbox.checked;
         const checkboxes = folder.querySelectorAll('.container-checkbox');
-        
-        checkboxes.forEach(cb => {
-            cb.checked = isChecked;
-        });
-        
+        checkboxes.forEach(cb => cb.checked = isChecked);
+
         console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${checkboxes.length} containers in customer folder`);
-        
     } catch (error) {
         console.error('❌ Error in toggleSelectAllCustomer:', error);
     }
 };
+
+// 2️⃣ Attach the function dynamically to checkboxes
+document.addEventListener('DOMContentLoaded', () => {
+    const customerFolderCheckboxes = document.querySelectorAll('.customer-
 
 // FIXED GENERIC FUNCTION: Works with your HTML that calls toggleSelectAll() without parameters
 window.toggleSelectAll = function() {
