@@ -1779,7 +1779,50 @@ async function testConnection() {
             localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
         }
 
+// ==================== PACKAGE DUPLICATION PREVENTION ====================
 
+const createdPackageIds = new Set();
+
+async function createPackageWithDuplicationCheck(packageData) {
+    // Generate unique ID
+    const packageId = generateUUID();
+    const packageNo = `PKG-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    
+    // Check if already exists
+    if (createdPackageIds.has(packageId)) {
+        console.warn('Duplicate package detected, generating new ID');
+        return createPackageWithDuplicationCheck(packageData);
+    }
+    
+    createdPackageIds.add(packageId);
+    
+    const newPackage = {
+        ...packageData,
+        id: packageId,
+        package_no: packageNo,
+        created_at: new Date().toISOString()
+    };
+    
+    // Save to Supabase
+    if (supabase && navigator.onLine) {
+        const { error } = await supabase
+            .from('packages')
+            .insert([newPackage]);
+        
+        if (error) {
+            createdPackageIds.delete(packageId);
+            throw error;
+        }
+    }
+    
+    // Save to Excel
+    window.packages.push(newPackage);
+    await ExcelJS.writeFile(ExcelJS.toExcelFormat(window.packages));
+    
+    return newPackage;
+}
+
+window.createPackageWithDuplicationCheck = createPackageWithDuplicationCheck;
 
   async function populateCustomers() {
     try {
@@ -3279,98 +3322,134 @@ console.log('✅ Reports module loaded successfully');
 
         
 
-      // ==================== FIXED CUSTOMER MANAGEMENT ====================
+     async function addNewCustomer() {
+    console.log("🔴 STEP 4.1: addNewCustomer STARTED");
+    
+    const code = document.getElementById('newCustomerCode').value.trim();
+    const name = document.getElementById('newCustomerName').value.trim();
+    const email = document.getElementById('newCustomerEmail').value.trim();
 
-async function addNewCustomer() {
-    console.log("🟢 addNewCustomer called");
-    
-    const customerName = prompt('Yeni müşteri adı:');
-    if (!customerName || customerName.trim() === '') {
-        showAlert('Müşteri adı gerekli', 'error');
-        return { success: false };
+    console.log("🔴 STEP 4.2: Form values - Code:'" + code + "', Name:'" + name + "', Email:'" + email + "'");
+
+    // ✅ PROPER VALIDATION
+    if (!code) {
+        console.error("❌ Validation failed: Missing customer code");
+        showAlert('Müşteri kodu giriniz!', 'error');
+        document.getElementById('newCustomerCode').focus();
+        return { success: false, error: 'Missing code' };
     }
     
-    const customerCode = prompt('Müşteri kodu:');
-    if (!customerCode || customerCode.trim() === '') {
-        showAlert('Müşteri kodu gerekli', 'error');
-        return { success: false };
+    if (!name) {
+        console.error("❌ Validation failed: Missing customer name");
+        showAlert('Müşteri adı giriniz!', 'error');
+        document.getElementById('newCustomerName').focus();
+        return { success: false, error: 'Missing name' };
     }
-    
+
     try {
-        showAlert('Müşteri ekleniyor...', 'info');
+        console.log("🔴 STEP 4.4: Getting workspace ID...");
+        let workspaceId = getCurrentWorkspaceId();
+        console.log("🔴 STEP 4.5: Workspace ID:", workspaceId, "Type:", typeof workspaceId);
         
-        const workspaceId = getCurrentWorkspaceId();
-        const newCustomer = {
-            id: crypto.randomUUID(),
-            name: customerName.trim(),
-            code: customerCode.trim(),
-            workspace_id: workspaceId,
-            created_at: new Date().toISOString()
-        };
-        
-        // Save to Supabase
-        if (supabase && navigator.onLine) {
-            const { error } = await supabase
-                .from('customers')
-                .insert([newCustomer]);
-            
-            if (error) throw error;
+        // ✅ BETTER FIX: Check specifically for "station-1" and other invalid values
+        if (!workspaceId || workspaceId === "station-1" || workspaceId === "station-2" || workspaceId.length !== 36) {
+            console.warn("⚠️ Invalid workspace ID '" + workspaceId + "', using default...");
+            workspaceId = '00000000-0000-0000-0000-000000000000'; // Default workspace UUID
         }
         
-        // Save to localStorage
-        const customers = JSON.parse(localStorage.getItem('customers') || '[]');
-        customers.push(newCustomer);
-        localStorage.setItem('customers', JSON.stringify(customers));
+        console.log("🔴 STEP 4.6: Using workspace ID:", workspaceId);
+
+        console.log("🔴 STEP 4.7: Inserting customer to Supabase...");
+        const { data, error } = await supabase
+            .from('customers')
+            .insert([{ 
+                code, 
+                name, 
+                email: email || null,
+                workspace_id: workspaceId
+            }])
+            .select();
+
+        console.log("🔴 STEP 4.8: Supabase response - data:", data, "error:", error);
+
+        if (error) {
+            console.error('❌ STEP 4.9: Supabase insert error:', error);
+            showAlert('Müşteri eklenirken hata: ' + error.message, 'error');
+            return { success: false, error: error.message };
+        }
+
+        console.log("✅ STEP 4.10: Customer added successfully to database. Data:", data);
+        showAlert('Müşteri başarıyla eklendi', 'success');
         
+        // Clear form
+        document.getElementById('newCustomerCode').value = '';
+        document.getElementById('newCustomerName').value = '';
+        document.getElementById('newCustomerEmail').value = '';
+        
+        // Refresh lists
+        console.log("🔴 STEP 4.11: Refreshing customer lists...");
         await populateCustomers();
-        showAlert(`✅ Müşteri eklendi: ${customerName}`, 'success');
+        await showAllCustomers();
         
-        return { success: true, customer: newCustomer };
+        console.log("✅ STEP 4.12: addNewCustomer COMPLETED SUCCESSFULLY");
+        return { success: true, data: data };
         
     } catch (error) {
-        console.error('Add customer error:', error);
-        showAlert('Müşteri eklenirken hata oluştu', 'error');
+        console.error('❌ STEP 4.ERROR: Error in addNewCustomer:', error);
+        showAlert('Müşteri ekleme hatası: ' + error.message, 'error');
         return { success: false, error: error.message };
     }
 }
-
-async function deleteCustomer(customerId) {
-    console.log("🔴 deleteCustomer called for:", customerId);
+    async function deleteCustomer(customerId) {
+    console.log("Deleting customer with id:", customerId); 
+    console.log("Customer ID type:", typeof customerId);
+    console.log("Customer ID length:", customerId ? customerId.length : 'null');
     
+    // Better validation
+    if (!customerId || customerId === '' || customerId === 'null' || customerId === 'undefined') {
+        showAlert('Geçersiz müşteri ID! Silme işlemi yapılamıyor.', 'error');
+        return;
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(customerId)) {
+        console.error('Invalid UUID format:', customerId);
+        showAlert('Geçersiz müşteri ID formatı!', 'error');
+        return;
+    }
+
+    if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
+
     try {
-        showAlert('Müşteri siliniyor...', 'info');
-        
-        // Delete from Supabase
-        if (supabase && navigator.onLine) {
-            const { error } = await supabase
-                .from('customers')
-                .delete()
-                .eq('id', customerId);
+        const { error } = await supabase
+            .from('customers')
+            .delete()
+            .eq('id', customerId);
+
+        if (error) {
+            console.error('Error deleting customer:', error);
             
-            if (error) throw error;
+            // Handle foreign key constraint errors
+            if (error.code === '23503') {
+                showAlert('Bu müşteriye ait kayıtlar bulunduğu için silinemez! Önce ilişkili paket ve barkodları silin.', 'error');
+            } else {
+                showAlert('Müşteri silinirken hata: ' + error.message, 'error');
+            }
+            return;
         }
+
+        showAlert('Müşteri başarıyla silindi', 'success');
         
-        // Delete from localStorage
-        const customers = JSON.parse(localStorage.getItem('customers') || '[]');
-        const updatedCustomers = customers.filter(c => c.id !== customerId);
-        localStorage.setItem('customers', JSON.stringify(updatedCustomers));
-        
+        // Refresh lists
         await populateCustomers();
-        showAlert('✅ Müşteri silindi', 'success');
-        
-        // Close modal if open
-        const modal = document.getElementById('allCustomersModal');
-        if (modal) modal.style.display = 'none';
+        await showAllCustomers();
         
     } catch (error) {
-        console.error('Delete customer error:', error);
-        showAlert('Müşteri silinirken hata oluştu', 'error');
+        console.error('Error in deleteCustomer:', error);
+        showAlert('Müşteri silme hatası', 'error');
     }
 }
-
-// Make globally available
-window.addNewCustomer = addNewCustomer;
-window.deleteCustomer = deleteCustomer;
 
 
 async function completePackage() {
