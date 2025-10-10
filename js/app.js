@@ -1037,84 +1037,51 @@ async function completePackage() {
         // Get workspace ID
         const workspaceId = getCurrentWorkspaceId();
 
-        // Create package object
+        // Create package object - USE CORRECT COLUMN NAMES
         const newPackage = {
             id: generateUUID(),
             package_no: packageNo,
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name,
-            customer_code: selectedCustomer.code,
+            customer_id: selectedCustomer.id, // Use customer_id NOT customer_name/customer_code
+            status: 'beklemede',
             items: currentPackage.items,
-            items_display: Object.entries(currentPackage.items)
-                .map(([product, quantity]) => `${product}: ${quantity} adet`)
-                .join(', '),
             total_quantity: totalQuantity,
             personnel_id: personnelId,
-            status: 'beklemede',
             container_id: null,
             workspace_id: workspaceId,
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            shipped_at: null
         };
 
-        console.log('📦 New package created:', newPackage);
-
-        // 1. Add to window.packages array FIRST
+        // Add to window.packages array
         if (!window.packages) {
             window.packages = [];
         }
-        window.packages.unshift(newPackage); // Add to beginning for immediate visibility
+        window.packages.push(newPackage);
 
-        // 2. Add to excelPackages if it exists
-        if (window.excelPackages && Array.isArray(window.excelPackages)) {
-            window.excelPackages.unshift(newPackage);
-        }
+        // Save to Excel immediately
+        const excelData = ExcelJS.toExcelFormat(window.packages);
+        await ExcelJS.writeFile(excelData);
 
-        // 3. Save to Excel
-        try {
-            const excelData = ExcelJS.toExcelFormat(window.packages);
-            await ExcelJS.writeFile(excelData);
-            console.log('💾 Package saved to Excel');
-        } catch (excelError) {
-            console.error('Excel save error:', excelError);
-        }
-
-        // 4. Save to Supabase if online (async, don't wait)
+        // Save to Supabase if online
         if (supabase && navigator.onLine) {
-            supabase
+            const { error } = await supabase
                 .from('packages')
-                .insert([newPackage])
-                .then(({ error }) => {
-                    if (error) {
-                        console.error('Supabase insert error:', error);
-                    } else {
-                        console.log('☁️ Package saved to Supabase');
-                    }
-                });
+                .insert([newPackage]);
+
+            if (error) {
+                console.error('Supabase insert error:', error);
+                // Continue anyway - Excel is saved
+            }
         }
 
-        // 5. ⭐️ IMMEDIATE UI UPDATE - Add row directly to table
-        addPackageRowToTable(newPackage);
-
-        // 6. Update stock quantities
-        if (typeof updateStockQuantities === 'function') {
-            await updateStockQuantities(currentPackage.items);
-        }
+        // CRITICAL: Refresh UI immediately
+        await populatePackagesTable();
+        await updateStockQuantities(currentPackage.items);
         
-        // 7. Clear form
+        // Clear form
         currentPackage = { items: {} };
-        if (elements.packageDetailContent) {
-            elements.packageDetailContent.innerHTML = '<p>Ürün eklenmedi</p>';
-        }
-        
-        // 8. Update total packages count
-        const totalPackagesElement = document.getElementById('totalPackages');
-        if (totalPackagesElement) {
-            const pendingCount = window.packages.filter(pkg => 
-                pkg.status === 'beklemede' && !pkg.container_id
-            ).length;
-            totalPackagesElement.textContent = pendingCount.toString();
-        }
+        elements.packageDetailContent.innerHTML = '<p>Ürün eklenmedi</p>';
 
         showAlert(`✅ Paket oluşturuldu: ${packageNo}`, 'success');
 
@@ -1123,7 +1090,6 @@ async function completePackage() {
         showAlert('Paket oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
-
 
 
 function addPackageRowToTable(pkg) {
