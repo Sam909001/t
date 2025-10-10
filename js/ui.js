@@ -3421,34 +3421,33 @@ window.toggleSelectAllContainers = function(source) {
     }
 };
 
-// MAIN FUNCTION: Select All for Customer Folders
+// ENHANCED VERSION: toggleSelectAllCustomer with better error handling
 window.toggleSelectAllCustomer = function(source) {
     try {
         console.log('toggleSelectAllCustomer called with:', source);
         
-        // Handle both event object and checkbox element
-        const checkbox = source && source.target ? source.target : source;
-        
-        if (!checkbox) {
-            console.error('No checkbox found in toggleSelectAllCustomer');
+        // Handle case where function is called before fully loaded
+        if (!source) {
+            console.warn('⚠️ toggleSelectAllCustomer called without source parameter');
             return;
         }
         
+        const checkbox = source;
+        const isChecked = checkbox.checked;
         const folder = checkbox.closest('.customer-folder');
         
         if (!folder) {
-            console.error('Customer folder not found');
+            console.error('❌ Customer folder not found for checkbox:', checkbox);
             return;
         }
         
-        const isChecked = checkbox.checked;
-        const checkboxes = folder.querySelectorAll('.container-checkbox');
+        const containerCheckboxes = folder.querySelectorAll('.container-checkbox');
         
-        checkboxes.forEach(cb => {
+        containerCheckboxes.forEach(cb => {
             cb.checked = isChecked;
         });
         
-        console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${checkboxes.length} containers in customer folder`);
+        console.log(`✅ ${isChecked ? 'Selected' : 'Deselected'} ${containerCheckboxes.length} containers in customer folder`);
         
     } catch (error) {
         console.error('❌ Error in toggleSelectAllCustomer:', error);
