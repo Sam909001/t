@@ -1057,51 +1057,63 @@ async function completePackage() {
             updated_at: new Date().toISOString()
         };
 
-        // Add to window.packages array FIRST
+        console.log('📦 New package created:', newPackage);
+
+        // 1. Add to window.packages array FIRST
         if (!window.packages) {
             window.packages = [];
         }
-        window.packages.push(newPackage);
+        window.packages.unshift(newPackage); // Add to beginning for immediate visibility
 
-        // Add to excelPackages if it exists
+        // 2. Add to excelPackages if it exists
         if (window.excelPackages && Array.isArray(window.excelPackages)) {
-            window.excelPackages.push(newPackage);
+            window.excelPackages.unshift(newPackage);
         }
 
-        // Save to Excel immediately
-        const excelData = ExcelJS.toExcelFormat(window.packages);
-        await ExcelJS.writeFile(excelData);
+        // 3. Save to Excel
+        try {
+            const excelData = ExcelJS.toExcelFormat(window.packages);
+            await ExcelJS.writeFile(excelData);
+            console.log('💾 Package saved to Excel');
+        } catch (excelError) {
+            console.error('Excel save error:', excelError);
+        }
 
-        // Save to Supabase if online
+        // 4. Save to Supabase if online (async, don't wait)
         if (supabase && navigator.onLine) {
-            const { error } = await supabase
+            supabase
                 .from('packages')
-                .insert([newPackage]);
-
-            if (error) {
-                console.error('Supabase insert error:', error);
-                // Continue anyway - Excel is saved
-            }
+                .insert([newPackage])
+                .then(({ error }) => {
+                    if (error) {
+                        console.error('Supabase insert error:', error);
+                    } else {
+                        console.log('☁️ Package saved to Supabase');
+                    }
+                });
         }
 
-        // ⭐️ CRITICAL FIX: Immediate UI refresh WITHOUT reloading data
-        await populatePackagesTable(); // This will show the new package
+        // 5. ⭐️ IMMEDIATE UI UPDATE - Add row directly to table
+        addPackageRowToTable(newPackage);
 
-        // Update stock quantities
-        await updateStockQuantities(currentPackage.items);
+        // 6. Update stock quantities
+        if (typeof updateStockQuantities === 'function') {
+            await updateStockQuantities(currentPackage.items);
+        }
         
-        // Clear form
+        // 7. Clear form
         currentPackage = { items: {} };
         if (elements.packageDetailContent) {
             elements.packageDetailContent.innerHTML = '<p>Ürün eklenmedi</p>';
         }
         
-        // Update total packages count
+        // 8. Update total packages count
         const totalPackagesElement = document.getElementById('totalPackages');
         if (totalPackagesElement) {
-            totalPackagesElement.textContent = window.packages.filter(pkg => 
+            const pendingCount = window.packages.filter(pkg => 
                 pkg.status === 'beklemede' && !pkg.container_id
-            ).length.toString();
+            ).length;
+            totalPackagesElement.textContent = pendingCount.toString();
         }
 
         showAlert(`✅ Paket oluşturuldu: ${packageNo}`, 'success');
@@ -1111,6 +1123,59 @@ async function completePackage() {
         showAlert('Paket oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
+
+
+
+function addPackageRowToTable(pkg) {
+    const packagesTableBody = document.getElementById('packagesTableBody');
+    if (!packagesTableBody) {
+        console.error('Packages table body not found');
+        return;
+    }
+
+    // Remove "no packages" message if it exists
+    const emptyMessage = packagesTableBody.querySelector('td[colspan]');
+    if (emptyMessage) {
+        emptyMessage.closest('tr').remove();
+    }
+
+    // Create new row
+    const row = document.createElement('tr');
+    row.style.backgroundColor = '#f0fff0'; // Highlight new package
+    row.innerHTML = `
+        <td>
+            <input type="checkbox" class="package-checkbox" value="${pkg.id}" 
+                   data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}'>
+        </td>
+        <td>${pkg.package_no || 'N/A'}</td>
+        <td>${pkg.customer_name || 'N/A'}</td>
+        <td>${pkg.items_display || 'N/A'}</td>
+        <td>${pkg.total_quantity || 0}</td>
+        <td><span class="status-badge status-beklemede">beklemede</span></td>
+        <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
+        <td>
+            <button onclick="viewPackageDetails('${pkg.id}')" class="btn-icon" title="Detay">
+                <i class="fas fa-eye"></i>
+            </button>
+            <button onclick="deletePackage('${pkg.id}')" class="btn-icon btn-danger" title="Sil">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    
+    // Insert at the beginning of the table
+    packagesTableBody.insertBefore(row, packagesTableBody.firstChild);
+    
+    // Remove highlight after 2 seconds
+    setTimeout(() => {
+        row.style.backgroundColor = '';
+        row.style.transition = 'background-color 0.5s ease';
+    }, 2000);
+
+    console.log('✅ Package row added to table:', pkg.package_no);
+}
+
+
 
 
 async function updateStockQuantities(items) {
