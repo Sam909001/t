@@ -3750,7 +3750,7 @@ function printDailyFile(dateString) {
                 </div>
                 ${printContent.querySelector('table').outerHTML}
                 <div class="no-print" style="margin-top: 20px; text-align: center;">
-                    <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    <button onclick="window.print()" style="padding: 13px 25px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer;">
                         🖨️ Yazdır
                     </button>
                     <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
