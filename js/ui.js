@@ -691,24 +691,40 @@ window.simpleTouchTest = function() {
 };
 
 
-function openQuantityModal(product) {
-    selectedProduct = product;
-    const titleEl = elements?.quantityModalTitle ?? document.getElementById('quantityModalTitle');
-    const inputEl = elements?.quantityInput ?? document.getElementById('quantityInput');
-    const modalEl = elements?.quantityModal ?? document.getElementById('quantityModal');
 
-    if (titleEl) titleEl.textContent = `${product} - Adet Girin`;
-    if (inputEl) inputEl.value = '';
-    const errEl = document.getElementById('quantityError');
-    if (errEl) errEl.style.display = 'none';
-    if (modalEl) modalEl.style.display = 'flex';
-
-    // Focus + show keyboard (delay to allow modal to open)
-    setTimeout(() => {
-        if (inputEl) inputEl.focus();
-        showTouchKeyboardIfPOS();
-    }, 200);
+function openQuantityModalFixed(productName) {
+    const modal = document.getElementById('quantityModal');
+    const input = document.getElementById('quantityInput');
+    const title = document.getElementById('quantityModalTitle');
+    
+    if (!modal || !input || !title) return;
+    
+    selectedProduct = productName;
+    title.textContent = `${productName} - Miktar Girin`;
+    input.value = '';
+    modal.style.display = 'flex';
+    
+    // FIX: Prevent freeze in Electron
+    if (window.isElectronApp || isTouchDevice()) {
+        setTimeout(() => {
+            input.focus();
+            // Enable touch-friendly input
+            input.setAttribute('inputmode', 'numeric');
+            input.setAttribute('pattern', '[0-9]*');
+        }, 100);
+    } else {
+        input.focus();
+    }
 }
+
+function isTouchDevice() {
+    return (('ontouchstart' in window) ||
+            (navigator.maxTouchPoints > 0) ||
+            (navigator.msMaxTouchPoints > 0));
+}
+
+// Replace all openQuantityModal calls
+window.openQuantityModal = openQuantityModalFixed;
 
 function openStatusQuantityModal(status) {
     selectedProduct = status; // reuse the same global
