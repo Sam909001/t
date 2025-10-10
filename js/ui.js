@@ -4375,69 +4375,42 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// ==================== EXCEL BUTTONS PERMANENT FIX ====================
-// Add this to your main JavaScript file
-
 function initializeExcelButtons() {
+    console.log("🔄 Initializing Excel buttons...");
+    
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
-    if (refreshBtn && typeof refreshExcelData === 'function') {
-        refreshBtn.onclick = refreshExcelData;
-        console.log('✅ Refresh button bound');
-    }
-    
-    if (clearBtn && typeof clearExcelDataWithAuth === 'function') {
-        clearBtn.onclick = clearExcelDataWithAuth;
-        console.log('✅ Clear button bound');
-    }
-}
-
-// Wait for buttons to exist and then initialize
-function waitForExcelButtons() {
-    const checkButtons = () => {
-        const refreshBtn = document.getElementById('refreshExcelBtn');
-        const clearBtn = document.getElementById('clearExcelBtn');
+    if (refreshBtn) {
+        // Remove any existing listeners
+        refreshBtn.replaceWith(refreshBtn.cloneNode(true));
+        const newRefreshBtn = document.getElementById('refreshExcelBtn');
         
-        if (refreshBtn && clearBtn) {
-            console.log('🎯 Excel buttons found in DOM, initializing...');
-            initializeExcelButtons();
-            return true;
-        }
-        return false;
-    };
+        newRefreshBtn.onclick = function() {
+            console.log("🎯 REFRESH BUTTON CLICKED!");
+            refreshExcelData();
+        };
+        console.log('✅ Refresh Excel button initialized with onclick');
+    }
     
-    // Try immediately
-    if (checkButtons()) return;
-    
-    // Keep trying until found
-    let attempts = 0;
-    const maxAttempts = 20;
-    const interval = setInterval(() => {
-        attempts++;
-        if (checkButtons()) {
-            clearInterval(interval);
-            console.log('🎉 Excel buttons initialized successfully!');
-        } else if (attempts >= maxAttempts) {
-            clearInterval(interval);
-            console.log('❌ Excel buttons not found after maximum attempts');
-        }
-    }, 500);
+    if (clearBtn) {
+        // Remove any existing listeners
+        clearBtn.replaceWith(clearBtn.cloneNode(true));
+        const newClearBtn = document.getElementById('clearExcelBtn');
+        
+        newClearBtn.onclick = function() {
+            console.log("🎯 CLEAR BUTTON CLICKED!");
+            clearExcelDataWithAuth();
+        };
+        console.log('✅ Clear Excel button initialized with onclick');
+    }
 }
 
-// Start the initialization process
-console.log('🚀 Starting Excel buttons initialization...');
+// Call it now
+initializeExcelButtons();
+console.log("✅ Buttons should work now. Test them!");
 
-// Multiple initialization strategies
-document.addEventListener('DOMContentLoaded', waitForExcelButtons);
-window.addEventListener('load', waitForExcelButtons);
-setTimeout(waitForExcelButtons, 100);
-setTimeout(waitForExcelButtons, 1000);
-setTimeout(waitForExcelButtons, 3000);
 
-console.log('✅ Excel buttons initialization system active');
-
-// Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
     
@@ -4451,9 +4424,17 @@ async function clearExcelDataWithAuth() {
         
         const passwordGuard = new PasswordGuard();
         
-        await passwordGuard.askPasswordAndRun(() => {
-            return clearExcelData();
-        }, 'Excel verilerini temizleme', 'clearData');
+        // ✅ FIX: Use bound function pattern
+        const clearAction = async () => {
+            if (typeof clearExcelData === 'function') {
+                return await clearExcelData();
+            } else {
+                showAlert('Excel temizleme fonksiyonu bulunamadı', 'error');
+                throw new Error('Function not found');
+            }
+        };
+        
+        await passwordGuard.askPasswordAndRun(clearAction, 'Excel verilerini temizleme', 'clearData');
         
     } catch (error) {
         if (error.message === 'User cancelled') {
@@ -4585,6 +4566,7 @@ async function clearExcelData() {
         }
     }
 }
+
 
 
 // Enhanced clearAppState function
