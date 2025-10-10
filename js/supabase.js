@@ -2660,193 +2660,457 @@ function debouncedPopulateShippingTable() {
 
 
 
+// ==================== COMPLETE RFID STOCK TABLE SYSTEM ====================
 
+// Global RFID Scanner State
+let rfidScannerActive = false;
+let rfidScanBuffer = '';
+let rfidLastScanTime = 0;
 
-let isStockTableLoading = false;
-let lastStockFetchTime = 0;
-
-// Keeps track of live RFID scans
-const scannedRFIDTags = new Map(); // tag_id => {code, name, customer, step, time}
-
-async function populateStockTable() {
-    if (isStockTableLoading) return;
-
-    const now = Date.now();
-    if (now - lastStockFetchTime < 500) {
-        setTimeout(populateStockTable, 500);
+// Populate Stock Table with RFID Support
+async function populateRFIDStockTable() {
+    const tbody = document.getElementById('stockTableBody');
+    if (!tbody) {
+        console.error('Stock table body not found');
         return;
     }
-
-    isStockTableLoading = true;
-    lastStockFetchTime = now;
-
+    
     try {
-        // Clear table
-        elements.stockTableBody.innerHTML = '';
-
-        // Fetch stock items
-        const { data: stockItems, error } = await supabase
-            .from('stock_items')
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error('Error loading stock items:', error);
-            showAlert('Stok verileri yüklenemedi', 'error');
+        showAlert('Stok tablosu yükleniyor...', 'info', 1000);
+        
+        const workspaceId = getCurrentWorkspaceId();
+        let stockItems = [];
+        
+        // Load from Supabase
+        if (supabase && navigator.onLine) {
+            const { data, error } = await supabase
+                .from('stock_items')
+                .select('*')
+                .eq('workspace_id', workspaceId)
+                .order('registration_date', { ascending: false });
+            
+            if (error) throw error;
+            if (data) stockItems = data;
+        }
+        
+        // Fallback to localStorage
+        if (stockItems.length === 0) {
+            const localStock = JSON.parse(localStorage.getItem('rfid_stock_items') || '[]');
+            stockItems = localStock.filter(item => item.workspace_id === workspaceId);
+        }
+        
+        tbody.innerHTML = '';
+        
+        if (stockItems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Stok bulunamadı</td></tr>';
             return;
         }
-
-        // Deduplicate stock by code
-        const uniqueStockItems = [];
-        const seenStockCodes = new Set();
-
-        if (stockItems && stockItems.length > 0) {
-            stockItems.forEach(item => {
-                if (!seenStockCodes.has(item.code)) {
-                    seenStockCodes.add(item.code);
-                    uniqueStockItems.push(item);
-
-                    const row = document.createElement('tr');
-
-                    // Determine stock status
-                    let statusClass = 'status-stokta';
-                    let statusText = 'Stokta';
-                    if (item.quantity <= 0) { statusClass = 'status-kritik'; statusText = 'Kritik'; }
-                    else if (item.quantity < 10) { statusClass = 'status-az-stok'; statusText = 'Az Stok'; }
-
-                    // Check if RFID tag exists for this item
-                    let rfidTag = '';
-                    let customer = '';
-                    let step = '';
-                    let time = '';
-                    scannedRFIDTags.forEach(scan => {
-                        if (scan.code === item.code) {
-                            rfidTag = scan.tag_id;
-                            customer = scan.customer;
-                            step = scan.step;
-                            time = new Date(scan.time).toLocaleTimeString('tr-TR');
-                        }
-                    });
-
-                    row.innerHTML = `
-                        <td>${rfidTag || '-'}</td>
-                        <td>${item.code}</td>
-                        <td>${item.name}</td>
-                        <td>${customer || '-'}</td>
-                        <td><span class="${statusClass}">${statusText}</span></td>
-                        <td>${step || '-'}</td>
-                        <td>${time || '-'}</td>
-                        <td>
-                            <button onclick="editStockItem(this, '${item.code}')" class="btn btn-primary btn-sm">Düzenle</button>
-                            <div class="edit-buttons" style="display:none;">
-                                <button onclick="saveStockItem('${item.code}')" class="btn btn-success btn-sm">Kaydet</button>
-                                <button onclick="cancelEditStockItem('${item.code}', ${item.quantity})" class="btn btn-secondary btn-sm">İptal</button>
-                            </div>
-                        </td>
-                    `;
-                    elements.stockTableBody.appendChild(row);
-                }
-            });
-        } else {
+        
+        stockItems.forEach(item => {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="8" style="text-align:center; color:#666;">Stok verisi yok</td>';
-            elements.stockTableBody.appendChild(row);
-        }
-
+            row.dataset.rfidTag = item.rfid_tag_id || '';
+            row.dataset.stockId = item.id;
+            
+            // Status badge
+            let statusClass = 'status-stokta';
+            switch(item.status) {
+                case 'Kirli': statusClass = 'status-kirli'; break;
+                case 'Yıkanıyor': statusClass = 'status-yikanıyor'; break;
+                case 'Temiz': statusClass = 'status-temiz'; break;
+                case 'Hasarlı': statusClass = 'status-hasarli'; break;
+            }
+            
+            row.innerHTML = `
+                <td><strong>${item.rfid_tag_id || 'RFID Yok'}</strong></td>
+                <td>${item.stock_code || 'N/A'}</td>
+                <td>${item.product_name || 'Bilinmeyen'}</td>
+                <td>${item.customer_name || '-'}</td>
+                <td><span class="${statusClass}">${item.status || 'Temiz'}</span></td>
+                <td>${item.step || 'Depo'}</td>
+                <td>${new Date(item.registration_date || item.created_at).toLocaleDateString('tr-TR')}</td>
+                <td>${item.wash_age || 0} kez</td>
+                <td>
+                    <button onclick="editRFIDStock('${item.id}')" class="btn-icon" title="Düzenle">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="assignRFIDTag('${item.id}')" class="btn-icon" title="RFID Ata">
+                        <i class="fas fa-wifi"></i>
+                    </button>
+                    <button onclick="deleteRFIDStock('${item.id}')" class="btn-icon btn-danger" title="Sil">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+        
+        console.log(`✅ Loaded ${stockItems.length} RFID stock items`);
+        
     } catch (error) {
-        console.error('Error in populateStockTable:', error);
-        showAlert('Stok tablosu yükleme hatası', 'error');
-    } finally {
-        isStockTableLoading = false;
+        console.error('RFID stock table error:', error);
+        showAlert('Stok tablosu yüklenirken hata oluştu', 'error');
     }
 }
 
-// Debounced call
-let stockTableTimeout;
-function debouncedPopulateStockTable() {
-    clearTimeout(stockTableTimeout);
-    stockTableTimeout = setTimeout(populateStockTable, 300);
+// Start RFID Scanner
+function startRFIDScanner() {
+    if (rfidScannerActive) {
+        showAlert('RFID tarayıcı zaten aktif', 'warning');
+        return;
+    }
+    
+    rfidScannerActive = true;
+    rfidScanBuffer = '';
+    
+    // Update UI
+    const startBtn = document.getElementById('startRFIDBtn');
+    const stopBtn = document.getElementById('stopRFIDBtn');
+    
+    if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.style.opacity = '0.5';
+    }
+    
+    if (stopBtn) {
+        stopBtn.disabled = false;
+        stopBtn.style.opacity = '1';
+    }
+    
+    // Add visual indicator
+    document.body.classList.add('rfid-scanning');
+    
+    // Setup RFID listener
+    document.addEventListener('keypress', rfidScanHandler);
+    
+    showAlert('🔍 RFID Tarayıcı Başlatıldı - RFID etiketini okutun', 'success');
+    console.log('✅ RFID Scanner STARTED');
 }
 
-// Call this when a new RFID tag is scanned
-function onRFIDScan(tag_id, code, customer, step) {
-    scannedRFIDTags.set(tag_id, {
-        tag_id,
-        code,
-        customer,
-        step,
-        time: Date.now()
-    });
-    debouncedPopulateStockTable();
+// Stop RFID Scanner
+function stopRFIDScanner() {
+    if (!rfidScannerActive) {
+        showAlert('RFID tarayıcı zaten durdurulmuş', 'warning');
+        return;
+    }
+    
+    rfidScannerActive = false;
+    rfidScanBuffer = '';
+    
+    // Update UI
+    const startBtn = document.getElementById('startRFIDBtn');
+    const stopBtn = document.getElementById('stopRFIDBtn');
+    
+    if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.style.opacity = '1';
+    }
+    
+    if (stopBtn) {
+        stopBtn.disabled = true;
+        stopBtn.style.opacity = '0.5';
+    }
+    
+    // Remove visual indicator
+    document.body.classList.remove('rfid-scanning');
+    
+    // Remove RFID listener
+    document.removeEventListener('keypress', rfidScanHandler);
+    
+    showAlert('⏸️ RFID Tarayıcı Durduruldu', 'info');
+    console.log('⏸️ RFID Scanner STOPPED');
 }
 
- 
-        async function saveStockItem(code) {
-            const row = document.querySelector(`tr:has(td:first-child:contains("${code}"))`);
-            const quantityInput = row.querySelector('.stock-quantity-input');
-            const quantitySpan = row.querySelector('.stock-quantity');
-            const editButton = row.querySelector('button');
-            const editButtons = row.querySelector('.edit-buttons');
-            const newQuantity = parseInt(quantityInput.value);
-            
-            if (isNaN(newQuantity) || newQuantity < 0) {
-                showAlert('Geçerli bir miktar girin', 'error');
-                return;
-            }
-            
-            try {
-                if (!navigator.onLine) {
-                    // Çevrimdışı mod
-                    saveOfflineData('stockUpdates', {
-                        code: code,
-                        quantity: newQuantity,
-                        updated_at: new Date().toISOString()
-                    });
-                    showAlert(`Stok çevrimdışı güncellendi: ${code}`, 'warning');
-                } else {
-                    // Çevrimiçi mod
-                    const { error } = await supabase
-                        .from('stock_items')
-                        .update({ 
-                            quantity: newQuantity,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('code', code);
-                    
-                    if (error) throw error;
-                    
-                    showAlert(`Stok güncellendi: ${code}`, 'success');
-                }
-                
-                // Görünümü güncelle
-                quantitySpan.textContent = newQuantity;
-                quantitySpan.style.display = 'block';
-                quantityInput.style.display = 'none';
-                editButton.style.display = 'block';
-                editButtons.style.display = 'none';
-                
-                // Durumu yeniden hesapla
-                const statusCell = row.querySelector('td:nth-child(5) span');
-                if (newQuantity <= 0) {
-                    statusCell.className = 'status-kritik';
-                    statusCell.textContent = 'Kritik';
-                } else if (newQuantity < 10) {
-                    statusCell.className = 'status-az-stok';
-                    statusCell.textContent = 'Az Stok';
-                } else {
-                    statusCell.className = 'status-stokta';
-                    statusCell.textContent = 'Stokta';
-                }
-                
-                editingStockItem = null;
-                
-            } catch (error) {
-                console.error('Error updating stock:', error);
-                showAlert('Stok güncellenirken hata oluştu', 'error');
-            }
+// RFID Scan Handler
+function rfidScanHandler(e) {
+    if (!rfidScannerActive) return;
+    
+    const currentTime = Date.now();
+    
+    // RFID scanners typically send data very fast (< 50ms between chars)
+    if (currentTime - rfidLastScanTime > 100) {
+        rfidScanBuffer = ''; // Reset if too slow (manual typing)
+    }
+    
+    rfidLastScanTime = currentTime;
+    
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        
+        if (rfidScanBuffer.length > 5) {
+            processRFIDScan(rfidScanBuffer);
         }
+        
+        rfidScanBuffer = '';
+    } else {
+        rfidScanBuffer += e.key;
+    }
+}
 
+// Process RFID Scan
+async function processRFIDScan(rfidTag) {
+    try {
+        console.log('🔍 RFID Scanned:', rfidTag);
+        showAlert(`RFID Tarandı: ${rfidTag}`, 'info', 2000);
+        
+        // Search for item with this RFID
+        const { data: item, error } = await supabase
+            .from('stock_items')
+            .select('*')
+            .eq('rfid_tag_id', rfidTag)
+            .single();
+        
+        if (error || !item) {
+            // RFID not found - ask to create new item
+            const create = confirm(`RFID "${rfidTag}" sistemde bulunamadı.\n\nYeni stok öğesi oluşturmak ister misiniz?`);
+            
+            if (create) {
+                await createNewRFIDStock(rfidTag);
+            }
+            return;
+        }
+        
+        // Item found - show details
+        showRFIDItemDetails(item);
+        
+        // Highlight row in table
+        highlightRFIDRow(rfidTag);
+        
+    } catch (error) {
+        console.error('RFID scan error:', error);
+        showAlert('RFID okuma hatası', 'error');
+    }
+}
 
+// Create New RFID Stock Item
+async function createNewRFIDStock(rfidTag) {
+    const stockCode = prompt('Stok Kodu:');
+    if (!stockCode) return;
+    
+    const productName = prompt('Ürün Adı:');
+    if (!productName) return;
+    
+    const customerName = prompt('Müşteri Adı (opsiyonel):') || '';
+    
+    try {
+        const newItem = {
+            id: generateUUID(),
+            rfid_tag_id: rfidTag,
+            stock_code: stockCode,
+            product_name: productName,
+            customer_name: customerName,
+            status: 'Temiz',
+            step: 'Depo',
+            wash_age: 0,
+            workspace_id: getCurrentWorkspaceId(),
+            registration_date: new Date().toISOString(),
+            created_at: new Date().toISOString()
+        };
+        
+        // Save to Supabase
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('stock_items')
+                .insert([newItem]);
+            
+            if (error) throw error;
+        }
+        
+        // Save to localStorage
+        const localStock = JSON.parse(localStorage.getItem('rfid_stock_items') || '[]');
+        localStock.push(newItem);
+        localStorage.setItem('rfid_stock_items', JSON.stringify(localStock));
+        
+        await populateRFIDStockTable();
+        showAlert(`✅ RFID stok oluşturuldu: ${productName}`, 'success');
+        
+    } catch (error) {
+        console.error('Create RFID stock error:', error);
+        showAlert('RFID stok oluşturma hatası', 'error');
+    }
+}
+
+// Show RFID Item Details
+function showRFIDItemDetails(item) {
+    const modal = document.createElement('div');
+    modal.id = 'rfidDetailsModal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8); z-index: 9999; display: flex;
+        align-items: center; justify-content: center;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%;">
+            <h3 style="margin-bottom: 1rem; color: #2c3e50;">
+                <i class="fas fa-wifi"></i> RFID Stok Detayları
+            </h3>
+            
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px; font-weight: bold;">RFID Tag:</td>
+                    <td style="padding: 10px;">${item.rfid_tag_id}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px; font-weight: bold;">Stok Kodu:</td>
+                    <td style="padding: 10px;">${item.stock_code}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px; font-weight: bold;">Ürün:</td>
+                    <td style="padding: 10px;">${item.product_name}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px; font-weight: bold;">Müşteri:</td>
+                    <td style="padding: 10px;">${item.customer_name || '-'}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px; font-weight: bold;">Durum:</td>
+                    <td style="padding: 10px;">${item.status}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px; font-weight: bold;">Adım:</td>
+                    <td style="padding: 10px;">${item.step}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px; font-weight: bold;">Yıkanma Yaşı:</td>
+                    <td style="padding: 10px;">${item.wash_age} kez</td>
+                </tr>
+            </table>
+            
+            <div style="margin-top: 1.5rem; display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="updateRFIDStatus('${item.id}')" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Durumu Güncelle
+                </button>
+                <button onclick="document.getElementById('rfidDetailsModal').remove()" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Kapat
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Highlight RFID Row
+function highlightRFIDRow(rfidTag) {
+    // Remove previous highlights
+    document.querySelectorAll('.rfid-highlight').forEach(el => {
+        el.classList.remove('rfid-highlight');
+    });
+    
+    // Highlight current row
+    const row = document.querySelector(`tr[data-rfid-tag="${rfidTag}"]`);
+    if (row) {
+        row.classList.add('rfid-highlight');
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+// Update RFID Status
+async function updateRFIDStatus(itemId) {
+    const newStatus = prompt('Yeni Durum:\n1. Temiz\n2. Kirli\n3. Yıkanıyor\n4. Hasarlı\n\nSeçim (1-4):');
+    
+    const statusMap = {
+        '1': 'Temiz',
+        '2': 'Kirli',
+        '3': 'Yıkanıyor',
+        '4': 'Hasarlı'
+    };
+    
+    const status = statusMap[newStatus];
+    if (!status) return;
+    
+    try {
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('stock_items')
+                .update({ 
+                    status: status,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', itemId);
+            
+            if (error) throw error;
+        }
+        
+        await populateRFIDStockTable();
+        showAlert(`✅ Durum güncellendi: ${status}`, 'success');
+        
+        document.getElementById('rfidDetailsModal')?.remove();
+        
+    } catch (error) {
+        console.error('Status update error:', error);
+        showAlert('Durum güncelleme hatası', 'error');
+    }
+}
+
+// Edit RFID Stock
+async function editRFIDStock(itemId) {
+    // Implementation for editing RFID stock
+    showAlert('Düzenleme özelliği yakında eklenecek', 'info');
+}
+
+// Assign RFID Tag
+async function assignRFIDTag(itemId) {
+    const rfidTag = prompt('RFID Tag ID girin veya tarayın:');
+    if (!rfidTag) return;
+    
+    try {
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('stock_items')
+                .update({ 
+                    rfid_tag_id: rfidTag,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', itemId);
+            
+            if (error) throw error;
+        }
+        
+        await populateRFIDStockTable();
+        showAlert(`✅ RFID atandı: ${rfidTag}`, 'success');
+        
+    } catch (error) {
+        console.error('RFID assign error:', error);
+        showAlert('RFID atama hatası', 'error');
+    }
+}
+
+// Delete RFID Stock
+async function deleteRFIDStock(itemId) {
+    if (!confirm('Bu stok öğesini silmek istediğinize emin misiniz?')) return;
+    
+    try {
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('stock_items')
+                .delete()
+                .eq('id', itemId);
+            
+            if (error) throw error;
+        }
+        
+        await populateRFIDStockTable();
+        showAlert('✅ Stok silindi', 'success');
+        
+    } catch (error) {
+        console.error('Delete error:', error);
+        showAlert('Silme hatası', 'error');
+    }
+}
+
+// Make functions globally available
+window.populateRFIDStockTable = populateRFIDStockTable;
+window.startRFIDScanner = startRFIDScanner;
+window.stopRFIDScanner = stopRFIDScanner;
+window.editRFIDStock = editRFIDStock;
+window.assignRFIDTag = assignRFIDTag;
+window.deleteRFIDStock = deleteRFIDStock;
+window.updateRFIDStatus = updateRFIDStatus;
+
+// Replace populateStockTable with RFID version
+window.populateStockTable = populateRFIDStockTable;
 
 
 
