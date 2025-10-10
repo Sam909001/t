@@ -32,25 +32,17 @@ window.showAllWorkstationPrinters = function() {
     return allPrinters;
 };
 
+// Enhanced workspace validation function
 function validateWorkspaceAccessStrict(data, tableName = 'packages') {
     if (!window.workspaceManager) {
         console.error('🚨 Workspace manager not initialized');
         return false;
     }
     
-    const currentWorkspaceId = getCurrentWorkspaceId();
-    
-    // Simple workspace validation - only check workspace_id
-    if (data.workspace_id && data.workspace_id !== currentWorkspaceId) {
-        console.warn('🔒 Access denied: Different workspace', {
-            data_workspace: data.workspace_id,
-            current_workspace: currentWorkspaceId
-        });
-        return false;
-    }
-    
-    return true;
+    return window.workspaceManager.validateDataAccess(tableName, data);
 }
+
+
 
 // ==================== WORKSTATION PRINTER FUNCTIONS ====================
 
