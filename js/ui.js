@@ -2060,6 +2060,28 @@ function clearStockSearch() {
 }
 
 
+// ==================== FIX: TOGGLE ALL CONTAINERS IN SHIPPING TAB ====================
+
+function toggleSelectAllContainers(checkbox) {
+    const checkboxes = document.querySelectorAll('.container-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    
+    const count = checkbox.checked ? checkboxes.length : 0;
+    console.log(`Selected ${count} containers`);
+}
+
+// Also create the old function name for backwards compatibility
+function toggleSelectAllCustomer(checkbox) {
+    toggleSelectAllContainers(checkbox);
+}
+
+// Make globally available
+window.toggleSelectAllContainers = toggleSelectAllContainers;
+window.toggleSelectAllCustomer = toggleSelectAllCustomer;
+
+
 
 // ==================== WORKSPACE UI FUNCTIONS ====================
 // Add this at the BOTTOM of ui.js (after all existing functions)
