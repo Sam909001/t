@@ -496,6 +496,193 @@ convertToCSV: function(data) {
     }
 };
 
+
+// ==================== ENHANCED OFFLINE-TO-ONLINE SYNC ====================
+
+// Track offline changes
+let offlineChangesQueue = [];
+
+// Save offline change to queue
+function queueOfflineChange(type, data) {
+    const change = {
+        id: generateUUID(),
+        type: type, // 'package', 'container', 'stock'
+        action: data.action, // 'create', 'update', 'delete'
+        data: data,
+        timestamp: new Date().toISOString(),
+        workspace_id: getCurrentWorkspaceId(),
+        synced: false
+    };
+    
+    offlineChangesQueue.push(change);
+    localStorage.setItem('offline_sync_queue', JSON.stringify(offlineChangesQueue));
+    
+    console.log('📝 Queued offline change:', change);
+}
+
+// Load offline queue on startup
+function loadOfflineQueue() {
+    const saved = localStorage.getItem('offline_sync_queue');
+    if (saved) {
+        offlineChangesQueue = JSON.parse(saved);
+        console.log(`📋 Loaded ${offlineChangesQueue.length} offline changes`);
+    }
+}
+
+// Sync offline changes when online
+async function syncOfflineChanges() {
+    if (!navigator.onLine || !supabase) {
+        console.log('⏸️ Cannot sync: offline or no Supabase');
+        return;
+    }
+    
+    if (offlineChangesQueue.length === 0) {
+        console.log('✅ No offline changes to sync');
+        return;
+    }
+    
+    console.log(`🔄 Syncing ${offlineChangesQueue.length} offline changes...`);
+    
+    const results = {
+        success: 0,
+        failed: 0,
+        errors: []
+    };
+    
+    for (const change of offlineChangesQueue) {
+        if (change.synced) continue;
+        
+        try {
+            switch (change.type) {
+                case 'package':
+                    await syncOfflinePackage(change);
+                    break;
+                case 'container':
+                    await syncOfflineContainer(change);
+                    break;
+                case 'stock':
+                    await syncOfflineStock(change);
+                    break;
+            }
+            
+            change.synced = true;
+            results.success++;
+            
+        } catch (error) {
+            console.error(`❌ Sync failed for change ${change.id}:`, error);
+            results.failed++;
+            results.errors.push({ change: change.id, error: error.message });
+        }
+    }
+    
+    // Remove synced changes
+    offlineChangesQueue = offlineChangesQueue.filter(c => !c.synced);
+    localStorage.setItem('offline_sync_queue', JSON.stringify(offlineChangesQueue));
+    
+    console.log('✅ Sync complete:', results);
+    
+    if (results.success > 0) {
+        showAlert(`${results.success} offline değişiklik senkronize edildi!`, 'success');
+    }
+    
+    if (results.failed > 0) {
+        showAlert(`${results.failed} değişiklik senkronize edilemedi`, 'warning');
+    }
+    
+    return results;
+}
+
+// Sync individual package
+async function syncOfflinePackage(change) {
+    const { action, data } = change.data;
+    
+    switch (action) {
+        case 'create':
+            const { error: createError } = await supabase
+                .from('packages')
+                .insert([data]);
+            if (createError) throw createError;
+            break;
+            
+        case 'update':
+            const { error: updateError } = await supabase
+                .from('packages')
+                .update(data)
+                .eq('id', data.id);
+            if (updateError) throw updateError;
+            break;
+            
+        case 'delete':
+            const { error: deleteError } = await supabase
+                .from('packages')
+                .delete()
+                .eq('id', data.id);
+            if (deleteError) throw deleteError;
+            break;
+    }
+}
+
+// Sync individual container
+async function syncOfflineContainer(change) {
+    const { action, data } = change.data;
+    
+    switch (action) {
+        case 'create':
+            const { error: createError } = await supabase
+                .from('containers')
+                .insert([data]);
+            if (createError) throw createError;
+            break;
+            
+        case 'update':
+            const { error: updateError } = await supabase
+                .from('containers')
+                .update(data)
+                .eq('id', data.id);
+            if (updateError) throw updateError;
+            break;
+    }
+}
+
+// Sync individual stock
+async function syncOfflineStock(change) {
+    const { action, data } = change.data;
+    
+    switch (action) {
+        case 'update':
+            const { error } = await supabase
+                .from('stock_items')
+                .update({ quantity: data.quantity })
+                .eq('code', data.code);
+            if (error) throw error;
+            break;
+    }
+}
+
+// Auto-sync when coming online
+window.addEventListener('online', async function() {
+    console.log('🌐 Network online - syncing offline changes...');
+    showAlert('İnternet bağlantısı tekrar kuruldu, veriler senkronize ediliyor...', 'info');
+    
+    setTimeout(async () => {
+        await syncOfflineChanges();
+    }, 2000);
+});
+
+// Monitor offline status
+window.addEventListener('offline', function() {
+    console.log('📡 Network offline - using local storage');
+    showAlert('İnternet bağlantısı kesildi, veriler yerel olarak kaydediliyor', 'warning');
+});
+
+// Initialize on app start
+loadOfflineQueue();
+
+// Make globally available
+window.queueOfflineChange = queueOfflineChange;
+window.syncOfflineChanges = syncOfflineChanges;
+
+
 // Excel.js library (simple implementation) - Enhanced with ExcelStorage functionality
 const ExcelJS = {
     readFile: async function() {
