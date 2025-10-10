@@ -4293,7 +4293,7 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// ==================== EXCEL BUTTONS - PERMANENT FIX ====================
+// ==================== EXCEL BUTTONS - FINAL WORKING VERSION ====================
 console.log("📦 Loading Excel buttons in ui.js...");
 
 // Define functions FIRST to ensure they exist
@@ -4389,155 +4389,51 @@ function clearExcelWithPassword() {
 window.refreshExcelData = refreshExcelData;
 window.clearExcelWithPassword = clearExcelWithPassword;
 
-// Robust event listener attachment
-function attachExcelButtonListeners() {
-    console.log('🔗 Attaching Excel button listeners...');
+// SIMPLE WORKING SOLUTION - Use direct onclick assignment
+function initializeExcelButtons() {
+    console.log('🚀 Initializing Excel buttons with SIMPLE solution...');
     
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
     if (refreshBtn) {
-        // Remove any existing listeners first
-        refreshBtn.replaceWith(refreshBtn.cloneNode(true));
-        const newRefreshBtn = document.getElementById('refreshExcelBtn');
-        newRefreshBtn.onclick = refreshExcelData;
-        console.log('✅ Refresh listener attached to:', newRefreshBtn);
-    } else {
-        console.log('❌ Refresh button not found in DOM');
+        // Remove ALL existing listeners by cloning
+        const newRefreshBtn = refreshBtn.cloneNode(true);
+        refreshBtn.parentNode.replaceChild(newRefreshBtn, refreshBtn);
+        
+        // Use simple onclick assignment (not addEventListener)
+        document.getElementById('refreshExcelBtn').onclick = refreshExcelData;
+        console.log('✅ Refresh button initialized with onclick');
     }
     
     if (clearBtn) {
-        // Remove any existing listeners first
-        clearBtn.replaceWith(clearBtn.cloneNode(true));
-        const newClearBtn = document.getElementById('clearExcelBtn');
-        newClearBtn.onclick = clearExcelWithPassword;
-        console.log('✅ Clear listener attached to:', newClearBtn);
-    } else {
-        console.log('❌ Clear button not found in DOM');
+        // Remove ALL existing listeners by cloning
+        const newClearBtn = clearBtn.cloneNode(true);
+        clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+        
+        // Use simple onclick assignment (not addEventListener)
+        document.getElementById('clearExcelBtn').onclick = clearExcelWithPassword;
+        console.log('✅ Clear button initialized with onclick');
     }
-}
-
-// Enhanced initialization with multiple retries
-function initializeExcelButtons() {
-    console.log('🚀 Initializing Excel buttons...');
-    
-    // Try immediate attachment
-    attachExcelButtonListeners();
-    
-    // Retry with increasing delays
-    const retryDelays = [100, 500, 1000, 2000, 5000];
-    retryDelays.forEach(delay => {
-        setTimeout(() => {
-            if (!areExcelButtonsWorking()) {
-                console.log(`🔄 Retrying Excel button attachment after ${delay}ms`);
-                attachExcelButtonListeners();
-            }
-        }, delay);
-    });
-}
-
-// Check if buttons are working
-function areExcelButtonsWorking() {
-    const refreshBtn = document.getElementById('refreshExcelBtn');
-    const clearBtn = document.getElementById('clearExcelBtn');
-    
-    const refreshWorking = refreshBtn && typeof refreshBtn.onclick === 'function';
-    const clearWorking = clearBtn && typeof clearBtn.onclick === 'function';
-    
-    console.log('🔍 Excel buttons status:', {
-        refreshBtnExists: !!refreshBtn,
-        clearBtnExists: !!clearBtn,
-        refreshWorking: refreshWorking,
-        clearWorking: clearWorking
-    });
-    
-    return refreshWorking && clearWorking;
-}
-
-// Test function to verify Excel buttons
-function testExcelButtons() {
-    console.log('🧪 Testing Excel buttons...');
-    
-    const refreshBtn = document.getElementById('refreshExcelBtn');
-    const clearBtn = document.getElementById('clearExcelBtn');
-    
-    if (!refreshBtn) {
-        console.log('❌ Refresh Excel button not found in DOM');
-        return false;
-    }
-    
-    if (!clearBtn) {
-        console.log('❌ Clear Excel button not found in DOM');
-        return false;
-    }
-    
-    console.log('✅ Excel buttons found in DOM');
-    console.log('📍 Refresh button:', refreshBtn);
-    console.log('📍 Clear button:', clearBtn);
-    
-    return true;
 }
 
 // Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('📄 DOM Content Loaded - Initializing Excel buttons');
-        initializeExcelButtons();
-        
-        // Test after a delay
-        setTimeout(() => {
-            testExcelButtons();
-            console.log('🎯 Excel buttons initialization complete');
-        }, 2000);
-    });
-} else {
-    console.log('📄 DOM already loaded - Initializing Excel buttons immediately');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM Content Loaded - Initializing Excel buttons');
+    
+    // Initial try
     initializeExcelButtons();
     
-    setTimeout(() => {
-        testExcelButtons();
-        console.log('🎯 Excel buttons initialization complete');
-    }, 2000);
-}
-
-// Export for manual testing
-window.testExcelButtons = testExcelButtons;
-window.attachExcelButtonListeners = attachExcelButtonListeners;
-window.initializeExcelButtons = initializeExcelButtons;
-
-console.log("✅ Fixed Excel buttons loaded in ui.js!");
-
-// ✅ Ensure Excel buttons work even if UI loads dynamically
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    const refreshBtn = document.getElementById("refreshExcelBtn");
-    const clearBtn = document.getElementById("clearExcelBtn");
-
-    if (!refreshBtn || !clearBtn) {
-      console.warn("⚠️ Excel buttons not found at init, will retry...");
-      return;
-    }
-
-    refreshBtn.addEventListener("click", async () => {
-      console.log("🔄 Refresh Excel clicked");
-      if (window.ExcelStorage) {
-        const packages = await ExcelStorage.readFile();
-        showAlert(`📦 ${packages.length} paket güncellendi`, "success");
-      } else {
-        showAlert("❌ ExcelStorage tanımlı değil", "error");
-      }
-    });
-
-    clearBtn.addEventListener("click", () => {
-      console.log("🧹 Clear Excel clicked");
-      if (confirm("Tüm Excel verilerini silmek istediğinize emin misiniz?")) {
-        Object.keys(localStorage)
-          .filter(k => k.startsWith("packages_"))
-          .forEach(k => localStorage.removeItem(k));
-        showAlert("🗑️ Tüm Excel verileri temizlendi", "success");
-      }
-    });
-
-    console.log("✅ Excel buttons listeners attached");
-  }, 500); // 0.5s delay ensures DOM is ready
+    // Retry after a short delay (in case buttons load later)
+    setTimeout(initializeExcelButtons, 1000);
+    setTimeout(initializeExcelButtons, 3000);
 });
+
+// Also initialize when the page becomes visible
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        setTimeout(initializeExcelButtons, 500);
+    }
+});
+
+console.log("✅ SIMPLE Excel buttons solution loaded!");
