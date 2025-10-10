@@ -214,7 +214,7 @@ window.ExcelStorage = {
         }
         return files;
     },
-    
+    console.log('✅ ExcelStorage DEFINED - is it working?');
     // Read from today's file
     readFile: async function() {
         try {
