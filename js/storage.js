@@ -66,28 +66,25 @@ const StorageManager = {
     }
   },
 
- // In storage.js - Update StorageManager.clear()
-async clear() {
+  // Clear all storage
+  async clear() {
     try {
-        if (this.isElectron()) {
-            // Clear Electron storage
-            const keys = await window.electronAPI.storeKeys();
-            for (const key of keys) {
-                await window.electronAPI.storeDelete(key);
-            }
-            console.log('✅ Electron storage cleared');
-        } else {
-            // ✅ FIX: Clear browser localStorage completely
-            localStorage.clear();
-            console.log('✅ LocalStorage cleared completely');
-        }
-        return true;
+      if (this.isElectron()) {
+        // Clear Electron storage (implement if needed)
+        // You may need to add a clearAll handler in main.js
+        console.warn('Clear all not implemented for Electron storage');
+      } else {
+        // Clear browser localStorage
+        localStorage.clear();
+      }
+      return true;
     } catch (error) {
-        console.error('Storage clear error:', error);
-        return false;
+      console.error('Storage clear error:', error);
+      return false;
     }
-}
-  
+  }
+};
+
 // Workstation-specific storage helpers
 const WorkstationStorage = {
   // Save workstation name
