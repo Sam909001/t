@@ -2668,7 +2668,7 @@ let rfidScanBuffer = '';
 let rfidLastScanTime = 0;
 
 // Populate Stock Table with RFID Support
-async function populateRFIDStockTable() {
+async function populateStockTable() {
     const tbody = document.getElementById('stockTableBody');
     if (!tbody) {
         console.error('Stock table body not found');
