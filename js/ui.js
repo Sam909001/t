@@ -1871,6 +1871,173 @@ function addExportButtons() {
     `;
 }
 
+
+
+// ==================== ELECTRON INPUT FIX ====================
+
+// Detect Electron environment
+function isElectronEnvironment() {
+    return window.isElectronApp || 
+           (typeof window.process !== 'undefined' && window.process.type === 'renderer') ||
+           navigator.userAgent.toLowerCase().includes('electron');
+}
+
+// Fix input focus issues in Electron
+function fixElectronInputs() {
+    if (!isElectronEnvironment()) {
+        console.log('Not Electron - skipping input fixes');
+        return;
+    }
+    
+    console.log('🔧 Applying Electron input fixes...');
+    
+    // Fix all input elements
+    const allInputs = document.querySelectorAll('input, textarea, select');
+    
+    allInputs.forEach(input => {
+        // Remove any problematic attributes
+        input.removeAttribute('readonly');
+        
+        // Ensure proper focus behavior
+        input.addEventListener('focus', function() {
+            this.style.userSelect = 'text';
+            this.style.webkitUserSelect = 'text';
+            this.readOnly = false;
+            
+            // Force cursor position for text inputs
+            if (this.type === 'text' || this.type === 'number' || this.tagName === 'TEXTAREA') {
+                setTimeout(() => {
+                    this.setSelectionRange(this.value.length, this.value.length);
+                }, 10);
+            }
+        });
+        
+        // Fix click events
+        input.addEventListener('click', function(e) {
+            e.stopPropagation();
+            this.focus();
+        });
+        
+        // Fix keyboard events
+        input.addEventListener('keydown', function(e) {
+            e.stopPropagation();
+        });
+    });
+    
+    console.log(`✅ Fixed ${allInputs.length} input elements for Electron`);
+}
+
+// Fix modal inputs specifically
+function fixModalInputs(modalId) {
+    if (!isElectronEnvironment()) return;
+    
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    
+    const inputs = modal.querySelectorAll('input, textarea, select');
+    
+    inputs.forEach(input => {
+        input.style.pointerEvents = 'auto';
+        input.style.userSelect = 'text';
+        input.style.webkitUserSelect = 'text';
+        input.tabIndex = 0;
+        
+        // Force enable
+        input.disabled = false;
+        input.readOnly = false;
+    });
+    
+    // Focus first input
+    setTimeout(() => {
+        const firstInput = inputs[0];
+        if (firstInput) {
+            firstInput.focus();
+            firstInput.click();
+        }
+    }, 100);
+}
+
+// Enhanced modal opener for Electron
+function openModalSafe(modalId, inputId) {
+    const modal = document.getElementById(modalId);
+    const input = inputId ? document.getElementById(inputId) : null;
+    
+    if (!modal) return;
+    
+    modal.style.display = 'flex';
+    
+    if (isElectronEnvironment()) {
+        // Apply Electron fixes
+        fixModalInputs(modalId);
+        
+        if (input) {
+            setTimeout(() => {
+                input.focus();
+                input.value = '';
+                input.style.userSelect = 'text';
+                input.style.webkitUserSelect = 'text';
+                input.readOnly = false;
+                input.disabled = false;
+            }, 150);
+        }
+    } else {
+        // Normal browser behavior
+        if (input) {
+            setTimeout(() => input.focus(), 50);
+        }
+    }
+}
+
+// Replace openQuantityModal with Electron-safe version
+function openQuantityModal(productName) {
+    selectedProduct = productName;
+    
+    const modal = document.getElementById('quantityModal');
+    const input = document.getElementById('quantityInput');
+    const title = document.getElementById('quantityModalTitle');
+    
+    if (!modal || !input || !title) return;
+    
+    title.textContent = `${productName} - Miktar Girin`;
+    input.value = '';
+    
+    openModalSafe('quantityModal', 'quantityInput');
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+    if (isElectronEnvironment()) {
+        console.log('📱 Electron detected - initializing input fixes');
+        fixElectronInputs();
+        
+        // Re-apply fixes when modals open
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'style') {
+                    const target = mutation.target;
+                    if (target.classList.contains('modal') && 
+                        target.style.display === 'flex') {
+                        fixModalInputs(target.id);
+                    }
+                }
+            });
+        });
+        
+        document.querySelectorAll('.modal').forEach(modal => {
+            observer.observe(modal, { attributes: true });
+        });
+    }
+});
+
+// Make globally available
+window.fixElectronInputs = fixElectronInputs;
+window.fixModalInputs = fixModalInputs;
+window.openModalSafe = openModalSafe;
+window.openQuantityModal = openQuantityModal;
+
+
+
+
 // Initialize export buttons when app loads
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(addExportButtons, 2000); // Add after app initializes
