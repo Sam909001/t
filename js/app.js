@@ -1872,3 +1872,34 @@ window.reinitializeExcelButtons = initializeExcelButtons;
 document.addEventListener("DOMContentLoaded", async () => {
     await loadExistingPackageIds();
 });
+
+
+
+
+
+// Fix workspace initialization
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait a bit for the DOM to be fully ready
+    setTimeout(() => {
+        // Initialize workspace UI
+        if (typeof updateWorkspaceUI === 'function') {
+            updateWorkspaceUI();
+        }
+        
+        // Remove any getEventListeners calls from your code
+        if (typeof getEventListeners !== 'undefined') {
+            console.warn('⚠️ Remove getEventListeners() calls from production code');
+        }
+    }, 1000);
+});
+
+// Ensure workspace manager exists
+if (!window.workspaceManager) {
+    window.workspaceManager = {
+        currentWorkspace: null,
+        showWorkspaceSelection: function() {
+            alert('Workspace selection will be implemented here');
+        },
+        updateWorkspaceUI: updateWorkspaceUI
+    };
+}
