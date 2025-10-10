@@ -4292,7 +4292,6 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-
 // ==================== EXCEL BUTTONS - FINAL WORKING VERSION ====================
 console.log("📦 Loading Excel buttons in ui.js...");
 
@@ -4335,12 +4334,29 @@ function refreshExcelData() {
     }
 }
 
+// Updated clear function using PasswordGuard
 function clearExcelWithPassword() {
-    console.log('🎯 CLEAR EXCEL WITH PASSWORD CALLED');
-    const password = prompt('Excel verilerini temizlemek için şifre girin (9494):');
+    console.log('🎯 CLEAR EXCEL WITH PASSWORD GUARD CALLED');
     
-    if (password === '9494') {
-        try {
+    // Check if PasswordGuard is available
+    if (typeof PasswordGuard === 'undefined') {
+        console.warn('PasswordGuard not available, using fallback');
+        // Fallback to simple password prompt
+        const password = prompt('Excel verilerini temizlemek için şifre girin (8823):');
+        if (password === '8823') {
+            clearExcelData();
+        } else if (password !== null) {
+            showAlert('❌ Hatalı şifre!', 'error');
+        }
+        return;
+    }
+    
+    const passwordGuard = new PasswordGuard();
+    
+    try {
+        passwordGuard.askPasswordAndRun(() => {
+            console.log('🔐 Password verified - clearing Excel data');
+            
             const btn = document.getElementById('clearExcelBtn');
             if (btn) {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Temizleniyor...';
@@ -4368,10 +4384,7 @@ function clearExcelWithPassword() {
             
             showAlert('✅ Excel verileri temizlendi!', 'success');
             
-        } catch (error) {
-            console.error('Clear error:', error);
-            showAlert('Temizleme hatası: ' + error.message, 'error');
-        } finally {
+            // Reset button state
             setTimeout(() => {
                 const btn = document.getElementById('clearExcelBtn');
                 if (btn) {
@@ -4379,9 +4392,20 @@ function clearExcelWithPassword() {
                     btn.disabled = false;
                 }
             }, 1000);
+            
+        }, 'Excel verilerini temizleme', 'default');
+        
+    } catch (error) {
+        if (error.message !== 'User cancelled') {
+            console.error('Clear error:', error);
+            showAlert('Temizleme hatası: ' + error.message, 'error');
         }
-    } else if (password !== null) {
-        showAlert('❌ Hatalı şifre!', 'error');
+        // Reset button state on error too
+        const btn = document.getElementById('clearExcelBtn');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-trash"></i> Temizle';
+            btn.disabled = false;
+        }
     }
 }
 
