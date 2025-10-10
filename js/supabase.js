@@ -2033,20 +2033,38 @@ row.innerHTML = `
 
         
         
-       // Calculate total quantity of selected packages
-async function calculateTotalQuantity(packageIds) {
+      // Fallback: Get package quantities from localStorage
+function getPackageQuantityFallback(packageIds) {
+    console.log('🔄 Using localStorage fallback for quantities...');
+    
     try {
-        const { data: packages, error } = await supabase
-            .from('packages')
-            .select('total_quantity')
-            .in('id', packageIds);
-
-        if (error) throw error;
-
-        return packages.reduce((sum, pkg) => sum + pkg.total_quantity, 0);
+        // Try to get from current workspace
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const packagesData = JSON.parse(localStorage.getItem(`packages_${workspaceId}`) || '[]');
+        
+        if (!packagesData || packagesData.length === 0) {
+            console.warn('⚠️ No packages in localStorage');
+            return 0;
+        }
+        
+        // Sum quantities for matching IDs
+        let totalQuantity = 0;
+        packageIds.forEach(id => {
+            const pkg = packagesData.find(p => p.id === id);
+            if (pkg && pkg.total_quantity) {
+                totalQuantity += parseInt(pkg.total_quantity) || 0;
+                console.log(`  - Found package ${id}: quantity = ${pkg.total_quantity}`);
+            } else {
+                console.warn(`  - Package ${id} not found in localStorage`);
+            }
+        });
+        
+        console.log(`✅ Fallback total quantity: ${totalQuantity}`);
+        return totalQuantity;
+        
     } catch (error) {
-        console.error('Error calculating total quantity:', error);
-        return packageIds.length; // fallback
+        console.error('❌ Fallback error:', error);
+        return 0;
     }
 }
 
