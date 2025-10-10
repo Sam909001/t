@@ -198,6 +198,11 @@ async function initApp() {
             setupEnhancedSyncTriggers();
         }
         
+        // CRITICAL FIX: Load offline queue on startup
+        if (typeof loadOfflineQueue === 'function') {
+            loadOfflineQueue();
+        }
+        
         // 6. Setup event listeners
         setupEventListeners();
         
@@ -249,17 +254,40 @@ async function initApp() {
             setupBarcodeScanner();
         }
         
+        // CRITICAL FIX: Setup offline-to-online sync listeners
+        window.addEventListener('online', async function() {
+            console.log('🌐 Network online - syncing offline changes...');
+            showAlert('İnternet bağlantısı tekrar kuruldu, veriler senkronize ediliyor...', 'info');
+            
+            setTimeout(async () => {
+                if (typeof syncOfflineChanges === 'function') {
+                    await syncOfflineChanges();
+                }
+            }, 2000);
+        });
+
+        window.addEventListener('offline', function() {
+            console.log('📡 Network offline - using local storage');
+            showAlert('İnternet bağlantısı kesildi, veriler yerel olarak kaydediliyor', 'warning');
+        });
+        
         // 15. Start daily auto-clear
         scheduleDailyClear();
         
         // 16. Auto-sync on startup if online and not in Electron
         if (navigator.onLine && supabase && !runningInElectron) {
             setTimeout(async () => {
+                // CRITICAL FIX: Sync offline changes first before normal sync
+                if (typeof syncOfflineChanges === 'function') {
+                    await syncOfflineChanges();
+                }
+                
                 if (typeof syncExcelWithSupabase === 'function') {
                     await syncExcelWithSupabase();
                 }
             }, 5000);
         }
+        
         const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
         console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
         showAlert('Uygulama başarıyla başlatıldı!', 'success', 3000);
@@ -267,10 +295,33 @@ async function initApp() {
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
         console.error('Error stack:', error.stack);
+        
+        // CRITICAL FIX: User-friendly error recovery
         showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        
+        // Show recovery UI
+        const recoveryUI = document.createElement('div');
+        recoveryUI.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 2rem; border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 10000;
+            text-align: center; max-width: 400px;
+        `;
+        
+        recoveryUI.innerHTML = `
+            <div style="margin-bottom: 1.5rem;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #e74c3c;"></i>
+            </div>
+            <h3 style="margin-bottom: 1rem; color: #2c3e50;">Başlatma Hatası</h3>
+            <p style="margin-bottom: 1.5rem; color: #666;">${error.message}</p>
+            <button onclick="location.reload()" style="padding: 0.8rem 1.5rem; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                <i class="fas fa-sync"></i> Yeniden Dene
+            </button>
+        `;
+        
+        document.body.appendChild(recoveryUI);
     }
 }
-
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
