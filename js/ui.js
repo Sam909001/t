@@ -3333,87 +3333,60 @@ async function deleteReport(fileName) {
     }
 }
 
-// Add to ui.js - Fix select all functionality
+// =======================
+// UI.js – Select All System
+// =======================
 
-// Remove any existing conflicting functions first
-if (window.toggleSelectAll) delete window.toggleSelectAll;
-if (window.toggleSelectAllPackages) delete window.toggleSelectAllPackages;
-if (window.toggleSelectAllContainers) delete window.toggleSelectAllContainers;
-if (window.toggleSelectAllCustomer) delete window.toggleSelectAllCustomer;
+// --- Remove any old conflicting global functions ---
+['toggleSelectAll', 'toggleSelectAllPackages', 'toggleSelectAllContainers', 'toggleSelectAllCustomer']
+    .forEach(fn => { if (window[fn]) delete window[fn]; });
 
-// MAIN FUNCTION: Select All for Packages (works with your HTML)
+// -----------------------
+// MAIN FUNCTIONS
+// -----------------------
+
+// Packages select-all
 window.toggleSelectAllPackages = function(source) {
     try {
-        console.log('toggleSelectAllPackages called with:', source);
-        
-        // Handle both event object and checkbox element
         const checkbox = source && source.target ? source.target : source;
-        const isChecked = checkbox ? checkbox.checked : false;
-        
-        if (!checkbox) {
-            console.error('No checkbox found in toggleSelectAllPackages');
-            return;
-        }
-        
+        if (!checkbox) return;
+
+        const isChecked = checkbox.checked;
         const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-        
-        packageCheckboxes.forEach(cb => {
-            cb.checked = isChecked;
-        });
-        
+        packageCheckboxes.forEach(cb => cb.checked = isChecked);
+
+        if (typeof updatePackageSelection === 'function') updatePackageSelection();
         console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${packageCheckboxes.length} packages`);
-        
-        // Update selection UI
-        if (typeof updatePackageSelection === 'function') {
-            updatePackageSelection();
-        }
-        
     } catch (error) {
         console.error('❌ Error in toggleSelectAllPackages:', error);
     }
 };
 
-// MAIN FUNCTION: Select All for Containers
+// Containers select-all
 window.toggleSelectAllContainers = function(source) {
     try {
-        console.log('toggleSelectAllContainers called with:', source);
-        
-        // Handle both event object and checkbox element
         const checkbox = source && source.target ? source.target : source;
-        const isChecked = checkbox ? checkbox.checked : false;
-        
-        if (!checkbox) {
-            console.error('No checkbox found in toggleSelectAllContainers');
-            return;
-        }
-        
+        if (!checkbox) return;
+
+        const isChecked = checkbox.checked;
         const containerCheckboxes = document.querySelectorAll('.container-checkbox');
-        
-        containerCheckboxes.forEach(cb => {
-            cb.checked = isChecked;
-        });
-        
+        containerCheckboxes.forEach(cb => cb.checked = isChecked);
+
+        if (typeof updateContainerSelection === 'function') updateContainerSelection();
         console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${containerCheckboxes.length} containers`);
-        
-        // Update selection UI
-        if (typeof updateContainerSelection === 'function') {
-            updateContainerSelection();
-        }
-        
     } catch (error) {
         console.error('❌ Error in toggleSelectAllContainers:', error);
     }
 };
 
-// 1️⃣ Define the function first
+// Customer folders select-all
 window.toggleSelectAllCustomer = function(source) {
     try {
-        console.log('toggleSelectAllCustomer called with:', source);
         const checkbox = source && source.target ? source.target : source;
-        if (!checkbox) return console.error('No checkbox found');
+        if (!checkbox) return;
 
         const folder = checkbox.closest('.customer-folder');
-        if (!folder) return console.error('Customer folder not found');
+        if (!folder) return;
 
         const isChecked = checkbox.checked;
         const checkboxes = folder.querySelectorAll('.container-checkbox');
@@ -3425,246 +3398,136 @@ window.toggleSelectAllCustomer = function(source) {
     }
 };
 
-// 2️⃣ Attach the function dynamically to checkboxes
-document.addEventListener('DOMContentLoaded', () => {
-    const customerFolderCheckboxes = document.querySelectorAll('.customer-
-
-// FIXED GENERIC FUNCTION: Works with your HTML that calls toggleSelectAll() without parameters
+// Generic toggle function if HTML uses toggleSelectAll()
 window.toggleSelectAll = function() {
     try {
-        console.log('toggleSelectAll called');
-        
-        // Get the event that triggered this function
         const event = window.event || arguments.callee.caller.arguments[0];
-        if (!event) {
-            console.error('No event found in toggleSelectAll');
-            return;
-        }
-        
+        if (!event) return;
+
         const checkbox = event.target || event.srcElement;
-        if (!checkbox) {
-            console.error('No checkbox found in toggleSelectAll');
-            return;
-        }
-        
+        if (!checkbox) return;
+
         const isChecked = checkbox.checked;
-        
-        // Determine which table based on checkbox ID
-        if (checkbox.id === 'selectAllPackages') {
-            const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-            packageCheckboxes.forEach(cb => {
-                cb.checked = isChecked;
-            });
-            console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${packageCheckboxes.length} packages`);
-            
-            if (typeof updatePackageSelection === 'function') {
-                updatePackageSelection();
-            }
-        }
-        else if (checkbox.id === 'selectAllContainers') {
-            const containerCheckboxes = document.querySelectorAll('.container-checkbox');
-            containerCheckboxes.forEach(cb => {
-                cb.checked = isChecked;
-            });
-            console.log(`${isChecked ? '✅ Selected' : '❌ Deselected'} ${containerCheckboxes.length} containers`);
-            
-            if (typeof updateContainerSelection === 'function') {
-                updateContainerSelection();
-            }
-        }
-        else {
-            console.warn('⚠️ Unknown checkbox ID in toggleSelectAll:', checkbox.id);
-        }
-        
+
+        if (checkbox.id === 'selectAllPackages') window.toggleSelectAllPackages(checkbox);
+        else if (checkbox.id === 'selectAllContainers') window.toggleSelectAllContainers(checkbox);
+        else console.warn('⚠️ Unknown select-all checkbox ID:', checkbox.id);
     } catch (error) {
         console.error('❌ Error in toggleSelectAll:', error);
     }
 };
 
-// Update package selection count and select-all checkbox state
+// -----------------------
+// UPDATE FUNCTIONS
+// -----------------------
 function updatePackageSelection() {
     try {
         const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
         const checkedBoxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
-        
-        const selectAllCheckbox = document.getElementById('selectAllPackages');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-            selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
+
+        const selectAll = document.getElementById('selectAllPackages');
+        if (selectAll) {
+            selectAll.checked = checkboxes.length === checkedBoxes.length && checkboxes.length > 0;
+            selectAll.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
         }
-        
+
         console.log(`📦 Packages selected: ${checkedBoxes.length}/${checkboxes.length}`);
-        
     } catch (error) {
         console.error('❌ Error in updatePackageSelection:', error);
     }
 }
 
-// Update container selection count and select-all checkbox state
 function updateContainerSelection() {
     try {
         const checkboxes = document.querySelectorAll('.container-checkbox');
         const checkedBoxes = document.querySelectorAll('.container-checkbox:checked');
-        
-        const selectAllCheckbox = document.getElementById('selectAllContainers');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
-            selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
+
+        const selectAll = document.getElementById('selectAllContainers');
+        if (selectAll) {
+            selectAll.checked = checkboxes.length === checkedBoxes.length && checkboxes.length > 0;
+            selectAll.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
         }
-        
+
         console.log(`📦 Containers selected: ${checkedBoxes.length}/${checkboxes.length}`);
-        
     } catch (error) {
         console.error('❌ Error in updateContainerSelection:', error);
     }
 }
 
-// Setup event listeners for individual checkboxes
+// -----------------------
+// INDIVIDUAL CHECKBOX HANDLERS
+// -----------------------
+function handlePackageCheckboxChange() { updatePackageSelection(); }
+function handleContainerCheckboxChange() { updateContainerSelection(); }
+
+// -----------------------
+// SETUP EVENT LISTENERS
+// -----------------------
 function setupSelectionListeners() {
     try {
         console.log('🔧 Setting up selection listeners...');
-        
+
         // Package checkboxes
-        const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-        packageCheckboxes.forEach(checkbox => {
-            checkbox.removeEventListener('change', handlePackageCheckboxChange);
-            checkbox.addEventListener('change', handlePackageCheckboxChange);
+        document.querySelectorAll('#packagesTableBody input[type="checkbox"]').forEach(cb => {
+            cb.removeEventListener('change', handlePackageCheckboxChange);
+            cb.addEventListener('change', handlePackageCheckboxChange);
         });
-        
+
         // Container checkboxes
-        const containerCheckboxes = document.querySelectorAll('.container-checkbox');
-        containerCheckboxes.forEach(checkbox => {
-            checkbox.removeEventListener('change', handleContainerCheckboxChange);
-            checkbox.addEventListener('change', handleContainerCheckboxChange);
+        document.querySelectorAll('.container-checkbox').forEach(cb => {
+            cb.removeEventListener('change', handleContainerCheckboxChange);
+            cb.addEventListener('change', handleContainerCheckboxChange);
         });
-        
-        console.log(`✅ Setup ${packageCheckboxes.length} package and ${containerCheckboxes.length} container listeners`);
-        
+
+        // Customer folder checkboxes
+        document.querySelectorAll('.customer-folder input[type="checkbox"]').forEach(cb => {
+            cb.removeEventListener('change', window.toggleSelectAllCustomer);
+            cb.addEventListener('change', window.toggleSelectAllCustomer);
+        });
+
+        console.log('✅ Selection listeners setup completed');
     } catch (error) {
-        console.error('❌ Error setting up selection listeners:', error);
+        console.error('❌ Error in setupSelectionListeners:', error);
     }
 }
 
-// Handle individual package checkbox changes
-function handlePackageCheckboxChange(event) {
-    if (typeof updatePackageSelection === 'function') {
-        updatePackageSelection();
-    }
-}
-
-// Handle individual container checkbox changes
-function handleContainerCheckboxChange(event) {
-    if (typeof updateContainerSelection === 'function') {
-        updateContainerSelection();
-    }
-}
-
-// Initialize selection system
+// -----------------------
+// INITIALIZATION
+// -----------------------
 function initializeSelectionSystem() {
     try {
         console.log('🚀 Initializing selection system...');
-        
-        // Setup listeners
         setupSelectionListeners();
-        
-        // Initial updates
         updatePackageSelection();
         updateContainerSelection();
-        
         console.log('✅ Selection system initialized');
-        
     } catch (error) {
         console.error('❌ Error initializing selection system:', error);
     }
 }
 
-// Call this when your table data loads
-function refreshSelectionSystem() {
-    setTimeout(() => {
-        setupSelectionListeners();
-        updatePackageSelection();
-        updateContainerSelection();
-    }, 100);
-}
-
-// Test function to verify everything works
-function testSelectionSystem() {
-    try {
-        console.log('🧪 Testing selection system...');
-        
-        const selectAllPackages = document.getElementById('selectAllPackages');
-        const selectAllContainers = document.getElementById('selectAllContainers');
-        
-        if (selectAllPackages) {
-            console.log('✅ selectAllPackages element found');
-        } else {
-            console.log('❌ selectAllPackages element not found');
-        }
-        
-        if (selectAllContainers) {
-            console.log('✅ selectAllContainers element found');
-        } else {
-            console.log('❌ selectAllContainers element not found');
-        }
-        
-        // Test package checkboxes
-        const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-        console.log(`📦 Package checkboxes: ${packageCheckboxes.length}`);
-        
-        // Test container checkboxes
-        const containerCheckboxes = document.querySelectorAll('.container-checkbox');
-        console.log(`📦 Container checkboxes: ${containerCheckboxes.length}`);
-        
-        console.log('✅ Selection system test completed');
-        
-    } catch (error) {
-        console.error('❌ Test error:', error);
-    }
-}
-
-// Quick fix for immediate use
-function quickFixSelection() {
-    try {
-        console.log('🔧 Applying quick selection fix...');
-        
-        // Ensure all functions are available
-        if (!window.toggleSelectAll) {
-            window.toggleSelectAll = function() {
-                const event = window.event;
-                if (event && event.target) {
-                    const checkbox = event.target;
-                    const isChecked = checkbox.checked;
-                    
-                    if (checkbox.id === 'selectAllPackages') {
-                        const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-                        checkboxes.forEach(cb => cb.checked = isChecked);
-                        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${checkboxes.length} packages`);
-                    }
-                }
-            };
-        }
-        
-        console.log('✅ Quick fix applied!');
-        
-    } catch (error) {
-        console.error('❌ Quick fix error:', error);
-    }
-}
-
-// Auto-initialize when DOM is ready
+// -----------------------
+// AUTO-INIT WHEN DOM READY
+// -----------------------
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeSelectionSystem();
-        quickFixSelection();
-    });
+    document.addEventListener('DOMContentLoaded', initializeSelectionSystem);
 } else {
     initializeSelectionSystem();
-    quickFixSelection();
 }
 
-// Export for testing
-window.testSelectionSystem = testSelectionSystem;
-window.refreshSelectionSystem = refreshSelectionSystem;
+// -----------------------
+// OPTIONAL: Testing & Refresh
+// -----------------------
+window.testSelectionSystem = function() {
+    console.log('🧪 Testing selection system...');
+    console.log('Packages:', document.querySelectorAll('#packagesTableBody input[type="checkbox"]').length);
+    console.log('Containers:', document.querySelectorAll('.container-checkbox').length);
+    console.log('Customer folders:', document.querySelectorAll('.customer-folder input[type="checkbox"]').length);
+    console.log('✅ Test completed');
+};
+
+window.refreshSelectionSystem = setupSelectionListeners;
+
 // ==================== REAL DATA COLLECTION FUNCTIONS ====================
 
 // ✅ FUNCTION: Get all packages (real data only)
