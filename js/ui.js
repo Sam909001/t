@@ -4530,3 +4530,49 @@ function toggleSelectAllCustomer(selectAllCheckbox) {
 
 // Make the function globally accessible to the HTML
 window.toggleSelectAllCustomer = toggleSelectAllCustomer;
+
+
+
+// ✅ Excel Buttons - Refresh & Clear
+document.addEventListener('DOMContentLoaded', () => {
+    const refreshBtn = document.getElementById("refreshExcelBtn");
+    const clearBtn = document.getElementById("clearExcelBtn");
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", async () => {
+            showAlert("📄 Excel verileri yenileniyor...", "info");
+            try {
+                if (window.ExcelStorage?.readFile) {
+                    const packages = await ExcelStorage.readFile();
+                    window.excelPackages = packages;
+                    showAlert(`✅ Excel verileri yenilendi (${packages.length} kayıt bulundu)`, "success");
+                } else {
+                    showAlert("❌ ExcelStorage yüklenmedi!", "error");
+                }
+            } catch (err) {
+                console.error("Excel refresh error:", err);
+                showAlert("❌ Excel yenileme hatası", "error");
+            }
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            try {
+                const pass = prompt("Temizlemek için yönetici şifresini girin:");
+                if (pass === "9090") { // <-- set your desired admin password here
+                    localStorage.clear();
+                    window.excelPackages = [];
+                    showAlert("🧹 Tüm Excel verileri temizlendi!", "success");
+                } else if (pass !== null) {
+                    showAlert("❌ Hatalı şifre!", "error");
+                }
+            } catch (err) {
+                console.error("Excel clear error:", err);
+                showAlert("❌ Excel verileri temizlenemedi!", "error");
+            }
+        });
+    }
+
+    console.log("✅ Excel buttons initialized.");
+});
