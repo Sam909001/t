@@ -2472,3 +2472,141 @@ body.modal-open {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* latest update on csss for header */
+
+
+/* ==================== ULTRA-MODERN COMPACT HEADER ==================== */
+
+.app-header {
+    background: #1e293b;
+    color: white;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 64px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.app-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.5px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Minimalist badge style */
+#userRole {
+    background: #334155;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Icon-only buttons with tooltips */
+.user-info .btn,
+.user-info button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.user-info .btn span,
+.user-info button span {
+    display: none;
+}
+
+/* Tooltip on hover */
+.user-info .btn:hover::after,
+.user-info button:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-refresh {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-refresh:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: #64748b;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #475569;
+}
+
+.user-info button[onclick*="logout"] {
+    background: #ef4444;
+    color: white;
+}
+
+.user-info button[onclick*="logout"]:hover {
+    background: #dc2626;
+}
+
+.printer-indicator {
+    background: #334155;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.printer-indicator i {
+    font-size: 13px;
+}
