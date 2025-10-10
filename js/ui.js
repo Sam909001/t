@@ -4276,3 +4276,172 @@ function clearAppState() {
         console.error('❌ Error while clearing app state:', err);
     }
 }
+
+
+
+
+// RFID-COMPATIBLE STOCK TABLE
+
+// Populate Stock Table with RFID Support
+async function populateStockTable() {
+    const stockTableBody = document.getElementById('stockTableBody');
+    if (!stockTableBody) {
+        console.error('Stock table body not found');
+        return;
+    }
+    
+    try {
+        showAlert('Stok tablosu yükleniyor...', 'info', 1000);
+        
+        const workspaceId = getCurrentWorkspaceId();
+        let stockItems = [];
+        
+        // Load from Supabase
+        if (supabase && navigator.onLine) {
+            const { data, error } = await supabase
+                .from('stock_items')
+                .select('*')
+                .eq('workspace_id', workspaceId)
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            if (data) stockItems = data;
+        }
+        
+        // Fallback to localStorage
+        if (stockItems.length === 0) {
+            const localStock = JSON.parse(localStorage.getItem('stock_items') || '[]');
+            stockItems = localStock.filter(item => item.workspace_id === workspaceId);
+        }
+        
+        stockTableBody.innerHTML = '';
+        
+        if (stockItems.length === 0) {
+            stockTableBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Stok bulunamadı</td></tr>';
+            return;
+        }
+        
+        stockItems.forEach(item => {
+            const row = document.createElement('tr');
+            row.dataset.stockId = item.id;
+            row.dataset.rfidTag = item.rfid_tag || '';
+            
+            // Status badge
+            let statusClass, statusText;
+            if (item.quantity === 0) {
+                statusClass = 'status-kritik';
+                statusText = 'Tükendi';
+            } else if (item.quantity < 10) {
+                statusClass = 'status-az-stok';
+                statusText = 'Az Stok';
+            } else if (item.quantity < 50) {
+                statusClass = 'status-uyari';
+                statusText = 'Düşük';
+            } else {
+                statusClass = 'status-stokta';
+                statusText = 'Stokta';
+            }
+            
+            row.innerHTML = `
+                <td>${item.code || 'N/A'}</td>
+                <td>${item.name || 'Bilinmeyen Ürün'}</td>
+                <td>${item.quantity || 0}</td>
+                <td>${item.rfid_tag || 'RFID Yok'}</td>
+                <td><span class="${statusClass}">${statusText}</span></td>
+                <td>${new Date(item.updated_at || item.created_at).toLocaleDateString('tr-TR')}</td>
+                <td>
+                    <button onclick="editStockItem('${item.code}')" class="btn-icon" title="Düzenle">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="scanRFID('${item.code}')" class="btn-icon" title="RFID Tara">
+                        <i class="fas fa-wifi"></i>
+                    </button>
+                    <button onclick="deleteStockItem('${item.code}')" class="btn-icon btn-danger" title="Sil">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            
+            stockTableBody.appendChild(row);
+        });
+        
+        console.log(`✅ Loaded ${stockItems.length} stock items`);
+        
+    } catch (error) {
+        console.error('Stock table error:', error);
+        showAlert('Stok tablosu yüklenirken hata oluştu', 'error');
+    }
+}
+
+// RFID Scanning Function
+async function scanRFID(itemCode) {
+    try {
+        const rfidTag = prompt('RFID etiket kodunu girin veya tarayıcı ile okutun:');
+        
+        if (!rfidTag) return;
+        
+        showAlert('RFID etiketi kaydediliyor...', 'info');
+        
+        // Update in Supabase
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('stock_items')
+                .update({ 
+                    rfid_tag: rfidTag,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('code', itemCode);
+            
+            if (error) throw error;
+        }
+        
+        // Update localStorage
+        const localStock = JSON.parse(localStorage.getItem('stock_items') || '[]');
+        const itemIndex = localStock.findIndex(item => item.code === itemCode);
+        if (itemIndex !== -1) {
+            localStock[itemIndex].rfid_tag = rfidTag;
+            localStock[itemIndex].updated_at = new Date().toISOString();
+            localStorage.setItem('stock_items', JSON.stringify(localStock));
+        }
+        
+        await populateStockTable();
+        showAlert(`✅ RFID etiketi kaydedildi: ${rfidTag}`, 'success');
+        
+    } catch (error) {
+        console.error('RFID scan error:', error);
+        showAlert('RFID kaydedilirken hata oluştu', 'error');
+    }
+}
+
+// Delete Stock Item
+async function deleteStockItem(itemCode) {
+    if (!confirm(`${itemCode} kodlu ürünü silmek istediğinize emin misiniz?`)) {
+        return;
+    }
+    
+    try {
+        showAlert('Siliniyor...', 'info');
+        
+        // Delete from Supabase
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('stock_items')
+                .delete()
+                .eq('code', itemCode);
+            
+            if (error) throw error;
+        }
+        
+        // Delete from localStorage
+        const localStock = JSON.parse(localStorage.getItem('stock_items') || '[]');
+        const updatedStock = localStock.filter(item => item.code !== itemCode);
+        localStorage.setItem('stock_items', JSON.stringify(updatedStock));
+        
+        await populateStockTable();
+        showAlert(`✅ ${itemCode} silindi`, 'success');
+        
+    } catch (error) {
+        console.error('Delete error:', error);
+        showAlert('Silme işlemi başarısız', 'error');
+    }
+}
