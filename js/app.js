@@ -1903,3 +1903,59 @@ if (!window.workspaceManager) {
         updateWorkspaceUI: updateWorkspaceUI
     };
 }
+
+
+
+// ==================== APP REFRESH FUNCTION ====================
+
+async function refreshApp() {
+    try {
+        // Add spinning animation
+        const refreshBtn = event.target.closest('button');
+        const icon = refreshBtn.querySelector('i');
+        
+        icon.classList.add('fa-spin');
+        refreshBtn.disabled = true;
+        
+        showAlert('Uygulama yenileniyor...', 'info', 2000);
+        
+        // Reload all data
+        await loadPackagesData();
+        await populateCustomers();
+        await populatePersonnel();
+        await populateStockTable();
+        await populateShippingTable();
+        
+        // Refresh current tab
+        const activeTab = document.querySelector('.tab.active');
+        if (activeTab) {
+            const tabName = activeTab.getAttribute('data-tab');
+            switch (tabName) {
+                case 'stock':
+                    await populateRFIDStockTable();
+                    break;
+                case 'shipping':
+                    await populateShippingTable();
+                    break;
+                case 'packaging':
+                    await populatePackagesTable();
+                    break;
+            }
+        }
+        
+        showAlert('✅ Uygulama yenilendi!', 'success');
+        
+        // Remove spinning animation
+        setTimeout(() => {
+            icon.classList.remove('fa-spin');
+            refreshBtn.disabled = false;
+        }, 500);
+        
+    } catch (error) {
+        console.error('Refresh error:', error);
+        showAlert('Yenileme hatası', 'error');
+    }
+}
+
+// Make globally available
+window.refreshApp = refreshApp;
