@@ -4375,41 +4375,55 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-function initializeExcelButtons() {
-    console.log("🔄 Initializing Excel buttons...");
-    
+// ==================== SIMPLE PERMANENT FIX ====================
+// REPLACE ALL PREVIOUS INITIALIZATION CODE WITH THIS
+
+// Simple binding function
+function bindExcelButtons() {
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
-    if (refreshBtn) {
-        // Remove any existing listeners
-        refreshBtn.replaceWith(refreshBtn.cloneNode(true));
-        const newRefreshBtn = document.getElementById('refreshExcelBtn');
-        
-        newRefreshBtn.onclick = function() {
-            console.log("🎯 REFRESH BUTTON CLICKED!");
-            refreshExcelData();
-        };
-        console.log('✅ Refresh Excel button initialized with onclick');
+    if (refreshBtn && typeof refreshExcelData === 'function') {
+        refreshBtn.onclick = refreshExcelData;
     }
     
-    if (clearBtn) {
-        // Remove any existing listeners
-        clearBtn.replaceWith(clearBtn.cloneNode(true));
-        const newClearBtn = document.getElementById('clearExcelBtn');
-        
-        newClearBtn.onclick = function() {
-            console.log("🎯 CLEAR BUTTON CLICKED!");
-            clearExcelDataWithAuth();
-        };
-        console.log('✅ Clear Excel button initialized with onclick');
+    if (clearBtn && typeof clearExcelDataWithAuth === 'function') {
+        clearBtn.onclick = clearExcelDataWithAuth;
     }
 }
 
-// Call it now
-initializeExcelButtons();
-console.log("✅ Buttons should work now. Test them!");
+// Run immediately when script loads
+console.log('🔧 Initializing Excel buttons...');
+bindExcelButtons();
 
+// Run when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindExcelButtons);
+} else {
+    // DOM is already ready
+    bindExcelButtons();
+}
+
+// Run when window loads
+window.addEventListener('load', bindExcelButtons);
+
+// Run multiple times as safety net
+setTimeout(bindExcelButtons, 100);
+setTimeout(bindExcelButtons, 500);
+setTimeout(bindExcelButtons, 1000);
+setTimeout(bindExcelButtons, 2000);
+setTimeout(bindExcelButtons, 5000);
+
+// Continuous monitoring (remove this if it works without it)
+const monitorInterval = setInterval(bindExcelButtons, 2000);
+
+// Stop monitoring after 1 minute
+setTimeout(() => {
+    clearInterval(monitorInterval);
+    console.log('🛑 Stopped Excel button monitoring');
+}, 60000);
+
+console.log('✅ Excel button initialization COMPLETE');
 
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
