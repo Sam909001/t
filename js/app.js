@@ -1808,24 +1808,3 @@ window.deleteReport = async function(fileName) {
     }
 }
 
-
-
-
-// BETTER SOLUTION: Event delegation
-document.addEventListener('click', function(event) {
-    if (event.target.id === 'refreshExcelBtn') {
-        console.log('🔄 Refresh Excel clicked via delegation');
-        refreshExcelData();
-        event.preventDefault();
-    }
-    
-    if (event.target.id === 'clearExcelBtn') {
-        console.log('🗑️ Clear Excel clicked via delegation');
-        if (confirm('Tüm Excel verilerini temizlemek istediğinize emin misiniz?')) {
-            clearExcelData();
-        }
-        event.preventDefault();
-    }
-});
-
-console.log('✅ Excel button delegation active');
