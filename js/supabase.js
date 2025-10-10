@@ -4639,3 +4639,8 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
+
+
+// Expose to global scope
+window.ExcelStorage = ExcelStorage;
+window.ExcelJS = ExcelJS;
