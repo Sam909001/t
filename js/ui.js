@@ -4507,72 +4507,52 @@ window.initializeExcelButtons = initializeExcelButtons;
 
 console.log("✅ Fixed Excel buttons loaded in ui.js!");
 
-
-
-
-/**
- * Toggles the selection state of all individual customer checkboxes 
- * based on the state of the 'Select All' checkbox.
- * * @param {HTMLInputElement} selectAllCheckbox - The 'Select All' checkbox element that triggered the change.
- */
-function toggleSelectAllCustomer(selectAllCheckbox) {
-    const isChecked = selectAllCheckbox.checked;
-    
-    // Assuming your individual customer checkboxes have a common class like 'customer-checkbox'
-    const customerCheckboxes = document.querySelectorAll('.customer-checkbox');
-    
-    customerCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-    });
-
-    console.log('Select all customers toggled:', isChecked);
-}
-
-// Make the function globally accessible to the HTML
-window.toggleSelectAllCustomer = toggleSelectAllCustomer;
-
-
-
-// ✅ Excel Buttons - Refresh & Clear
-document.addEventListener('DOMContentLoaded', () => {
+// 🧩 Reliable Excel Button Initializer
+(function ensureExcelButtons() {
+    // Check DOM and ExcelStorage availability
     const refreshBtn = document.getElementById("refreshExcelBtn");
     const clearBtn = document.getElementById("clearExcelBtn");
 
-    if (refreshBtn) {
-        refreshBtn.addEventListener("click", async () => {
-            showAlert("📄 Excel verileri yenileniyor...", "info");
-            try {
-                if (window.ExcelStorage?.readFile) {
-                    const packages = await ExcelStorage.readFile();
-                    window.excelPackages = packages;
-                    showAlert(`✅ Excel verileri yenilendi (${packages.length} kayıt bulundu)`, "success");
-                } else {
-                    showAlert("❌ ExcelStorage yüklenmedi!", "error");
-                }
-            } catch (err) {
-                console.error("Excel refresh error:", err);
-                showAlert("❌ Excel yenileme hatası", "error");
-            }
-        });
+    if (!refreshBtn || !clearBtn || !window.ExcelStorage) {
+        console.warn("⏳ Waiting for Excel buttons or ExcelStorage...");
+        setTimeout(ensureExcelButtons, 500);
+        return;
     }
 
-    if (clearBtn) {
-        clearBtn.addEventListener("click", () => {
-            try {
-                const pass = prompt("Temizlemek için yönetici şifresini girin:");
-                if (pass === "9090") { // <-- set your desired admin password here
-                    localStorage.clear();
-                    window.excelPackages = [];
-                    showAlert("🧹 Tüm Excel verileri temizlendi!", "success");
-                } else if (pass !== null) {
-                    showAlert("❌ Hatalı şifre!", "error");
-                }
-            } catch (err) {
-                console.error("Excel clear error:", err);
-                showAlert("❌ Excel verileri temizlenemedi!", "error");
-            }
-        });
-    }
+    // Prevent duplicate listeners
+    refreshBtn.replaceWith(refreshBtn.cloneNode(true));
+    clearBtn.replaceWith(clearBtn.cloneNode(true));
 
-    console.log("✅ Excel buttons initialized.");
-});
+    const newRefreshBtn = document.getElementById("refreshExcelBtn");
+    const newClearBtn = document.getElementById("clearExcelBtn");
+
+    // ✅ Refresh Excel Button
+    newRefreshBtn.addEventListener("click", async () => {
+        console.log("🔄 Refresh Excel clicked");
+        showAlert?.("📄 Excel verileri yenileniyor...", "info");
+        try {
+            const packages = await ExcelStorage.readFile();
+            showAlert?.(`✅ ${packages.length} kayıt yüklendi`, "success");
+        } catch (err) {
+            console.error("❌ Refresh error:", err);
+            showAlert?.("❌ Excel verileri yenilenemedi", "error");
+        }
+    });
+
+    // ✅ Clear Excel Button
+    newClearBtn.addEventListener("click", async () => {
+        console.log("🧹 Clear Excel clicked");
+        const confirmDelete = confirm("⚠️ Tüm Excel verileri silinecek. Emin misiniz?");
+        if (!confirmDelete) return;
+        try {
+            const keys = Object.keys(localStorage).filter(k => k.startsWith("packages_"));
+            keys.forEach(k => localStorage.removeItem(k));
+            showAlert?.("🧹 Tüm Excel dosyaları temizlendi", "success");
+        } catch (err) {
+            console.error("❌ Clear error:", err);
+            showAlert?.("❌ Excel verileri temizlenemedi", "error");
+        }
+    });
+
+    console.log("✅ Excel buttons fully attached and working!");
+})();
