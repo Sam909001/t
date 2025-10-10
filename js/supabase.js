@@ -214,7 +214,7 @@ window.ExcelStorage = {
         }
         return files;
     },
-    console.log('✅ ExcelStorage DEFINED - is it working?');
+  
     // Read from today's file
     readFile: async function() {
         try {
@@ -415,7 +415,8 @@ toExcelFormat: function(packages) {
     cleanupOldFiles: ExcelStorage.cleanupOldFiles
 };
 
-
+// After ExcelStorage definition
+console.log('✅ ExcelStorage DEFINED - is it working?');
 
 
 // ==================== ENHANCED PROFESSIONAL EXCEL EXPORT WITH CUSTOMER CALCULATIONS ====================
