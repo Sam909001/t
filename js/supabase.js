@@ -169,6 +169,52 @@ function generateUUID() {
 
 
 
+// ==================== PACKAGE DUPLICATION PREVENTION ====================
+
+const createdPackageIds = new Set();
+
+async function createPackageWithDuplicationCheck(packageData) {
+    // Generate unique ID
+    const packageId = generateUUID();
+    const packageNo = `PKG-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    
+    // Check if already exists
+    if (createdPackageIds.has(packageId)) {
+        console.warn('Duplicate package detected, generating new ID');
+        return createPackageWithDuplicationCheck(packageData);
+    }
+    
+    createdPackageIds.add(packageId);
+    
+    const newPackage = {
+        ...packageData,
+        id: packageId,
+        package_no: packageNo,
+        created_at: new Date().toISOString()
+    };
+    
+    // Save to Supabase
+    if (supabase && navigator.onLine) {
+        const { error } = await supabase
+            .from('packages')
+            .insert([newPackage]);
+        
+        if (error) {
+            createdPackageIds.delete(packageId);
+            throw error;
+        }
+    }
+    
+    // Save to Excel
+    window.packages.push(newPackage);
+    await ExcelJS.writeFile(ExcelJS.toExcelFormat(window.packages));
+    
+    return newPackage;
+}
+
+window.createPackageWithDuplicationCheck = createPackageWithDuplicationCheck;
+
+
 function isValidEmail(email) {
     const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
@@ -1779,50 +1825,6 @@ async function testConnection() {
             localStorage.setItem('procleanOfflineData', JSON.stringify(offlineData));
         }
 
-// ==================== PACKAGE DUPLICATION PREVENTION ====================
-
-const createdPackageIds = new Set();
-
-async function createPackageWithDuplicationCheck(packageData) {
-    // Generate unique ID
-    const packageId = generateUUID();
-    const packageNo = `PKG-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    
-    // Check if already exists
-    if (createdPackageIds.has(packageId)) {
-        console.warn('Duplicate package detected, generating new ID');
-        return createPackageWithDuplicationCheck(packageData);
-    }
-    
-    createdPackageIds.add(packageId);
-    
-    const newPackage = {
-        ...packageData,
-        id: packageId,
-        package_no: packageNo,
-        created_at: new Date().toISOString()
-    };
-    
-    // Save to Supabase
-    if (supabase && navigator.onLine) {
-        const { error } = await supabase
-            .from('packages')
-            .insert([newPackage]);
-        
-        if (error) {
-            createdPackageIds.delete(packageId);
-            throw error;
-        }
-    }
-    
-    // Save to Excel
-    window.packages.push(newPackage);
-    await ExcelJS.writeFile(ExcelJS.toExcelFormat(window.packages));
-    
-    return newPackage;
-}
-
-window.createPackageWithDuplicationCheck = createPackageWithDuplicationCheck;
 
   async function populateCustomers() {
     try {
