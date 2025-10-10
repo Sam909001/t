@@ -4375,94 +4375,68 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// ==================== EXCEL BUTTONS PERMANENT INITIALIZATION ====================
+// ==================== EXCEL BUTTONS PERMANENT FIX ====================
+// Add this to your main JavaScript file
 
-function initializeExcelButtonsWhenReady() {
-    console.log('🔍 Checking for Excel buttons...');
-    
+function initializeExcelButtons() {
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
-    if (refreshBtn && clearBtn) {
-        // Buttons exist, initialize them
-        console.log('✅ Excel buttons found, initializing...');
-        
-        if (typeof refreshExcelData === 'function') {
-            refreshBtn.onclick = refreshExcelData;
-            console.log('✅ Refresh button bound');
-        }
-        
-        if (typeof clearExcelDataWithAuth === 'function') {
-            clearBtn.onclick = clearExcelDataWithAuth;
-            console.log('✅ Clear button bound');
-        }
-        
-        return true; // Success
-    } else {
-        console.log('⏳ Excel buttons not ready yet');
-        return false; // Not ready
+    if (refreshBtn && typeof refreshExcelData === 'function') {
+        refreshBtn.onclick = refreshExcelData;
+        console.log('✅ Refresh button bound');
+    }
+    
+    if (clearBtn && typeof clearExcelDataWithAuth === 'function') {
+        clearBtn.onclick = clearExcelDataWithAuth;
+        console.log('✅ Clear button bound');
     }
 }
 
-function waitForExcelButtons(maxAttempts = 30, interval = 500) {
-    let attempts = 0;
-    
-    const tryInitialize = () => {
-        attempts++;
-        const success = initializeExcelButtonsWhenReady();
+// Wait for buttons to exist and then initialize
+function waitForExcelButtons() {
+    const checkButtons = () => {
+        const refreshBtn = document.getElementById('refreshExcelBtn');
+        const clearBtn = document.getElementById('clearExcelBtn');
         
-        if (success) {
-            console.log('🎉 Excel buttons initialized successfully!');
-            return;
+        if (refreshBtn && clearBtn) {
+            console.log('🎯 Excel buttons found in DOM, initializing...');
+            initializeExcelButtons();
+            return true;
         }
-        
-        if (attempts < maxAttempts) {
-            console.log(`🔄 Attempt ${attempts}/${maxAttempts}, retrying in ${interval}ms...`);
-            setTimeout(tryInitialize, interval);
-        } else {
-            console.log('❌ Failed to initialize Excel buttons after maximum attempts');
-        }
+        return false;
     };
     
-    tryInitialize();
+    // Try immediately
+    if (checkButtons()) return;
+    
+    // Keep trying until found
+    let attempts = 0;
+    const maxAttempts = 20;
+    const interval = setInterval(() => {
+        attempts++;
+        if (checkButtons()) {
+            clearInterval(interval);
+            console.log('🎉 Excel buttons initialized successfully!');
+        } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            console.log('❌ Excel buttons not found after maximum attempts');
+        }
+    }, 500);
 }
 
-// ==================== MULTIPLE INITIALIZATION STRATEGIES ====================
-
-// Strategy 1: Start immediately
+// Start the initialization process
 console.log('🚀 Starting Excel buttons initialization...');
-waitForExcelButtons();
 
-// Strategy 2: Also start when DOM is fully loaded
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOMContentLoaded - starting Excel buttons initialization');
-    waitForExcelButtons();
-});
+// Multiple initialization strategies
+document.addEventListener('DOMContentLoaded', waitForExcelButtons);
+window.addEventListener('load', waitForExcelButtons);
+setTimeout(waitForExcelButtons, 100);
+setTimeout(waitForExcelButtons, 1000);
+setTimeout(waitForExcelButtons, 3000);
 
-// Strategy 3: Start when window loads (all resources loaded)
-window.addEventListener('load', function() {
-    console.log('🖼️ Window loaded - starting Excel buttons initialization');
-    waitForExcelButtons();
-});
+console.log('✅ Excel buttons initialization system active');
 
-// Strategy 4: Additional safety starts
-setTimeout(() => {
-    console.log('⏰ Safety timeout 1s - starting Excel buttons initialization');
-    waitForExcelButtons();
-}, 1000);
-
-setTimeout(() => {
-    console.log('⏰ Safety timeout 3s - starting Excel buttons initialization');
-    waitForExcelButtons();
-}, 3000);
-
-// Strategy 5: Final attempt after 5 seconds
-setTimeout(() => {
-    console.log('⏰ Final attempt 5s - starting Excel buttons initialization');
-    waitForExcelButtons();
-}, 5000);
-
-console.log('✅ Excel buttons permanent initialization setup complete');
 // Clear Excel Data with Authentication - WITH PROPER ERROR HANDLING
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
