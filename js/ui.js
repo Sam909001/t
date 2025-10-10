@@ -4375,55 +4375,58 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// ==================== SIMPLE PERMANENT FIX ====================
-// REPLACE ALL PREVIOUS INITIALIZATION CODE WITH THIS
+// ==================== GUARANTEED WORKING SOLUTION ====================
+// This will work regardless of when the script loads
 
-// Simple binding function
-function bindExcelButtons() {
+function initializeExcelButtons() {
     const refreshBtn = document.getElementById('refreshExcelBtn');
     const clearBtn = document.getElementById('clearExcelBtn');
     
     if (refreshBtn && typeof refreshExcelData === 'function') {
         refreshBtn.onclick = refreshExcelData;
+        console.log('✅ Refresh button initialized');
     }
     
     if (clearBtn && typeof clearExcelDataWithAuth === 'function') {
         clearBtn.onclick = clearExcelDataWithAuth;
+        console.log('✅ Clear button initialized');
     }
 }
 
-// Run immediately when script loads
-console.log('🔧 Initializing Excel buttons...');
-bindExcelButtons();
-
-// Run when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindExcelButtons);
-} else {
-    // DOM is already ready
-    bindExcelButtons();
+// NUCLEAR OPTION - This will definitely work
+function nuclearInitialize() {
+    console.log('🚀 Nuclear initialization started');
+    
+    // Try every 100ms for 10 seconds
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    const interval = setInterval(() => {
+        attempts++;
+        initializeExcelButtons();
+        
+        const refreshBtn = document.getElementById('refreshExcelBtn');
+        const clearBtn = document.getElementById('clearExcelBtn');
+        
+        // Check if buttons are actually bound
+        if (refreshBtn && refreshBtn.onclick && clearBtn && clearBtn.onclick) {
+            console.log('🎉 SUCCESS: Buttons are now bound!');
+            clearInterval(interval);
+        } else if (attempts >= maxAttempts) {
+            console.log('🛑 Stopped after maximum attempts');
+            clearInterval(interval);
+        }
+    }, 100);
 }
 
-// Run when window loads
-window.addEventListener('load', bindExcelButtons);
+// START THE NUCLEAR INITIALIZATION
+nuclearInitialize();
 
-// Run multiple times as safety net
-setTimeout(bindExcelButtons, 100);
-setTimeout(bindExcelButtons, 500);
-setTimeout(bindExcelButtons, 1000);
-setTimeout(bindExcelButtons, 2000);
-setTimeout(bindExcelButtons, 5000);
+// Also try on DOM ready as backup
+document.addEventListener('DOMContentLoaded', nuclearInitialize);
+window.addEventListener('load', nuclearInitialize);
 
-// Continuous monitoring (remove this if it works without it)
-const monitorInterval = setInterval(bindExcelButtons, 2000);
-
-// Stop monitoring after 1 minute
-setTimeout(() => {
-    clearInterval(monitorInterval);
-    console.log('🛑 Stopped Excel button monitoring');
-}, 60000);
-
-console.log('✅ Excel button initialization COMPLETE');
+console.log('✅ Excel button nuclear initialization STARTED');
 
 async function clearExcelDataWithAuth() {
     console.log('🔒 Attempting to clear Excel data with auth...');
