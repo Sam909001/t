@@ -1,4 +1,4 @@
-/// Top of app.js
+// Top of app.js
 window.initializePrinter = function() {
     console.log("Printer initialized");
     if (typeof window.printer === 'undefined') {
@@ -124,6 +124,24 @@ function loadAppState() {
     }
 }
 
+function clearAppState() {
+    localStorage.removeItem('procleanState');
+    selectedCustomer = null;
+    elements.customerSelect.value = '';
+    elements.personnelSelect.value = '';
+    currentContainer = null;
+    elements.containerNumber.textContent = 'Yok';
+    currentPackage = {};
+    
+    // Reset quantity badges
+    document.querySelectorAll('.quantity-badge').forEach(badge => {
+        badge.textContent = '0';
+    });
+    
+    // Clear package details
+    document.getElementById('packageDetailContent').innerHTML = 
+        '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+}
 
 async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
@@ -1006,174 +1024,113 @@ function mergePackages(excelPackages, supabasePackages) {
 }
 
 
+
+
 async function completePackage() {
-    try {
-        // Validate inputs
-        if (!selectedCustomer) {
-            showAlert('Lütfen müşteri seçin', 'error');
-            return;
-        }
-
-        if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
-            showAlert('Lütfen en az bir ürün ekleyin', 'error');
-            return;
-        }
-
-        const personnelId = elements.personnelSelect?.value;
-        if (!personnelId) {
-            showAlert('Lütfen personel seçin', 'error');
-            return;
-        }
-
-        showAlert('Paket oluşturuluyor...', 'info', 2000);
-
-        // Generate package number
-        const timestamp = new Date().getTime();
-        const packageNo = `PKG-${timestamp.toString().slice(-8)}`;
-
-        // Calculate total quantity
-        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-
-        // Get workspace ID
-        const workspaceId = getCurrentWorkspaceId();
-
-        // Create package object - USE CORRECT COLUMN NAMES
-        const newPackage = {
-            id: generateUUID(),
-            package_no: packageNo,
-            customer_id: selectedCustomer.id, // Use customer_id NOT customer_name/customer_code
-            status: 'beklemede',
-            items: currentPackage.items,
-            total_quantity: totalQuantity,
-            personnel_id: personnelId,
-            container_id: null,
-            workspace_id: workspaceId,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            shipped_at: null
-        };
-
-        // Add to window.packages array
-        if (!window.packages) {
-            window.packages = [];
-        }
-        window.packages.push(newPackage);
-
-        // Save to Excel immediately
-        const excelData = ExcelJS.toExcelFormat(window.packages);
-        await ExcelJS.writeFile(excelData);
-
-        // Save to Supabase if online
-        if (supabase && navigator.onLine) {
-            const { error } = await supabase
-                .from('packages')
-                .insert([newPackage]);
-
-            if (error) {
-                console.error('Supabase insert error:', error);
-                // Continue anyway - Excel is saved
-            }
-        }
-
-        // CRITICAL: Refresh UI immediately
-        await populatePackagesTable();
-        await updateStockQuantities(currentPackage.items);
-        
-        // Clear form
-        currentPackage = { items: {} };
-        elements.packageDetailContent.innerHTML = '<p>Ürün eklenmedi</p>';
-
-        showAlert(`✅ Paket oluşturuldu: ${packageNo}`, 'success');
-
-    } catch (error) {
-        console.error('Error completing package:', error);
-        showAlert('Paket oluşturulurken hata oluştu: ' + error.message, 'error');
-    }
-}
-
-
-function addPackageRowToTable(pkg) {
-    const packagesTableBody = document.getElementById('packagesTableBody');
-    if (!packagesTableBody) {
-        console.error('Packages table body not found');
+    if (!selectedCustomer) {
+        showAlert('Önce müşteri seçin', 'error');
         return;
     }
 
-    // Remove "no packages" message if it exists
-    const emptyMessage = packagesTableBody.querySelector('td[colspan]');
-    if (emptyMessage) {
-        emptyMessage.closest('tr').remove();
+    if (!currentPackage.items || Object.keys(currentPackage.items).length === 0) {
+        showAlert('Pakete ürün ekleyin', 'error');
+        return;
     }
 
-    // Create new row
-    const row = document.createElement('tr');
-    row.style.backgroundColor = '#f0fff0'; // Highlight new package
-    row.innerHTML = `
-        <td>
-            <input type="checkbox" class="package-checkbox" value="${pkg.id}" 
-                   data-package='${JSON.stringify(pkg).replace(/'/g, "&apos;")}'>
-        </td>
-        <td>${pkg.package_no || 'N/A'}</td>
-        <td>${pkg.customer_name || 'N/A'}</td>
-        <td>${pkg.items_display || 'N/A'}</td>
-        <td>${pkg.total_quantity || 0}</td>
-        <td><span class="status-badge status-beklemede">beklemede</span></td>
-        <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
-        <td>
-            <button onclick="viewPackageDetails('${pkg.id}')" class="btn-icon" title="Detay">
-                <i class="fas fa-eye"></i>
-            </button>
-            <button onclick="deletePackage('${pkg.id}')" class="btn-icon btn-danger" title="Sil">
-                <i class="fas fa-trash"></i>
-            </button>
-        </td>
-    `;
-    
-    // Insert at the beginning of the table
-    packagesTableBody.insertBefore(row, packagesTableBody.firstChild);
-    
-    // Remove highlight after 2 seconds
-    setTimeout(() => {
-        row.style.backgroundColor = '';
-        row.style.transition = 'background-color 0.5s ease';
-    }, 2000);
+    if (!window.workspaceManager?.canPerformAction('create_package')) {
+        showAlert('Bu istasyon paket oluşturamaz', 'error');
+        return;
+    }
 
-    console.log('✅ Package row added to table:', pkg.package_no);
-}
-
-
-
-
-async function updateStockQuantities(items) {
     try {
-        for (const [productCode, quantity] of Object.entries(items)) {
-            // Find stock item
-            const stockItem = window.stockItems?.find(s => s.code === productCode);
-            
-            if (stockItem) {
-                const newQuantity = (stockItem.quantity || 0) - quantity;
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        
+        // Generate short station number (st1, st2, st3, st4)
+        const stationNumber = workspaceId.replace('station-', 'st');
+        
+        // Get today's package count for this station to generate sequential number
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const todayPackages = await ExcelJS.readFile();
+        const todayStationPackages = todayPackages.filter(pkg => 
+            pkg.workspace_id === workspaceId && 
+            new Date(pkg.created_at) >= todayStart
+        );
+        
+        // Sequential number: pad to 6 digits
+        const sequentialNumber = (todayStationPackages.length + 1).toString().padStart(6, '0');
+        
+        // Generate SHORT package number: pkg-st1-000123
+        const packageNo = `pkg-${stationNumber}-${sequentialNumber}`;
+        
+        // Generate unique ID for database
+        const packageId = `pkg-${workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        
+        const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
+        const selectedPersonnel = elements.personnelSelect?.value || '';
+
+        const packageData = {
+            id: packageId, // Unique ID for database
+            package_no: packageNo, // SHORT display number
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            customer_code: selectedCustomer.code,
+            items: currentPackage.items,
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name}: ${qty} adet`
+            ).join(', '),
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            workspace_id: workspaceId,
+            station_name: window.workspaceManager.currentWorkspace.name,
+            daily_file: ExcelStorage.getTodayDateString(),
+            source: 'app'
+        };
+
+        // Save to database and Excel
+        if (supabase && navigator.onLine && !isUsingExcel) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .insert([packageData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+                await saveToExcel(packageData);
                 
-                // Update in memory
-                stockItem.quantity = Math.max(0, newQuantity);
-                
-                // Update in Supabase if online
-                if (supabase && navigator.onLine) {
-                    await supabase
-                        .from('stock_items')
-                        .update({ 
-                            quantity: stockItem.quantity,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('code', productCode);
-                }
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+                isUsingExcel = true;
             }
+        } else {
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+            isUsingExcel = true;
         }
-        
-        // Refresh stock table
-        await populateStockTable();
-        
+
+        // Reset and refresh
+        currentPackage = {};
+        document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        await populatePackagesTable();
+        updateStorageIndicator();
+
     } catch (error) {
-        console.error('Stock update error:', error);
+        console.error('Error in completePackage:', error);
+        showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
 
@@ -1737,21 +1694,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-// ✅ Single Source of Truth
+// Fix for Select All Packages
 window.toggleSelectAllPackages = function() {
     const selectAllCheckbox = document.getElementById('selectAllPackages');
     if (!selectAllCheckbox) return;
-
+    
     const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:not(#selectAllPackages)');
-
+    
     packageCheckboxes.forEach(checkbox => {
         checkbox.checked = selectAllCheckbox.checked;
     });
-
+    
     console.log(`Selected ${packageCheckboxes.length} packages`);
-};
+}
 
-// ✅ Event listener setup
+// Make sure the checkbox has the right event listener
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         const selectAllCheckbox = document.getElementById('selectAllPackages');
@@ -1766,15 +1723,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-// Opens report as a JSON/PDF file in a new tab
-window.viewReportFile = async function(fileName) {
+
+// Working Report Functions
+window.viewReport = async function(fileName) {
     try {
         const reportKey = `report_${fileName}`;
         const reportData = localStorage.getItem(reportKey);
         
         if (!reportData) {
+            // Try to fetch from Supabase
             if (supabase && navigator.onLine) {
-                const { data } = await supabase
+                const { data, error } = await supabase
                     .from('reports')
                     .select('*')
                     .eq('fileName', fileName)
@@ -1788,7 +1747,8 @@ window.viewReportFile = async function(fileName) {
             showAlert('Rapor bulunamadı', 'error');
             return;
         }
-
+        
+        // Open report in new tab
         const blob = new Blob([reportData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
@@ -1797,8 +1757,7 @@ window.viewReportFile = async function(fileName) {
         console.error('View report error:', error);
         showAlert('Rapor görüntülenemedi', 'error');
     }
-};
-
+}
 
 window.downloadReport = function(fileName) {
     try {
@@ -1848,97 +1807,4 @@ window.deleteReport = async function(fileName) {
         showAlert('Silme hatası', 'error');
     }
 }
-
-// Adds a new customer safely
-async function addCustomer(name, code) {
-    if (!name || !code) {
-        showAlert('Lütfen müşteri adı ve kodunu girin', 'error');
-        return;
-    }
-
-    try {
-        const workspaceId = getCurrentWorkspaceId(); // get current workspace if applicable
-        const customerId = crypto.randomUUID(); // generate valid UUID
-
-        const { data, error } = await supabase
-            .from('customers')
-            .insert([{
-                id: customerId,
-                name: name.trim(),
-                code: code.trim(),
-                workspace_id: workspaceId,   // include all required NOT NULL columns
-                created_at: new Date().toISOString() // include timestamp if NOT NULL
-            }])
-            .select(); // ensures we get the inserted row back
-
-        if (error) {
-            console.error('Customer insert failed:', error);
-            showAlert('Müşteri eklenemedi: ' + error.message, 'error');
-            return;
-        }
-
-        console.log('Customer added successfully:', data);
-        showAlert('Müşteri başarıyla eklendi', 'success');
-
-        // Refresh customer dropdown/table
-        await populateCustomers();
-
-    } catch (err) {
-        console.error('Unexpected error while adding customer:', err);
-        showAlert('Beklenmeyen bir hata oluştu', 'error');
-    }
-}
-
-
-
-async function assignPackagesToContainer(packageIds, containerId) {
-    try {
-        showAlert('Paketler sevk ediliyor...', 'info');
-        
-        // Update packages in memory with DIRECT "sevk edildi" status
-        window.packages = window.packages.map(pkg => {
-            if (packageIds.includes(pkg.id)) {
-                return {
-                    ...pkg,
-                    container_id: containerId,
-                    status: 'sevk edildi', // DIRECT to shipped status
-                    shipped_at: new Date().toISOString(), // Add shipping timestamp
-                    updated_at: new Date().toISOString()
-                };
-            }
-            return pkg;
-        });
-        
-        // Save to Excel immediately
-        const excelData = ExcelJS.toExcelFormat(window.packages);
-        await ExcelJS.writeFile(excelData);
-        
-        // Update in Supabase if online
-        if (supabase && navigator.onLine) {
-            const { error } = await supabase
-                .from('packages')
-                .update({ 
-                    container_id: containerId,
-                    status: 'sevk edildi', // DIRECT to shipped status
-                    shipped_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                })
-                .in('id', packageIds);
-            
-            if (error) throw error;
-        }
-        
-        // Reload and refresh UI
-        await loadPackagesDataStrict();
-        await populatePackagesTable(); // This will remove from pending
-        await populateShippingTable(); // This will show in reports/history
-        
-        showAlert(`✅ ${packageIds.length} paket sevk edildi`, 'success');
-        
-    } catch (error) {
-        console.error('Container assignment error:', error);
-        showAlert('Paketler sevk edilirken hata oluştu', 'error');
-    }
-}
-
 
