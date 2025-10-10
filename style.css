@@ -2303,3 +2303,62 @@ body.modal-open {
 #workstationIndicator i {
     font-size: 16px;
 }
+
+
+
+/* ✅ FIX: Workspace/Station Button Visibility */
+#workspaceIndicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    margin-right: 10px;
+}
+
+#workspaceIndicator:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+#workspaceIndicator i {
+    font-size: 16px;
+}
+
+.workspace-type {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-left: 6px;
+}
+
+/* Make sure it's visible in the header */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Responsive visibility */
+@media (max-width: 768px) {
+    #workspaceIndicator {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    
+    .workspace-type {
+        display: none; /* Hide type label on mobile to save space */
+    }
+}
