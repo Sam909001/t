@@ -16,6 +16,31 @@
     --shadow: rgba(0, 0, 0, 0.1);
 }
 
+/* ==================== REDUCE CONTENT WIDTH BY 1CM (ALTERNATIVE) ==================== */
+
+@media screen and (min-width: 1200px) {
+    /* Only reduce tab content area */
+    .tab-content {
+        max-width: calc(100% - 2cm) !important;
+        margin: 0 auto !important;
+        padding-left: 1cm !important;
+        padding-right: 1cm !important;
+    }
+    
+    /* Reduce packaging content */
+    .packaging-content {
+        max-width: calc(100% - 1cm) !important;
+        margin: 0 auto !important;
+    }
+    
+    /* Reduce shipping and stock tables */
+    .shipping-content,
+    .stock-content {
+        max-width: calc(100% - 1cm) !important;
+        margin: 0 auto !important;
+    }
+}
+
 /* Dark theme overrides */
 body.dark-mode {
     --primary: #3498db;
