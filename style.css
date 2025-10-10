@@ -16,30 +16,6 @@
     --shadow: rgba(0, 0, 0, 0.1);
 }
 
-/* ==================== UNIVERSAL 1CM WIDTH REDUCTION ==================== */
-
-body {
-    padding: 0 1cm !important;
-}
-
-@media screen and (max-width: 767px) {
-    body {
-        padding: 0 !important;
-    }
-}
-
-/* Adjust modals to respect the padding */
-.modal {
-    left: 1cm !important;
-    width: calc(100% - 2cm) !important;
-}
-
-@media screen and (max-width: 767px) {
-    .modal {
-        left: 0 !important;
-        width: 100% !important;
-    }
-}
 /* Dark theme overrides */
 body.dark-mode {
     --primary: #3498db;
