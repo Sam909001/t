@@ -1057,11 +1057,16 @@ async function completePackage() {
             updated_at: new Date().toISOString()
         };
 
-        // Add to window.packages array
+        // Add to window.packages array FIRST
         if (!window.packages) {
             window.packages = [];
         }
         window.packages.push(newPackage);
+
+        // Add to excelPackages if it exists
+        if (window.excelPackages && Array.isArray(window.excelPackages)) {
+            window.excelPackages.push(newPackage);
+        }
 
         // Save to Excel immediately
         const excelData = ExcelJS.toExcelFormat(window.packages);
@@ -1079,17 +1084,25 @@ async function completePackage() {
             }
         }
 
-        // CRITICAL: Refresh UI immediately
-        await populatePackagesTable(); // Refresh packages table
-        await updateStockQuantities(currentPackage.items); // Update stock
+        // ⭐️ CRITICAL FIX: Immediate UI refresh WITHOUT reloading data
+        await populatePackagesTable(); // This will show the new package
+
+        // Update stock quantities
+        await updateStockQuantities(currentPackage.items);
         
         // Clear form
         currentPackage = { items: {} };
-        elements.packageDetailContent.innerHTML = '<p>Ürün eklenmedi</p>';
+        if (elements.packageDetailContent) {
+            elements.packageDetailContent.innerHTML = '<p>Ürün eklenmedi</p>';
+        }
         
-        // Reset customer selection if needed
-        // elements.customerSelect.value = '';
-        // selectedCustomer = null;
+        // Update total packages count
+        const totalPackagesElement = document.getElementById('totalPackages');
+        if (totalPackagesElement) {
+            totalPackagesElement.textContent = window.packages.filter(pkg => 
+                pkg.status === 'beklemede' && !pkg.container_id
+            ).length.toString();
+        }
 
         showAlert(`✅ Paket oluşturuldu: ${packageNo}`, 'success');
 
@@ -1098,7 +1111,6 @@ async function completePackage() {
         showAlert('Paket oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
-
 
 
 async function updateStockQuantities(items) {
