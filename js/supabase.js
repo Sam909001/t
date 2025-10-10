@@ -1784,133 +1784,85 @@ async function testConnection() {
 
 
 
-// FIXED: Populate Customers Dropdown
-async function populateCustomers() {
-    if (!elements.customerSelect) {
-        console.error('Customer select element not found');
-        return;
-    }
-
+  async function populateCustomers() {
     try {
-        const workspaceId = getCurrentWorkspaceId();
-        
-        // Clear existing options except placeholder
-        elements.customerSelect.innerHTML = '<option value="">Müşteri Seçin</option>';
-        
-        // Try Supabase first
-        if (supabase && navigator.onLine) {
-            const { data: customers, error } = await supabase
-                .from('customers')
-                .select('*')
-                .eq('workspace_id', workspaceId)
-                .order('name');
-            
-            if (error) {
-                console.error('Supabase customers error:', error);
-                throw error;
-            }
-            
-            if (customers && customers.length > 0) {
-                customers.forEach(customer => {
-                    const option = document.createElement('option');
-                    option.value = customer.id;
-                    option.textContent = `${customer.name} (${customer.code || 'N/A'})`;
-                    option.dataset.code = customer.code;
-                    option.dataset.name = customer.name;
-                    elements.customerSelect.appendChild(option);
-                });
-                console.log(`✅ Loaded ${customers.length} customers from Supabase`);
-                return;
-            }
+        const { data: customers, error } = await supabase
+            .from('customers')
+            .select('id, name, code')
+            .order('name', { ascending: true });
+
+        if (error) {
+            console.error('Error loading customers:', error);
+            return;
         }
-        
-        // Fallback to localStorage
-        const localCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
-        const workspaceCustomers = localCustomers.filter(c => c.workspace_id === workspaceId);
-        
-        if (workspaceCustomers.length > 0) {
-            workspaceCustomers.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = `${customer.name} (${customer.code || 'N/A'})`;
-                option.dataset.code = customer.code;
-                option.dataset.name = customer.name;
-                elements.customerSelect.appendChild(option);
-            });
-            console.log(`✅ Loaded ${workspaceCustomers.length} customers from localStorage`);
-        } else {
-            console.warn('No customers found');
-            showAlert('Müşteri bulunamadı. Lütfen müşteri ekleyin.', 'warning');
-        }
-        
-    } catch (error) {
-        console.error('Error populating customers:', error);
-        showAlert('Müşteriler yüklenirken hata oluştu', 'error');
+
+        const customerSelect = document.getElementById('customerSelect');
+        if (!customerSelect) return;
+
+        // Clear old options
+        customerSelect.innerHTML = '<option value="">Müşteri Seç</option>';
+
+        // Deduplicate by customer code
+        const uniqueCustomers = {};
+        customers.forEach(cust => {
+            if (!uniqueCustomers[cust.code]) {
+                uniqueCustomers[cust.code] = cust;
+            }
+        });
+
+        // Append unique customers
+        Object.values(uniqueCustomers).forEach(cust => {
+            const opt = document.createElement('option');
+            opt.value = cust.id;
+            opt.textContent = `${cust.name} (${cust.code})`;
+            customerSelect.appendChild(opt);
+        });
+
+    } catch (err) {
+        console.error('populateCustomers error:', err);
     }
 }
 
-// FIXED: Populate Personnel Dropdown
+
+
+
+
 async function populatePersonnel() {
-    if (!elements.personnelSelect) {
-        console.error('Personnel select element not found');
-        return;
-    }
+    if (personnelLoaded) return; // prevent duplicates
+    personnelLoaded = true;
+
+    const personnelSelect = document.getElementById('personnelSelect');
+    if (!personnelSelect) return;
+
+    personnelSelect.innerHTML = '<option value="">Personel seçin...</option>';
 
     try {
-        const workspaceId = getCurrentWorkspaceId();
-        
-        // Clear existing options except placeholder
-        elements.personnelSelect.innerHTML = '<option value="">Personel Seçin</option>';
-        
-        // Try Supabase first
-        if (supabase && navigator.onLine) {
-            const { data: personnel, error } = await supabase
-                .from('personnel')
-                .select('*')
-                .eq('workspace_id', workspaceId)
-                .order('name');
-            
-            if (error) {
-                console.error('Supabase personnel error:', error);
-                throw error;
-            }
-            
-            if (personnel && personnel.length > 0) {
-                personnel.forEach(person => {
-                    const option = document.createElement('option');
-                    option.value = person.id;
-                    option.textContent = person.name;
-                    option.dataset.name = person.name;
-                    elements.personnelSelect.appendChild(option);
-                });
-                console.log(`✅ Loaded ${personnel.length} personnel from Supabase`);
-                return;
-            }
+        const { data: personnel, error } = await supabase
+            .from('personnel')
+            .select('id, name')
+            .order('name', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching personnel:', error);
+            showAlert('Personel verileri yüklenemedi', 'error');
+            return;
         }
-        
-        // Fallback to localStorage
-        const localPersonnel = JSON.parse(localStorage.getItem('personnel') || '[]');
-        const workspacePersonnel = localPersonnel.filter(p => p.workspace_id === workspaceId);
-        
-        if (workspacePersonnel.length > 0) {
-            workspacePersonnel.forEach(person => {
+
+        if (personnel && personnel.length > 0) {
+            personnel.forEach(p => {
                 const option = document.createElement('option');
-                option.value = person.id;
-                option.textContent = person.name;
-                option.dataset.name = person.name;
-                elements.personnelSelect.appendChild(option);
+                option.value = p.id;
+                option.textContent = p.name;
+                personnelSelect.appendChild(option);
             });
-            console.log(`✅ Loaded ${workspacePersonnel.length} personnel from localStorage`);
-        } else {
-            console.warn('No personnel found');
-            showAlert('Personel bulunamadı. Lütfen personel ekleyin.', 'warning');
         }
-        
-    } catch (error) {
-        console.error('Error populating personnel:', error);
-        showAlert('Personel yüklenirken hata oluştu', 'error');
+
+    } catch (err) {
+        console.error('Unexpected error:', err);
+        showAlert('Personel dropdown yükleme hatası', 'error');
     }
 }
+
 
 
 
