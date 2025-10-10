@@ -167,12 +167,13 @@ async function generateProfessionalPDFReport(reportData) {
             doc.text('GUNLUK OZET', margin, currentY);
             currentY += 15;
 
-            const summaryBoxes = [
-                { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219], icon: '📦' },
-                { title: 'Bekleyen Paket', value: reportData.waitingPackages, color: [241, 196, 15], icon: '⏳' },
-                { title: 'Sevk Edilen Paket', value: reportData.shippedPackages, color: [46, 204, 113], icon: '🚚' },
-                { title: 'Konteyner', value: reportData.containers.length || 0, color: [155, 89, 182], icon: '📊' }
-            ];
+          const summaryBoxes = [
+    { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219] },
+    { title: 'Bekleyen Paket', value: reportData.waitingPackages, color: [241, 196, 15] },
+    { title: 'Sevk Edilen Paket', value: reportData.shippedPackages, color: [46, 204, 113] },
+    { title: 'Konteyner', value: reportData.containers.length || 0, color: [155, 89, 182] }
+];
+
 
             const boxWidth = (pageWidth - 2 * margin - 15) / 4;
             summaryBoxes.forEach((box, index) => {
