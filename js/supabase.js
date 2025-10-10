@@ -3720,7 +3720,6 @@ async function sendToRamp(containerNo = null) {
 
             showAlert(`✅ ${totalProcessed} paket sevk edildi`, 'success');
 
-            await populateShippingTable();
             currentContainer = null;
             
         } else {
