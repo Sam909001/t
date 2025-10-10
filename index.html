@@ -313,40 +313,49 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
     </div> <!-- End of shippingTab -->
 
-<!-- RFID Stock Tab -->
+<!-- Find the Stock Tab section and replace with this: -->
 <div class="tab-pane" id="stockTab">
-    <!-- Search and Export -->
-    <div class="stock-search" style="display:flex; gap:10px; margin-bottom:10px;">
-        <input type="text" id="stockSearch" placeholder="Stok ara..." oninput="searchStock()">
-        <button type="button" class="btn btn-primary" onclick="clearStockSearch()">Temizle</button>
-        <button type="button" class="btn btn-success" onclick="exportStock()">Dışa Aktar</button>
+    <div class="stock-header">
+        <h2>RFID Stok Yönetimi</h2>
+        <div class="stock-actions">
+            <button id="startRFIDBtn" onclick="startRFIDScanner()" class="btn btn-success">
+                <i class="fas fa-play"></i> RFID Tarayıcı Başlat
+            </button>
+            <button id="stopRFIDBtn" onclick="stopRFIDScanner()" class="btn btn-danger" disabled style="opacity: 0.5;">
+                <i class="fas fa-stop"></i> Durdur
+            </button>
+            <button onclick="populateRFIDStockTable()" class="btn btn-primary">
+                <i class="fas fa-sync"></i> Yenile
+            </button>
+            <button onclick="exportStock()" class="btn btn-secondary">
+                <i class="fas fa-download"></i> Dışa Aktar
+            </button>
+        </div>
     </div>
 
-    <!-- RFID Scan Controls -->
-    <div class="rfid-controls" style="margin-bottom:10px; display:flex; gap:10px; align-items:center;">
-        <button type="button" class="btn btn-primary" onclick="startRFIDScan()">RFID Tarayıcı Başlat</button>
-        <button type="button" class="btn btn-warning" onclick="stopRFIDScan()">Durdur</button>
-        <span>Toplam Tarama: <span id="rfidTotalCount">0</span></span>
+    <div class="stock-content">
+        <table class="stock-table">
+            <thead>
+                <tr>
+                    <th>RFID Tag ID</th>
+                    <th>Stok Kodu</th>
+                    <th>Ürün Adı</th>
+                    <th>Müşteri</th>
+                    <th>Durum</th>
+                    <th>Adım</th>
+                    <th>Kayıt Tarihi</th>
+                    <th>Yıkanma Yaşı</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="stockTableBody">
+                <tr>
+                    <td colspan="9" style="text-align: center;">Stok yükleniyor...</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
-
-    <!-- Live RFID Table -->
-    <table class="stock-table" style="width:100%; border-collapse:collapse; margin-bottom:20px;">
-        <thead>
-            <tr>
-                <th>RFID Tag ID</th>
-                <th>Stok Kodu</th>
-                <th>Ürün Adı</th>
-                <th>Müşteri</th>
-                <th>Durum</th>
-                <th>Adım</th>
-                <th>Zaman</th>
-                <th>İşlemler</th>
-            </tr>
-        </thead>
-        <tbody id="stockTableBody">
-            <!-- Live scanned RFID items will appear here -->
-        </tbody>
-    </table>
+</div>
 
     <!-- File Upload Section -->
     <div class="file-upload" style="margin-top:20px;">
