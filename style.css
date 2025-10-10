@@ -2620,7 +2620,7 @@ body.modal-open {
 
 .printer-status-section {
     background: #f8f9fa;
-    padding: 10px 20px;
+     padding: 6px 20px;
     border-bottom: 1px solid #dee2e6;
     display: flex;
     align-items: center;
@@ -2645,7 +2645,7 @@ body.dark-mode .printer-status-section {
 button[onclick*="checkPrinterStatus"],
 button[onclick*="openPrinterSettings"] {
     /* Size */
-    height: 38px;
+    height: 34px;
     min-width: 140px;
     padding: 0 16px;
     
