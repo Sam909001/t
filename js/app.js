@@ -1866,3 +1866,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Also call when switching tabs or when needed
 window.reinitializeExcelButtons = initializeExcelButtons;
+
+
+// generate uuid super function dom
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadExistingPackageIds();
+});
