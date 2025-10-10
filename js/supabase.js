@@ -2045,61 +2045,94 @@ function debugLog(...args) {
 
 async function calculateTotalQuantity(packageIds) {
     try {
-        // Validate input
         if (!Array.isArray(packageIds) || packageIds.length === 0) {
             console.warn('⚠️ No package IDs provided');
             return 0;
         }
 
-        // Clean IDs (remove null/undefined)
         const cleanIds = packageIds.filter(id => id != null);
         if (cleanIds.length === 0) {
             console.warn('⚠️ No valid IDs after filtering');
             return 0;
         }
 
-        // Check Supabase connection
-        if (!supabase) {
-            console.warn('⚠️ Supabase not available, using fallback');
-            return getPackageQuantityFallback(cleanIds);
-        }
+        let totalQuantity = 0;
 
-        // Fetch packages - only get what we need
-        const { data: packages, error } = await supabase
-            .from('packages')
-            .select('id, total_quantity')
-            .in('id', cleanIds);
-        
-        if (error) {
-            console.error('❌ Supabase error:', error);
-            return getPackageQuantityFallback(cleanIds);
-        }
-
-        // If no packages found, try fallback
-        if (!packages || packages.length === 0) {
-            console.warn(`⚠️ No packages found in database for IDs:`, cleanIds);
-            return getPackageQuantityFallback(cleanIds);
-        }
-
-        // Calculate total quantity
-        const totalQuantity = packages.reduce((sum, pkg) => {
-            const qty = parseInt(pkg.total_quantity);
-            if (isNaN(qty)) {
-                console.warn(`⚠️ Invalid quantity for package ${pkg.id}:`, pkg.total_quantity);
-                return sum;
+        if (supabase && navigator.onLine) {
+            // Try Supabase first
+            const { data: packages, error } = await supabase
+                .from('packages')
+                .select('id, total_quantity, items')
+                .in('id', cleanIds);
+            
+            if (!error && packages) {
+                packages.forEach(pkg => {
+                    const qty = calculateQuantityFromPackage(pkg);
+                    totalQuantity += qty;
+                });
+                console.log(`✅ Supabase calculated: ${totalQuantity}`);
+                return totalQuantity;
             }
-            return sum + qty;
-        }, 0);
+        }
 
-        console.log(`✅ Calculated total quantity: ${totalQuantity} from ${packages.length} packages`);
+        // Fallback to Excel/localStorage
+        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
+        const packagesData = excelPackages.filter(pkg => cleanIds.includes(pkg.id));
+        
+        if (packagesData.length === 0) {
+            console.warn('❌ No packages found in any source');
+            return 0;
+        }
+
+        packagesData.forEach(pkg => {
+            const qty = calculateQuantityFromPackage(pkg);
+            totalQuantity += qty;
+        });
+
+        console.log(`✅ Fallback calculated: ${totalQuantity}`);
         return totalQuantity;
 
     } catch (error) {
         console.error('❌ Error calculating total quantity:', error);
-        return getPackageQuantityFallback(packageIds);
+        return 0;
     }
 }
 
+// Helper function to extract quantity from any package format
+function calculateQuantityFromPackage(pkg) {
+    // Method 1: Direct total_quantity
+    if (pkg.total_quantity) {
+        const qty = parseInt(pkg.total_quantity);
+        if (!isNaN(qty)) return qty;
+    }
+
+    // Method 2: Calculate from items array
+    if (pkg.items && Array.isArray(pkg.items)) {
+        return pkg.items.reduce((sum, item) => {
+            const itemQty = parseInt(item.qty || item.quantity || 0);
+            return sum + (isNaN(itemQty) ? 0 : itemQty);
+        }, 0);
+    }
+
+    // Method 3: Calculate from items object
+    if (pkg.items && typeof pkg.items === 'object') {
+        return Object.values(pkg.items).reduce((sum, qty) => {
+            const itemQty = parseInt(qty);
+            return sum + (isNaN(itemQty) ? 0 : itemQty);
+        }, 0);
+    }
+
+    // Method 4: Try items_display parsing
+    if (pkg.items_display) {
+        const matches = pkg.items_display.match(/\d+/g);
+        if (matches) {
+            return matches.reduce((sum, match) => sum + parseInt(match), 0);
+        }
+    }
+
+    console.warn('⚠️ Could not determine quantity for package:', pkg.id);
+    return 0;
+}
 function getPackageQuantityFallback(packageIds) {
     console.log('🔄 Using localStorage fallback...');
     
