@@ -228,6 +228,9 @@ async function initApp() {
         
         // 11. Load saved state
         loadAppState();
+
+        // load package id 
+        await loadExistingPackageIds();
         
         // 12. Load data
         await loadPackagesData();
