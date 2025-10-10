@@ -60,7 +60,6 @@ if (typeof emailjs === 'undefined') {
    
 
 
-// Replace ALL data loading functions with strict versions
 async function loadPackagesDataStrict() {
     if (!window.workspaceManager?.currentWorkspace) {
         console.warn('Workspace not initialized, using default');
@@ -94,16 +93,21 @@ async function loadPackagesDataStrict() {
         console.log(`✅ STRICT: Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
         window.packages = workspacePackages;
         
-        // Load from Supabase with workspace filtering only
+        // Load from Supabase - REMOVE CONFLICTING FILTERS
         if (supabase && navigator.onLine) {
             try {
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
-                    .eq('workspace_id', workspaceId)
+                    .eq('workspace_id', workspaceId)  // ✅ ONLY workspace filter
                     .order('created_at', { ascending: false });
                 
-                if (!error && supabasePackages && supabasePackages.length > 0) {
+                if (error) {
+                    console.error('Supabase query error:', error);
+                    throw error;
+                }
+                
+                if (supabasePackages && supabasePackages.length > 0) {
                     console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
                     const validSupabasePackages = supabasePackages.filter(pkg => 
@@ -117,7 +121,7 @@ async function loadPackagesDataStrict() {
                     await ExcelJS.writeFile(excelData);
                 }
             } catch (supabaseError) {
-                console.warn('Supabase load failed, using Excel data:', supabaseError);
+                console.error('Supabase load failed, using Excel data:', supabaseError);
             }
         }
         
@@ -3612,7 +3616,10 @@ async function sendToRamp(containerNo = null) {
                     .from('containers')
                     .insert([containerData])
                     .select();
-                if (insertErr) throw insertErr;
+                if (insertErr) {
+                    console.error('Container creation error:', insertErr);
+                    throw insertErr;
+                }
                 containerId = inserted[0].id;
             } else {
                 containerId = `cont-${timestamp}`;
@@ -3630,9 +3637,11 @@ async function sendToRamp(containerNo = null) {
 
         if (supabasePackages.length > 0 && supabase && navigator.onLine) {
             const ids = supabasePackages.map(p => p.id);
+            console.log('Updating Supabase packages:', ids);
+            
             const { data: updatedRows, error: updateErr } = await supabase
                 .from('packages')
-                .update({  // ✅ SINGLE .update() only
+                .update({
                     container_id: containerId, 
                     status: 'sevk edildi',
                     shipped_at: new Date().toISOString(),
@@ -3641,10 +3650,11 @@ async function sendToRamp(containerNo = null) {
                 .in('id', ids)
                 .select();
 
-            if (!updateErr && Array.isArray(updatedRows)) {
-                successCount += updatedRows.length;
-            } else if (updateErr) {
+            if (updateErr) {
                 console.error('Supabase update error:', updateErr);
+            } else if (Array.isArray(updatedRows)) {
+                successCount += updatedRows.length;
+                console.log('Supabase packages updated:', updatedRows.length);
             }
         }
 
@@ -3661,7 +3671,7 @@ async function sendToRamp(containerNo = null) {
 
                     const idx = currentExcel.findIndex(p => p && p.id === pkg.id);
                     if (idx !== -1) {
-                        currentExcel[idx] = {  // ✅ Fixed - no duplicate assignment
+                        currentExcel[idx] = {
                             ...currentExcel[idx], 
                             container_id: containerId, 
                             status: 'sevk edildi',
@@ -3674,13 +3684,17 @@ async function sendToRamp(containerNo = null) {
 
                 await ExcelJS.writeFile(currentExcel);
                 successCount += updatedCount;
+                console.log('Excel packages updated:', updatedCount);
                 
             } catch (exErr) {
                 console.error('Excel update error:', exErr);
             }
         }
 
-        if (successCount > 0) {
+        // ✅ FIX: Consider both Supabase and Excel packages
+        const totalProcessed = supabasePackages.length + excelPackages.length;
+
+        if (totalProcessed > 0 || successCount > 0) {
             // Update in-memory data
             if (Array.isArray(window.packages)) {
                 window.packages = window.packages.filter(pkg => !movedPackageIds.includes(pkg.id));
@@ -3704,7 +3718,7 @@ async function sendToRamp(containerNo = null) {
                 totalPackagesElement.textContent = Math.max(0, currentCount - selectedPackages.length).toString();
             }
 
-            showAlert(`✅ ${successCount} paket sevk edildi`, 'success');
+            showAlert(`✅ ${totalProcessed} paket sevk edildi`, 'success');
 
             await populateShippingTable();
             currentContainer = null;
@@ -3719,6 +3733,11 @@ async function sendToRamp(containerNo = null) {
     } catch (error) {
         console.error('❌ Error in sendToRamp:', error);
         showAlert('Sevkiyat hatası: ' + error.message, 'error');
+        
+        // Restore UI on error
+        movedPackageElements.forEach(row => {
+            if (row) row.style.opacity = '1';
+        });
     }
 }
 
