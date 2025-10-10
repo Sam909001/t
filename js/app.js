@@ -103,30 +103,41 @@ function loadAppState() {
     if (savedState) {
         const state = JSON.parse(savedState);
         
-        // Restore customer selection
-        if (state.selectedCustomerId) {
-            elements.customerSelect.value = state.selectedCustomerId;
-            // Find and set the selectedCustomer object
-            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
-            if (option) {
-                selectedCustomer = {
-                    id: state.selectedCustomerId,
-                    name: option.textContent.split(' (')[0],
-                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                };
+        // ⭐⭐⭐ CRITICAL FIX: Only restore selections AFTER dropdowns are populated
+        setTimeout(() => {
+            // Restore customer selection
+            if (state.selectedCustomerId && elements.customerSelect) {
+                elements.customerSelect.value = state.selectedCustomerId;
+                // Find and set the selectedCustomer object
+                const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+                if (option) {
+                    selectedCustomer = {
+                        id: state.selectedCustomerId,
+                        name: option.textContent.split(' (')[0],
+                        code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                    };
+                }
             }
-        }
-        
-        // Restore personnel selection
-        if (state.selectedPersonnelId) {
-            elements.personnelSelect.value = state.selectedPersonnelId;
-        }
-        
-        // Restore current container
-        if (state.currentContainer) {
-            currentContainer = state.currentContainer;
-            elements.containerNumber.textContent = currentContainer;
-        }
+            
+            // Restore personnel selection
+            if (state.selectedPersonnelId && elements.personnelSelect) {
+                elements.personnelSelect.value = state.selectedPersonnelId;
+            }
+            
+            // Restore current container
+            if (state.currentContainer) {
+                currentContainer = state.currentContainer;
+                if (elements.containerNumber) {
+                    elements.containerNumber.textContent = currentContainer;
+                }
+            }
+            
+            // Restore Excel mode
+            if (state.isUsingExcel !== undefined) {
+                isUsingExcel = state.isUsingExcel;
+                updateStorageIndicator();
+            }
+        }, 100); // Small delay to ensure dropdowns are populated
     }
 }
 
