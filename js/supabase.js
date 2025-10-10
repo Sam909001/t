@@ -60,7 +60,6 @@ if (typeof emailjs === 'undefined') {
    
 
 
-// Replace ALL data loading functions with strict versions
 async function loadPackagesDataStrict() {
     if (!window.workspaceManager?.currentWorkspace) {
         console.warn('Workspace not initialized, using default');
@@ -94,16 +93,21 @@ async function loadPackagesDataStrict() {
         console.log(`✅ STRICT: Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
         window.packages = workspacePackages;
         
-        // Load from Supabase with workspace filtering only
+        // Load from Supabase - REMOVE CONFLICTING FILTERS
         if (supabase && navigator.onLine) {
             try {
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
-                    .eq('workspace_id', workspaceId)
+                    .eq('workspace_id', workspaceId)  // ✅ ONLY workspace filter
                     .order('created_at', { ascending: false });
                 
-                if (!error && supabasePackages && supabasePackages.length > 0) {
+                if (error) {
+                    console.error('Supabase query error:', error);
+                    throw error;
+                }
+                
+                if (supabasePackages && supabasePackages.length > 0) {
                     console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
                     const validSupabasePackages = supabasePackages.filter(pkg => 
@@ -117,7 +121,7 @@ async function loadPackagesDataStrict() {
                     await ExcelJS.writeFile(excelData);
                 }
             } catch (supabaseError) {
-                console.warn('Supabase load failed, using Excel data:', supabaseError);
+                console.error('Supabase load failed, using Excel data:', supabaseError);
             }
         }
         
@@ -128,6 +132,7 @@ async function loadPackagesDataStrict() {
         showAlert('Paket verileri yüklenirken hata oluştu', 'error');
     }
 }
+
 
 function mergePackagesStrict(excelPackages, supabasePackages) {
     const merged = [...excelPackages];
