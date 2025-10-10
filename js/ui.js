@@ -4292,20 +4292,6 @@ console.log('✅ Fixed data collection functions loaded - No fake data');
 
 
 
-// Wait for DOM to be ready
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("🔄 DOM Ready - Initializing Excel buttons...");
-    initializeExcelButtons();
-});
-
-// Also try to initialize immediately (in case DOM is already loaded)
-if (document.readyState === 'loading') {
-    console.log("⏳ Waiting for DOM...");
-} else {
-    console.log("✅ DOM already loaded - Initializing now...");
-    initializeExcelButtons();
-}
-
 // ==================== EXCEL BUTTONS - COMPLETE WORKING VERSION ====================
 
 // Make sure functions are globally available
