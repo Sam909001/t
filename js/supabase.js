@@ -177,7 +177,7 @@ function isValidEmail(email) {
 const elements = {};
 
 // Enhanced Excel Storage with Proper Daily Files
-window.ExcelStorage = {
+const ExcelStorage = {
     // Get today's date string for file naming
     getTodayDateString: function() {
         return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -214,7 +214,7 @@ window.ExcelStorage = {
         }
         return files;
     },
-  
+    
     // Read from today's file
     readFile: async function() {
         try {
@@ -357,7 +357,7 @@ convertToCSV: function(data) {
 };
 
 // Excel.js library (simple implementation) - Enhanced with ExcelStorage functionality
-window.ExcelJS = {
+const ExcelJS = {
     readFile: async function() {
         try {
             // Use the enhanced daily file system
@@ -415,8 +415,7 @@ toExcelFormat: function(packages) {
     cleanupOldFiles: ExcelStorage.cleanupOldFiles
 };
 
-// After ExcelStorage definition
-console.log('✅ ExcelStorage DEFINED - is it working?');
+
 
 
 // ==================== ENHANCED PROFESSIONAL EXCEL EXPORT WITH CUSTOMER CALCULATIONS ====================
@@ -2034,17 +2033,7 @@ row.innerHTML = `
 
         
         
-     // At the top of your file - TOGGLE THIS
-const DEBUG_MODE = false; // Set to false for production
-
-// Helper function for conditional logging
-function debugLog(...args) {
-    if (DEBUG_MODE) {
-        console.log(...args);
-    }
-}
-
-async function calculateTotalQuantity(packageIds) {
+      async function calculateTotalQuantity(packageIds) {
     try {
         if (!Array.isArray(packageIds) || packageIds.length === 0) {
             console.warn('⚠️ No package IDs provided');
@@ -2134,42 +2123,7 @@ function calculateQuantityFromPackage(pkg) {
     console.warn('⚠️ Could not determine quantity for package:', pkg.id);
     return 0;
 }
-function getPackageQuantityFallback(packageIds) {
-    console.log('🔄 Using localStorage fallback...');
-    
-    try {
-        const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
-        const packagesData = JSON.parse(localStorage.getItem(`packages_${workspaceId}`) || '[]');
-        
-        if (!packagesData || packagesData.length === 0) {
-            console.warn('❌ No packages in localStorage');
-            return 0;
-        }
-        
-        // Sum quantities for matching IDs
-        const totalQuantity = packageIds.reduce((total, id) => {
-            // Compare as strings to handle type mismatches
-            const pkg = packagesData.find(p => String(p.id) === String(id));
-            if (!pkg) {
-                console.warn(`⚠️ Package ${id} not found in localStorage`);
-                return total;
-            }
-            const qty = parseInt(pkg.total_quantity);
-            if (isNaN(qty)) {
-                console.warn(`⚠️ Invalid quantity for package ${id}:`, pkg.total_quantity);
-                return total;
-            }
-            return total + qty;
-        }, 0);
-        
-        console.log(`✅ Fallback calculated: ${totalQuantity}`);
-        return totalQuantity;
-        
-    } catch (error) {
-        console.error('❌ Fallback error:', error);
-        return 0;
-    }
-}
+
         
  // Pagination state
 let currentPage = 0;
@@ -4640,18 +4594,3 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
-
-
-// ==================== GLOBAL EXPORTS ====================
-// Make functions and objects available globally
-window.ExcelStorage = ExcelStorage;
-window.ExcelJS = ExcelJS;
-window.ProfessionalExcelExport = ProfessionalExcelExport;
-
-// Also expose key functions
-window.populatePackagesTable = populatePackagesTable;
-window.populateShippingTable = populateShippingTable;
-window.syncExcelWithSupabase = syncExcelWithSupabase;
-window.saveToExcel = saveToExcel;
-
-console.log('✅ Supabase.js loaded - globals exported');
