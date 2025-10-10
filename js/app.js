@@ -1065,7 +1065,7 @@ async function completePackage() {
         const packageNo = `pkg-${stationNumber}-${sequentialNumber}`;
         
         // Generate unique ID for database
-        const packageId = crypto.randomUUID();
+        const packageId = `pkg-${workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
