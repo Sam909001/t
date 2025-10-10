@@ -2043,87 +2043,99 @@ function debugLog(...args) {
     }
 }
 
-// Calculate total quantity - SMART VERSION
 async function calculateTotalQuantity(packageIds) {
-    debugLog('🔍 Calculating quantity for packages:', packageIds);
-    
     try {
         // Validate input
-        if (!packageIds || packageIds.length === 0) {
-            debugLog('⚠️ No package IDs provided');
+        if (!Array.isArray(packageIds) || packageIds.length === 0) {
+            console.warn('⚠️ No package IDs provided');
+            return 0;
+        }
+
+        // Clean IDs (remove null/undefined)
+        const cleanIds = packageIds.filter(id => id != null);
+        if (cleanIds.length === 0) {
+            console.warn('⚠️ No valid IDs after filtering');
             return 0;
         }
 
         // Check Supabase connection
         if (!supabase) {
-            debugLog('⚠️ Supabase not available, using fallback');
-            return getPackageQuantityFallback(packageIds);
+            console.warn('⚠️ Supabase not available, using fallback');
+            return getPackageQuantityFallback(cleanIds);
         }
 
-        // Fetch packages from database
+        // Fetch packages - only get what we need
         const { data: packages, error } = await supabase
             .from('packages')
-            .select('total_quantity')
-            .in('id', packageIds);
+            .select('id, total_quantity')
+            .in('id', cleanIds);
         
         if (error) {
-            debugLog('❌ Query error:', error);
-            throw error;
+            console.error('❌ Supabase error:', error);
+            return getPackageQuantityFallback(cleanIds);
         }
 
         // If no packages found, try fallback
         if (!packages || packages.length === 0) {
-            debugLog('⚠️ No packages found, using fallback');
-            return getPackageQuantityFallback(packageIds);
+            console.warn(`⚠️ No packages found in database for IDs:`, cleanIds);
+            return getPackageQuantityFallback(cleanIds);
         }
-
-        debugLog('📦 Found packages:', packages);
 
         // Calculate total quantity
         const totalQuantity = packages.reduce((sum, pkg) => {
-            return sum + (parseInt(pkg.total_quantity) || 0);
+            const qty = parseInt(pkg.total_quantity);
+            if (isNaN(qty)) {
+                console.warn(`⚠️ Invalid quantity for package ${pkg.id}:`, pkg.total_quantity);
+                return sum;
+            }
+            return sum + qty;
         }, 0);
 
-        debugLog('✅ Total quantity:', totalQuantity);
+        console.log(`✅ Calculated total quantity: ${totalQuantity} from ${packages.length} packages`);
         return totalQuantity;
 
     } catch (error) {
-        // Always log errors (even in production)
-        console.error('Error calculating total quantity:', error);
+        console.error('❌ Error calculating total quantity:', error);
         return getPackageQuantityFallback(packageIds);
     }
 }
 
-// Fallback function
 function getPackageQuantityFallback(packageIds) {
-    debugLog('🔄 Using localStorage fallback');
+    console.log('🔄 Using localStorage fallback...');
     
     try {
         const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
         const packagesData = JSON.parse(localStorage.getItem(`packages_${workspaceId}`) || '[]');
         
         if (!packagesData || packagesData.length === 0) {
-            debugLog('⚠️ No packages in localStorage');
+            console.warn('❌ No packages in localStorage');
             return 0;
         }
         
         // Sum quantities for matching IDs
         const totalQuantity = packageIds.reduce((total, id) => {
-            const pkg = packagesData.find(p => p.id === id);
-            const quantity = pkg ? (parseInt(pkg.total_quantity) || 0) : 0;
-            debugLog(`  - Package ${id}: ${quantity}`);
-            return total + quantity;
+            // Compare as strings to handle type mismatches
+            const pkg = packagesData.find(p => String(p.id) === String(id));
+            if (!pkg) {
+                console.warn(`⚠️ Package ${id} not found in localStorage`);
+                return total;
+            }
+            const qty = parseInt(pkg.total_quantity);
+            if (isNaN(qty)) {
+                console.warn(`⚠️ Invalid quantity for package ${id}:`, pkg.total_quantity);
+                return total;
+            }
+            return total + qty;
         }, 0);
         
-        debugLog('✅ Fallback total:', totalQuantity);
+        console.log(`✅ Fallback calculated: ${totalQuantity}`);
         return totalQuantity;
         
     } catch (error) {
-        console.error('Fallback calculation error:', error);
+        console.error('❌ Fallback error:', error);
         return 0;
     }
 }
-
         
  // Pagination state
 let currentPage = 0;
