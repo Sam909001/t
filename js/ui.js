@@ -4547,3 +4547,27 @@ window.clearExcelData = clearExcelData;
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeExcelButtons, 3000);
 });
+
+
+
+
+/**
+ * Toggles the selection state of all individual customer checkboxes 
+ * based on the state of the 'Select All' checkbox.
+ * * @param {HTMLInputElement} selectAllCheckbox - The 'Select All' checkbox element that triggered the change.
+ */
+function toggleSelectAllCustomer(selectAllCheckbox) {
+    const isChecked = selectAllCheckbox.checked;
+    
+    // Assuming your individual customer checkboxes have a common class like 'customer-checkbox'
+    const customerCheckboxes = document.querySelectorAll('.customer-checkbox');
+    
+    customerCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+
+    console.log('Select all customers toggled:', isChecked);
+}
+
+// Make the function globally accessible to the HTML
+window.toggleSelectAllCustomer = toggleSelectAllCustomer;
