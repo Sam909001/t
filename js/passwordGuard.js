@@ -259,7 +259,7 @@ async function addCustomerWithAuth() {
     }
 }
 
-// ✅ 5. Clear Excel with Authentication - Uses 8823
+// ✅ 5. Clear Excel with Authentication - Uses 9494 (clearData password)
 async function clearExcelDataWithAuth() {
     const passwordGuard = new PasswordGuard();
     
@@ -273,7 +273,7 @@ async function clearExcelDataWithAuth() {
             }
         };
         
-        await passwordGuard.askPasswordAndRun(clearAction, 'Excel verilerini temizleme', 'default');
+        await passwordGuard.askPasswordAndRun(clearAction, 'Excel verilerini temizleme', 'clearData'); // CHANGED: 'default' → 'clearData'
     } catch (error) {
         if (error.message !== 'User cancelled') {
             console.log('Excel clear cancelled:', error.message);
