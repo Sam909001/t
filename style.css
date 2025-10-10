@@ -2752,3 +2752,99 @@ body.dark-mode button[onclick*="openPrinterSettings"]:hover {
         height: 36px;
     }
 }
+
+
+
+/* ==================== ADJUST PACKAGING LAYOUT WIDTHS ==================== */
+
+.packaging-content {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding-bottom: 10px;
+}
+
+/* LEFT COLUMN: Product Buttons - Keep same */
+.barcode-section {
+    flex: 0 0 22%;  /* Keep as is */
+    min-width: 220px;
+    background: var(--surface);
+    padding: 1.2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px var(--shadow);
+}
+
+/* MIDDLE COLUMN: Bekleyen Paketler - NARROWER (reduced by ~2cm) */
+.pending-packages {
+    flex: 0 0 45%;  /* ← CHANGED from 50% to 45% */
+    min-width: 320px;  /* ← CHANGED from 360px */
+    background: var(--surface);
+    padding: 0.8rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px var(--shadow);
+    overflow: auto;
+}
+
+/* RIGHT COLUMN: Barkod Okuma & Paket Detayları - WIDER */
+.package-details {
+    flex: 0 0 33%;  /* ← CHANGED from 25% to 33% */
+    min-width: 260px;  /* ← CHANGED from 220px */
+    background: var(--surface);
+    padding: 0.8rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px var(--shadow);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Optional: Make table more compact to fit */
+.pending-packages .package-table {
+    font-size: 0.8rem;  /* Slightly smaller text */
+}
+
+.pending-packages .package-table th,
+.pending-packages .package-table td {
+    padding: 0.4rem;  /* Slightly less padding */
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+    .pending-packages {
+        flex: 0 0 42%;
+    }
+    
+    .package-details {
+        flex: 0 0 36%;
+    }
+}
+
+@media (max-width: 1200px) {
+    .barcode-section {
+        min-width: 200px;
+    }
+    
+    .pending-packages {
+        flex: 1 1 50%;
+        min-width: 300px;
+    }
+    
+    .package-details {
+        flex: 1 1 30%;
+        min-width: 240px;
+    }
+}
+
+@media (max-width: 900px) {
+    .packaging-content {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .barcode-section,
+    .pending-packages,
+    .package-details {
+        flex: 1 1 auto;
+        width: 100%;
+        min-width: auto;
+    }
+}
