@@ -1139,7 +1139,7 @@ function addPackageRowToTable(pkg) {
         emptyMessage.closest('tr').remove();
     }
 
-    // Create new row
+    // Create new row with CORRECT column order
     const row = document.createElement('tr');
     row.style.backgroundColor = '#f0fff0'; // Highlight new package
     row.innerHTML = `
@@ -1151,8 +1151,8 @@ function addPackageRowToTable(pkg) {
         <td>${pkg.customer_name || 'N/A'}</td>
         <td>${pkg.items_display || 'N/A'}</td>
         <td>${pkg.total_quantity || 0}</td>
-        <td><span class="status-badge status-beklemede">beklemede</span></td>
         <td>${new Date(pkg.created_at).toLocaleDateString('tr-TR')}</td>
+        <td><span class="status-badge status-beklemede">beklemede</span></td>
         <td>
             <button onclick="viewPackageDetails('${pkg.id}')" class="btn-icon" title="Detay">
                 <i class="fas fa-eye"></i>
@@ -1174,7 +1174,6 @@ function addPackageRowToTable(pkg) {
 
     console.log('✅ Package row added to table:', pkg.package_no);
 }
-
 
 
 
