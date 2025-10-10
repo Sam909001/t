@@ -2668,7 +2668,7 @@ let rfidScanBuffer = '';
 let rfidLastScanTime = 0;
 
 // Populate Stock Table with RFID Support
-async function populateStockTable() {
+async function populateRFIDStockTable() {
     const tbody = document.getElementById('stockTableBody');
     if (!tbody) {
         console.error('Stock table body not found');
@@ -2882,19 +2882,18 @@ async function processRFIDScan(rfidTag) {
     }
 }
 
-// Create New RFID Stock Item
 async function createNewRFIDStock(rfidTag) {
     const stockCode = prompt('Stok Kodu:');
     if (!stockCode) return;
-    
+
     const productName = prompt('Ürün Adı:');
     if (!productName) return;
-    
+
     const customerName = prompt('Müşteri Adı (opsiyonel):') || '';
-    
+
     try {
         const newItem = {
-            id: generateUUID(),
+            // DO NOT SET id manually! Let Supabase generate UUID
             rfid_tag_id: rfidTag,
             stock_code: stockCode,
             product_name: productName,
@@ -2904,26 +2903,27 @@ async function createNewRFIDStock(rfidTag) {
             wash_age: 0,
             workspace_id: getCurrentWorkspaceId(),
             registration_date: new Date().toISOString(),
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
-        
+
         // Save to Supabase
         if (supabase && navigator.onLine) {
             const { error } = await supabase
                 .from('stock_items')
                 .insert([newItem]);
-            
+
             if (error) throw error;
         }
-        
+
         // Save to localStorage
         const localStock = JSON.parse(localStorage.getItem('rfid_stock_items') || '[]');
         localStock.push(newItem);
         localStorage.setItem('rfid_stock_items', JSON.stringify(localStock));
-        
+
         await populateRFIDStockTable();
         showAlert(`✅ RFID stok oluşturuldu: ${productName}`, 'success');
-        
+
     } catch (error) {
         console.error('Create RFID stock error:', error);
         showAlert('RFID stok oluşturma hatası', 'error');
