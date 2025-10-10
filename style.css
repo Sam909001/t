@@ -2610,3 +2610,145 @@ body.modal-open {
 .printer-indicator i {
     font-size: 13px;
 }
+
+
+
+
+
+
+/* ==================== PRINTER STATUS BUTTONS - UNIFORM DESIGN ==================== */
+
+.printer-status-section {
+    background: #f8f9fa;
+    padding: 10px 20px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+body.dark-mode .printer-status-section {
+    background: #2d3748;
+    border-bottom-color: #4a5568;
+}
+
+.printer-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Uniform button styles for all 3 buttons */
+.printer-status button,
+#test-printer,
+button[onclick*="checkPrinterStatus"],
+button[onclick*="openPrinterSettings"] {
+    /* Size */
+    height: 38px;
+    min-width: 140px;
+    padding: 0 16px;
+    
+    /* Colors */
+    background: white;
+    color: #2c3e50;
+    border: 2px solid #dee2e6;
+    
+    /* Typography */
+    font-size: 13px;
+    font-weight: 600;
+    
+    /* Layout */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    
+    /* Effects */
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Hover effect */
+.printer-status button:hover,
+#test-printer:hover,
+button[onclick*="checkPrinterStatus"]:hover,
+button[onclick*="openPrinterSettings"]:hover {
+    background: #f8f9fa;
+    border-color: #3498db;
+    color: #3498db;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.2);
+}
+
+/* Active/Click effect */
+.printer-status button:active,
+#test-printer:active,
+button[onclick*="checkPrinterStatus"]:active,
+button[onclick*="openPrinterSettings"]:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Icon styling */
+.printer-status button i,
+#test-printer i,
+button[onclick*="checkPrinterStatus"] i,
+button[onclick*="openPrinterSettings"] i {
+    font-size: 14px;
+}
+
+/* Printer indicator (green dot) */
+#printer-indicator {
+    font-size: 18px;
+    margin-right: 4px;
+}
+
+#printer-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #495057;
+}
+
+body.dark-mode #printer-text {
+    color: #e2e8f0;
+}
+
+/* Dark mode button styles */
+body.dark-mode .printer-status button,
+body.dark-mode #test-printer,
+body.dark-mode button[onclick*="checkPrinterStatus"],
+body.dark-mode button[onclick*="openPrinterSettings"] {
+    background: #374151;
+    color: #f3f4f6;
+    border-color: #4b5563;
+}
+
+body.dark-mode .printer-status button:hover,
+body.dark-mode #test-printer:hover,
+body.dark-mode button[onclick*="checkPrinterStatus"]:hover,
+body.dark-mode button[onclick*="openPrinterSettings"]:hover {
+    background: #4b5563;
+    border-color: #60a5fa;
+    color: #60a5fa;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .printer-status {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .printer-status button,
+    #test-printer,
+    button[onclick*="checkPrinterStatus"],
+    button[onclick*="openPrinterSettings"] {
+        min-width: 120px;
+        font-size: 12px;
+        padding: 0 12px;
+        height: 36px;
+    }
+}
