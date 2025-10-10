@@ -4507,52 +4507,37 @@ window.initializeExcelButtons = initializeExcelButtons;
 
 console.log("✅ Fixed Excel buttons loaded in ui.js!");
 
-// 🧩 Reliable Excel Button Initializer
-(function ensureExcelButtons() {
-    // Check DOM and ExcelStorage availability
+// ✅ Ensure Excel buttons work even if UI loads dynamically
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
     const refreshBtn = document.getElementById("refreshExcelBtn");
     const clearBtn = document.getElementById("clearExcelBtn");
 
-    if (!refreshBtn || !clearBtn || !window.ExcelStorage) {
-        console.warn("⏳ Waiting for Excel buttons or ExcelStorage...");
-        setTimeout(ensureExcelButtons, 500);
-        return;
+    if (!refreshBtn || !clearBtn) {
+      console.warn("⚠️ Excel buttons not found at init, will retry...");
+      return;
     }
 
-    // Prevent duplicate listeners
-    refreshBtn.replaceWith(refreshBtn.cloneNode(true));
-    clearBtn.replaceWith(clearBtn.cloneNode(true));
-
-    const newRefreshBtn = document.getElementById("refreshExcelBtn");
-    const newClearBtn = document.getElementById("clearExcelBtn");
-
-    // ✅ Refresh Excel Button
-    newRefreshBtn.addEventListener("click", async () => {
-        console.log("🔄 Refresh Excel clicked");
-        showAlert?.("📄 Excel verileri yenileniyor...", "info");
-        try {
-            const packages = await ExcelStorage.readFile();
-            showAlert?.(`✅ ${packages.length} kayıt yüklendi`, "success");
-        } catch (err) {
-            console.error("❌ Refresh error:", err);
-            showAlert?.("❌ Excel verileri yenilenemedi", "error");
-        }
+    refreshBtn.addEventListener("click", async () => {
+      console.log("🔄 Refresh Excel clicked");
+      if (window.ExcelStorage) {
+        const packages = await ExcelStorage.readFile();
+        showAlert(`📦 ${packages.length} paket güncellendi`, "success");
+      } else {
+        showAlert("❌ ExcelStorage tanımlı değil", "error");
+      }
     });
 
-    // ✅ Clear Excel Button
-    newClearBtn.addEventListener("click", async () => {
-        console.log("🧹 Clear Excel clicked");
-        const confirmDelete = confirm("⚠️ Tüm Excel verileri silinecek. Emin misiniz?");
-        if (!confirmDelete) return;
-        try {
-            const keys = Object.keys(localStorage).filter(k => k.startsWith("packages_"));
-            keys.forEach(k => localStorage.removeItem(k));
-            showAlert?.("🧹 Tüm Excel dosyaları temizlendi", "success");
-        } catch (err) {
-            console.error("❌ Clear error:", err);
-            showAlert?.("❌ Excel verileri temizlenemedi", "error");
-        }
+    clearBtn.addEventListener("click", () => {
+      console.log("🧹 Clear Excel clicked");
+      if (confirm("Tüm Excel verilerini silmek istediğinize emin misiniz?")) {
+        Object.keys(localStorage)
+          .filter(k => k.startsWith("packages_"))
+          .forEach(k => localStorage.removeItem(k));
+        showAlert("🗑️ Tüm Excel verileri temizlendi", "success");
+      }
     });
 
-    console.log("✅ Excel buttons fully attached and working!");
-})();
+    console.log("✅ Excel buttons listeners attached");
+  }, 500); // 0.5s delay ensures DOM is ready
+});
