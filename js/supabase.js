@@ -2033,41 +2033,96 @@ row.innerHTML = `
 
         
         
-      // Fallback: Get package quantities from localStorage
-function getPackageQuantityFallback(packageIds) {
-    console.log('🔄 Using localStorage fallback for quantities...');
+     // At the top of your file - TOGGLE THIS
+const DEBUG_MODE = false; // Set to false for production
+
+// Helper function for conditional logging
+function debugLog(...args) {
+    if (DEBUG_MODE) {
+        console.log(...args);
+    }
+}
+
+// Calculate total quantity - SMART VERSION
+async function calculateTotalQuantity(packageIds) {
+    debugLog('🔍 Calculating quantity for packages:', packageIds);
     
     try {
-        // Try to get from current workspace
+        // Validate input
+        if (!packageIds || packageIds.length === 0) {
+            debugLog('⚠️ No package IDs provided');
+            return 0;
+        }
+
+        // Check Supabase connection
+        if (!supabase) {
+            debugLog('⚠️ Supabase not available, using fallback');
+            return getPackageQuantityFallback(packageIds);
+        }
+
+        // Fetch packages from database
+        const { data: packages, error } = await supabase
+            .from('packages')
+            .select('total_quantity')
+            .in('id', packageIds);
+        
+        if (error) {
+            debugLog('❌ Query error:', error);
+            throw error;
+        }
+
+        // If no packages found, try fallback
+        if (!packages || packages.length === 0) {
+            debugLog('⚠️ No packages found, using fallback');
+            return getPackageQuantityFallback(packageIds);
+        }
+
+        debugLog('📦 Found packages:', packages);
+
+        // Calculate total quantity
+        const totalQuantity = packages.reduce((sum, pkg) => {
+            return sum + (parseInt(pkg.total_quantity) || 0);
+        }, 0);
+
+        debugLog('✅ Total quantity:', totalQuantity);
+        return totalQuantity;
+
+    } catch (error) {
+        // Always log errors (even in production)
+        console.error('Error calculating total quantity:', error);
+        return getPackageQuantityFallback(packageIds);
+    }
+}
+
+// Fallback function
+function getPackageQuantityFallback(packageIds) {
+    debugLog('🔄 Using localStorage fallback');
+    
+    try {
         const workspaceId = window.workspaceManager?.currentWorkspace?.id || 'default';
         const packagesData = JSON.parse(localStorage.getItem(`packages_${workspaceId}`) || '[]');
         
         if (!packagesData || packagesData.length === 0) {
-            console.warn('⚠️ No packages in localStorage');
+            debugLog('⚠️ No packages in localStorage');
             return 0;
         }
         
         // Sum quantities for matching IDs
-        let totalQuantity = 0;
-        packageIds.forEach(id => {
+        const totalQuantity = packageIds.reduce((total, id) => {
             const pkg = packagesData.find(p => p.id === id);
-            if (pkg && pkg.total_quantity) {
-                totalQuantity += parseInt(pkg.total_quantity) || 0;
-                console.log(`  - Found package ${id}: quantity = ${pkg.total_quantity}`);
-            } else {
-                console.warn(`  - Package ${id} not found in localStorage`);
-            }
-        });
+            const quantity = pkg ? (parseInt(pkg.total_quantity) || 0) : 0;
+            debugLog(`  - Package ${id}: ${quantity}`);
+            return total + quantity;
+        }, 0);
         
-        console.log(`✅ Fallback total quantity: ${totalQuantity}`);
+        debugLog('✅ Fallback total:', totalQuantity);
         return totalQuantity;
         
     } catch (error) {
-        console.error('❌ Fallback error:', error);
+        console.error('Fallback calculation error:', error);
         return 0;
     }
 }
-
 
         
  // Pagination state
