@@ -91,43 +91,32 @@ document.addEventListener("DOMContentLoaded", function() {
 
     <div class="app-container" id="appContainer" aria-hidden="true">
         <div class="app-header">
-            <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
-            <div class="user-info">
-                <span id="userRole">Operatör: Yükleniyor...</span>
+    <div class="app-title">ProClean - Profesyonel Çamaşırhane Yönetim Sistemi</div>
+    <div class="user-info">
+        <span id="userRole">Operatör: Yükleniyor...</span>
 
-                  <!-- Printer Status Indicator -->
-<div id="printerIndicator" 
-     class="printer-indicator" 
-     style="
-        border-radius: 4px; 
-        padding: 4px 8px; 
-        font-size: 0.9em; 
-        display: inline-flex; 
-        align-items: center; 
-        gap: 5px;
-        background-color: light-dark(#f8f9fa, #2b2b2b); 
-        border: 1px solid light-dark(#dee2e6, #444); 
-        color: light-dark(#212529, #f1f1f1);
-     ">
-    <i class="fas fa-print"></i>
-    <span>Yazıcı Yükleniyor...</span>
-</div>
-
-            <button onclick="refreshApp()" class="btn btn-refresh" title="Uygulamayı Yenile">
-        <i class="fas fa-sync-alt"></i>
-    </button>
-                
-   <button id="settingsBtn" class="btn btn-secondary" onclick="showSettingsModal()">
-    <i class="fas fa-cog"></i>
-    <span>Ayarlar</span>
-</button>
-
-                
-                <button onclick="logoutWithConfirmation()" class="btn btn-secondary">
-    <i class="fas fa-sign-out-alt"></i> Çıkış Yap
-</button>
-            </div>
+        <!-- Printer Indicator -->
+        <div id="printerIndicator" class="printer-indicator">
+            <i class="fas fa-print"></i>
+            <span>Yazıcı Yükleniyor...</span>
         </div>
+
+        <!-- Refresh Button -->
+        <button onclick="refreshApp()" class="btn btn-refresh" title="Uygulamayı Yenile" aria-label="Refresh">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+        
+        <!-- Settings Button -->
+        <button id="settingsBtn" class="btn btn-secondary" onclick="showSettingsModal()" title="Ayarlar" aria-label="Settings">
+            <i class="fas fa-cog"></i>
+        </button>
+        
+        <!-- Logout Button -->
+        <button onclick="logoutWithConfirmation()" class="btn btn-danger" title="Çıkış Yap" aria-label="Logout">
+            <i class="fas fa-sign-out-alt"></i>
+        </button>
+    </div>
+</div>
                        <div class="printer-status-section">
     <div id="printer-status" class="printer-status">
         <span id="printer-indicator">🔴</span>
