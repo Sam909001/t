@@ -508,12 +508,6 @@ function closeContainerDetailModal() {
     currentContainerDetails = null;
 }
 
-// Müşteri klasöründeki tüm konteynerleri seç
-function toggleSelectAllCustomer(checkbox) {
-    const folder = checkbox.closest('.customer-folder');
-    const checkboxes = folder.querySelectorAll('.container-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
-}
 
 // Taranan barkodları göster
 function displayScannedBarcodes() {
@@ -2035,31 +2029,7 @@ function getSelectedPackage() {
     };
 }
 
-// FIXED: Select All for Packages
-function toggleSelectAll(source) {
-    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
-    });
-    updatePackageSelection();
-}
 
-// FIXED: Select All for Containers
-function toggleSelectAllContainers(source) {
-    const checkboxes = document.querySelectorAll('.container-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
-    });
-}
-
-// FIXED: Select All for Customer Folders
-function toggleSelectAllCustomer(source) {
-    const folder = source.closest('.customer-folder');
-    const checkboxes = folder.querySelectorAll('.container-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
-    });
-}
 // Stock operations
 function searchStock() {
     if (!elements.stockSearch) {
@@ -3000,43 +2970,6 @@ class UXEnhancer {
 // Initialize UX enhancer
 const uxEnhancer = new UXEnhancer();
 
-// Bulk selection functions
-function toggleSelectAll(tableId) {
-    const selectAll = document.getElementById(`selectAll-${tableId}`);
-    const rowSelects = document.querySelectorAll(`#${tableId} .row-select`);
-    
-    rowSelects.forEach(checkbox => {
-        checkbox.checked = selectAll.checked;
-    });
-    
-    updateBulkActions(tableId);
-}
-
-function updateBulkActions(tableId) {
-    const selectedCount = document.querySelectorAll(`#${tableId} .row-select:checked`).length;
-    const toolbar = document.getElementById(`bulk-actions-${tableId}`);
-    const countElement = document.getElementById(`selectedCount-${tableId}`);
-    
-    if (countElement) {
-        countElement.textContent = selectedCount;
-    }
-    
-    if (toolbar) {
-        toolbar.style.display = selectedCount > 0 ? 'flex' : 'none';
-    }
-}
-
-function clearSelection(tableId) {
-    const selectAll = document.getElementById(`selectAll-${tableId}`);
-    const rowSelects = document.querySelectorAll(`#${tableId} .row-select`);
-    
-    selectAll.checked = false;
-    rowSelects.forEach(checkbox => {
-        checkbox.checked = false;
-    });
-    
-    updateBulkActions(tableId);
-}
 
 // Enhanced sync with progress indicator
 async function syncWithProgress() {
@@ -3499,41 +3432,94 @@ async function deleteReport(fileName) {
 }
 
 // Add to ui.js - Fix select all functionality
-function toggleSelectAllPackages() {
-    const selectAllCheckbox = document.getElementById('selectAllPackages');
-    const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
-    
-    if (!selectAllCheckbox) {
-        console.error('Select all packages checkbox not found');
-        return;
+// SINGLE VERSION: Select All for Packages
+function toggleSelectAllPackages(source) {
+    try {
+        console.log('toggleSelectAllPackages called with:', source);
+        
+        const selectAllCheckbox = typeof source === 'boolean' ? source : source.checked;
+        const isChecked = typeof selectAllCheckbox === 'boolean' ? selectAllCheckbox : source.checked;
+        
+        const packageCheckboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]');
+        
+        packageCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
+        updatePackageSelection();
+        
+    } catch (error) {
+        console.error('Error in toggleSelectAllPackages:', error);
     }
-    
-    const isChecked = selectAllCheckbox.checked;
-    
-    packageCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-    });
-    
-    console.log(`${isChecked ? 'Selected' : 'Deselected'} ${packageCheckboxes.length} packages`);
 }
 
-function toggleSelectAllContainers() {
-    const selectAllCheckbox = document.getElementById('selectAllContainers');
-    const containerCheckboxes = document.querySelectorAll('.container-checkbox');
-    
-    if (!selectAllCheckbox) {
-        console.error('Select all containers checkbox not found');
-        return;
+// SINGLE VERSION: Select All for Containers
+function toggleSelectAllContainers(source) {
+    try {
+        console.log('toggleSelectAllContainers called with:', source);
+        
+        const selectAllCheckbox = typeof source === 'boolean' ? source : source.checked;
+        const isChecked = typeof selectAllCheckbox === 'boolean' ? selectAllCheckbox : source.checked;
+        
+        const containerCheckboxes = document.querySelectorAll('.container-checkbox');
+        
+        containerCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${containerCheckboxes.length} containers`);
+        
+    } catch (error) {
+        console.error('Error in toggleSelectAllContainers:', error);
     }
-    
-    const isChecked = selectAllCheckbox.checked;
-    
-    containerCheckboxes.forEach(checkbox => {
-        checkbox.checked = isChecked;
-    });
-    
-    console.log(`${isChecked ? 'Selected' : 'Deselected'} ${containerCheckboxes.length} containers`);
 }
+
+// SINGLE VERSION: Select All for Customer Folders
+function toggleSelectAllCustomer(source) {
+    try {
+        console.log('toggleSelectAllCustomer called with:', source);
+        
+        const folder = source.closest('.customer-folder');
+        if (!folder) {
+            console.error('Customer folder not found');
+            return;
+        }
+        
+        const isChecked = source.checked;
+        const checkboxes = folder.querySelectorAll('.container-checkbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${checkboxes.length} containers in customer folder`);
+        
+    } catch (error) {
+        console.error('Error in toggleSelectAllCustomer:', error);
+    }
+}
+
+// Remove the generic toggleSelectAll function entirely
+// Or keep only this one if you need generic functionality:
+function toggleSelectAll(source, selector) {
+    try {
+        console.log('toggleSelectAll called with:', source, selector);
+        
+        const isChecked = source.checked;
+        const checkboxes = document.querySelectorAll(selector);
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        console.log(`${isChecked ? 'Selected' : 'Deselected'} ${checkboxes.length} items`);
+        
+    } catch (error) {
+        console.error('Error in toggleSelectAll:', error);
+    }
+}
+
 
 // Update package selection count
 function updatePackageSelection() {
