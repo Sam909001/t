@@ -313,7 +313,7 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
     </div> <!-- End of shippingTab -->
 
-<!-- Find the Stock Tab section and replace with this: -->
+<!--  Stock Tab section : -->
 <div class="tab-pane" id="stockTab">
     <div class="stock-header">
         <h2>RFID Stok Yönetimi</h2>
@@ -354,24 +354,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 </tr>
             </tbody>
         </table>
-    </div>
-</div>
-
-    <!-- File Upload Section -->
-    <div class="file-upload" style="margin-top:20px;">
-        <h3>Stok Dosyası Yükle / Güncelle</h3>
-        <p>Excel (.xlsx, .xls) veya CSV (.csv) dosyası seçin</p>
-        <input type="file" id="stockFileUpload" accept=".xlsx,.xls,.csv" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : ''">
-        <div>
-            <span id="selectedFileName"></span>
-            <div class="validation-error" id="fileError"></div>
-        </div>
-        <button type="button" class="upload-button btn btn-primary" onclick="uploadStockFile()">
-            <i class="fas fa-upload"></i> Dosya Yükle
-        </button>
-        <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" style="margin-left:10px;">
-            <i class="fas fa-download"></i> Şablon İndir
-        </button>
     </div>
 </div>
 
