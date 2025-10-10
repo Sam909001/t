@@ -1,9 +1,3 @@
-// ==================== ADD THESE LINES AT THE TOP OF YOUR APP.JS ====================
-let initAppInProgress = false;
-let initAppCallQueue = [];
-
-
-
 /// Top of app.js
 window.initializePrinter = function() {
     console.log("Printer initialized");
@@ -103,121 +97,159 @@ function loadAppState() {
     if (savedState) {
         const state = JSON.parse(savedState);
         
-        // ⭐⭐⭐ CRITICAL FIX: Only restore selections AFTER dropdowns are populated
-        setTimeout(() => {
-            // Restore customer selection
-            if (state.selectedCustomerId && elements.customerSelect) {
-                elements.customerSelect.value = state.selectedCustomerId;
-                // Find and set the selectedCustomer object
-                const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
-                if (option) {
-                    selectedCustomer = {
-                        id: state.selectedCustomerId,
-                        name: option.textContent.split(' (')[0],
-                        code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
-                    };
-                }
+        // Restore customer selection
+        if (state.selectedCustomerId) {
+            elements.customerSelect.value = state.selectedCustomerId;
+            // Find and set the selectedCustomer object
+            const option = elements.customerSelect.querySelector(`option[value="${state.selectedCustomerId}"]`);
+            if (option) {
+                selectedCustomer = {
+                    id: state.selectedCustomerId,
+                    name: option.textContent.split(' (')[0],
+                    code: option.textContent.match(/\(([^)]+)\)/)?.[1] || ''
+                };
             }
-            
-            // Restore personnel selection
-            if (state.selectedPersonnelId && elements.personnelSelect) {
-                elements.personnelSelect.value = state.selectedPersonnelId;
-            }
-            
-            // Restore current container
-            if (state.currentContainer) {
-                currentContainer = state.currentContainer;
-                if (elements.containerNumber) {
-                    elements.containerNumber.textContent = currentContainer;
-                }
-            }
-            
-            // Restore Excel mode
-            if (state.isUsingExcel !== undefined) {
-                isUsingExcel = state.isUsingExcel;
-                updateStorageIndicator();
-            }
-        }, 100); // Small delay to ensure dropdowns are populated
+        }
+        
+        // Restore personnel selection
+        if (state.selectedPersonnelId) {
+            elements.personnelSelect.value = state.selectedPersonnelId;
+        }
+        
+        // Restore current container
+        if (state.currentContainer) {
+            currentContainer = state.currentContainer;
+            elements.containerNumber.textContent = currentContainer;
+        }
     }
 }
 
 
-
-// ==================== MODIFIED INITAPP FUNCTION ====================
-// app.js
-
 async function initApp() {
-    // If initApp is already running, queue this call to prevent conflicts
-    if (initAppInProgress) {
-        console.log('🚫 initApp already in progress, queuing call...');
-        return new Promise((resolve) => {
-            initAppCallQueue.push(resolve);
-        });
-    }
-    
-    initAppInProgress = true;
-    console.log('🚀 Starting ProClean initialization...');
+    console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
-        // ✅ Step 1: Initialize UI Elements FIRST
-        // This is the most critical fix. It guarantees that all `elements` are found before any other code tries to use them.
-        initializeElementsObject();
-        
-        // ✅ Step 2: Set simple UI content that doesn't require data
-        if (elements.currentDate) {
-            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        // 1. CRITICAL FIX: Initialize elements FIRST before anything else
+        if (typeof initializeElementsObject !== 'function') {
+            console.error('❌ initializeElementsObject function not loaded!');
+            // Fallback: load from ui.js if not available
+            if (typeof elements === 'undefined') {
+                window.elements = {};
+            }
+        } else {
+            initializeElementsObject();
         }
-        updateStorageIndicator();
-
-        // ✅ Step 3: Initialize Backend Systems & Workspace
-        await initializeApiAndAuth(); // Handles Supabase connection and user session
+        
+        // 2. Initialize workspace system
         if (!window.workspaceManager) {
             window.workspaceManager = new WorkspaceManager();
         }
         await window.workspaceManager.initialize();
-        initializeWorkspaceUI();
-        setupWorkspaceAwareUI();
         
-        // ✅ Step 4: Populate Core Dropdown Menus
-        // These need to be ready before we can restore the user's last session state.
-        window.personnelLoaded = false; // Reset flag to allow fresh population
+        console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
+        
+        // 0. Detect and log environment
+        const runningInElectron = isElectron();
+        if (runningInElectron) {
+            console.log('📱 Running in Electron environment');
+            window.isElectronApp = true;
+        } else {
+            console.log('🌐 Running in Web Browser environment');
+            window.isElectronApp = false;
+        }
+
+      
+        // 3. Initialize workspace-aware UI
+        if (typeof initializeWorkspaceUI === 'function') {
+            initializeWorkspaceUI();
+        }
+        if (typeof setupWorkspaceAwareUI === 'function') {
+            setupWorkspaceAwareUI();
+        }
+        
+        // 4. Migrate existing data to workspace
+        if (typeof migrateExistingDataToWorkspace === 'function') {
+            await migrateExistingDataToWorkspace();
+        }
+        
+        // 5. Initialize sync system
+        if (typeof initializeSyncQueue === 'function') {
+            initializeSyncQueue();
+        }
+        if (typeof setupEnhancedSyncTriggers === 'function') {
+            setupEnhancedSyncTriggers();
+        }
+        
+        // 6. Setup event listeners
+        setupEventListeners();
+        
+        // 7. API key initialization
+        initializeApiAndAuth();
+        
+        // 8. Initialize settings
+        if (typeof initializeSettings === 'function') {
+            initializeSettings();
+        }
+        
+        // 9. Initialize daily Excel file system
+        if (typeof ExcelStorage !== 'undefined') {
+            if (typeof ExcelStorage.cleanupOldFiles === 'function') {
+                await ExcelStorage.cleanupOldFiles();
+            }
+            if (typeof ExcelStorage.readFile === 'function') {
+                await ExcelStorage.readFile();
+            }
+        }
+        
+        // 10. Populate UI
+        if (elements.currentDate) {
+            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        }
         await populateCustomers();
         await populatePersonnel();
         
-        // ✅ Step 5: Load the Main Application Data
+        // 11. Load saved state
+        loadAppState();
+        
+        // 12. Load data
         await loadPackagesData();
         await populateStockTable();
         await populateShippingTable();
         
-        // ✅ Step 6: Restore the User's Previous State
-        // Now that all dropdowns and data are loaded, we can safely set the previous selections.
-        loadAppState();
+        // 13. Test connection
+        if (supabase) {
+            await testConnection();
+        }
         
-        // ✅ Step 7: Activate Event Listeners and Background Processes
-        setupEventListeners();
+        // 14. Set up auto-save and offline support
+        setInterval(saveAppState, 30000);
         setupOfflineSupport();
-        setupBarcodeScanner();
+        if (typeof setupBarcodeScanner === 'function') {
+            setupBarcodeScanner();
+        }
+        
+        // 15. Start daily auto-clear
         scheduleDailyClear();
-        setInterval(saveAppState, 30000); // Set a reasonable interval for auto-save
-
+        
+        // 16. Auto-sync on startup if online and not in Electron
+        if (navigator.onLine && supabase && !runningInElectron) {
+            setTimeout(async () => {
+                if (typeof syncExcelWithSupabase === 'function') {
+                    await syncExcelWithSupabase();
+                }
+            }, 5000);
+        }
         const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
         console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
         showAlert('Uygulama başarıyla başlatıldı!', 'success', 3000);
         
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken kritik hata oluştu: ' + error.message, 'error');
-    } finally {
-        initAppInProgress = false;
-        
-        // Process any queued calls that were waiting for init to finish
-        if (initAppCallQueue.length > 0) {
-            console.log(`🔄 Processing ${initAppCallQueue.length} queued initApp calls`);
-            const nextCall = initAppCallQueue.shift();
-            nextCall();
-        }
+        console.error('Error stack:', error.stack);
+        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
     }
 }
+
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
@@ -1005,18 +1037,13 @@ async function completePackage() {
         // Get workspace ID
         const workspaceId = getCurrentWorkspaceId();
 
-        // Create package object - WITH ALL REQUIRED COLUMNS
+        // Create package object - USE CORRECT COLUMN NAMES
         const newPackage = {
             id: generateUUID(),
             package_no: packageNo,
-            customer_id: selectedCustomer.id,
-            customer_name: selectedCustomer.name, // Add this for display
-            customer_code: selectedCustomer.code, // Add this for display
+            customer_id: selectedCustomer.id, // Use customer_id NOT customer_name/customer_code
             status: 'beklemede',
             items: currentPackage.items,
-            items_display: Object.entries(currentPackage.items) // Add this for display
-                .map(([product, quantity]) => `${product}: ${quantity} adet`)
-                .join(', '),
             total_quantity: totalQuantity,
             personnel_id: personnelId,
             container_id: null,
@@ -1063,6 +1090,7 @@ async function completePackage() {
         showAlert('Paket oluşturulurken hata oluştu: ' + error.message, 'error');
     }
 }
+
 
 function addPackageRowToTable(pkg) {
     const packagesTableBody = document.getElementById('packagesTableBody');
@@ -1914,77 +1942,3 @@ async function assignPackagesToContainer(packageIds, containerId) {
 }
 
 
-// Global counter for package IDs
-let packageIdCounter = null;
-
-// Initialize counter on app start
-async function initializePackageCounter() {
-    try {
-        const workspaceId = getCurrentWorkspaceId();
-        const counterKey = `package_counter_${workspaceId}`;
-        
-        // Get saved counter
-        let counter = parseInt(localStorage.getItem(counterKey)) || 1000;
-        
-        // Also check existing packages to avoid conflicts
-        const storageKey = `excelPackages_${workspaceId}`;
-        const packages = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        
-        if (packages.length > 0) {
-            const maxId = Math.max(...packages.map(p => {
-                const match = p.package_no?.match(/PKG-(\d+)/);
-                return match ? parseInt(match[1]) : 0;
-            }));
-            
-            counter = Math.max(counter, maxId + 1);
-        }
-        
-        packageIdCounter = counter;
-        localStorage.setItem(counterKey, counter);
-        
-        console.log('✅ Package ID counter initialized:', packageIdCounter);
-        
-    } catch (error) {
-        console.error('Error initializing package counter:', error);
-        packageIdCounter = 1000;
-    }
-}
-
-// Generate unique package ID
-async function generateUniquePackageId() {
-    if (packageIdCounter === null) {
-        await initializePackageCounter();
-    }
-    
-    const workspaceId = getCurrentWorkspaceId();
-    const counterKey = `package_counter_${workspaceId}`;
-    
-    // Increment counter
-    packageIdCounter++;
-    localStorage.setItem(counterKey, packageIdCounter);
-    
-    // Format: PKG-XXXXX (5 digits, zero-padded)
-    const packageNo = `PKG-${packageIdCounter.toString().padStart(5, '0')}`;
-    
-    console.log('🆔 Generated unique package ID:', packageNo);
-    
-    return packageNo;
-}
-
-// Call this in initApp() function
-async function initApp() {
-    console.log('🚀 Starting enhanced ProClean initialization...');
-    
-    try {
-        // ... existing initialization code ...
-        
-        // ✅ ADD THIS: Initialize package counter
-        await initializePackageCounter();
-        
-        // ... rest of initialization ...
-        
-    } catch (error) {
-        console.error('❌ Critical error during initialization:', error);
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
-    }
-}
