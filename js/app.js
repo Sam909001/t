@@ -1942,3 +1942,77 @@ async function assignPackagesToContainer(packageIds, containerId) {
 }
 
 
+// Global counter for package IDs
+let packageIdCounter = null;
+
+// Initialize counter on app start
+async function initializePackageCounter() {
+    try {
+        const workspaceId = getCurrentWorkspaceId();
+        const counterKey = `package_counter_${workspaceId}`;
+        
+        // Get saved counter
+        let counter = parseInt(localStorage.getItem(counterKey)) || 1000;
+        
+        // Also check existing packages to avoid conflicts
+        const storageKey = `excelPackages_${workspaceId}`;
+        const packages = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        
+        if (packages.length > 0) {
+            const maxId = Math.max(...packages.map(p => {
+                const match = p.package_no?.match(/PKG-(\d+)/);
+                return match ? parseInt(match[1]) : 0;
+            }));
+            
+            counter = Math.max(counter, maxId + 1);
+        }
+        
+        packageIdCounter = counter;
+        localStorage.setItem(counterKey, counter);
+        
+        console.log('✅ Package ID counter initialized:', packageIdCounter);
+        
+    } catch (error) {
+        console.error('Error initializing package counter:', error);
+        packageIdCounter = 1000;
+    }
+}
+
+// Generate unique package ID
+async function generateUniquePackageId() {
+    if (packageIdCounter === null) {
+        await initializePackageCounter();
+    }
+    
+    const workspaceId = getCurrentWorkspaceId();
+    const counterKey = `package_counter_${workspaceId}`;
+    
+    // Increment counter
+    packageIdCounter++;
+    localStorage.setItem(counterKey, packageIdCounter);
+    
+    // Format: PKG-XXXXX (5 digits, zero-padded)
+    const packageNo = `PKG-${packageIdCounter.toString().padStart(5, '0')}`;
+    
+    console.log('🆔 Generated unique package ID:', packageNo);
+    
+    return packageNo;
+}
+
+// Call this in initApp() function
+async function initApp() {
+    console.log('🚀 Starting enhanced ProClean initialization...');
+    
+    try {
+        // ... existing initialization code ...
+        
+        // ✅ ADD THIS: Initialize package counter
+        await initializePackageCounter();
+        
+        // ... rest of initialization ...
+        
+    } catch (error) {
+        console.error('❌ Critical error during initialization:', error);
+        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+    }
+}
