@@ -2667,6 +2667,27 @@ let rfidScannerActive = false;
 let rfidScanBuffer = '';
 let rfidLastScanTime = 0;
 
+// Add RFID CSS Styles
+const rfidStyle = document.createElement('style');
+rfidStyle.textContent = `
+    /* RFID Status Badges */
+    .status-temiz { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; }
+    .status-kirli { background: #f8d7da; color: #721c24; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; }
+    .status-yikanıyor { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; }
+    .status-hasarli { background: #e2e3e5; color: #383d41; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; }
+    
+    /* RFID Scanning Mode */
+    .rfid-scanning { border: 3px solid #28a745 !important; }
+    .rfid-highlight { background-color: #fff3cd !important; transition: background-color 0.5s ease; }
+    
+    /* Button Styles */
+    .btn-icon { background: none; border: none; padding: 5px; margin: 0 2px; cursor: pointer; font-size: 0.9rem; }
+    .btn-icon:hover { opacity: 0.7; }
+    .btn-danger { color: #dc3545; }
+    .btn-danger:hover { color: #bd2130; }
+`;
+document.head.appendChild(rfidStyle);
+
 // Populate Stock Table with RFID Support - UPDATED FOR YOUR SCHEMA
 async function populateStockTable() {
     const tbody = document.getElementById('stockTableBody');
@@ -2964,6 +2985,9 @@ function getCurrentWorkspaceId() {
     return settings.currentWorkspaceId || 'default-workspace';
 }
 
+
+
+
 // Helper function to generate UUID
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -3051,7 +3075,6 @@ function highlightRFIDRow(rfidTag) {
 }
 
 // Update RFID Status
-// Update RFID Status - UPDATED FOR YOUR SCHEMA
 async function updateRFIDStatus(itemId) {
     const newStatus = prompt('Yeni Durum:\n1. Temiz\n2. Kirli\n3. Yıkanıyor\n4. Hasarlı\n\nSeçim (1-4):');
     
@@ -3153,7 +3176,7 @@ async function assignRFIDTag(itemId) {
         showAlert('RFID atama hatası: ' + error.message, 'error');
     }
 }
-// Delete RFID Stock
+// Delete RFID Stock - FIXED FUNCTION NAME
 async function deleteRFIDStock(itemId) {
     if (!confirm('Bu stok öğesini silmek istediğinize emin misiniz?')) return;
     
@@ -3167,7 +3190,8 @@ async function deleteRFIDStock(itemId) {
             if (error) throw error;
         }
         
-        await populateRFIDStockTable();
+        // FIX: Changed from populateRFIDStockTable to populateStockTable
+        await populateStockTable();
         showAlert('✅ Stok silindi', 'success');
         
     } catch (error) {
@@ -3176,17 +3200,39 @@ async function deleteRFIDStock(itemId) {
     }
 }
 
-// Make functions globally available
-window.populateRFIDStockTable = populateRFIDStockTable;
+// Add this to ensure Supabase is available
+function ensureSupabase() {
+    if (!supabase) {
+        console.error('Supabase client not initialized');
+        showAlert('Database bağlantısı kurulamadı', 'error');
+        return false;
+    }
+    return true;
+}
+
+// Update processRFIDScan with better error handling
+async function processRFIDScan(rfidTag) {
+    try {
+        if (!ensureSupabase()) return;
+        
+        console.log('🔍 RFID Scanned:', rfidTag);
+        showAlert(`RFID Tarandı: ${rfidTag}`, 'info', 2000);
+        
+        // Rest of your existing code...
+    } catch (error) {
+        console.error('RFID scan error:', error);
+        showAlert('RFID okuma hatası: ' + error.message, 'error');
+    }
+}
+
+// Make functions globally available - FIXED EXPORTS
+window.populateStockTable = populateStockTable;
 window.startRFIDScanner = startRFIDScanner;
 window.stopRFIDScanner = stopRFIDScanner;
 window.editRFIDStock = editRFIDStock;
 window.assignRFIDTag = assignRFIDTag;
 window.deleteRFIDStock = deleteRFIDStock;
 window.updateRFIDStatus = updateRFIDStatus;
-
-// Replace populateStockTable with RFID version
-window.populateStockTable = populateRFIDStockTable;
 
 
 
