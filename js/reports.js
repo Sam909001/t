@@ -274,12 +274,18 @@ window.generateProfessionalPDFReport = async function(reportData) {
             doc.text('GUNLUK OZET', margin, currentY);
             currentY += 15;
 
-           // ==================== EXECUTIVE SUMMARY - FIXED ====================
+      // ==================== EXECUTIVE SUMMARY ====================
+doc.setFontSize(16);
+doc.setFont('helvetica', 'bold');
+doc.setTextColor(41, 128, 185);
+doc.text('GUNLUK OZET', margin, currentY);
+currentY += 15;
+
 const summaryBoxes = [
     { title: 'Toplam Paket', value: reportData.totalPackages || 0, color: [52, 152, 219] },
     { title: 'Bekleyen Paket', value: reportData.waitingPackages || 0, color: [241, 196, 15] },
-    { title: 'Sevk Edilen', value: reportData.shippedPackages || 0, color: [46, 204, 113] },
-    { title: 'Konteyner', value: (reportData.containers?.length || 0), color: [155, 89, 182] }  // ✅ FIXED - get length
+    { title: 'Sevk Edilen Paket', value: reportData.shippedPackages || 0, color: [46, 204, 113] },
+    { title: 'Konteyner', value: (Array.isArray(reportData.containers) ? reportData.containers.length : reportData.containers) || 0, color: [155, 89, 182] }
 ];
 
 const boxWidth = (pageWidth - 2 * margin - 15) / 4;
@@ -295,11 +301,10 @@ summaryBoxes.forEach((box, index) => {
     doc.text(box.title, x + boxWidth / 2, currentY + 15, { align: 'center' });
 
     doc.setFontSize(11);
-    // ✅ ENSURE IT'S A STRING
-    const displayValue = String(box.value || 0);
-    doc.text(displayValue, x + boxWidth / 2, currentY + 28, { align: 'center' });
+    doc.text(String(box.value), x + boxWidth / 2, currentY + 28, { align: 'center' });
 });
-            currentY += 50;
+
+currentY += 50;
 
             // DETAILED STATISTICS
             if (currentY > pageHeight - 100) {
