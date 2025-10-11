@@ -4147,7 +4147,7 @@ async function deleteSelectedPackages() {
 
 
 
-// ENHANCED: sendToRamp with UI refresh
+// ENHANCED: sendToRamp with UI refresh - EDITED VERSION
 async function sendToRamp(containerNo = null) {
     try {
         console.log('🚀 Enhanced sendToRamp with UI refresh...');
@@ -4171,7 +4171,7 @@ async function sendToRamp(containerNo = null) {
         const finalContainerNo = containerNo || `CONT-${Date.now().toString().slice(-6)}`;
         console.log(`📦 Using container: ${finalContainerNo}`);
         
-        // Update packages
+        // Update packages to "sevk edildi"
         await updatePackageStatusToShipped(selectedPackages, finalContainerNo);
         
         // Create container in database
@@ -4184,7 +4184,7 @@ async function sendToRamp(containerNo = null) {
                     customer: selectedCustomer?.name || 'Multiple Customers',
                     package_count: selectedPackages.length,
                     total_quantity: totalQuantity,
-                    status: 'beklemede',
+                    status: 'sevk-edildi', // Container status also as shipped
                     workspace_id: getCurrentWorkspaceId(),
                     created_at: new Date().toISOString()
                 }]);
@@ -4198,29 +4198,29 @@ async function sendToRamp(containerNo = null) {
 
         showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${finalContainerNo}) ✅`, 'success');
         
-        // ✅ ENHANCED UI REFRESH
-        console.log('🔄 Starting UI refresh...');
+        // ✅ ENHANCED UI REFRESH - WITHOUT REDIRECT
+        console.log('🔄 Starting UI refresh (no redirect)...');
         
         // Clear checkboxes
         document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked').forEach(cb => {
             cb.checked = false;
         });
         
-        // Refresh packages table
+        // Refresh packages table (packages will disappear from list since they're now shipped)
         await populatePackagesTable();
         console.log('✅ Packages table refreshed');
         
-        // Force shipping table refresh with delay
+        // ✅ EDITED: Refresh shipping table in background WITHOUT switching tabs
         setTimeout(async () => {
             await manualRefreshShippingTable();
-            console.log('✅ Shipping table refreshed');
+            console.log('✅ Shipping table refreshed in background');
             
-            // Scroll to shipping tab to show the result
-            const shippingTab = document.querySelector('[data-tab="shipping"]');
-            if (shippingTab) {
-                shippingTab.click();
-                console.log('✅ Switched to shipping tab');
-            }
+            // ❌ REMOVED: No tab switching - user stays on current tab
+            // const shippingTab = document.querySelector('[data-tab="shipping"]');
+            // if (shippingTab) {
+            //     shippingTab.click();
+            //     console.log('✅ Switched to shipping tab');
+            // }
         }, 500);
         
     } catch (error) {
@@ -4228,6 +4228,7 @@ async function sendToRamp(containerNo = null) {
         showAlert('Paketler sevk edilirken hata oluştu: ' + error.message, 'error');
     }
 }
+
 
 // Test the enhanced version
 async function testEnhancedShipping() {
