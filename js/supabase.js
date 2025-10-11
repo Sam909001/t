@@ -2235,14 +2235,14 @@ async function populatePackagesTable() {
         } else {
             // Try to use Supabase data with workspace filter
             try {
-                const workspaceFilter = getWorkspaceFilter();
-                
+                // FIXED: Remove duplicate workspace filter - only use one
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', getCurrentWorkspaceId())
+                    .eq('workspace_id', workspaceId) // ✅ SINGLE workspace filter
+                    .order('created_at', { ascending: false });
 
                 if (error) {
                     console.error('Supabase workspace query error:', error);
@@ -2313,25 +2313,26 @@ async function populatePackagesTable() {
 
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-row.innerHTML = `
-    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-    </td>
-    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-    </td>
-    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-    <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
-    ${sourceIcon}
-    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
-        <i class="fas fa-print"></i>
-    </button>
-</td>
-`;
+            row.innerHTML = `
+                <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+                <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
+                <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
+                <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
+                </td>
+                <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
+                    ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
+                </td>
+                <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    ${sourceIcon}
+                    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </td>
+            `;
+            
             row.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') selectPackage(pkg);
             });
