@@ -5305,3 +5305,23 @@ window.printSinglePackage = async function(packageId) {
         alert('Yazıcı fonksiyonu yüklenmedi. Lütfen sayfayı yenileyin.');
     }
 };
+
+
+
+function handleSupabaseError(error, context) {
+    console.error(`❌ Supabase Error in ${context}:`, error);
+    
+    if (error.code === '400') {
+        console.error('Bad Request - Check query syntax and duplicate filters');
+    } else if (error.code === '401') {
+        showAlert('Yetkilendirme hatası. API anahtarını kontrol edin.', 'error');
+    } else if (error.code === '422') {
+        console.error('Validation Error - Check filter syntax');
+    }
+    
+    // Fallback to Excel mode on critical errors
+    if (['400', '401', '422'].includes(error.code)) {
+        isUsingExcel = true;
+        updateStorageIndicator();
+    }
+}
