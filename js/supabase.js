@@ -3948,75 +3948,71 @@ async function completePackage() {
     }
 }
 
-// FIXED: Enhanced ID generation
-// SIMPLIFIED: Working ID generation
-async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5) {
-    let attempts = 0;
+// SIMPLIFIED: ID generation without aggressive cache checking
+async function generateUniquePackageWithValidation(workspaceId) {
+    console.log('🔄 Generating package ID...');
     
-    while (attempts < maxAttempts) {
-        attempts++;
-        
-        // Get counter
-        let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-        packageCounter++;
-        localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
+    // Get or create counter
+    let packageCounter = parseInt(localStorage.getItem(`pkg_simple_counter_${workspaceId}`) || '0');
+    packageCounter++;
+    localStorage.setItem(`pkg_simple_counter_${workspaceId}`, packageCounter.toString());
 
-        // Generate IDs
-        const packageId = generateUniquePackageUUID();
-        const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+    // Generate IDs
+    const packageId = generateUniquePackageUUID();
+    const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
 
-        console.log(`🔍 Attempt ${attempts}: ${packageId.substring(0, 8)}...`);
-
-        // SIMPLIFIED DUPLICATE CHECK: Only check memory cache
-        if (createdPackageIds.has(packageId)) {
-            console.warn(`⚠️ Memory cache duplicate, retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 10));
-            continue;
-        }
-        
-        // QUICK SUPABASE CHECK (non-blocking)
-        let supabaseDuplicate = false;
-        if (supabase && navigator.onLine) {
-            try {
-                const { data } = await supabase
-                    .from('packages')
-                    .select('id')
-                    .eq('id', packageId)
-                    .maybeSingle();
-                
-                if (data) {
-                    console.warn('⚠️ Supabase duplicate found');
-                    supabaseDuplicate = true;
-                }
-            } catch (error) {
-                // Ignore Supabase errors - don't block package creation
-                console.log('Supabase check skipped');
-            }
-        }
-        
-        if (!supabaseDuplicate) {
-            console.log(`✅ Unique ID generated: ${packageNo}`);
-            
-            // Add to cache ONLY when we're sure it's being used
-            createdPackageIds.add(packageId);
-            
-            return { packageId, packageNo };
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 10));
+    console.log(`✅ Generated: ${packageNo}`);
+    console.log(`   UUID: ${packageId}`);
+    
+    // Quick check: Is this ID actually in use anywhere?
+    const isActuallyUsed = await checkIfIdActuallyUsed(packageId, packageNo);
+    
+    if (isActuallyUsed) {
+        console.warn('🚨 ID collision detected, regenerating...');
+        // Recursive retry with new counter
+        return generateUniquePackageWithValidation(workspaceId);
     }
     
-    // LAST RESORT: Force create with warning
-    console.warn('🚨 Using forced ID generation after max attempts');
-    const packageId = generateUniquePackageUUID();
-    const packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0') + 1;
-    const packageNo = `PKG-FORCED-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
-    
+    // Add to cache (but don't rely on it for duplicate checking)
     createdPackageIds.add(packageId);
-    localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
     
     return { packageId, packageNo };
 }
+
+// REAL duplicate check (only check actual data sources)
+async function checkIfIdActuallyUsed(packageId, packageNo) {
+    // 1. Check Excel packages (your main data source)
+    const excelDuplicate = excelPackages.find(p => 
+        p.id === packageId || p.package_no === packageNo
+    );
+    if (excelDuplicate) {
+        console.warn('❌ Duplicate in Excel data');
+        return true;
+    }
+    
+    // 2. Quick Supabase check (optional)
+    if (supabase && navigator.onLine) {
+        try {
+            const { data } = await supabase
+                .from('packages')
+                .select('id, package_no')
+                .or(`id.eq.${packageId},package_no.eq.${packageNo}`)
+                .maybeSingle();
+            
+            if (data) {
+                console.warn('❌ Duplicate in Supabase');
+                return true;
+            }
+        } catch (error) {
+            // Ignore Supabase errors
+        }
+    }
+    
+    return false; // No actual duplicates found
+}
+
+
+
 // FIXED: Comprehensive duplicate checking
 async function checkPackageIdUnique(packageId, packageNo) {
     try {
