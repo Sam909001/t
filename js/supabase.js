@@ -3875,7 +3875,7 @@ async function completePackage() {
     try {
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         
-        // ✅ FIXED: Simple and reliable ID generation
+        // Generate unique package ID with duplicate checking
         const { packageId, packageNo } = await generateUniquePackageWithValidation(workspaceId);
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
@@ -3897,7 +3897,7 @@ async function completePackage() {
                 `${name}: ${qty} adet`
             ).join(', '),
             total_quantity: totalQuantity,
-            status: 'beklemede',
+            status: 'beklemede', // ✅ FIXED: Changed from 'sevk-edildi' to 'beklemede'
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -3907,7 +3907,7 @@ async function completePackage() {
             source: 'app'
         };
 
-        console.log('📦 Creating package with verified ID:', packageId);
+        console.log('📦 Creating package as PENDING:', packageNo);
 
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
@@ -3919,20 +3919,20 @@ async function completePackage() {
 
                 if (error) throw error;
 
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                showAlert(`Paket oluşturuldu: ${packageNo} (Beklemede)`, 'success');
                 await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
                 await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (Beklemede)`, 'warning');
                 isUsingExcel = true;
             }
         } else {
             await saveToExcel(packageData);
             addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (Beklemede)`, 'warning');
             isUsingExcel = true;
         }
 
