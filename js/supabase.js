@@ -4210,6 +4210,111 @@ async function sendToRamp(containerNo = null) {
 
 
 
+
+// Eksik fonksiyonu ekleyin - bu sendToRamp içinde çağrılıyor
+async function updatePackageStatusToShippedDirect(packages, containerNo) {
+    console.log(`🚀 DIRECT SHIPPING: ${packages.length} packages → container: ${containerNo}`);
+    
+    const packageIds = packages.map(pkg => pkg.id);
+    
+    try {
+        // 1. EXCEL VERİLERİNİ KESİN OLARAK GÜNCELLE
+        const excelData = await ExcelJS.readFile();
+        let excelUpdated = 0;
+        
+        const updatedExcelData = excelData.map(pkg => {
+            if (packageIds.includes(pkg.id)) {
+                excelUpdated++;
+                console.log(`📦 Updating package in Excel: ${pkg.package_no} → sevk-edildi`);
+                return {
+                    ...pkg,
+                    status: 'sevk-edildi', // ✅ KESİNLİKLE "sevk-edildi"
+                    container_id: containerNo, // ✅ KESİNLİKLE container_id ata
+                    updated_at: new Date().toISOString(),
+                    shipped_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        
+        // Excel verilerini KESİN olarak kaydet
+        await ExcelJS.writeFile(updatedExcelData);
+        excelPackages = updatedExcelData; // Global değişkeni de güncelle
+        
+        console.log(`✅ EXCEL: Updated ${excelUpdated} packages to 'sevk-edildi'`);
+
+        // 2. SUPABASE'DE KESİN OLARAK GÜNCELLE
+        if (supabase && navigator.onLine) {
+            try {
+                console.log(`🔄 SUPABASE: Updating ${packageIds.length} packages to 'sevk-edildi'`);
+                
+                const { data, error } = await supabase
+                    .from('packages')
+                    .update({
+                        status: 'sevk-edildi', // ✅ KESİNLİKLE "sevk-edildi"
+                        container_id: containerNo, // ✅ KESİNLİKLE container_id ata
+                        updated_at: new Date().toISOString(),
+                        shipped_at: new Date().toISOString()
+                    })
+                    .in('id', packageIds)
+                    .select(); // Sonucu görmek için select ekle
+
+                if (error) {
+                    console.error('❌ SUPABASE UPDATE ERROR:', error);
+                    // Hata durumunda sync kuyruğuna ekle
+                    packages.forEach(pkg => {
+                        addToSyncQueue('update', {
+                            ...pkg,
+                            status: 'sevk-edildi',
+                            container_id: containerNo
+                        });
+                    });
+                } else {
+                    console.log(`✅ SUPABASE: Successfully updated ${data?.length || 0} packages to 'sevk-edildi'`, data);
+                }
+            } catch (supabaseError) {
+                console.error('❌ SUPABASE UPDATE FAILED:', supabaseError);
+            }
+        }
+
+        // 3. LOCALSTORAGE'DA KESİN OLARAK GÜNCELLE
+        try {
+            const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
+            let localUpdated = 0;
+            
+            const updatedLocalPackages = localPackages.map(pkg => {
+                if (packageIds.includes(pkg.id)) {
+                    localUpdated++;
+                    return {
+                        ...pkg,
+                        status: 'sevk-edildi', // ✅ KESİNLİKLE "sevk-edildi"
+                        container_id: containerNo, // ✅ KESİNLİKLE container_id ata
+                        updated_at: new Date().toISOString()
+                    };
+                }
+                return pkg;
+            });
+            localStorage.setItem('packages', JSON.stringify(updatedLocalPackages));
+            console.log(`✅ LOCALSTORAGE: Updated ${localUpdated} packages to 'sevk-edildi'`);
+        } catch (localError) {
+            console.error('LocalStorage update error:', localError);
+        }
+
+        console.log(`🎯 SUCCESS: All ${packageIds.length} packages shipped to container ${containerNo}`);
+
+        // 4. HEMEN TABLOLARI GÜNCELLE
+        setTimeout(async () => {
+            await populatePackagesTable();
+            await populateShippingTable();
+        }, 500);
+
+    } catch (error) {
+        console.error('❌ CRITICAL ERROR in updatePackagesToShipped:', error);
+        throw error;
+    }
+}
+
+
 // Paketleri doğrudan "sevk-edildi" durumuna güncelle
 async function updatePackagesToShipped(packages, containerNo) {
     console.log(`🚀 Directly shipping ${packages.length} packages to container: ${containerNo}`);
