@@ -100,7 +100,6 @@ async function loadPackagesDataStrict() {
             const isValidWorkspace = pkg.workspace_id === workspaceId;
             const isWaiting = pkg.status === 'beklemede';
             const hasNoContainer = !pkg.container_id || pkg.container_id === null;
-            const notShipped = !shippedPackageIds.has(pkg.id); // ✅ NEW: Check if already shipped
             
             if (!isValidWorkspace) {
                 console.warn('🔒 STRICT: Filtered package from different workspace:', {
@@ -111,8 +110,10 @@ async function loadPackagesDataStrict() {
                 return false;
             }
             
-            if (!notShipped) {
-                console.log('🚫 Blocking already shipped package from pending:', pkg.id);
+            // ✅ FIXED: Check if shipped by either id or package_no
+            const isShipped = shippedPackageIds.has(pkg.id) || shippedPackageIds.has(pkg.package_no);
+            if (isShipped) {
+                console.log('🚫 Blocking already shipped package from pending:', pkg.package_no);
                 return false;
             }
             
@@ -136,9 +137,11 @@ async function loadPackagesDataStrict() {
                 if (!error && supabasePackages && supabasePackages.length > 0) {
                     console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
-                    // ✅ Filter out already shipped packages
+                    // ✅ Filter out already shipped packages (check both id and package_no)
                     const validSupabasePackages = supabasePackages.filter(pkg => 
-                        validateWorkspaceAccessStrict(pkg) && !shippedPackageIds.has(pkg.id)
+                        validateWorkspaceAccessStrict(pkg) && 
+                        !shippedPackageIds.has(pkg.id) && 
+                        !shippedPackageIds.has(pkg.package_no)
                     );
                     
                     const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
@@ -160,8 +163,11 @@ async function loadPackagesDataStrict() {
                     console.log(`✅ Loaded shipped packages:`, shippedPackages.length);
                     window.shippedPackages = shippedPackages;
                     
-                    // ✅ Track all shipped package IDs
-                    shippedPackages.forEach(pkg => shippedPackageIds.add(pkg.id));
+                    // ✅ Track all shipped package IDs (both id and package_no)
+                    shippedPackages.forEach(pkg => {
+                        shippedPackageIds.add(pkg.id);
+                        if (pkg.package_no) shippedPackageIds.add(pkg.package_no);
+                    });
                 }
                 
             } catch (supabaseError) {
@@ -4278,9 +4284,8 @@ async function sendToRamp(containerNo = null) {
 }
 async function updatePackageStatusToShippedDirect(packages, containerNo) {
     try {
-        const packageIds = packages.map(pkg => pkg.id);
-        
-        console.log(`🚢 Directly shipping ${packageIds.length} packages to container: ${containerNo}`);
+        console.log(`🚢 Shipping ${packages.length} packages to container: ${containerNo}`);
+        console.log('Package data:', packages);
         
         // Get the actual container ID from container_no
         let containerId = null;
@@ -4293,39 +4298,52 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
             
             if (container) {
                 containerId = container.id;
+                console.log('Container ID found:', containerId);
             }
         }
         
-        // Update in Supabase with the correct container ID
-        if (supabase && navigator.onLine && containerId) {
-            const { error } = await supabase
-                .from('packages')
-                .update({ 
-                    status: 'sevk-edildi',
-                    container_id: containerId,  // Use UUID, not string
-                    updated_at: new Date().toISOString()
-                })
-                .in('id', packageIds);
-            
-            if (error) {
-                console.error('Supabase update error:', error);
-                throw error;
+        // Update packages ONE BY ONE (to handle custom IDs properly)
+        for (const pkg of packages) {
+            try {
+                // Use package_no to identify the package (more reliable than custom ID)
+                const { error } = await supabase
+                    .from('packages')
+                    .update({ 
+                        status: 'sevk-edildi',
+                        container_id: containerId,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('package_no', pkg.package_no);  // Use package_no instead of id
+                
+                if (error) {
+                    console.error(`Error updating package ${pkg.package_no}:`, error);
+                } else {
+                    console.log(`✅ Updated package: ${pkg.package_no}`);
+                    
+                    // Track as shipped using package_no or id
+                    if (pkg.id) shippedPackageIds.add(pkg.id);
+                    if (pkg.package_no) shippedPackageIds.add(pkg.package_no);
+                }
+            } catch (pkgError) {
+                console.error(`Failed to update package ${pkg.package_no}:`, pkgError);
             }
         }
-        
-        // Track as shipped to prevent loading back to pending
-        packageIds.forEach(id => shippedPackageIds.add(id));
         
         // Update local packages array - remove from pending
         if (window.packages) {
-            window.packages = window.packages.filter(pkg => !packageIds.includes(pkg.id));
+            const packageNos = packages.map(p => p.package_no);
+            window.packages = window.packages.filter(pkg => 
+                !packageNos.includes(pkg.package_no)
+            );
         }
         
         // Update Excel storage
         try {
             const excelData = await ExcelJS.readFile();
+            const packageNos = packages.map(p => p.package_no);
+            
             const updatedExcel = excelData.map(pkg => {
-                if (packageIds.includes(pkg.id)) {
+                if (packageNos.includes(pkg.package_no)) {
                     return {
                         ...pkg,
                         status: 'sevk-edildi',
@@ -4340,100 +4358,13 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
             console.warn('Excel update failed:', excelError);
         }
         
-        console.log(`✅ ${packageIds.length} packages marked as shipped`);
+        console.log(`✅ ${packages.length} packages marked as shipped`);
         
     } catch (error) {
         console.error('Error updating package status:', error);
         throw error;
     }
 }
-
-// Paketleri doğrudan "sevk-edildi" durumuna güncelle
-async function updatePackagesToShipped(packages, containerNo) {
-    console.log(`🚀 Directly shipping ${packages.length} packages to container: ${containerNo}`);
-    
-    const packageIds = packages.map(pkg => pkg.id);
-    
-    try {
-        // 1. ÖNCE EXCEL VERİLERİNİ GÜNCELLE
-        const excelData = await ExcelJS.readFile();
-        let excelUpdated = 0;
-        
-        const updatedExcelData = excelData.map(pkg => {
-            if (packageIds.includes(pkg.id)) {
-                excelUpdated++;
-                return {
-                    ...pkg,
-                    status: 'sevk-edildi', // DOĞRUDAN SEVK EDİLDİ
-                    container_id: containerNo,
-                    updated_at: new Date().toISOString(),
-                    shipped_at: new Date().toISOString()
-                };
-            }
-            return pkg;
-        });
-        
-        // Excel verilerini kaydet
-        await ExcelJS.writeFile(updatedExcelData);
-        excelPackages = updatedExcelData;
-        
-        console.log(`✅ Updated ${excelUpdated} packages in Excel to 'sevk-edildi'`);
-
-        // 2. SUPABASE'DE GÜNCELLE (ÇEVRİMİÇİ İSE)
-        if (supabase && navigator.onLine) {
-            try {
-                const { error } = await supabase
-                    .from('packages')
-                    .update({
-                        status: 'sevk-edildi', // DOĞRUDAN SEVK EDİLDİ
-                        container_id: containerNo,
-                        updated_at: new Date().toISOString(),
-                        shipped_at: new Date().toISOString()
-                    })
-                    .in('id', packageIds);
-
-                if (error) {
-                    console.error('❌ Supabase update error:', error);
-                    // Hata durumunda sync kuyruğuna ekle
-                    packages.forEach(pkg => {
-                        addToSyncQueue('update', {
-                            ...pkg,
-                            status: 'sevk-edildi',
-                            container_id: containerNo
-                        });
-                    });
-                } else {
-                    console.log(`✅ Updated ${packageIds.length} packages in Supabase to 'sevk-edildi'`);
-                }
-            } catch (supabaseError) {
-                console.error('❌ Supabase update failed:', supabaseError);
-                // Supabase hatasında Excel verisi zaten güncellendi
-            }
-        }
-
-        // 3. LOCALSTORAGE'DA GÜNCELLE
-        const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
-        const updatedLocalPackages = localPackages.map(pkg => {
-            if (packageIds.includes(pkg.id)) {
-                return {
-                    ...pkg,
-                    status: 'sevk-edildi',
-                    container_id: containerNo,
-                    updated_at: new Date().toISOString()
-                };
-            }
-            return pkg;
-        });
-        localStorage.setItem('packages', JSON.stringify(updatedLocalPackages));
-
-        console.log(`🎯 Successfully shipped ${packageIds.length} packages to container ${containerNo}`);
-
-    } catch (error) {
-        console.error('❌ Error updating packages to shipped:', error);
-        throw error;
-    }
-}
-
 
 // Update package status when sent to shipping
 async function updatePackageStatusToShipped(packageIds, containerNo) {
