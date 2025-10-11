@@ -1213,7 +1213,7 @@ const ProfessionalExcelExport = {
         // For advanced styling, consider using SheetJS Pro or xlsx-style library
     },
 
-   async function completePackage() {
+  async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
         return;
@@ -1314,7 +1314,6 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 // Delete selected packages
