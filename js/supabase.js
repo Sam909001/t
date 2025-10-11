@@ -1478,69 +1478,229 @@ async function restoreSyncBackup() {
     }
 }
 
-// REPLACE THIS ENTIRE FUNCTION:
-function addToSyncQueue(operationType, data) {
-    if (!data || (!data.id && !data.package_no)) {
-        console.error('❌ addToSyncQueue: Invalid data object:', data);
-        return;
+// ==================== ENHANCED SYNC QUEUE WITH COMPLETE SCHEMA ====================
+
+// Update addToSyncQueue function to handle both 'add' and 'insert'
+function addToSyncQueue(operation, tableOrData, data) {
+    if (!window.offlineChangesQueue) {
+        window.offlineChangesQueue = [];
     }
-
-    // Ensure queue exists
-    window.excelSyncQueue = window.excelSyncQueue || [];
-
-    // Create operation fingerprint for deduplication
-    const operationFingerprint = `${operationType}-${data.package_no || data.id}`;
-
-    // Check for duplicates
-    const isDuplicate = window.excelSyncQueue.some(op =>
-        op.fingerprint === operationFingerprint && op.status !== 'failed'
-    );
-
-    if (isDuplicate) {
-        console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
-        return;
+    
+    // Handle legacy 'add' operation (2 parameters)
+    let table, itemData, op;
+    
+    if (typeof tableOrData === 'string' && data) {
+        // New format: addToSyncQueue('insert', 'packages', data)
+        op = operation;
+        table = tableOrData;
+        itemData = data;
+    } else {
+        // Legacy format: addToSyncQueue('add', packageData)
+        op = 'insert'; // Convert 'add' to 'insert'
+        table = 'packages';
+        itemData = tableOrData;
     }
-
-    // Remove any older operations for the same data ID but different type
-    window.excelSyncQueue = window.excelSyncQueue.filter(op =>
-        !(op.data?.id === data.id && op.type !== operationType)
-    );
-
-    // Create enhanced operation object
-    const enhancedOperation = {
-        type: operationType,
-        data: data,
+    
+    // Ensure complete package schema
+    if (table === 'packages') {
+        itemData = ensureCompletePackageSchema(itemData);
+    }
+    
+    const queueItem = {
+        id: generateUniquePackageUUID(),
+        operation: op,
+        table: table,
+        data: itemData,
         timestamp: new Date().toISOString(),
-        fingerprint: operationFingerprint,
-        workspace_id: data.workspace_id || getCurrentWorkspaceId(),
-        attempts: 0,
-        maxAttempts: 5,
-        status: 'pending',
-        lastAttempt: null,
-        lastError: null
+        synced: false
     };
-
-    // Add new operation
-    window.excelSyncQueue.push(enhancedOperation);
-
-    // Limit queue size to last 500
-    if (window.excelSyncQueue.length > 500) {
-        console.warn('📦 Sync queue too large, removing oldest operations');
-        window.excelSyncQueue = window.excelSyncQueue.slice(-400);
-    }
-
-    // Persist
-    localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
-    console.log(`✅ Added to sync queue: ${operationType} for ${data.package_no || data.id}. Queue: ${window.excelSyncQueue.length}`);
     
-    // Update UI
-    updateStorageIndicator();
+    window.offlineChangesQueue.push(queueItem);
+    saveOfflineQueue();
     
-    // Try immediate sync if online
+    console.log(`📝 Added to sync queue [${op}] ${table}:`, itemData.package_no || itemData.id);
+    
+    // Auto-sync if online
     if (navigator.onLine && supabase) {
-        setTimeout(() => syncExcelWithSupabase(), 1000);
+        setTimeout(() => syncOfflineChanges(), 1000);
     }
 }
+
+window.addToSyncQueue = addToSyncQueue;
+
+// Ensure package has complete schema before syncing
+function ensureCompletePackageSchema(packageData) {
+    const workspaceId = getCurrentWorkspaceId();
+    
+    // Parse items_array if it's a string
+    let itemsArray = packageData.items_array;
+    if (typeof itemsArray === 'string') {
+        try {
+            itemsArray = JSON.parse(itemsArray);
+        } catch (e) {
+            itemsArray = [];
+        }
+    }
+    
+    // Get customer info
+    let customerName = packageData.customer_name;
+    let customerCode = packageData.customer_code;
+    
+    if (!customerName && packageData.customer_id) {
+        const customer = window.customers?.find(c => c.id === packageData.customer_id);
+        if (customer) {
+            customerName = customer.name;
+            customerCode = customer.code;
+        }
+    }
+    
+    // Calculate total quantity from items_array
+    const totalQuantity = Array.isArray(itemsArray) 
+        ? itemsArray.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0)
+        : (packageData.total_quantity || 0);
+    
+    // Create items_display string
+    const itemsDisplay = Array.isArray(itemsArray)
+        ? itemsArray.map(item => `${item.name} (${item.qty})`).join(', ')
+        : '';
+    
+    return {
+        id: packageData.id || generateUniquePackageUUID(),
+        package_no: packageData.package_no || generateUniquePackageNumber(),
+        customer_id: packageData.customer_id || null,
+        customer_name: customerName || null,
+        customer_code: customerCode || null,
+        container_id: packageData.container_id || null,
+        workspace_id: workspaceId,
+        status: packageData.status || 'beklemede',
+        items: packageData.items || null, // Legacy field
+        items_array: itemsArray, // JSON array
+        items_display: itemsDisplay, // Human readable
+        total_quantity: totalQuantity,
+        created_at: packageData.created_at || new Date().toISOString(),
+        shipped_at: packageData.shipped_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        personnel_id: packageData.personnel_id || null,
+        daily_file: packageData.daily_file || null,
+        source: packageData.source || 'app',
+        station_name: packageData.station_name || null
+    };
+}
+
+// Save queue to localStorage
+function saveOfflineQueue() {
+    try {
+        localStorage.setItem('offlineChangesQueue', JSON.stringify(window.offlineChangesQueue || []));
+        console.log(`💾 Saved ${window.offlineChangesQueue?.length || 0} items to sync queue`);
+    } catch (error) {
+        console.error('Error saving offline queue:', error);
+    }
+}
+
+// Load queue from localStorage
+function loadOfflineQueue() {
+    try {
+        const saved = localStorage.getItem('offlineChangesQueue');
+        window.offlineChangesQueue = saved ? JSON.parse(saved) : [];
+        console.log(`📂 Loaded ${window.offlineChangesQueue.length} items from sync queue`);
+    } catch (error) {
+        console.error('Error loading offline queue:', error);
+        window.offlineChangesQueue = [];
+    }
+}
+
+// Sync all queued changes to Supabase
+async function syncOfflineChanges() {
+    if (!navigator.onLine || !supabase) {
+        console.log('⏸️ Cannot sync: offline or no Supabase connection');
+        return;
+    }
+    
+    if (!window.offlineChangesQueue || window.offlineChangesQueue.length === 0) {
+        console.log('✅ Sync queue is empty');
+        return;
+    }
+    
+    console.log(`🔄 Syncing ${window.offlineChangesQueue.length} changes to Supabase...`);
+    
+    const failedItems = [];
+    
+    for (const item of window.offlineChangesQueue) {
+        if (item.synced) continue;
+        
+        try {
+            let result;
+            
+            if (item.operation === 'insert') {
+                // Ensure complete schema before insert
+                const completeData = item.table === 'packages' 
+                    ? ensureCompletePackageSchema(item.data)
+                    : item.data;
+                
+                result = await supabase
+                    .from(item.table)
+                    .insert([completeData]);
+                    
+            } else if (item.operation === 'update') {
+                const completeData = item.table === 'packages' 
+                    ? ensureCompletePackageSchema(item.data)
+                    : item.data;
+                    
+                result = await supabase
+                    .from(item.table)
+                    .update(completeData)
+                    .eq('id', item.data.id);
+                    
+            } else if (item.operation === 'delete') {
+                result = await supabase
+                    .from(item.table)
+                    .delete()
+                    .eq('id', item.data.id);
+            }
+            
+            if (result?.error) {
+                console.error(`❌ Sync error for ${item.operation} ${item.table}:`, result.error);
+                failedItems.push(item);
+            } else {
+                item.synced = true;
+                console.log(`✅ Synced: ${item.operation} ${item.table} - ${item.data.package_no || item.data.id}`);
+            }
+            
+        } catch (error) {
+            console.error(`❌ Sync exception for ${item.operation} ${item.table}:`, error);
+            failedItems.push(item);
+        }
+    }
+    
+    // Remove synced items
+    window.offlineChangesQueue = window.offlineChangesQueue.filter(item => !item.synced);
+    saveOfflineQueue();
+    
+    const syncedCount = window.offlineChangesQueue.length === 0 
+        ? 'All items' 
+        : `${failedItems.length} failed, ${window.offlineChangesQueue.length} remaining`;
+        
+    console.log(`🔄 Sync complete: ${syncedCount}`);
+    
+    if (window.offlineChangesQueue.length === 0) {
+        showAlert('Tüm değişiklikler senkronize edildi', 'success');
+    } else {
+        showAlert(`${failedItems.length} değişiklik senkronize edilemedi`, 'warning');
+    }
+}
+
+// Auto-sync when connection restored
+window.addEventListener('online', () => {
+    console.log('🌐 Connection restored, syncing...');
+    syncOfflineChanges();
+});
+
+// Make functions globally available
+window.addToSyncQueue = addToSyncQueue;
+window.ensureCompletePackageSchema = ensureCompletePackageSchema;
+window.saveOfflineQueue = saveOfflineQueue;
+window.loadOfflineQueue = loadOfflineQueue;
+window.syncOfflineChanges = syncOfflineChanges;
 
 
 
@@ -1582,6 +1742,35 @@ function setupAutoSync() {
     console.log('✅ Auto-sync system initialized');
 }
 
+
+
+// Test sync queue
+async function testSyncQueue() {
+    console.log('🧪 Testing sync queue...');
+    
+    const testPackage = {
+        id: generateUniquePackageUUID(),
+        package_no: 'TEST-' + Date.now(),
+        customer_id: window.customers?.[0]?.id,
+        customer_name: window.customers?.[0]?.name,
+        items_array: [
+            { name: 'Büyük Havlu', qty: 2 },
+            { name: 'Nevresim', qty: 3 }
+        ],
+        station_name: 'Test İstasyon',
+        status: 'beklemede'
+    };
+    
+    addToSyncQueue('insert', 'packages', testPackage);
+    
+    console.log('Queue status:', window.offlineChangesQueue);
+    
+    if (navigator.onLine) {
+        await syncOfflineChanges();
+    }
+}
+
+window.testSyncQueue = testSyncQueue;
 // ==================== ATOMIC SYNC QUEUE SYSTEM ====================
 
 // Add this to supabase.js after the existing sync functions
@@ -2236,7 +2425,7 @@ async function populatePackagesTable() {
 
         // Get data based on current mode
         if (isUsingExcel || !supabase || !navigator.onLine) {
-            // Use Excel data filtered by workspace with additional safety
+            // Use Excel data filtered by workspace
             packages = excelPackages.filter(pkg => {
                 const isValidWorkspace = pkg.workspace_id === workspaceId;
                 const isWaiting = pkg.status === 'beklemede';
@@ -2256,15 +2445,12 @@ async function populatePackagesTable() {
         } else {
             // Try to use Supabase data with workspace filter
             try {
-                const workspaceFilter = getWorkspaceFilter();
-                
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', getCurrentWorkspaceId()) // ADD THIS LINE
-                    .eq('workspace_id', workspaceId) // STRICT WORKSPACE FILTER
+                    .eq('workspace_id', workspaceId) // ✅ SINGLE WORKSPACE FILTER (removed duplicate)
                     .order('created_at', { ascending: false });
 
                 if (error) {
@@ -2287,7 +2473,7 @@ async function populatePackagesTable() {
             }
         }
 
-        // Rest of the function remains the same but with additional safety...
+        // Empty state
         if (!packages || packages.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = `<td colspan="8" style="text-align:center; color:#666;">
@@ -2303,7 +2489,7 @@ async function populatePackagesTable() {
             // Validate workspace access for each package
             if (!validateWorkspaceAccess(pkg)) {
                 console.warn('Skipping package from different workspace:', pkg.id);
-                return; // Skip this package
+                return;
             }
             
             const row = document.createElement('tr');
@@ -2314,49 +2500,79 @@ async function populatePackagesTable() {
                 '<i class="fas fa-file-excel" title="Excel Kaynaklı" style="color: #217346;"></i>' :
                 '<i class="fas fa-database" title="Supabase Kaynaklı" style="color: #3ecf8e;"></i>';
 
-            // Ensure items is properly formatted
+            // ✅ PARSE ITEMS ARRAY PROPERLY
             let itemsArray = [];
-            if (pkg.items && typeof pkg.items === 'object') {
+            
+            // Try items_array first (new format)
+            if (pkg.items_array) {
+                if (typeof pkg.items_array === 'string') {
+                    try {
+                        itemsArray = JSON.parse(pkg.items_array);
+                    } catch (e) {
+                        console.warn('Failed to parse items_array:', e);
+                        itemsArray = [];
+                    }
+                } else if (Array.isArray(pkg.items_array)) {
+                    itemsArray = pkg.items_array;
+                }
+            }
+            // Fallback to items object (old format)
+            else if (pkg.items && typeof pkg.items === 'object') {
                 if (Array.isArray(pkg.items)) {
                     itemsArray = pkg.items;
                 } else {
                     // Convert object to array
                     itemsArray = Object.entries(pkg.items).map(([name, qty]) => ({ 
                         name: name, 
-                        qty: qty 
+                        qty: parseInt(qty) || 0
                     }));
                 }
-            } else {
-                // Fallback for packages without items array
+            }
+            // Last resort fallback
+            else {
                 itemsArray = [{ 
                     name: pkg.product || 'Bilinmeyen Ürün', 
                     qty: pkg.total_quantity || 1 
                 }];
             }
 
+            // ✅ GET CUSTOMER NAME (multiple fallbacks)
+            const customerName = pkg.customer_name || pkg.customers?.name || 'Bilinmeyen Müşteri';
+
+            // ✅ CALCULATE TOTAL QUANTITY
+            const totalQuantity = pkg.total_quantity || 
+                itemsArray.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
+
+            // ✅ FORMAT ITEMS DISPLAY
+            const itemsDisplay = itemsArray.map(it => it.name).join(', ') || 'Bilgi yok';
+            const quantitiesDisplay = itemsArray.map(it => it.qty).join(', ') || '0';
+
             const packageJsonEscaped = JSON.stringify(pkg).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-row.innerHTML = `
-    <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
-    <td>${escapeHtml(pkg.package_no || 'N/A')}</td>
-    <td>${escapeHtml(pkg.customers?.name || pkg.customer_name || 'N/A')}</td>
-    <td title="${escapeHtml(itemsArray.map(it => it.name).join(', '))}">
-        ${escapeHtml(itemsArray.map(it => it.name).join(', '))}
-    </td>
-    <td title="${escapeHtml(itemsArray.map(it => it.qty).join(', '))}">
-        ${escapeHtml(itemsArray.map(it => it.qty).join(', '))}
-    </td>
-    <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
-    <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-    <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
-    ${sourceIcon}
-    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
-        <i class="fas fa-print"></i>
-    </button>
-</td>
-`;
+            row.innerHTML = `
+                <td><input type="checkbox" value="${pkg.id}" data-package='${packageJsonEscaped}' onchange="updatePackageSelection()"></td>
+                <td><strong>${escapeHtml(pkg.package_no || 'N/A')}</strong></td>
+                <td><strong>${escapeHtml(customerName)}</strong></td>
+                <td title="${escapeHtml(itemsDisplay)}">
+                    ${escapeHtml(itemsDisplay)}
+                </td>
+                <td title="Toplam: ${totalQuantity} adet">
+                    <strong>${escapeHtml(quantitiesDisplay)}</strong> (${totalQuantity} adet)
+                </td>
+                <td>${pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('tr-TR') : 'N/A'}</td>
+                <td><span class="status-${pkg.status || 'beklemede'}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
+                <td style="text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    ${sourceIcon}
+                    <button class="package-print-btn" onclick="printSinglePackage('${pkg.id}')" title="Etiketi Yazdır">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </td>
+            `;
+            
             row.addEventListener('click', (e) => {
-                if (e.target.type !== 'checkbox') selectPackage(pkg);
+                if (e.target.type !== 'checkbox' && !e.target.closest('button')) {
+                    selectPackage(pkg);
+                }
             });
 
             tableBody.appendChild(row);
@@ -2376,6 +2592,8 @@ row.innerHTML = `
     }
 }
 
+// Make globally available
+window.populatePackagesTable = populatePackagesTable;
 
 
 
@@ -4233,54 +4451,62 @@ async function completePackage() {
     }
 
     try {
-        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-      const workspaceId = window.workspaceManager.currentWorkspace.id;
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
 
-// Get or initialize counter for this workspace
-let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-packageCounter++;
-localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
+        // Get or initialize counter for this workspace
+        let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
+        packageCounter++;
+        localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
 
-const timestamp = Date.now();
-const random = Math.random().toString(36).substr(2, 9);
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
 
-const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+        const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Enhanced package data with workspace info - USE THE SAME ID
+        // Items array for database
+        const itemsArray = Object.entries(currentPackage.items).map(([name, qty]) => ({
+            name: name,
+            qty: qty
+        }));
+
+        // Items display string
+        const itemsDisplay = Object.entries(currentPackage.items).map(([name, qty]) => 
+            `${name}: ${qty} adet`
+        ).join(', ');
+
+        // ✅ COMPLETE PACKAGE DATA WITH ALL SCHEMA FIELDS
         const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
             customer_code: selectedCustomer.code,
-            items: currentPackage.items,
-            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
-                name: name,
-                qty: qty
-            })),
-            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-                `${name}: ${qty} adet`
-            ).join(', '),
-            total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            container_id: null,
             workspace_id: workspaceId,
-            station_name: window.workspaceManager.currentWorkspace.name,
+            status: 'beklemede',
+            items: currentPackage.items, // Legacy object format
+            items_array: itemsArray, // JSON array format
+            items_display: itemsDisplay, // Human-readable string
+            total_quantity: totalQuantity,
+            created_at: new Date().toISOString(),
+            shipped_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            personnel_id: selectedPersonnel || null,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app' // Track source for sync
+            source: 'app',
+            station_name: window.workspaceManager.currentWorkspace.name
         };
 
-        console.log('📦 Creating package with ID:', packageId);
+        console.log('📦 Creating package with complete schema:', packageData);
 
-        // Save based on connectivity and workspace settings
+        // Save based on connectivity
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
+                // ✅ INSERT TO SUPABASE WITH COMPLETE SCHEMA
                 const { data, error } = await supabase
                     .from('packages')
                     .insert([packageData])
@@ -4288,35 +4514,68 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
 
                 if (error) throw error;
 
+                console.log('✅ Package saved to Supabase:', data);
                 showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData); // SAME packageData with SAME ID
+                
+                // Also save to Excel for offline access
+                await saveToExcel(packageData);
                 
             } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                console.warn('❌ Supabase save failed, using offline mode:', supabaseError);
+                
+                // Save to Excel
+                await saveToExcel(packageData);
+                
+                // ✅ ADD TO SYNC QUEUE WITH COMPLETE SCHEMA
+                addToSyncQueue('insert', 'packages', packageData);
+                
+                showAlert(`Paket çevrimdışı kaydedildi: ${packageNo} - Senkronize edilecek`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData); // SAME packageData with SAME ID
-            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            // Offline mode
+            console.log('📴 Offline mode: Saving to Excel and sync queue');
+            
+            // Save to Excel
+            await saveToExcel(packageData);
+            
+            // ✅ ADD TO SYNC QUEUE WITH COMPLETE SCHEMA
+            addToSyncQueue('insert', 'packages', packageData);
+            
+            showAlert(`Paket çevrimdışı kaydedildi: ${packageNo} - Senkronize edilecek`, 'warning');
             isUsingExcel = true;
         }
 
+        // ✅ UPDATE GLOBAL PACKAGES ARRAY
+        if (!window.packages) window.packages = [];
+        window.packages.push(packageData);
+
         // Reset and refresh
         currentPackage = {};
+        selectedCustomer = null;
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
+        
+        // Clear customer selection UI
+        if (elements.customerSearch) elements.customerSearch.value = '';
+        if (elements.selectedCustomerName) elements.selectedCustomerName.textContent = '';
+        
         await populatePackagesTable();
         updateStorageIndicator();
+        
+        // Show sync queue status
+        const queueSize = window.offlineChangesQueue?.length || 0;
+        if (queueSize > 0) {
+            console.log(`📋 Sync queue: ${queueSize} items waiting`);
+        }
 
     } catch (error) {
-        console.error('Error in completePackage:', error);
+        console.error('❌ Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
 
+// Make globally available
+window.completePackage = completePackage;
 
 // Delete selected packages
 async function deleteSelectedPackages() {
