@@ -97,7 +97,7 @@ async function loadPackagesDataStrict() {
         // STRICT workspace filtering with validation
         const workspacePackages = excelPackagesList.filter(pkg => {
             const isValidWorkspace = pkg.workspace_id === workspaceId;
-            const isWaiting = pkg.status === 'Sevkedildi';
+            const isWaiting = pkg.status === 'beklemede';
             const hasNoContainer = !pkg.container_id || pkg.container_id === null;
             
             if (!isValidWorkspace) {
@@ -118,11 +118,11 @@ async function loadPackagesDataStrict() {
         // Load from Supabase with STRICT workspace filtering
         if (supabase && navigator.onLine) {
             try {
-                const { data: supabasePackages, error } = await supabase
+               const { data: supabasePackages, error } = await supabase
                     .from('packages')
-                    .select(`*, customers (name, code)`)
+                   .select(`*, customers (name, code)`)
                     .is('container_id', null)
-                    .eq('status', 'beklemede')
+                    .eq('status', 'beklemede')  // Only truly pending packages
                     .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
                 
@@ -2495,6 +2495,9 @@ async function viewContainerDetails(containerId) {
 
 
 
+
+
+
 // ==================== COMPLETE RFID STOCK TABLE SYSTEM ====================
 
 // Global RFID Scanner State
@@ -3895,7 +3898,7 @@ async function completePackage() {
                 `${name}: ${qty} adet`
             ).join(', '),
             total_quantity: totalQuantity,
-            status: 'beklemede',
+             status: 'sevk-edildi',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
