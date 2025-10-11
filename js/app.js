@@ -1751,6 +1751,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// --- Enhanced setupEnhancedSyncTriggers with console logs ---
+function setupEnhancedSyncTriggers() {
+    console.log('🟢 setupEnhancedSyncTriggers called');
+
+    // Auto-sync every 2 minutes
+    setInterval(() => {
+        console.log('⏱️ Auto-sync triggered');
+        if (typeof syncExcelWithSupabase === 'function') {
+            syncExcelWithSupabase();
+        } else {
+            console.warn('⚠️ syncExcelWithSupabase() not found');
+        }
+    }, 2 * 60 * 1000);
+
+    // Sync immediately when connection is restored
+    window.addEventListener('online', () => {
+        console.log('🌐 Connection restored, running sync immediately');
+        if (typeof syncExcelWithSupabase === 'function') {
+            syncExcelWithSupabase();
+        }
+    });
+}
+
 
 
 
