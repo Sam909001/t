@@ -3875,7 +3875,7 @@ async function completePackage() {
     try {
         const workspaceId = window.workspaceManager.currentWorkspace.id;
         
-        // Generate unique package ID with duplicate checking
+        // ✅ FIXED: Simple and reliable ID generation
         const { packageId, packageNo } = await generateUniquePackageWithValidation(workspaceId);
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
@@ -3948,157 +3948,83 @@ async function completePackage() {
     }
 }
 
-// SIMPLIFIED: ID generation without aggressive cache checking
+// ✅ FIXED: Simple and reliable ID generation
 async function generateUniquePackageWithValidation(workspaceId) {
     console.log('🔄 Generating package ID...');
     
     // Get or create counter
-    let packageCounter = parseInt(localStorage.getItem(`pkg_simple_counter_${workspaceId}`) || '0');
+    let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
     packageCounter++;
-    localStorage.setItem(`pkg_simple_counter_${workspaceId}`, packageCounter.toString());
+    localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
 
-    // Generate IDs
+    // Generate IDs - SIMPLIFIED: No complex duplicate checking
     const packageId = generateUniquePackageUUID();
     const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
 
     console.log(`✅ Generated: ${packageNo}`);
     console.log(`   UUID: ${packageId}`);
     
-    // Quick check: Is this ID actually in use anywhere?
-    const isActuallyUsed = await checkIfIdActuallyUsed(packageId, packageNo);
-    
-    if (isActuallyUsed) {
-        console.warn('🚨 ID collision detected, regenerating...');
-        // Recursive retry with new counter
+    // ✅ SIMPLE CHECK: Only check if package number exists in current Excel data
+    const existingPackageNo = excelPackages.find(p => p.package_no === packageNo);
+    if (existingPackageNo) {
+        console.warn('⚠️ Package number exists in Excel, regenerating...');
+        // Simple retry with incremented counter
         return generateUniquePackageWithValidation(workspaceId);
     }
-    
-    // Add to cache (but don't rely on it for duplicate checking)
-    createdPackageIds.add(packageId);
     
     return { packageId, packageNo };
 }
 
-// REAL duplicate check (only check actual data sources)
+// ✅ PROPER UUID Generator
+function generateUniquePackageUUID() {
+    // Use browser's built-in UUID generator if available
+    if (crypto && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    
+    // Fallback to proper UUID v4 format
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// ✅ REMOVE these problematic functions - they're not needed anymore:
+// - checkIfIdActuallyUsed() 
+// - checkPackageIdUnique()
+
+// If you need to keep them for other parts of your app, at least fix the Supabase query:
 async function checkIfIdActuallyUsed(packageId, packageNo) {
     // 1. Check Excel packages (your main data source)
-    const excelDuplicate = excelPackages.find(p => 
-        p.id === packageId || p.package_no === packageNo
-    );
+    const excelDuplicate = excelPackages.find(p => p.package_no === packageNo);
     if (excelDuplicate) {
-        console.warn('❌ Duplicate in Excel data');
+        console.warn('❌ Duplicate package number in Excel data');
         return true;
     }
     
-    // 2. Quick Supabase check (optional)
+    // 2. Quick Supabase check - FIXED QUERY
     if (supabase && navigator.onLine) {
         try {
             const { data } = await supabase
                 .from('packages')
-                .select('id, package_no')
-                .or(`id.eq.${packageId},package_no.eq.${packageNo}`)
+                .select('package_no')
+                .eq('package_no', packageNo)
+                .eq('workspace_id', getCurrentWorkspaceId())
                 .maybeSingle();
             
             if (data) {
-                console.warn('❌ Duplicate in Supabase');
+                console.warn('❌ Duplicate package number in Supabase');
                 return true;
             }
         } catch (error) {
-            // Ignore Supabase errors
+            // Ignore Supabase errors - don't block package creation
+            console.log('Supabase check skipped:', error.message);
         }
     }
     
-    return false; // No actual duplicates found
+    return false; // No duplicates found
 }
-
-
-
-// FIXED: Comprehensive duplicate checking
-async function checkPackageIdUnique(packageId, packageNo) {
-    try {
-        // 1. Check in createdPackageIds (memory) - BUT don't add yet!
-        if (createdPackageIds.has(packageId)) {
-            console.warn('❌ Duplicate in memory cache:', packageId);
-            return false;
-        }
-
-        // 2. Check in Supabase (if online)
-        if (supabase && navigator.onLine) {
-            try {
-                const { data: supabasePackages, error } = await supabase
-                    .from('packages')
-                    .select('id, package_no')
-                    .or(`id.eq.${packageId},package_no.eq.${packageNo}`)
-                    .limit(1);
-
-                if (error) {
-                    console.warn('Supabase check error (will continue):', error);
-                } else if (supabasePackages && supabasePackages.length > 0) {
-                    console.warn('❌ Duplicate in Supabase:', {
-                        searched: { packageId, packageNo },
-                        found: supabasePackages[0]
-                    });
-                    return false;
-                }
-            } catch (supabaseError) {
-                console.warn('Supabase check failed (will continue):', supabaseError);
-            }
-        }
-
-        // 3. Check in localStorage packages
-        try {
-            const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
-            const localDuplicate = localPackages.find(p => 
-                p.id === packageId || p.package_no === packageNo
-            );
-            
-            if (localDuplicate) {
-                console.warn('❌ Duplicate in localStorage:', localDuplicate);
-                return false;
-            }
-        } catch (localError) {
-            console.warn('LocalStorage check failed (will continue):', localError);
-        }
-
-        // 4. Check in Excel packages
-        try {
-            const excelDuplicate = excelPackages.find(p => 
-                p.id === packageId || p.package_no === packageNo
-            );
-            
-            if (excelDuplicate) {
-                console.warn('❌ Duplicate in Excel packages:', excelDuplicate);
-                return false;
-            }
-        } catch (excelError) {
-            console.warn('Excel packages check failed (will continue):', excelError);
-        }
-
-        // 5. Check in sync queue
-        try {
-            const syncDuplicate = excelSyncQueue.find(op => 
-                op.data.id === packageId || op.data.package_no === packageNo
-            );
-            
-            if (syncDuplicate) {
-                console.warn('❌ Duplicate in sync queue:', syncDuplicate);
-                return false;
-            }
-        } catch (syncError) {
-            console.warn('Sync queue check failed (will continue):', syncError);
-        }
-
-        // All checks passed - ID is unique
-        // DON'T add to createdPackageIds here - wait until package is actually created
-        return true;
-
-    } catch (error) {
-        console.error('Error in duplicate checking:', error);
-        // If checking fails, assume it's unique to avoid blocking package creation
-        return true;
-    }
-}
-
 
 // Also update the delete function to clean up IDs
 async function deleteSelectedPackages() {
