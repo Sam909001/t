@@ -1,3 +1,7 @@
+// Initialize global sync queue if it doesn't exist
+window.excelSyncQueue = window.excelSyncQueue || [];
+
+
 // Top of app.js
 window.initializePrinter = function() {
     console.log("Printer initialized");
