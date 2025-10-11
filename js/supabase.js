@@ -1264,67 +1264,24 @@ async function initializeExcelStorage() {
     }
 }
 
-// ✅ REPLACE the existing saveToExcel function with this:
 async function saveToExcel(packageData) {
-    try {
-        // Enhanced package data with customer and product info
-        const enhancedPackageData = {
-            ...packageData,
-            // Ensure customer info is included
-            customer_name: packageData.customer_name || selectedCustomer?.name || 'Bilinmeyen Müşteri',
-            customer_code: selectedCustomer?.code || '',
-            // Ensure product/items info is properly formatted
-            items: packageData.items || currentPackage.items || {},
-            // Add date info for daily file management
-            excel_export_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-            // Convert items to readable string for Excel
-            items_display: packageData.items ? 
-                Object.entries(packageData.items).map(([product, quantity]) => 
-                    `${product}: ${quantity} adet`
-                ).join(', ') : 'Ürün bilgisi yok',
-            // Add workspace info
-            workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default',
-            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
-        };
-        
-        // Read current daily file
-        const currentPackages = await ExcelJS.readFile();
-        
-        // Yeni paketi ekle veya güncelle
-        const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
-        if (existingIndex >= 0) {
-            currentPackages[existingIndex] = enhancedPackageData;
-        } else {
-            currentPackages.push(enhancedPackageData);
-        }
-        
-        // Save to daily file
-        const success = await ExcelJS.writeFile(currentPackages);
-        
-        if (success) {
-            // Global excelPackages değişkenini güncelle
-            excelPackages = currentPackages;
-            console.log(`✅ Package saved to daily file:`, enhancedPackageData.package_no);
+    const enhancedPackageData = { ...packageData }; // whatever you already have
 
-            // --- NEW: Queue for Supabase sync ---
-            if (navigator.onLine && supabase) {
-                addToSyncQueue('add', enhancedPackageData);
-                console.log('🆕 Package queued for Supabase sync:', enhancedPackageData.id);
-            } else {
-                console.log('📦 Offline mode - will sync package later:', enhancedPackageData.id);
-                addToSyncQueue('add', enhancedPackageData);
-            }
+    console.log('💾 saveToExcel called for:', packageData.package_no || packageData.id);
 
-            return true;
-        } else {
-            console.warn('⚠️ Excel write failed');
-            return false;
-        }
-        
-    } catch (error) {
-        console.error('❌ Save to Excel error:', error);
-        return false;
+    // --- Queue for Supabase sync ---
+    if (navigator.onLine && supabase) {
+        console.log('🔁 Online, adding to queue');
+        addToSyncQueue('add', enhancedPackageData);
+    } else {
+        console.log('📦 Offline mode, adding to queue anyway');
+        addToSyncQueue('add', enhancedPackageData);
     }
+
+    console.log('📝 Current queue length:', window.excelSyncQueue.length);
+    console.log('📝 Current queue contents:', window.excelSyncQueue);
+
+    return true;
 }
 
 async function deleteFromExcel(packageId) {
