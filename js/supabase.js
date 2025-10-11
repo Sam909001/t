@@ -2242,9 +2242,7 @@ async function populatePackagesTable() {
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
-                    .eq('workspace_id', getCurrentWorkspaceId()) // ADD THIS LINE
-                    .eq('workspace_id', workspaceId) // STRICT WORKSPACE FILTER
-                    .order('created_at', { ascending: false });
+                    .eq('workspace_id', getCurrentWorkspaceId())
 
                 if (error) {
                     console.error('Supabase workspace query error:', error);
