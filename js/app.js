@@ -1942,5 +1942,7 @@ async function refreshApp() {
     }
 }
 
-// Make globally available
-window.refreshApp = refreshApp;
+     // Make globally available
+     window.refreshApp = refreshApp;
+   }
+}
