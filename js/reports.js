@@ -479,6 +479,46 @@ window.uploadPDFToSupabase = async function(pdfBlob, reportData) {
     }
 };
 
+
+// ==================== PREVIEW REPORT FUNCTION ====================
+function previewReport() {
+    // Check if report data exists
+    if (!window.currentReportData) {
+        showAlert('Önce rapor oluşturmalısınız', 'warning');
+        return;
+    }
+
+    // Check if PDF blob exists
+    if (!window.currentReportPDFBlob) {
+        showAlert('PDF bulunamadı, lütfen raporu yeniden oluşturun', 'warning');
+        return;
+    }
+
+    try {
+        // Open PDF in new tab for preview
+        const pdfUrl = URL.createObjectURL(window.currentReportPDFBlob);
+        const previewWindow = window.open(pdfUrl, '_blank');
+        
+        if (!previewWindow) {
+            showAlert('Pop-up engelleyici nedeniyle önizleme açılamadı', 'warning');
+        } else {
+            showAlert('PDF önizlemesi yeni sekmede açıldı', 'success');
+        }
+        
+        // Clean up URL after a delay
+        setTimeout(() => {
+            URL.revokeObjectURL(pdfUrl);
+        }, 5000);
+        
+    } catch (error) {
+        console.error('Preview error:', error);
+        showAlert('Önizleme açılamadı: ' + error.message, 'error');
+    }
+}
+
+// Make globally available
+window.previewReport = previewReport;
+
 // ==================== EMAIL FUNCTIONS ====================
 window.sendReportEmail = async function() {
     const email = document.getElementById('reportEmail').value;
