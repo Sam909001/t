@@ -4147,12 +4147,10 @@ async function deleteSelectedPackages() {
 
 
 
-// ✅ FIXED: Send to ramp with container validation
-async function sendToRamp(containerNo = null) {
+// ENHANCED: sendToRamp with UI refresh
+async function sendToRampWithUIRefresh(containerNo = null) {
     try {
-        // ✅ CONTAINER VALIDATION: Ensure container is never undefined
-        const safeContainerNo = validateContainerNumber(containerNo);
-        console.log(`✅ Using safe container: ${safeContainerNo}`);
+        console.log('🚀 Enhanced sendToRamp with UI refresh...');
         
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
             .map(cb => {
@@ -4169,57 +4167,101 @@ async function sendToRamp(containerNo = null) {
             return;
         }
 
-        // Use existing container or create a new one
-        let containerId;
-        if (safeContainerNo && currentContainer) {
-            containerId = currentContainer;
-        } else {
-            // ✅ Use timestamp-based container if no valid container provided
-            const timestamp = new Date().getTime();
-            const finalContainerNo = safeContainerNo && safeContainerNo !== 'CONT-AUTO-TEMP' 
-                ? safeContainerNo 
-                : `CONT-${timestamp.toString().slice(-6)}`;
-            
-            const { data: newContainer, error } = await supabase
+        // Create container
+        const finalContainerNo = containerNo || `CONT-${Date.now().toString().slice(-6)}`;
+        console.log(`📦 Using container: ${finalContainerNo}`);
+        
+        // Update packages
+        await updatePackageStatusToShipped(selectedPackages, finalContainerNo);
+        
+        // Create container in database
+        if (supabase && navigator.onLine) {
+            const totalQuantity = await calculateTotalQuantity(selectedPackages);
+            const { error } = await supabase
                 .from('containers')
                 .insert([{
-                    container_no: finalContainerNo, // ✅ Use final container
-                    customer: selectedCustomer?.name || '',
+                    container_no: finalContainerNo,
+                    customer: selectedCustomer?.name || 'Multiple Customers',
                     package_count: selectedPackages.length,
-                    total_quantity: await calculateTotalQuantity(selectedPackages),
+                    total_quantity: totalQuantity,
                     status: 'beklemede',
+                    workspace_id: getCurrentWorkspaceId(),
                     created_at: new Date().toISOString()
-                }])
-                .select();
-
-            if (error) throw error;
+                }]);
             
-            containerId = newContainer[0].id;
-            currentContainer = finalContainerNo; // ✅ Use final container
-            if (elements.containerNumber) {
-                elements.containerNumber.textContent = finalContainerNo;
+            if (error) {
+                console.error('Container creation error:', error);
+            } else {
+                console.log(`✅ Container created: ${finalContainerNo}`);
             }
-            saveAppState();
-            
-            // ✅ Update safe container to the final one
-            safeContainerNo = finalContainerNo;
         }
 
-        // ✅ FIX: Update package status to "shipped" with safe container
-        await updatePackageStatusToShipped(selectedPackages, safeContainerNo);
-
-        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${safeContainerNo}) ✅`, 'success');
+        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${finalContainerNo}) ✅`, 'success');
         
-        // ✅ FIX: Refresh both tables
+        // ✅ ENHANCED UI REFRESH
+        console.log('🔄 Starting UI refresh...');
+        
+        // Clear checkboxes
+        document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked').forEach(cb => {
+            cb.checked = false;
+        });
+        
+        // Refresh packages table
         await populatePackagesTable();
-        await populateShippingTable();
+        console.log('✅ Packages table refreshed');
+        
+        // Force shipping table refresh with delay
+        setTimeout(async () => {
+            await manualRefreshShippingTable();
+            console.log('✅ Shipping table refreshed');
+            
+            // Scroll to shipping tab to show the result
+            const shippingTab = document.querySelector('[data-tab="shipping"]');
+            if (shippingTab) {
+                shippingTab.click();
+                console.log('✅ Switched to shipping tab');
+            }
+        }, 500);
         
     } catch (error) {
-        console.error('Error sending to ramp:', error);
+        console.error('Error in enhanced sendToRamp:', error);
         showAlert('Paketler sevk edilirken hata oluştu: ' + error.message, 'error');
     }
 }
 
+// Test the enhanced version
+async function testEnhancedShipping() {
+    console.log('🧪 TEST: Enhanced Shipping with UI Refresh');
+    
+    // Create a test package first
+    window.selectedCustomer = {
+        id: 'ui-test-customer',
+        name: 'UI Test Customer',
+        code: 'UITEST001'
+    };
+    
+    window.currentPackage = {
+        items: {
+            'UI Test Product': 3
+        }
+    };
+    
+    await completePackage();
+    
+    // Select and ship using enhanced function
+    const packagesTable = document.getElementById('packagesTableBody');
+    const firstCheckbox = packagesTable?.querySelector('input[type="checkbox"]');
+    
+    if (firstCheckbox) {
+        firstCheckbox.checked = true;
+        await sendToRampWithUIRefresh();
+    } else {
+        console.log('❌ No package to ship');
+    }
+}
+
+// Run enhanced test
+// testEnhancedShipping();
 
 // ✅ FIXED: Update package status when sent to shipping (with container validation)
 async function updatePackageStatusToShipped(packageIds, containerNo) {
