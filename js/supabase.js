@@ -4148,7 +4148,7 @@ async function deleteSelectedPackages() {
 
 
 // ENHANCED: sendToRamp with UI refresh
-async function sendToRampWithUIRefresh(containerNo = null) {
+async function sendToRamp(containerNo = null) {
     try {
         console.log('🚀 Enhanced sendToRamp with UI refresh...');
         
