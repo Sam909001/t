@@ -1224,60 +1224,45 @@ const ProfessionalExcelExport = {
         return;
     }
 
+    // Check workspace permissions
     if (!window.workspaceManager?.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
     try {
-        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
+      const workspaceId = window.workspaceManager.currentWorkspace.id;
 
-        // --- Generate packageCounter safely ---
-        let packageCounter = 0;
+// Get or initialize counter for this workspace
+let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
+packageCounter++;
+localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
 
-        if (supabase) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .select('package_no')
-                    .like('package_no', `PKG-${workspaceId}-%`)
-                    .order('package_no', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
+const timestamp = Date.now();
+const random = Math.random().toString(36).substr(2, 9);
 
-                if (data?.package_no) {
-                    const parts = data.package_no.split('-');
-                    packageCounter = parseInt(parts[2] || '0', 10);
-                }
-            } catch (err) {
-                console.warn('Supabase package_no fetch failed:', err);
-            }
-        } else {
-            // Offline fallback
-            packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-        }
-
-        packageCounter++;
-        localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
-
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 9);
-
-        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-        const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
-
+const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+        
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
+        // Enhanced package data with workspace info - USE THE SAME ID
         const packageData = {
-            id: packageId,
+            id: packageId, // SAME ID FOR BOTH SYSTEMS
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
             customer_code: selectedCustomer.code,
             items: currentPackage.items,
-            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({ name, qty })),
-            items_display: Object.entries(currentPackage.items).map(([name, qty]) => `${name}: ${qty} adet`).join(', '),
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
+                name: name,
+                qty: qty
+            })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
+                `${name}: ${qty} adet`
+            ).join(', '),
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
@@ -1286,31 +1271,39 @@ const ProfessionalExcelExport = {
             workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app'
+            source: 'app' // Track source for sync
         };
 
         console.log('📦 Creating package with ID:', packageId);
 
-        if (supabase) {
+        // Save based on connectivity and workspace settings
+        if (supabase && navigator.onLine && !isUsingExcel) {
             try {
-                await supabase
+                const { data, error } = await supabase
                     .from('packages')
-                    .insert([packageData]); // simple insert, remove upsert for now
-                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
-            } catch (err) {
-                console.warn('Supabase insert failed, saving to Excel:', err);
-                await saveToExcel(packageData);
-                addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+                    .insert([packageData])
+                    .select();
+
+                if (error) throw error;
+
+                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
+                await saveToExcel(packageData); // SAME packageData with SAME ID
+                
+            } catch (supabaseError) {
+                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                await saveToExcel(packageData); // SAME packageData with SAME ID
+                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData);
-            addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
+            await saveToExcel(packageData); // SAME packageData with SAME ID
+            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
 
+        // Reset and refresh
         currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
         await populatePackagesTable();
@@ -1319,6 +1312,37 @@ const ProfessionalExcelExport = {
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+    }
+}
+
+
+
+// Delete selected packages
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
+
+        if (error) throw error;
+
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
     }
 }
 
