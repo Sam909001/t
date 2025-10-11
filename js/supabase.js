@@ -1224,66 +1224,60 @@ const ProfessionalExcelExport = {
         return;
     }
 
-    // Check workspace permissions
     if (!window.workspaceManager?.canPerformAction('create_package')) {
         showAlert('Bu istasyon paket oluşturamaz', 'error');
         return;
     }
 
     try {
-        // --- Workspace ID ---
         const workspaceId = window.workspaceManager.currentWorkspace.id;
 
-        // --- Step 1: Fetch last package_no from Supabase ---
+        // --- Generate packageCounter safely ---
         let packageCounter = 0;
 
-        if (supabase && navigator.onLine) {
-            const { data: lastPackage, error } = await supabase
-                .from('packages')
-                .select('package_no')
-                .like('package_no', `PKG-${workspaceId}-%`)
-                .order('package_no', { ascending: false })
-                .limit(1)
-                .maybeSingle(); // safe even if no rows exist
+        if (supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('packages')
+                    .select('package_no')
+                    .like('package_no', `PKG-${workspaceId}-%`)
+                    .order('package_no', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
-            if (!error && lastPackage && lastPackage.package_no) {
-                const parts = lastPackage.package_no.split('-'); // ['PKG', 'st1', '000013']
-                packageCounter = parseInt(parts[2] || '0', 10);
+                if (data?.package_no) {
+                    const parts = data.package_no.split('-');
+                    packageCounter = parseInt(parts[2] || '0', 10);
+                }
+            } catch (err) {
+                console.warn('Supabase package_no fetch failed:', err);
             }
         } else {
-            // --- Offline fallback using localStorage ---
+            // Offline fallback
             packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
         }
 
-        // --- Step 2: Increment counter ---
         packageCounter++;
         localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
 
-        // --- Step 3: Generate IDs ---
         const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 9);
+        const random = Math.random().toString(36).substring(2, 9);
 
         const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
         const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
 
-        // --- Step 4: Prepare package data ---
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
         const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
             customer_code: selectedCustomer.code,
             items: currentPackage.items,
-            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
-                name: name,
-                qty: qty
-            })),
-            items_display: Object.entries(currentPackage.items).map(([name, qty]) =>
-                `${name}: ${qty} adet`
-            ).join(', '),
+            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({ name, qty })),
+            items_display: Object.entries(currentPackage.items).map(([name, qty]) => `${name}: ${qty} adet`).join(', '),
             total_quantity: totalQuantity,
             status: 'beklemede',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
@@ -1292,40 +1286,31 @@ const ProfessionalExcelExport = {
             workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app' // Track source for sync
+            source: 'app'
         };
 
         console.log('📦 Creating package with ID:', packageId);
 
-        // --- Step 5: Save package ---
-        if (supabase && navigator.onLine && !isUsingExcel) {
+        if (supabase) {
             try {
-                // Use upsert to avoid duplicate key errors if two users generate same packageNo
-                const { data, error } = await supabase
+                await supabase
                     .from('packages')
-                    .upsert([packageData], { onConflict: ['package_no'] })
-                    .select();
-
-                if (error) throw error;
-
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-
-                await saveToExcel(packageData); // Save same package to Excel
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
+                    .insert([packageData]); // simple insert, remove upsert for now
+                showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
+            } catch (err) {
+                console.warn('Supabase insert failed, saving to Excel:', err);
                 await saveToExcel(packageData);
                 addToSyncQueue('add', packageData);
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+                showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
                 isUsingExcel = true;
             }
         } else {
             await saveToExcel(packageData);
             addToSyncQueue('add', packageData);
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
+            showAlert(`Paket Excel'e kaydedildi: ${packageNo}`, 'warning');
             isUsingExcel = true;
         }
 
-        // --- Step 6: Reset package form ---
         currentPackage = {};
         document.querySelectorAll('.quantity-badge').forEach(badge => badge.textContent = '0');
         await populatePackagesTable();
