@@ -4229,6 +4229,15 @@ async function sendToRamp(containerNo = null) {
     }
 }
 
+async function manualRefreshShippingTable() {
+    console.log('🛠️ Manual Shipping Table Refresh...');
+    
+    const shippingFolders = document.getElementById('shippingFolders');
+    if (!shippingFolders) {
+        console.log('❌ shippingFolders element not found');
+        return;
+    }
+
 // Test the enhanced version
 async function testEnhancedShipping() {
     console.log('🧪 TEST: Enhanced Shipping with UI Refresh');
