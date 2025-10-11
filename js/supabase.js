@@ -60,59 +60,81 @@ if (typeof emailjs === 'undefined') {
    
 
 
+// Replace ALL data loading functions with strict versions
 async function loadPackagesDataStrict() {
+    if (!window.workspaceManager?.currentWorkspace) {
+        console.warn('Workspace not initialized, using default');
+    }
+    
     try {
         const workspaceId = getCurrentWorkspaceId();
-        console.log(`🔒 Loading packages STRICT for workspace: ${workspaceId}`);
-
-        // Excel load
+        
+        console.log(`🔒 STRICT: Loading packages for workspace: ${workspaceId}`);
+        
+        // Load from workspace-specific Excel with strict filtering
         const excelData = await ExcelJS.readFile();
         const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
-
+        
+        // STRICT workspace filtering with validation
         const workspacePackages = excelPackagesList.filter(pkg => {
-            const validWorkspace = pkg.workspace_id === workspaceId;
-            const waiting = pkg.status === 'beklemede';
-            const noContainer = !pkg.container_id || pkg.container_id === null;
-
-            if (!validWorkspace) console.warn('🔒 Filtered package from different workspace:', pkg.id);
-            return validWorkspace && waiting && noContainer;
+            const isValidWorkspace = pkg.workspace_id === workspaceId;
+            const isWaiting = pkg.status === 'beklemede';
+            const hasNoContainer = !pkg.container_id || pkg.container_id === null;
+            
+            if (!isValidWorkspace) {
+                console.warn('🔒 STRICT: Filtered package from different workspace:', {
+                    packageId: pkg.id,
+                    packageWorkspace: pkg.workspace_id,
+                    currentWorkspace: workspaceId
+                });
+                return false;
+            }
+            
+            return isWaiting && hasNoContainer;
         });
-
-        console.log(`✅ Loaded from Excel: ${workspacePackages.length} packages`);
+        
+        console.log(`✅ STRICT: Loaded from ${getCurrentWorkspaceName()} Excel:`, workspacePackages.length, 'packages');
         window.packages = workspacePackages;
-
-        // Supabase load
+        
+        // Load from Supabase with STRICT workspace filtering
         if (supabase && navigator.onLine) {
             try {
+                const workspaceFilter = getStrictWorkspaceFilter('packages');
+                
                 const { data: supabasePackages, error } = await supabase
                     .from('packages')
-                    .select(`*, customers(name, code)`)
+                    .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')
                     .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
-
-                if (error) throw error;
-                console.log(`✅ Loaded from Supabase: ${supabasePackages.length} packages`);
-
-                const merged = mergePackagesStrict(workspacePackages, supabasePackages);
-                window.packages = merged;
-
-                const excelExport = ExcelJS.toExcelFormat(merged);
-                await ExcelJS.writeFile(excelExport);
-
-            } catch (supabaseErr) {
-                console.warn('⚠️ Supabase load failed, using Excel only:', supabaseErr);
+                
+                if (!error && supabasePackages && supabasePackages.length > 0) {
+                    console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
+                    
+                    const validSupabasePackages = supabasePackages.filter(pkg => 
+                        validateWorkspaceAccessStrict(pkg)
+                    );
+                    
+                    const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
+                    window.packages = mergedPackages;
+                    
+                    const excelData = ExcelJS.toExcelFormat(mergedPackages);
+                    await ExcelJS.writeFile(excelData);
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase load failed, using Excel data:', supabaseError);
             }
         }
-
+        
         await populatePackagesTable();
-
-    } catch (err) {
-        console.error('❌ loadPackagesDataStrict error:', err);
+        
+    } catch (error) {
+        console.error('Error in strict packages data loading:', error);
         showAlert('Paket verileri yüklenirken hata oluştu', 'error');
     }
 }
+
 
 // Strict merge function
 function mergePackagesStrict(excelPackages, supabasePackages) {
@@ -1242,59 +1264,53 @@ async function initializeExcelStorage() {
     }
 }
 
+// REPLACE the existing saveToExcel function with this:
 async function saveToExcel(packageData) {
     try {
-        if (!packageData) {
-            console.error('❌ saveToExcel: packageData is undefined');
-            return false;
-        }
-
-        // Ensure workspace_id exists
-        packageData.workspace_id = packageData.workspace_id || getCurrentWorkspaceId();
-
+        // Enhanced package data with customer and product info
         const enhancedPackageData = {
             ...packageData,
-            created_at: packageData.created_at || new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            // Ensure customer info is included
+            customer_name: packageData.customer_name || selectedCustomer?.name || 'Bilinmeyen Müşteri',
+            customer_code: selectedCustomer?.code || '',
+            // Ensure product/items info is properly formatted
+            items: packageData.items || currentPackage.items || {},
+            // Add date info for daily file management
+            excel_export_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            // Convert items to readable string for Excel
+            items_display: packageData.items ? 
+                Object.entries(packageData.items).map(([product, quantity]) => 
+                    `${product}: ${quantity} adet`
+                ).join(', ') : 'Ürün bilgisi yok',
+            // Add workspace info
+            workspace_id: window.workspaceManager?.currentWorkspace?.id || 'default',
+            station_name: window.workspaceManager?.currentWorkspace?.name || 'Default'
         };
-
-        // --- STEP 1: Load Excel file ---
-        const workbook = new ExcelJS.Workbook();
-        const fileName = 'daily.xlsx'; // replace with your real file path if needed
-        await workbook.xlsx.readFile(fileName);
-        const sheet = workbook.getWorksheet('packages') || workbook.addWorksheet('packages');
-
-        // --- STEP 2: Check if package already exists ---
-        let row = sheet.getRows(2, sheet.rowCount)?.find(r => r.getCell('A').value === enhancedPackageData.id); 
-        // Assuming column A = id, adjust if different
-        if (row) {
-            // Update existing row
-            Object.keys(enhancedPackageData).forEach((key, index) => {
-                row.getCell(index + 1).value = enhancedPackageData[key];
-            });
-            console.log('♻️ Updated existing package in Excel:', enhancedPackageData.id);
+        
+        // Read current daily file
+        const currentPackages = await ExcelJS.readFile();
+        
+        // Yeni paketi ekle veya güncelle
+        const existingIndex = currentPackages.findIndex(p => p.id === enhancedPackageData.id);
+        if (existingIndex >= 0) {
+            currentPackages[existingIndex] = enhancedPackageData;
         } else {
-            // Add new row
-            const values = Object.values(enhancedPackageData);
-            sheet.addRow(values);
-            console.log('✅ Added new package to Excel:', enhancedPackageData.id);
+            currentPackages.push(enhancedPackageData);
         }
-
-        // --- STEP 3: Write back to Excel ---
-        await workbook.xlsx.writeFile(fileName);
-        console.log(`💾 Package saved to daily file: ${enhancedPackageData.package_no}`);
-
-        // --- STEP 4: Queue for Supabase sync ---
-        if (typeof addToSyncQueue === 'function') {
-            addToSyncQueue('add', enhancedPackageData);
-        } else {
-            console.warn('⚠️ addToSyncQueue() not found, cannot sync');
+        
+        // Save to daily file
+        const success = await ExcelJS.writeFile(currentPackages);
+        
+        if (success) {
+            // Global excelPackages değişkenini güncelle
+            excelPackages = currentPackages;
+            console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
+            return true;
         }
-
-        return true;
-
+        return false;
+        
     } catch (error) {
-        console.error('💥 saveToExcel failed:', error);
+        console.error('Save to Excel error:', error);
         return false;
     }
 }
@@ -1318,89 +1334,157 @@ async function deleteFromExcel(packageId) {
     }
 }
 
+// REPLACE the existing syncExcelWithSupabase function with this:
 async function syncExcelWithSupabase() {
-    try {
-        if (!supabase || !navigator.onLine) {
-            console.warn('❌ Cannot sync: Supabase not initialized or offline');
-            return false;
-        }
+    if (!supabase || !navigator.onLine) {
+        console.log('❌ Cannot sync: No Supabase client or offline');
+        return false;
+    }
 
-        window.excelSyncQueue = window.excelSyncQueue || [];
-        if (window.excelSyncQueue.length === 0) {
-            console.log('✅ No packages to sync');
+    if (excelSyncQueue.length === 0) {
+        console.log('✅ No packages to sync');
+        return true;
+    }
+
+    const currentWorkspaceId = getCurrentWorkspaceId();
+    
+    try {
+        // Step 1: Create backup BEFORE any operations
+        const queueBackup = JSON.parse(JSON.stringify(excelSyncQueue));
+        console.log('📦 Sync backup created:', queueBackup.length, 'operations');
+        
+        // Step 2: Filter operations for current workspace only
+        const workspaceOperations = excelSyncQueue.filter(op => 
+            op.workspace_id === currentWorkspaceId && op.status !== 'success'
+        );
+        
+        if (workspaceOperations.length === 0) {
+            console.log('ℹ️ No sync operations for current workspace');
             return true;
         }
 
-        const workspaceId = getCurrentWorkspaceId();
-        console.log(`🔄 Starting sync for workspace: ${workspaceId}, queue length: ${window.excelSyncQueue.length}`);
+        showAlert(`🔄 ${workspaceOperations.length} işlem senkronize ediliyor...`, 'info');
 
-        // Backup queue
-        const queueBackup = JSON.parse(JSON.stringify(window.excelSyncQueue));
-        console.log('📦 Queue backup created:', queueBackup.length);
+        const results = {
+            successful: [],
+            failed: [],
+            skipped: []
+        };
 
-        const results = { successful: [], failed: [], skipped: [] };
-
-        for (const [index, op] of window.excelSyncQueue.entries()) {
+        // Step 3: Process operations with individual error handling
+        for (const [index, operation] of workspaceOperations.entries()) {
             try {
-                console.log(`🔹 Processing ${index + 1}/${window.excelSyncQueue.length}: ${op.type} ${op.data.id}`);
-
-                // Retry limit
-                op.attempts = (op.attempts || 0) + 1;
-                const maxAttempts = op.maxAttempts || 3;
-                if (op.attempts > maxAttempts) {
-                    console.warn(`⏭️ Max attempts reached, skipping: ${op.data.id}`);
-                    op.status = 'failed';
-                    results.skipped.push(op.data.id);
+                console.log(`🔄 Processing ${index + 1}/${workspaceOperations.length}:`, operation.type, operation.data.id);
+                
+                // Skip if too many attempts
+                if (operation.attempts >= operation.maxAttempts) {
+                    console.warn(`⏭️ Skipping operation after ${operation.attempts} failed attempts:`, operation.data.id);
+                    operation.status = 'failed';
+                    results.skipped.push(operation.fingerprint);
                     continue;
                 }
 
-                const operationData = { ...op.data, workspace_id: workspaceId, updated_at: new Date().toISOString() };
-                let res;
+                // Update attempt info
+                operation.attempts = (operation.attempts || 0) + 1;
+                operation.lastAttempt = new Date().toISOString();
 
-                switch (op.type) {
+                let result;
+                const operationData = {
+                    ...operation.data,
+                    // Ensure workspace consistency during sync
+                    workspace_id: currentWorkspaceId,
+                    updated_at: new Date().toISOString()
+                };
+
+                switch (operation.type) {
                     case 'add':
-                        res = await supabase.from('packages').upsert([operationData], { onConflict: 'id', ignoreDuplicates: false });
+                        result = await supabase
+                            .from('packages')
+                            .upsert([operationData], {
+                                onConflict: 'id', // Use upsert to handle conflicts
+                                ignoreDuplicates: false
+                            });
                         break;
+                        
                     case 'update':
-                        res = await supabase.from('packages').update(operationData).eq('id', operationData.id).eq('workspace_id', workspaceId);
+                        result = await supabase
+                            .from('packages')
+                            .update(operationData)
+                            .eq('id', operationData.id)
+                            .eq('workspace_id', currentWorkspaceId); // Workspace safety
                         break;
+                        
                     case 'delete':
-                        res = await supabase.from('packages').delete().eq('id', operationData.id).eq('workspace_id', workspaceId);
+                        result = await supabase
+                            .from('packages')
+                            .delete()
+                            .eq('id', operationData.id)
+                            .eq('workspace_id', currentWorkspaceId); // Workspace safety
                         break;
+                        
                     default:
-                        throw new Error(`Unknown operation type: ${op.type}`);
+                        throw new Error(`Unknown operation type: ${operation.type}`);
                 }
 
-                if (res.error) throw res.error;
+                if (result.error) {
+                    throw result.error;
+                }
 
-                op.status = 'success';
-                results.successful.push(op.data.id);
-                console.log(`✅ Sync successful: ${op.type} ${op.data.id}`);
+                // Mark as successful
+                operation.status = 'success';
+                results.successful.push(operation.fingerprint);
+                console.log(`✅ Sync successful: ${operation.type} for ${operation.data.id}`);
 
-            } catch (opErr) {
-                console.error(`❌ Sync failed: ${op.type} ${op.data.id}`, opErr.message);
-                op.status = 'failed';
-                op.lastError = opErr.message;
-                results.failed.push({ id: op.data.id, type: op.type, error: opErr.message });
+            } catch (opError) {
+                console.error(`❌ Sync failed for ${operation.type} ${operation.data.id}:`, opError);
+                
+                operation.status = 'failed';
+                operation.lastError = opError.message;
+                results.failed.push({
+                    fingerprint: operation.fingerprint,
+                    error: opError.message,
+                    operation: operation.type,
+                    packageId: operation.data.id
+                });
 
-                if (opErr.message?.includes('network') || opErr.message?.includes('fetch')) {
+                // If it's a network error, stop the entire sync
+                if (opError.message?.includes('network') || 
+                    opError.message?.includes('fetch') || 
+                    opError.message?.includes('Internet')) {
                     console.log('🌐 Network error detected, stopping sync');
                     break;
                 }
             }
         }
 
-        // Atomic queue update
-        window.excelSyncQueue = window.excelSyncQueue.filter(op => op.status !== 'success');
-        localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
-        console.log('💾 Queue updated after sync. Remaining:', window.excelSyncQueue.length);
+        // Step 4: ATOMIC QUEUE UPDATE - Only remove successful operations
+        const updatedQueue = excelSyncQueue.filter(op => 
+            op.status !== 'success' && 
+            !results.successful.includes(op.fingerprint)
+        );
 
+        // Step 5: VERIFY CHANGES BEFORE COMMITTING
+        if (updatedQueue.length === excelSyncQueue.length - results.successful.length) {
+            // Atomic update - all or nothing
+            excelSyncQueue = updatedQueue;
+            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+            console.log('💾 Queue updated atomically');
+        } else {
+            throw new Error('Queue integrity check failed during sync');
+        }
+
+        // Step 6: Report results
+        await reportSyncResults(results, workspaceOperations.length);
+        
         return results.failed.length === 0;
 
-    } catch (err) {
-        console.error('💥 CRITICAL: syncExcelWithSupabase failed, restoring backup', err);
-        // Restore from backup
-        window.excelSyncQueue = JSON.parse(localStorage.getItem('excelSyncQueue') || '[]');
+    } catch (error) {
+        console.error('💥 CRITICAL: Atomic sync process failed:', error);
+        
+        // CRITICAL: Restore from backup if catastrophic failure
+        await restoreSyncBackup();
+        
+        showAlert('❌ Senkronizasyon sürecinde kritik hata oluştu. Veriler korundu.', 'error');
         return false;
     }
 }
@@ -1421,39 +1505,57 @@ async function restoreSyncBackup() {
     }
 }
 
-// --- Add package operation to global sync queue ---
-function addToSyncQueue(type, data) {
-    // Ensure global queue exists
-    window.excelSyncQueue = window.excelSyncQueue || [];
-
-    if (!data || !data.id || !data.workspace_id) {
-        console.warn('⚠️ Cannot add to queue: missing required fields', data);
+// Enhanced addToSyncQueue with backup
+function addToSyncQueue(operationType, data) {
+    // Create operation fingerprint for deduplication
+    const operationFingerprint = `${operationType}-${data.id}`;
+    
+    // Check for duplicates
+    const isDuplicate = excelSyncQueue.some(op => 
+        op.fingerprint === operationFingerprint && op.status !== 'failed'
+    );
+    
+    if (isDuplicate) {
+        console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
         return;
     }
 
-    const operation = {
-        type,                       // 'add', 'update', 'delete'
-        data,                       // full package object
-        status: 'pending',           // pending / success / failed
-        attempts: 0,                 // retry counter
-        maxAttempts: 5,              // configurable
-        lastAttempt: null,           // timestamp
-        fingerprint: data.id + '-' + Date.now(), // unique identifier
-        workspace_id: data.workspace_id
+    // Remove any older operations for the same data ID
+    excelSyncQueue = excelSyncQueue.filter(op => 
+        !(op.data.id === data.id && op.type !== operationType)
+    );
+
+    // Create enhanced operation object
+    const enhancedOperation = {
+        type: operationType,
+        data: data,
+        timestamp: new Date().toISOString(),
+        fingerprint: operationFingerprint,
+        workspace_id: getCurrentWorkspaceId(),
+        attempts: 0,
+        maxAttempts: 3,
+        status: 'pending',
+        lastAttempt: null,
+        lastError: null
     };
 
-    // Prevent duplicate operations for same package & type
-    const exists = window.excelSyncQueue.some(op => op.fingerprint === operation.fingerprint);
-    if (exists) {
-        console.log('🔄 Sync operation already in queue, skipping duplicate:', operation.fingerprint);
-        return;
+    // Create backup before modifying queue
+    localStorage.setItem('excelSyncQueue_backup', JSON.stringify(excelSyncQueue));
+    
+    // Add new operation
+    excelSyncQueue.push(enhancedOperation);
+    
+    // Limit queue size to prevent memory issues
+    if (excelSyncQueue.length > 1000) {
+        console.warn('📦 Sync queue too large, removing oldest failed operations');
+        excelSyncQueue = excelSyncQueue
+            .filter(op => op.status !== 'failed')
+            .slice(-500); // Keep last 500 non-failed operations
     }
 
-    window.excelSyncQueue.push(operation);
-    console.log('✅ Added to sync queue:', type, 'for', data.id);
-    console.log('📝 Current queue length:', window.excelSyncQueue.length);
+    localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+    console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
 }
-
 
 
 
