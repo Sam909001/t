@@ -1228,6 +1228,7 @@ function initializeSupabase() {
         if (supabase) {
             console.log('Supabase client initialized successfully');
             isUsingExcel = false;
+            initializeSyncSystem();
             return supabase;
         } else {
             throw new Error('Supabase client creation returned null');
@@ -1334,7 +1335,7 @@ async function deleteFromExcel(packageId) {
     }
 }
 
-// Workspace-agnostic sync: processes all queued operations
+// REPLACE THIS ENTIRE FUNCTION:
 async function syncExcelWithSupabase() {
     if (!supabase || !navigator.onLine) {
         console.log('❌ Cannot sync: No Supabase client or offline');
@@ -1347,29 +1348,36 @@ async function syncExcelWithSupabase() {
     }
 
     try {
-        // Step 1: Backup queue before any operations
-        const queueBackup = JSON.parse(JSON.stringify(excelSyncQueue));
-        console.log('📦 Sync backup created:', queueBackup.length, 'operations');
-
-        // Step 2: Take all pending operations (no workspace filtering)
-        const operationsToSync = excelSyncQueue.filter(op => op.status !== 'success');
+        console.log(`🔄 Starting sync for ${excelSyncQueue.length} operations...`);
         
+        const workspaceId = getCurrentWorkspaceId();
+        
+        // Get pending operations for current workspace (with fallback)
+        const operationsToSync = excelSyncQueue.filter(op => {
+            const opWorkspaceId = op.workspace_id || getCurrentWorkspaceId();
+            return opWorkspaceId === workspaceId && op.status !== 'success';
+        });
+
         if (operationsToSync.length === 0) {
-            console.log('ℹ️ No pending sync operations');
+            console.log('ℹ️ No pending sync operations for current workspace');
             return true;
         }
 
         showAlert(`🔄 ${operationsToSync.length} işlem senkronize ediliyor...`, 'info');
 
-        const results = { successful: [], failed: [], skipped: [] };
+        const results = {
+            successful: [],
+            failed: [],
+            skipped: []
+        };
 
-        // Step 3: Process operations with individual error handling
+        // Process operations
         for (const [index, operation] of operationsToSync.entries()) {
             try {
-                console.log(`🔄 Processing ${index + 1}/${operationsToSync.length}:`, operation.type, operation.data.id);
+                console.log(`🔄 Processing ${index + 1}/${operationsToSync.length}:`, operation.type, operation.data.package_no);
 
                 if (operation.attempts >= operation.maxAttempts) {
-                    console.warn(`⏭️ Skipping operation after ${operation.attempts} failed attempts:`, operation.data.id);
+                    console.warn(`⏭️ Skipping operation after ${operation.attempts} failed attempts:`, operation.data.package_no);
                     operation.status = 'failed';
                     results.skipped.push(operation.fingerprint);
                     continue;
@@ -1388,7 +1396,10 @@ async function syncExcelWithSupabase() {
                     case 'add':
                         result = await supabase
                             .from('packages')
-                            .upsert([operationData], { onConflict: 'id' });
+                            .upsert([operationData], { 
+                                onConflict: 'id',
+                                ignoreDuplicates: false
+                            });
                         break;
 
                     case 'update':
@@ -1413,19 +1424,20 @@ async function syncExcelWithSupabase() {
 
                 operation.status = 'success';
                 results.successful.push(operation.fingerprint);
-                console.log(`✅ Sync successful: ${operation.type} for ${operation.data.id}`);
+                console.log(`✅ Sync successful: ${operation.type} for ${operation.data.package_no}`);
 
             } catch (opError) {
-                console.error(`❌ Sync failed for ${operation.type} ${operation.data.id}:`, opError);
+                console.error(`❌ Sync failed for ${operation.type} ${operation.data.package_no}:`, opError);
                 operation.status = 'failed';
                 operation.lastError = opError.message;
                 results.failed.push({
                     fingerprint: operation.fingerprint,
                     error: opError.message,
                     operation: operation.type,
-                    packageId: operation.data.id
+                    packageId: operation.data.package_no
                 });
 
+                // Stop on network errors
                 if (opError.message?.includes('network') || opError.message?.includes('fetch') || opError.message?.includes('Internet')) {
                     console.log('🌐 Network error detected, stopping sync');
                     break;
@@ -1433,26 +1445,22 @@ async function syncExcelWithSupabase() {
             }
         }
 
-        // Step 4: Remove successful operations from queue
+        // Remove successful operations from queue
         excelSyncQueue = excelSyncQueue.filter(op => op.status !== 'success');
         localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
         console.log('💾 Queue updated, remaining operations:', excelSyncQueue.length);
 
-        // Step 5: Report results
+        // Report results
         await reportSyncResults(results, operationsToSync.length);
 
         return results.failed.length === 0;
 
     } catch (error) {
-        console.error('💥 CRITICAL: Atomic sync process failed:', error);
-
-        // Restore backup if needed
-        await restoreSyncBackup();
-        showAlert('❌ Senkronizasyon sürecinde kritik hata oluştu. Veriler korundu.', 'error');
+        console.error('💥 CRITICAL: Sync process failed:', error);
+        showAlert('❌ Senkronizasyon sırasında hata oluştu: ' + error.message, 'error');
         return false;
     }
 }
-
 
 
 
@@ -1470,9 +1478,10 @@ async function restoreSyncBackup() {
     }
 }
 
+// REPLACE THIS ENTIRE FUNCTION:
 function addToSyncQueue(operationType, data) {
-    if (!data || !data.id) {
-        console.error('❌ addToSyncQueue: Invalid data object, missing id:', data);
+    if (!data || (!data.id && !data.package_no)) {
+        console.error('❌ addToSyncQueue: Invalid data object:', data);
         return;
     }
 
@@ -1480,7 +1489,7 @@ function addToSyncQueue(operationType, data) {
     window.excelSyncQueue = window.excelSyncQueue || [];
 
     // Create operation fingerprint for deduplication
-   const operationFingerprint = `${operationType}-${data.package_no}`;
+    const operationFingerprint = `${operationType}-${data.package_no || data.id}`;
 
     // Check for duplicates
     const isDuplicate = window.excelSyncQueue.some(op =>
@@ -1503,37 +1512,75 @@ function addToSyncQueue(operationType, data) {
         data: data,
         timestamp: new Date().toISOString(),
         fingerprint: operationFingerprint,
-        workspace_id: getCurrentWorkspaceId(),
+        workspace_id: data.workspace_id || getCurrentWorkspaceId(),
         attempts: 0,
-        maxAttempts: 3,
+        maxAttempts: 5,
         status: 'pending',
         lastAttempt: null,
         lastError: null
     };
 
-    // Backup queue
-    localStorage.setItem('excelSyncQueue_backup', JSON.stringify(window.excelSyncQueue));
-
     // Add new operation
     window.excelSyncQueue.push(enhancedOperation);
 
     // Limit queue size to last 500
-    if (window.excelSyncQueue.length > 1000) {
-        console.warn('📦 Sync queue too large, removing oldest failed operations');
-        window.excelSyncQueue = window.excelSyncQueue
-            .filter(op => op.status !== 'failed')
-            .slice(-500);
+    if (window.excelSyncQueue.length > 500) {
+        console.warn('📦 Sync queue too large, removing oldest operations');
+        window.excelSyncQueue = window.excelSyncQueue.slice(-400);
     }
 
     // Persist
     localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
-    console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
+    console.log(`✅ Added to sync queue: ${operationType} for ${data.package_no || data.id}. Queue: ${window.excelSyncQueue.length}`);
+    
+    // Update UI
+    updateStorageIndicator();
+    
+    // Try immediate sync if online
+    if (navigator.onLine && supabase) {
+        setTimeout(() => syncExcelWithSupabase(), 1000);
+    }
 }
 
 
 
 
+// ADD THIS NEW FUNCTION:
+function initializeSyncSystem() {
+    // Load existing sync queue
+    const savedQueue = localStorage.getItem('excelSyncQueue');
+    excelSyncQueue = savedQueue ? JSON.parse(savedQueue) : [];
+    
+    // Load existing package IDs for uniqueness
+    loadExistingPackageIds();
+    
+    console.log(`🔄 Sync system initialized: ${excelSyncQueue.length} pending operations`);
+    
+    // Setup auto-sync
+    setupAutoSync();
+}
 
+// ADD THIS FUNCTION TOO:
+function setupAutoSync() {
+    // Auto-sync when coming online
+    window.addEventListener('online', async () => {
+        console.log('🌐 Online - Starting auto-sync');
+        if (excelSyncQueue.length > 0) {
+            showAlert(`${excelSyncQueue.length} işlem senkronize ediliyor...`, 'info');
+            await syncExcelWithSupabase();
+        }
+    });
+
+    // Periodic sync every 30 seconds when online
+    setInterval(async () => {
+        if (navigator.onLine && supabase && excelSyncQueue.length > 0) {
+            console.log('🔄 Periodic sync check - Queue:', excelSyncQueue.length);
+            await syncExcelWithSupabase();
+        }
+    }, 30000);
+
+    console.log('✅ Auto-sync system initialized');
+}
 
 // ==================== ATOMIC SYNC QUEUE SYSTEM ====================
 
@@ -4168,6 +4215,7 @@ console.log('✅ Reports module loaded successfully');
     }
 }
 
+// REPLACE THIS ENTIRE FUNCTION:
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -4186,26 +4234,18 @@ async function completePackage() {
     }
 
     try {
-        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-      const workspaceId = window.workspaceManager.currentWorkspace.id;
-
-// Get or initialize counter for this workspace
-let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-packageCounter++;
-localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
-
-const timestamp = Date.now();
-const random = Math.random().toString(36).substr(2, 9);
-
-const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+        const workspaceId = getCurrentWorkspaceId();
+        
+        // Generate unique identifiers
+        const packageId = generateUniquePackageUUID();
+        const packageNo = generateUniquePackageNumber();
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Enhanced package data with workspace info - USE THE SAME ID
+        // Enhanced package data with workspace info
         const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
@@ -4226,10 +4266,13 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
             workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app' // Track source for sync
+            source: 'app'
         };
 
         console.log('📦 Creating package with ID:', packageId);
+
+        // ✅ ALWAYS ADD TO SYNC QUEUE FIRST (FIXED)
+        addToSyncQueue('add', packageData);
 
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
@@ -4242,18 +4285,18 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
                 if (error) throw error;
 
                 showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData); // SAME packageData with SAME ID
+                
+                // ✅ ALSO SAVE TO EXCEL FOR BACKUP
+                await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+                await saveToExcel(packageData);
                 showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData); // SAME packageData with SAME ID
-            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+            await saveToExcel(packageData);
             showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
@@ -4269,7 +4312,6 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
 }
-
 
 
 // Delete selected packages
