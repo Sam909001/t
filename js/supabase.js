@@ -3872,36 +3872,15 @@ async function completePackage() {
       const workspaceId = window.workspaceManager.currentWorkspace.id;
 
 // Get or initialize counter for this workspace
-// GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-const workspaceId = window.workspaceManager.currentWorkspace.id;
-
-// Step 1: Fetch last package_no for this workspace from Supabase
-let packageCounter = 0;
-if (supabase && navigator.onLine) {
-    const { data: lastPackage, error } = await supabase
-        .from('packages')
-        .select('package_no')
-        .like('package_no', `PKG-${workspaceId}-%`)
-        .order('package_no', { ascending: false })
-        .limit(1)
-        .single();
-
-    if (!error && lastPackage && lastPackage.package_no) {
-        const parts = lastPackage.package_no.split('-'); // ['PKG', 'st1', '000013']
-        packageCounter = parseInt(parts[2], 10);
-    }
-}
-
-// Step 2: Increment counter
+let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
 packageCounter++;
+localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
 
-// Step 3: Generate IDs
 const timestamp = Date.now();
 const random = Math.random().toString(36).substr(2, 9);
 
 const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
 const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
-
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
@@ -3970,6 +3949,37 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+    }
+}
+
+
+
+// Delete selected packages
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
+
+        if (error) throw error;
+
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
     }
 }
 
