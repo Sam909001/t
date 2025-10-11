@@ -25,6 +25,8 @@ let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
 
+const shippedPackageIds = new Set();
+
 // ==================== MISSING FUNCTIONS - ADDED ====================
 
 function getStrictWorkspaceFilter(table) {
@@ -79,7 +81,6 @@ if (typeof emailjs === 'undefined') {
     };
 }
 
-// Replace ALL data loading functions with strict versions
 async function loadPackagesDataStrict() {
     if (!window.workspaceManager?.currentWorkspace) {
         console.warn('Workspace not initialized, using default');
@@ -94,11 +95,12 @@ async function loadPackagesDataStrict() {
         const excelData = await ExcelJS.readFile();
         const excelPackagesList = ExcelJS.fromExcelFormat(excelData);
         
-        // STRICT workspace filtering with validation
+        // STRICT workspace filtering - ONLY PENDING packages
         const workspacePackages = excelPackagesList.filter(pkg => {
             const isValidWorkspace = pkg.workspace_id === workspaceId;
             const isWaiting = pkg.status === 'beklemede';
             const hasNoContainer = !pkg.container_id || pkg.container_id === null;
+            const notShipped = !shippedPackageIds.has(pkg.id); // ✅ NEW: Check if already shipped
             
             if (!isValidWorkspace) {
                 console.warn('🔒 STRICT: Filtered package from different workspace:', {
@@ -106,6 +108,11 @@ async function loadPackagesDataStrict() {
                     packageWorkspace: pkg.workspace_id,
                     currentWorkspace: workspaceId
                 });
+                return false;
+            }
+            
+            if (!notShipped) {
+                console.log('🚫 Blocking already shipped package from pending:', pkg.id);
                 return false;
             }
             
@@ -129,8 +136,9 @@ async function loadPackagesDataStrict() {
                 if (!error && supabasePackages && supabasePackages.length > 0) {
                     console.log(`✅ STRICT: Loaded from Supabase:`, supabasePackages.length, 'packages');
                     
+                    // ✅ Filter out already shipped packages
                     const validSupabasePackages = supabasePackages.filter(pkg => 
-                        validateWorkspaceAccessStrict(pkg)
+                        validateWorkspaceAccessStrict(pkg) && !shippedPackageIds.has(pkg.id)
                     );
                     
                     const mergedPackages = mergePackagesStrict(workspacePackages, validSupabasePackages);
@@ -140,7 +148,7 @@ async function loadPackagesDataStrict() {
                     await ExcelJS.writeFile(excelData);
                 }
                 
-                // Load shipped packages for shipping tab (INSIDE the try block)
+                // Load shipped packages for shipping tab
                 const { data: shippedPackages } = await supabase
                     .from('packages')
                     .select(`*, customers (name, code)`)
@@ -151,6 +159,9 @@ async function loadPackagesDataStrict() {
                 if (shippedPackages) {
                     console.log(`✅ Loaded shipped packages:`, shippedPackages.length);
                     window.shippedPackages = shippedPackages;
+                    
+                    // ✅ Track all shipped package IDs
+                    shippedPackages.forEach(pkg => shippedPackageIds.add(pkg.id));
                 }
                 
             } catch (supabaseError) {
@@ -165,6 +176,7 @@ async function loadPackagesDataStrict() {
         showAlert('Paket verileri yüklenirken hata oluştu', 'error');
     }
 }
+
 
 // Strict merge function
 function mergePackagesStrict(excelPackages, supabasePackages) {
@@ -2123,8 +2135,6 @@ const pageSize = 20; // number of containers per page
 let isShippingTableLoading = false;
 let lastShippingFetchTime = 0;
 
-// COMPLETE FIXED populateShippingTable function
-// Replace the existing one in supabase (36).js (around line 950-1100)
 
 async function populateShippingTable(page = 0) {
     if (isShippingTableLoading) {
@@ -3912,7 +3922,7 @@ async function completePackage() {
                 `${name}: ${qty} adet`
             ).join(', '),
             total_quantity: totalQuantity,
-             status: 'sevk-edildi',
+            status: 'sevk-edildi',  // Auto-shipped on creation
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
