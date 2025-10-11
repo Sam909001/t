@@ -1515,7 +1515,7 @@ function addToSyncQueue(operationType, data) {
     window.excelSyncQueue = window.excelSyncQueue || [];
 
     // Create operation fingerprint for deduplication
-    const operationFingerprint = `${operationType}-${data.id}`;
+   const operationFingerprint = `${operationType}-${data.package_no}`;
 
     // Check for duplicates
     const isDuplicate = window.excelSyncQueue.some(op =>
