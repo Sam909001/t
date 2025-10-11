@@ -4147,8 +4147,13 @@ async function deleteSelectedPackages() {
 
 
 
+// ✅ FIXED: Send to ramp with container validation
 async function sendToRamp(containerNo = null) {
     try {
+        // ✅ CONTAINER VALIDATION: Ensure container is never undefined
+        const safeContainerNo = validateContainerNumber(containerNo);
+        console.log(`✅ Using safe container: ${safeContainerNo}`);
+        
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
             .map(cb => {
                 const packageDataStr = cb.getAttribute('data-package');
@@ -4166,16 +4171,19 @@ async function sendToRamp(containerNo = null) {
 
         // Use existing container or create a new one
         let containerId;
-        if (containerNo && currentContainer) {
+        if (safeContainerNo && currentContainer) {
             containerId = currentContainer;
         } else {
+            // ✅ Use timestamp-based container if no valid container provided
             const timestamp = new Date().getTime();
-            containerNo = `CONT-${timestamp.toString().slice(-6)}`;
+            const finalContainerNo = safeContainerNo && safeContainerNo !== 'CONT-AUTO-TEMP' 
+                ? safeContainerNo 
+                : `CONT-${timestamp.toString().slice(-6)}`;
             
             const { data: newContainer, error } = await supabase
                 .from('containers')
                 .insert([{
-                    container_no: containerNo,
+                    container_no: finalContainerNo, // ✅ Use final container
                     customer: selectedCustomer?.name || '',
                     package_count: selectedPackages.length,
                     total_quantity: await calculateTotalQuantity(selectedPackages),
@@ -4187,17 +4195,20 @@ async function sendToRamp(containerNo = null) {
             if (error) throw error;
             
             containerId = newContainer[0].id;
-            currentContainer = containerNo;
+            currentContainer = finalContainerNo; // ✅ Use final container
             if (elements.containerNumber) {
-                elements.containerNumber.textContent = containerNo;
+                elements.containerNumber.textContent = finalContainerNo;
             }
             saveAppState();
+            
+            // ✅ Update safe container to the final one
+            safeContainerNo = finalContainerNo;
         }
 
-        // ✅ FIX: Update package status to "shipped"
-        await updatePackageStatusToShipped(selectedPackages, containerNo);
+        // ✅ FIX: Update package status to "shipped" with safe container
+        await updatePackageStatusToShipped(selectedPackages, safeContainerNo);
 
-        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${safeContainerNo}) ✅`, 'success');
         
         // ✅ FIX: Refresh both tables
         await populatePackagesTable();
@@ -4210,13 +4221,15 @@ async function sendToRamp(containerNo = null) {
 }
 
 
-
-
-// Update package status when sent to shipping
+// ✅ FIXED: Update package status when sent to shipping (with container validation)
 async function updatePackageStatusToShipped(packageIds, containerNo) {
     console.log(`🔄 Updating ${packageIds.length} packages to shipped status...`);
     
     try {
+        // ✅ CONTAINER VALIDATION: Ensure container is never undefined
+        const safeContainerNo = validateContainerNumber(containerNo);
+        console.log(`✅ Using safe container: ${safeContainerNo}`);
+        
         // Update in Excel data
         const excelData = await ExcelJS.readFile();
         let updatedCount = 0;
@@ -4227,7 +4240,7 @@ async function updatePackageStatusToShipped(packageIds, containerNo) {
                 return {
                     ...pkg,
                     status: 'sevk-edildi',
-                    container_id: containerNo,
+                    container_id: safeContainerNo, // ✅ Use safe container
                     updated_at: new Date().toISOString(),
                     shipped_at: new Date().toISOString()
                 };
@@ -4239,7 +4252,7 @@ async function updatePackageStatusToShipped(packageIds, containerNo) {
         await ExcelJS.writeFile(updatedData);
         excelPackages = updatedData;
         
-        console.log(`✅ Updated ${updatedCount} packages to shipped status`);
+        console.log(`✅ Updated ${updatedCount} packages to shipped status with container: ${safeContainerNo}`);
         
         // Update in Supabase if online
         if (supabase && navigator.onLine) {
@@ -4248,7 +4261,7 @@ async function updatePackageStatusToShipped(packageIds, containerNo) {
                     .from('packages')
                     .update({
                         status: 'sevk-edildi',
-                        container_id: containerNo,
+                        container_id: safeContainerNo, // ✅ Use safe container
                         updated_at: new Date().toISOString()
                     })
                     .in('id', packageIds);
@@ -4262,13 +4275,17 @@ async function updatePackageStatusToShipped(packageIds, containerNo) {
                             addToSyncQueue('update', {
                                 ...pkg,
                                 status: 'sevk-edildi',
-                                container_id: containerNo
+                                container_id: safeContainerNo // ✅ Use safe container
                             });
                         }
                     });
                 } else {
                     console.log(`✅ Updated ${packageIds.length} packages in Supabase`);
                 }
+                
+                // ✅ Ensure container exists in Supabase
+                await ensureContainerExists(safeContainerNo, packageIds.length);
+                
             } catch (supabaseError) {
                 console.error('Supabase update failed:', supabaseError);
             }
@@ -4280,6 +4297,78 @@ async function updatePackageStatusToShipped(packageIds, containerNo) {
         console.error('Error updating package status:', error);
         return 0;
     }
+}
+
+
+// ✅ HELPER: Validate and sanitize container numbers
+function validateContainerNumber(containerNo) {
+    if (!containerNo || 
+        containerNo === 'undefined' || 
+        containerNo === 'null' ||
+        containerNo === undefined ||
+        containerNo === null) {
+        console.warn('⚠️ Invalid container number detected, generating safe container');
+        return 'CONT-AUTO-' + Date.now().toString().slice(-6);
+    }
+    return containerNo;
+}
+
+// ✅ HELPER: Ensure container exists in Supabase
+async function ensureContainerExists(containerNo, packageCount) {
+    if (!supabase || !navigator.onLine) return;
+    
+    try {
+        // Check if container already exists
+        const { data: existingContainer } = await supabase
+            .from('containers')
+            .select('id')
+            .eq('container_no', containerNo)
+            .single();
+        
+        if (!existingContainer) {
+            // Create the container
+            const { error } = await supabase
+                .from('containers')
+                .insert([{
+                    container_no: containerNo,
+                    customer: 'Auto-Created Container',
+                    package_count: packageCount,
+                    total_quantity: 0,
+                    status: 'beklemede',
+                    created_at: new Date().toISOString(),
+                    auto_created: true
+                }]);
+            
+            if (error) {
+                console.error('Container creation failed:', error);
+            } else {
+                console.log(`✅ Created container in Supabase: ${containerNo}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error ensuring container exists:', error);
+    }
+}
+
+// ✅ HELPER: Sanitize package data before saving
+function sanitizePackageData(packageData) {
+    const sanitized = { ...packageData };
+    
+    // Ensure container_id is never undefined/null
+    if (!sanitized.container_id || 
+        sanitized.container_id === 'undefined' || 
+        sanitized.container_id === 'null' ||
+        sanitized.container_id === undefined ||
+        sanitized.container_id === null) {
+        sanitized.container_id = null;
+    }
+    
+    // Ensure status is valid
+    if (!sanitized.status || (sanitized.status !== 'beklemede' && sanitized.status !== 'sevk-edildi')) {
+        sanitized.status = 'beklemede';
+    }
+    
+    return sanitized;
 }
 
         
