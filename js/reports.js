@@ -192,13 +192,14 @@ async function generateDailyReport() {
         
         showAlert('Profesyonel günlük rapor ve PDF başarıyla oluşturuldu', 'success');
         
-        // Download PDF
-        const downloadUrl = URL.createObjectURL(pdfBlob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = downloadUrl;
-        downloadLink.download = `ProClean_Rapor_${new Date().toLocaleDateString('tr-TR').replace(/\./g, '-')}.pdf`;
-        downloadLink.click();
-        URL.revokeObjectURL(downloadUrl);
+      showAlert('Profesyonel günlük rapor ve PDF başarıyla oluşturuldu', 'success');
+
+// ✅ STORE PDF BLOB FOR LATER DOWNLOAD (don't auto-download)
+window.currentReportPDFBlob = pdfBlob;
+
+// ✅ OPTIONAL: Show PDF preview in modal or new tab
+// const pdfUrl = URL.createObjectURL(pdfBlob);
+// window.open(pdfUrl, '_blank'); // Opens PDF in new tab for preview
         
         // Show email modal
         if (document.getElementById('reportEmail')) {
@@ -273,26 +274,31 @@ window.generateProfessionalPDFReport = async function(reportData) {
             doc.text('GUNLUK OZET', margin, currentY);
             currentY += 15;
 
-            const summaryBoxes = [
-                { title: 'Toplam Paket', value: reportData.totalPackages, color: [52, 152, 219] },
-                { title: 'Bekleyen Paket', value: reportData.waitingPackages, color: [241, 196, 15] },
-                { title: 'Sevk Edilen', value: reportData.shippedPackages, color: [46, 204, 113] },
-                { title: 'Konteyner', value: reportData.containers.length || 0, color: [155, 89, 182] }
-            ];
+           // ==================== EXECUTIVE SUMMARY - FIXED ====================
+const summaryBoxes = [
+    { title: 'Toplam Paket', value: reportData.totalPackages || 0, color: [52, 152, 219] },
+    { title: 'Bekleyen Paket', value: reportData.waitingPackages || 0, color: [241, 196, 15] },
+    { title: 'Sevk Edilen', value: reportData.shippedPackages || 0, color: [46, 204, 113] },
+    { title: 'Konteyner', value: (reportData.containers?.length || 0), color: [155, 89, 182] }  // ✅ FIXED - get length
+];
 
-            const boxWidth = (pageWidth - 2 * margin - 15) / 4;
-            summaryBoxes.forEach((box, index) => {
-                const x = margin + index * (boxWidth + 5);
-                doc.setFillColor(...box.color);
-                doc.roundedRect(x, currentY, boxWidth, 35, 3, 3, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(9);
-                doc.setFont('helvetica', 'bold');
-                doc.text(box.title, x + boxWidth / 2, currentY + 15, { align: 'center' });
-                doc.setFontSize(11);
-                doc.text(box.value.toString(), x + boxWidth / 2, currentY + 28, { align: 'center' });
-            });
+const boxWidth = (pageWidth - 2 * margin - 15) / 4;
+summaryBoxes.forEach((box, index) => {
+    const x = margin + index * (boxWidth + 5);
 
+    doc.setFillColor(...box.color);
+    doc.roundedRect(x, currentY, boxWidth, 35, 3, 3, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(box.title, x + boxWidth / 2, currentY + 15, { align: 'center' });
+
+    doc.setFontSize(11);
+    // ✅ ENSURE IT'S A STRING
+    const displayValue = String(box.value || 0);
+    doc.text(displayValue, x + boxWidth / 2, currentY + 28, { align: 'center' });
+});
             currentY += 50;
 
             // DETAILED STATISTICS
