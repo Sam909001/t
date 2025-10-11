@@ -497,67 +497,6 @@ convertToCSV: function(data) {
 };
 
 
-
-
-// Ensure package has complete schema before syncing
-function ensureCompletePackageSchema(packageData) {
-    const workspaceId = getCurrentWorkspaceId();
-    
-    // Parse items_array if it's a string
-    let itemsArray = packageData.items_array;
-    if (typeof itemsArray === 'string') {
-        try {
-            itemsArray = JSON.parse(itemsArray);
-        } catch (e) {
-            itemsArray = [];
-        }
-    }
-    
-    // Get customer info
-    let customerName = packageData.customer_name;
-    let customerCode = packageData.customer_code;
-    
-    if (!customerName && packageData.customer_id) {
-        const customer = window.customers?.find(c => c.id === packageData.customer_id);
-        if (customer) {
-            customerName = customer.name;
-            customerCode = customer.code;
-        }
-    }
-    
-    // Calculate total quantity from items_array
-    const totalQuantity = Array.isArray(itemsArray) 
-        ? itemsArray.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0)
-        : (packageData.total_quantity || 0);
-    
-    // Create items_display string
-    const itemsDisplay = Array.isArray(itemsArray)
-        ? itemsArray.map(item => `${item.name} (${item.qty})`).join(', ')
-        : '';
-    
-    return {
-        id: packageData.id || generateUniquePackageUUID(),
-        package_no: packageData.package_no || generateUniquePackageNumber(),
-        customer_id: packageData.customer_id || null,
-        customer_name: customerName || null,
-        customer_code: customerCode || null,
-        container_id: packageData.container_id || null,
-        workspace_id: workspaceId,
-        status: packageData.status || 'beklemede',
-        items: packageData.items || null, // Legacy field
-        items_array: itemsArray, // JSON array
-        items_display: itemsDisplay, // Human readable
-        total_quantity: totalQuantity,
-        created_at: packageData.created_at || new Date().toISOString(),
-        shipped_at: packageData.shipped_at || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        personnel_id: packageData.personnel_id || null,
-        daily_file: packageData.daily_file || null,
-        source: packageData.source || 'app',
-        station_name: packageData.station_name || null
-    };
-}
-
 // ==================== ENHANCED OFFLINE-TO-ONLINE SYNC ====================
 
 // Track offline changes
@@ -1589,7 +1528,64 @@ function addToSyncQueue(operation, tableOrData, data) {
 
 window.addToSyncQueue = addToSyncQueue;
 
-
+// Ensure package has complete schema before syncing
+function ensureCompletePackageSchema(packageData) {
+    const workspaceId = getCurrentWorkspaceId();
+    
+    // Parse items_array if it's a string
+    let itemsArray = packageData.items_array;
+    if (typeof itemsArray === 'string') {
+        try {
+            itemsArray = JSON.parse(itemsArray);
+        } catch (e) {
+            itemsArray = [];
+        }
+    }
+    
+    // Get customer info
+    let customerName = packageData.customer_name;
+    let customerCode = packageData.customer_code;
+    
+    if (!customerName && packageData.customer_id) {
+        const customer = window.customers?.find(c => c.id === packageData.customer_id);
+        if (customer) {
+            customerName = customer.name;
+            customerCode = customer.code;
+        }
+    }
+    
+    // Calculate total quantity from items_array
+    const totalQuantity = Array.isArray(itemsArray) 
+        ? itemsArray.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0)
+        : (packageData.total_quantity || 0);
+    
+    // Create items_display string
+    const itemsDisplay = Array.isArray(itemsArray)
+        ? itemsArray.map(item => `${item.name} (${item.qty})`).join(', ')
+        : '';
+    
+    return {
+        id: packageData.id || generateUniquePackageUUID(),
+        package_no: packageData.package_no || generateUniquePackageNumber(),
+        customer_id: packageData.customer_id || null,
+        customer_name: customerName || null,
+        customer_code: customerCode || null,
+        container_id: packageData.container_id || null,
+        workspace_id: workspaceId,
+        status: packageData.status || 'beklemede',
+        items: packageData.items || null, // Legacy field
+        items_array: itemsArray, // JSON array
+        items_display: itemsDisplay, // Human readable
+        total_quantity: totalQuantity,
+        created_at: packageData.created_at || new Date().toISOString(),
+        shipped_at: packageData.shipped_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        personnel_id: packageData.personnel_id || null,
+        daily_file: packageData.daily_file || null,
+        source: packageData.source || 'app',
+        station_name: packageData.station_name || null
+    };
+}
 
 // Save queue to localStorage
 function saveOfflineQueue() {
