@@ -2752,3 +2752,35 @@ body.dark-mode button[onclick*="openPrinterSettings"]:hover {
         height: 36px;
     }
 }
+
+
+/* ==================== REDUCE HEADER HEIGHT ==================== */
+
+.app-header {
+    height: 52px !important;  /* ← Reduced from 64px */
+    padding: 0 16px !important;  /* ← Reduced padding */
+}
+
+.app-title {
+    font-size: 17px !important;  /* ← Slightly smaller */
+}
+
+#userRole {
+    padding: 5px 10px !important;  /* ← Smaller padding */
+    font-size: 11px !important;  /* ← Smaller font */
+}
+
+.printer-indicator {
+    padding: 5px 10px !important;  /* ← Smaller */
+    font-size: 11px !important;
+}
+
+.user-info .btn,
+.user-info button {
+    width: 36px !important;  /* ← Smaller buttons */
+    height: 36px !important;
+}
+
+.user-info {
+    gap: 6px !important;  /* ← Less gap between items */
+}
