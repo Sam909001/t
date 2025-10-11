@@ -152,6 +152,20 @@ async function loadPackagesDataStrict() {
     }
 }
 
+
+// Also load shipped packages for shipping tab
+const { data: shippedPackages } = await supabase
+    .from('packages')
+    .select(`*, customers (name, code)`)
+    .eq('status', 'sevk-edildi')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false });
+
+if (shippedPackages) {
+    console.log(`✅ Loaded shipped packages:`, shippedPackages.length);
+    window.shippedPackages = shippedPackages;
+}
+
 // Strict merge function
 function mergePackagesStrict(excelPackages, supabasePackages) {
     const merged = [...excelPackages];
