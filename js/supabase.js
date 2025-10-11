@@ -4975,14 +4975,31 @@ function handleSupabaseError(error, context) {
 
 
 
-// Initialize the application
+// Initialize the application with error handling
 async function initializeApp() {
-    await initializeSupabase();
-    await initializeExcelStorage();
-    await loadExistingPackageIds();
-    setupOfflineSupport();
-    setupEnhancedSyncTriggers();
-    updateStorageIndicator();
+    try {
+        console.log('🚀 Starting ProClean Application...');
+        
+        await initializeSupabase();
+        await initializeExcelStorage();
+        await loadExistingPackageIds();
+        setupOfflineSupport();
+        setupEnhancedSyncTriggers();
+        updateStorageIndicator();
+        
+        console.log('✅ ProClean Application initialized successfully');
+        
+        // Show initial status
+        if (isUsingExcel) {
+            showAlert('Excel modu aktif - Çevrimdışı çalışıyorsunuz', 'info', 3000);
+        } else {
+            showAlert('Supabase bağlantısı başarılı - Çevrimiçi mod', 'success', 3000);
+        }
+        
+    } catch (error) {
+        console.error('❌ Application initialization failed:', error);
+        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+    }
 }
 
 // Start the application
