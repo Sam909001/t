@@ -2806,15 +2806,39 @@ async function createNewRFIDStock(rfidTag) {
 }
 
 
-// Helper function to get current workspace ID
+// FIXED: Use your actual workspace UUIDs
 function getCurrentWorkspaceId() {
+    // If workspace manager exists and has a valid UUID, use it
     if (window.workspaceManager?.currentWorkspace?.id) {
-        return window.workspaceManager.currentWorkspace.id;
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        if (isValidUUID(workspaceId)) {
+            return workspaceId;
+        }
     }
     
-    // Fallback: get from localStorage or use default
-    const settings = JSON.parse(localStorage.getItem('procleanSettings') || '{}');
-    return settings.currentWorkspaceId || 'default-workspace';
+    // Use your actual workspace UUIDs
+    const workspaceUUIDs = {
+        'station-1': 'ed913550-7c9a-406d-965e-3ebe1392c326', // Your actual workspace
+        'station-2': '00000000-0000-0000-0000-000000000000', // Default workspace
+        'default': '00000000-0000-0000-0000-000000000000'
+    };
+    
+    // Get current station name and map to UUID
+    const currentStation = window.workspaceManager?.currentWorkspace?.name || 'station-1';
+    return workspaceUUIDs[currentStation] || workspaceUUIDs.default;
+}
+
+// Enhanced UUID validation
+function isValidUUID(id) {
+    if (!id || typeof id !== 'string') return false;
+    
+    // Handle Excel-style IDs and station names
+    if (id.startsWith('pkg-') || id.startsWith('excel-') || id.startsWith('station-')) {
+        return false;
+    }
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
 }
 
 
