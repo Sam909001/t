@@ -118,9 +118,9 @@ async function loadPackagesDataStrict() {
         // Load from Supabase with STRICT workspace filtering
         if (supabase && navigator.onLine) {
             try {
-               const { data: supabasePackages, error } = await supabase
+                const { data: supabasePackages, error } = await supabase
                     .from('packages')
-                   .select(`*, customers (name, code)`)
+                    .select(`*, customers (name, code)`)
                     .is('container_id', null)
                     .eq('status', 'beklemede')  // Only truly pending packages
                     .eq('workspace_id', workspaceId)
@@ -139,6 +139,20 @@ async function loadPackagesDataStrict() {
                     const excelData = ExcelJS.toExcelFormat(mergedPackages);
                     await ExcelJS.writeFile(excelData);
                 }
+                
+                // ✅ FIXED: Load shipped packages for shipping tab (MOVED INSIDE)
+                const { data: shippedPackages } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .eq('status', 'sevk-edildi')
+                    .eq('workspace_id', workspaceId)
+                    .order('created_at', { ascending: false });
+
+                if (shippedPackages) {
+                    console.log(`✅ Loaded shipped packages:`, shippedPackages.length);
+                    window.shippedPackages = shippedPackages;
+                }
+                
             } catch (supabaseError) {
                 console.warn('Supabase load failed, using Excel data:', supabaseError);
             }
@@ -152,19 +166,6 @@ async function loadPackagesDataStrict() {
     }
 }
 
-
-// Also load shipped packages for shipping tab
-const { data: shippedPackages } = await supabase
-    .from('packages')
-    .select(`*, customers (name, code)`)
-    .eq('status', 'sevk-edildi')
-    .eq('workspace_id', workspaceId)
-    .order('created_at', { ascending: false });
-
-if (shippedPackages) {
-    console.log(`✅ Loaded shipped packages:`, shippedPackages.length);
-    window.shippedPackages = shippedPackages;
-}
 
 // Strict merge function
 function mergePackagesStrict(excelPackages, supabasePackages) {
@@ -344,6 +345,36 @@ function isValidEmail(email) {
     const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 }
+
+
+
+// Status helper functions
+function getStatusClass(status) {
+    switch(status) {
+        case 'sevk-edildi':
+            return 'status-shipped';  // Green
+        case 'beklemede':
+            return 'status-pending';  // Yellow
+        default:
+            return 'status-default';
+    }
+}
+
+function getStatusText(status) {
+    switch(status) {
+        case 'sevk-edildi':
+            return 'Sevk Edildi';
+        case 'beklemede':
+            return 'Beklemede';
+        default:
+            return status;
+    }
+}
+
+// Make them globally available
+window.getStatusClass = getStatusClass;
+window.getStatusText = getStatusText;
+
 
 // Elementleri bir defa tanımla
 const elements = {};
