@@ -176,31 +176,34 @@ async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
-        // 1. Initialize elements object (with fallback)
-        if (typeof window.elements === 'undefined') {
-            window.elements = {};
-        }
+        // ✅ 1. FORCE INITIALIZE ELEMENTS FIRST (No dependencies)
+        window.elements = {
+            customerSelect: document.getElementById('customerSelect'),
+            customerSearch: document.getElementById('customerSearch'),
+            selectedCustomerName: document.getElementById('selectedCustomerName'),
+            personnelSelect: document.getElementById('personnelSelect'),
+            packagesTableBody: document.getElementById('packagesTableBody'),
+            totalPackages: document.getElementById('totalPackages'),
+            containerNumber: document.getElementById('containerNumber'),
+            currentDate: document.getElementById('currentDate'),
+            productGrid: document.getElementById('productGrid'),
+            packageDetailContent: document.getElementById('packageDetailContent'),
+            selectedPackagesContainer: document.getElementById('selectedPackagesContainer'),
+            containerPackagesTable: document.getElementById('containerPackagesTable')
+        };
         
-        // Try to initialize elements from ui.js
+        console.log('✅ Elements initialized:', Object.keys(window.elements).length);
+        
+        // Try to call external initialization if it exists
         if (typeof initializeElementsObject === 'function') {
-            initializeElementsObject();
-        } else {
-            // Manual fallback - define critical elements
-            console.warn('⚠️ initializeElementsObject not found, using manual initialization');
-            window.elements = {
-                customerSelect: document.getElementById('customerSelect'),
-                customerSearch: document.getElementById('customerSearch'),
-                selectedCustomerName: document.getElementById('selectedCustomerName'),
-                personnelSelect: document.getElementById('personnelSelect'),
-                packagesTableBody: document.getElementById('packagesTableBody'),
-                totalPackages: document.getElementById('totalPackages'),
-                containerNumber: document.getElementById('containerNumber'),
-                currentDate: document.getElementById('currentDate'),
-                // Add more as needed
-            };
+            try {
+                initializeElementsObject();
+            } catch (e) {
+                console.warn('initializeElementsObject failed:', e);
+            }
         }
         
-        // 2. Initialize workspace system
+        // ✅ 2. Initialize workspace system
         if (!window.workspaceManager) {
             window.workspaceManager = new WorkspaceManager();
         }
@@ -208,8 +211,8 @@ async function initApp() {
         
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
         
-        // 3. Detect environment
-        const runningInElectron = isElectron();
+        // ✅ 3. Detect environment
+        const runningInElectron = typeof isElectron === 'function' ? isElectron() : false;
         if (runningInElectron) {
             console.log('📱 Running in Electron environment');
             window.isElectronApp = true;
@@ -218,33 +221,50 @@ async function initApp() {
             window.isElectronApp = false;
         }
 
-        // 4. Initialize workspace-aware UI (with fallback)
-        if (typeof initializeWorkspaceUI === 'function') {
-            initializeWorkspaceUI();
-        }
-        if (typeof setupWorkspaceAwareUI === 'function') {
-            setupWorkspaceAwareUI();
-        }
-        
-        // 5. Migrate existing data to workspace (with fallback)
-        if (typeof migrateExistingDataToWorkspace === 'function') {
-            await migrateExistingDataToWorkspace();
-        }
-        
-        // 6. Initialize sync system (with fallback)
-        if (typeof initializeSyncQueue === 'function') {
-            initializeSyncQueue();
-        }
-        if (typeof setupEnhancedSyncTriggers === 'function') {
-            setupEnhancedSyncTriggers();
+        // ✅ 4. Initialize workspace-aware UI (with try-catch)
+        try {
+            if (typeof initializeWorkspaceUI === 'function') {
+                initializeWorkspaceUI();
+            }
+            if (typeof setupWorkspaceAwareUI === 'function') {
+                setupWorkspaceAwareUI();
+            }
+        } catch (e) {
+            console.warn('Workspace UI initialization failed:', e);
         }
         
-        // ✅ CRITICAL: Load offline sync queue on startup
+        // ✅ 5. Migrate existing data to workspace (with try-catch)
+        try {
+            if (typeof migrateExistingDataToWorkspace === 'function') {
+                await migrateExistingDataToWorkspace();
+            }
+        } catch (e) {
+            console.warn('Data migration failed:', e);
+        }
+        
+        // ✅ 6. Initialize sync system (with try-catch)
+        try {
+            if (typeof initializeSyncQueue === 'function') {
+                initializeSyncQueue();
+            }
+            if (typeof setupEnhancedSyncTriggers === 'function') {
+                setupEnhancedSyncTriggers();
+            }
+        } catch (e) {
+            console.warn('Sync system initialization failed:', e);
+        }
+        
+        // ✅ 7. CRITICAL: Load offline sync queue on startup
         console.log('📋 Loading offline sync queue...');
         if (typeof loadOfflineQueue === 'function') {
-            loadOfflineQueue();
+            try {
+                loadOfflineQueue();
+            } catch (e) {
+                console.error('loadOfflineQueue failed:', e);
+                window.offlineChangesQueue = [];
+            }
         } else {
-            // Fallback: Initialize empty queue
+            // Fallback: Initialize queue manually
             if (!window.offlineChangesQueue) {
                 window.offlineChangesQueue = [];
             }
@@ -260,93 +280,160 @@ async function initApp() {
             }
         }
         
-        // ✅ CRITICAL: Load existing package IDs to prevent duplicates
+        // ✅ 8. CRITICAL: Load existing package IDs to prevent duplicates
         console.log('🔑 Loading existing package IDs...');
-        if (typeof loadExistingPackageIds === 'function') {
-            await loadExistingPackageIds();
-        } else {
-            console.warn('⚠️ loadExistingPackageIds function not found');
-        }
-        
-        // 7. Setup event listeners
-        if (typeof setupEventListeners === 'function') {
-            setupEventListeners();
-        }
-        
-        // 8. API key initialization
-        if (typeof initializeApiAndAuth === 'function') {
-            initializeApiAndAuth();
-        }
-        
-        // 9. Initialize settings (with fallback)
-        if (typeof initializeSettings === 'function') {
-            initializeSettings();
-        }
-        
-        // 10. Initialize daily Excel file system (with fallback)
-        if (typeof ExcelStorage !== 'undefined') {
-            if (typeof ExcelStorage.cleanupOldFiles === 'function') {
-                await ExcelStorage.cleanupOldFiles();
+        try {
+            if (typeof loadExistingPackageIds === 'function') {
+                await loadExistingPackageIds();
             }
-            if (typeof ExcelStorage.readFile === 'function') {
-                await ExcelStorage.readFile();
+        } catch (e) {
+            console.warn('loadExistingPackageIds failed:', e);
+        }
+        
+        // ✅ 9. Setup event listeners (with try-catch)
+        try {
+            if (typeof setupEventListeners === 'function') {
+                setupEventListeners();
             }
+        } catch (e) {
+            console.warn('setupEventListeners failed:', e);
         }
         
-        // 11. Populate UI
-        if (elements.currentDate) {
-            elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
+        // ✅ 10. API key initialization (with try-catch)
+        try {
+            if (typeof initializeApiAndAuth === 'function') {
+                initializeApiAndAuth();
+            }
+        } catch (e) {
+            console.warn('initializeApiAndAuth failed:', e);
         }
         
-        if (typeof populateCustomers === 'function') {
-            await populateCustomers();
-        }
-        if (typeof populatePersonnel === 'function') {
-            await populatePersonnel();
-        }
-        
-        // 12. Load saved state
-        if (typeof loadAppState === 'function') {
-            loadAppState();
+        // ✅ 11. Initialize settings (with try-catch)
+        try {
+            if (typeof initializeSettings === 'function') {
+                initializeSettings();
+            }
+        } catch (e) {
+            console.warn('initializeSettings failed:', e);
         }
         
-        // 13. Load data
-        if (typeof loadPackagesData === 'function') {
-            await loadPackagesData();
-        }
-        if (typeof populateStockTable === 'function') {
-            await populateStockTable();
-        }
-        if (typeof populateShippingTable === 'function') {
-            await populateShippingTable();
-        }
-        
-        // 14. Test connection
-        if (supabase && typeof testConnection === 'function') {
-            await testConnection();
+        // ✅ 12. Initialize daily Excel file system (with try-catch)
+        try {
+            if (typeof ExcelStorage !== 'undefined') {
+                if (typeof ExcelStorage.cleanupOldFiles === 'function') {
+                    await ExcelStorage.cleanupOldFiles();
+                }
+                if (typeof ExcelStorage.readFile === 'function') {
+                    await ExcelStorage.readFile();
+                }
+            }
+        } catch (e) {
+            console.warn('Excel storage initialization failed:', e);
         }
         
-        // 15. Set up auto-save and offline support
-        if (typeof saveAppState === 'function') {
-            setInterval(saveAppState, 30000);
-        }
-        if (typeof setupOfflineSupport === 'function') {
-            setupOfflineSupport();
-        }
-        if (typeof setupBarcodeScanner === 'function') {
-            setupBarcodeScanner();
+        // ✅ 13. Populate UI (with null checks)
+        if (window.elements && window.elements.currentDate) {
+            window.elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
         }
         
-        // ✅ CRITICAL: Setup offline-to-online sync listeners
+        try {
+            if (typeof populateCustomers === 'function') {
+                await populateCustomers();
+            }
+        } catch (e) {
+            console.warn('populateCustomers failed:', e);
+        }
+        
+        try {
+            if (typeof populatePersonnel === 'function') {
+                await populatePersonnel();
+            }
+        } catch (e) {
+            console.warn('populatePersonnel failed:', e);
+        }
+        
+        // ✅ 14. Load saved state (with try-catch)
+        try {
+            if (typeof loadAppState === 'function') {
+                loadAppState();
+            }
+        } catch (e) {
+            console.warn('loadAppState failed:', e);
+        }
+        
+        // ✅ 15. Load data (with try-catch)
+        try {
+            if (typeof loadPackagesData === 'function') {
+                await loadPackagesData();
+            }
+        } catch (e) {
+            console.warn('loadPackagesData failed:', e);
+        }
+        
+        try {
+            if (typeof populateStockTable === 'function') {
+                await populateStockTable();
+            }
+        } catch (e) {
+            console.warn('populateStockTable failed:', e);
+        }
+        
+        try {
+            if (typeof populateShippingTable === 'function') {
+                await populateShippingTable();
+            }
+        } catch (e) {
+            console.warn('populateShippingTable failed:', e);
+        }
+        
+        // ✅ 16. Test connection (with try-catch)
+        try {
+            if (supabase && typeof testConnection === 'function') {
+                await testConnection();
+            }
+        } catch (e) {
+            console.warn('testConnection failed:', e);
+        }
+        
+        // ✅ 17. Set up auto-save and offline support (with try-catch)
+        try {
+            if (typeof saveAppState === 'function') {
+                setInterval(saveAppState, 30000);
+            }
+        } catch (e) {
+            console.warn('Auto-save setup failed:', e);
+        }
+        
+        try {
+            if (typeof setupOfflineSupport === 'function') {
+                setupOfflineSupport();
+            }
+        } catch (e) {
+            console.warn('setupOfflineSupport failed:', e);
+        }
+        
+        try {
+            if (typeof setupBarcodeScanner === 'function') {
+                setupBarcodeScanner();
+            }
+        } catch (e) {
+            console.warn('setupBarcodeScanner failed:', e);
+        }
+        
+        // ✅ 18. CRITICAL: Setup offline-to-online sync listeners
         window.addEventListener('online', async function() {
             console.log('🌐 Network online - syncing offline changes...');
-            showAlert('İnternet bağlantısı tekrar kuruldu, veriler senkronize ediliyor...', 'info');
+            if (typeof showAlert === 'function') {
+                showAlert('İnternet bağlantısı tekrar kuruldu, veriler senkronize ediliyor...', 'info');
+            }
             
             setTimeout(async () => {
                 if (typeof syncOfflineChanges === 'function') {
-                    await syncOfflineChanges();
-                } else {
-                    console.warn('⚠️ syncOfflineChanges function not found');
+                    try {
+                        await syncOfflineChanges();
+                    } catch (e) {
+                        console.error('syncOfflineChanges failed:', e);
+                    }
                 }
             }, 2000);
         });
@@ -358,35 +445,45 @@ async function initApp() {
             }
         });
         
-        // 16. Start daily auto-clear (with fallback)
-        if (typeof scheduleDailyClear === 'function') {
-            scheduleDailyClear();
+        // ✅ 19. Start daily auto-clear (with try-catch)
+        try {
+            if (typeof scheduleDailyClear === 'function') {
+                scheduleDailyClear();
+            }
+        } catch (e) {
+            console.warn('scheduleDailyClear failed:', e);
         }
         
-        // ✅ CRITICAL: Auto-sync on startup if online
+        // ✅ 20. CRITICAL: Auto-sync on startup if online
         if (navigator.onLine && supabase) {
             console.log('🔄 Online mode detected - scheduling auto-sync...');
             
             setTimeout(async () => {
                 // PRIORITY 1: Sync offline changes first
                 if (typeof syncOfflineChanges === 'function') {
-                    console.log('📤 Syncing offline changes...');
-                    await syncOfflineChanges();
-                } else {
-                    console.warn('⚠️ syncOfflineChanges function not found');
+                    try {
+                        console.log('📤 Syncing offline changes...');
+                        await syncOfflineChanges();
+                    } catch (e) {
+                        console.error('Auto-sync failed:', e);
+                    }
                 }
                 
                 // PRIORITY 2: Regular sync (if not Electron)
                 if (!runningInElectron && typeof syncExcelWithSupabase === 'function') {
-                    console.log('🔄 Running regular Excel-Supabase sync...');
-                    await syncExcelWithSupabase();
+                    try {
+                        console.log('🔄 Running regular Excel-Supabase sync...');
+                        await syncExcelWithSupabase();
+                    } catch (e) {
+                        console.error('Excel sync failed:', e);
+                    }
                 }
             }, 3000);
         } else {
             console.log('📴 Offline mode or no Supabase - using local storage only');
         }
         
-        // ✅ Display sync queue status
+        // ✅ 21. Display sync queue status
         const queueSize = window.offlineChangesQueue?.length || 0;
         if (queueSize > 0) {
             console.log(`📋 Sync queue has ${queueSize} pending items`);
@@ -398,7 +495,7 @@ async function initApp() {
         const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
         console.log(`✅ ProClean fully initialized for workspace: ${workspaceName}`);
         
-        // ✅ Enhanced success message with queue info
+        // ✅ 22. Enhanced success message with queue info
         const successMsg = queueSize > 0 
             ? `Uygulama başlatıldı (${queueSize} değişiklik bekliyor)`
             : 'Uygulama başarıyla başlatıldı!';
@@ -414,6 +511,8 @@ async function initApp() {
         // CRITICAL FIX: User-friendly error recovery
         if (typeof showAlert === 'function') {
             showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        } else {
+            alert('Uygulama başlatılırken hata oluştu: ' + error.message);
         }
         
         // Show recovery UI
@@ -455,60 +554,6 @@ if (document.readyState === 'loading') {
     // DOM already loaded, run immediately
     initApp();
 }
-
-
-// ✅ Display sync queue status in UI
-function updateSyncQueueStatus() {
-    const queueSize = window.offlineChangesQueue?.length || 0;
-    
-    // Find or create status element
-    let statusElement = document.getElementById('syncQueueStatus');
-    if (!statusElement) {
-        statusElement = document.createElement('div');
-        statusElement.id = 'syncQueueStatus';
-        statusElement.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #f39c12;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 9999;
-            cursor: pointer;
-            display: none;
-        `;
-        statusElement.onclick = () => {
-            if (navigator.onLine && typeof syncOfflineChanges === 'function') {
-                syncOfflineChanges();
-            }
-        };
-        document.body.appendChild(statusElement);
-    }
-    
-    if (queueSize > 0) {
-        statusElement.innerHTML = `
-            <i class="fas fa-sync"></i> 
-            ${queueSize} değişiklik senkronize edilecek
-            ${navigator.onLine ? '<br><small>Tıklayın: Şimdi senkronize et</small>' : '<br><small>Çevrimdışı</small>'}
-        `;
-        statusElement.style.display = 'block';
-    } else {
-        statusElement.style.display = 'none';
-    }
-}
-
-// ✅ Update status when queue changes
-window.updateSyncQueueStatus = updateSyncQueueStatus;
-
-// Call after sync operations
-const originalSaveOfflineQueue = window.saveOfflineQueue;
-window.saveOfflineQueue = function() {
-    if (originalSaveOfflineQueue) originalSaveOfflineQueue();
-    updateSyncQueueStatus();
-};
-
 
 
 // Storage bucket kontrolü ve oluşturma fonksiyonu
