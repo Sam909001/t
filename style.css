@@ -2795,6 +2795,31 @@ body.dark-mode button[onclick*="openPrinterSettings"]:hover {
     font-weight: bold;
 }
 
+.status-shipped {
+    background: #27ae60;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-pending {
+    background: #f39c12;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+
+
+
+
+
 
 
 
