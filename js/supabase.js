@@ -3943,7 +3943,7 @@ async function completePackage() {
     }
 }
 
-// Enhanced ID generation with duplicate checking
+// FIXED: Enhanced ID generation with duplicate checking
 async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5) {
     let attempts = 0;
     
@@ -3955,10 +3955,8 @@ async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5)
         packageCounter++;
         localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
 
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 9);
-
-        const packageId = generateUniquePackageUUID();
+        // FIX: Use your existing UUID generator instead of custom format
+        const packageId = generateUniquePackageUUID(); // This creates proper UUIDs
         const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
 
         console.log(`🔍 Checking package ID uniqueness (attempt ${attempts}):`, packageId);
@@ -3979,6 +3977,7 @@ async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5)
     
     throw new Error(`Failed to generate unique package ID after ${maxAttempts} attempts`);
 }
+
 
 // Comprehensive duplicate checking across all data sources
 async function checkPackageIdUnique(packageId, packageNo) {
