@@ -3872,15 +3872,36 @@ async function completePackage() {
       const workspaceId = window.workspaceManager.currentWorkspace.id;
 
 // Get or initialize counter for this workspace
-let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-packageCounter++;
-localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
+// GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
+const workspaceId = window.workspaceManager.currentWorkspace.id;
 
+// Step 1: Fetch last package_no for this workspace from Supabase
+let packageCounter = 0;
+if (supabase && navigator.onLine) {
+    const { data: lastPackage, error } = await supabase
+        .from('packages')
+        .select('package_no')
+        .like('package_no', `PKG-${workspaceId}-%`)
+        .order('package_no', { ascending: false })
+        .limit(1)
+        .single();
+
+    if (!error && lastPackage && lastPackage.package_no) {
+        const parts = lastPackage.package_no.split('-'); // ['PKG', 'st1', '000013']
+        packageCounter = parseInt(parts[2], 10);
+    }
+}
+
+// Step 2: Increment counter
+packageCounter++;
+
+// Step 3: Generate IDs
 const timestamp = Date.now();
 const random = Math.random().toString(36).substr(2, 9);
 
 const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
 const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
