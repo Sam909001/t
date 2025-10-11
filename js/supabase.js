@@ -1334,7 +1334,7 @@ async function deleteFromExcel(packageId) {
     }
 }
 
-// REPLACE the existing syncExcelWithSupabase function with this:
+// Workspace-agnostic sync: processes all queued operations
 async function syncExcelWithSupabase() {
     if (!supabase || !navigator.onLine) {
         console.log('❌ Cannot sync: No Supabase client or offline');
@@ -1346,37 +1346,28 @@ async function syncExcelWithSupabase() {
         return true;
     }
 
-    const currentWorkspaceId = getCurrentWorkspaceId();
-    
     try {
-        // Step 1: Create backup BEFORE any operations
+        // Step 1: Backup queue before any operations
         const queueBackup = JSON.parse(JSON.stringify(excelSyncQueue));
         console.log('📦 Sync backup created:', queueBackup.length, 'operations');
+
+        // Step 2: Take all pending operations (no workspace filtering)
+        const operationsToSync = excelSyncQueue.filter(op => op.status !== 'success');
         
-        // Step 2: Filter operations for current workspace only
-        const workspaceOperations = excelSyncQueue.filter(op => 
-            op.workspace_id === currentWorkspaceId && op.status !== 'success'
-        );
-        
-        if (workspaceOperations.length === 0) {
-            console.log('ℹ️ No sync operations for current workspace');
+        if (operationsToSync.length === 0) {
+            console.log('ℹ️ No pending sync operations');
             return true;
         }
 
-        showAlert(`🔄 ${workspaceOperations.length} işlem senkronize ediliyor...`, 'info');
+        showAlert(`🔄 ${operationsToSync.length} işlem senkronize ediliyor...`, 'info');
 
-        const results = {
-            successful: [],
-            failed: [],
-            skipped: []
-        };
+        const results = { successful: [], failed: [], skipped: [] };
 
         // Step 3: Process operations with individual error handling
-        for (const [index, operation] of workspaceOperations.entries()) {
+        for (const [index, operation] of operationsToSync.entries()) {
             try {
-                console.log(`🔄 Processing ${index + 1}/${workspaceOperations.length}:`, operation.type, operation.data.id);
-                
-                // Skip if too many attempts
+                console.log(`🔄 Processing ${index + 1}/${operationsToSync.length}:`, operation.type, operation.data.id);
+
                 if (operation.attempts >= operation.maxAttempts) {
                     console.warn(`⏭️ Skipping operation after ${operation.attempts} failed attempts:`, operation.data.id);
                     operation.status = 'failed';
@@ -1384,15 +1375,12 @@ async function syncExcelWithSupabase() {
                     continue;
                 }
 
-                // Update attempt info
                 operation.attempts = (operation.attempts || 0) + 1;
                 operation.lastAttempt = new Date().toISOString();
 
                 let result;
                 const operationData = {
                     ...operation.data,
-                    // Ensure workspace consistency during sync
-                    workspace_id: currentWorkspaceId,
                     updated_at: new Date().toISOString()
                 };
 
@@ -1400,44 +1388,35 @@ async function syncExcelWithSupabase() {
                     case 'add':
                         result = await supabase
                             .from('packages')
-                            .upsert([operationData], {
-                                onConflict: 'id', // Use upsert to handle conflicts
-                                ignoreDuplicates: false
-                            });
+                            .upsert([operationData], { onConflict: 'id' });
                         break;
-                        
+
                     case 'update':
                         result = await supabase
                             .from('packages')
                             .update(operationData)
-                            .eq('id', operationData.id)
-                            .eq('workspace_id', currentWorkspaceId); // Workspace safety
+                            .eq('id', operationData.id);
                         break;
-                        
+
                     case 'delete':
                         result = await supabase
                             .from('packages')
                             .delete()
-                            .eq('id', operationData.id)
-                            .eq('workspace_id', currentWorkspaceId); // Workspace safety
+                            .eq('id', operationData.id);
                         break;
-                        
+
                     default:
                         throw new Error(`Unknown operation type: ${operation.type}`);
                 }
 
-                if (result.error) {
-                    throw result.error;
-                }
+                if (result.error) throw result.error;
 
-                // Mark as successful
                 operation.status = 'success';
                 results.successful.push(operation.fingerprint);
                 console.log(`✅ Sync successful: ${operation.type} for ${operation.data.id}`);
 
             } catch (opError) {
                 console.error(`❌ Sync failed for ${operation.type} ${operation.data.id}:`, opError);
-                
                 operation.status = 'failed';
                 operation.lastError = opError.message;
                 results.failed.push({
@@ -1447,47 +1426,33 @@ async function syncExcelWithSupabase() {
                     packageId: operation.data.id
                 });
 
-                // If it's a network error, stop the entire sync
-                if (opError.message?.includes('network') || 
-                    opError.message?.includes('fetch') || 
-                    opError.message?.includes('Internet')) {
+                if (opError.message?.includes('network') || opError.message?.includes('fetch') || opError.message?.includes('Internet')) {
                     console.log('🌐 Network error detected, stopping sync');
                     break;
                 }
             }
         }
 
-        // Step 4: ATOMIC QUEUE UPDATE - Only remove successful operations
-        const updatedQueue = excelSyncQueue.filter(op => 
-            op.status !== 'success' && 
-            !results.successful.includes(op.fingerprint)
-        );
+        // Step 4: Remove successful operations from queue
+        excelSyncQueue = excelSyncQueue.filter(op => op.status !== 'success');
+        localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+        console.log('💾 Queue updated, remaining operations:', excelSyncQueue.length);
 
-        // Step 5: VERIFY CHANGES BEFORE COMMITTING
-        if (updatedQueue.length === excelSyncQueue.length - results.successful.length) {
-            // Atomic update - all or nothing
-            excelSyncQueue = updatedQueue;
-            localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
-            console.log('💾 Queue updated atomically');
-        } else {
-            throw new Error('Queue integrity check failed during sync');
-        }
+        // Step 5: Report results
+        await reportSyncResults(results, operationsToSync.length);
 
-        // Step 6: Report results
-        await reportSyncResults(results, workspaceOperations.length);
-        
         return results.failed.length === 0;
 
     } catch (error) {
         console.error('💥 CRITICAL: Atomic sync process failed:', error);
-        
-        // CRITICAL: Restore from backup if catastrophic failure
+
+        // Restore backup if needed
         await restoreSyncBackup();
-        
         showAlert('❌ Senkronizasyon sürecinde kritik hata oluştu. Veriler korundu.', 'error');
         return false;
     }
 }
+
 
 
 
