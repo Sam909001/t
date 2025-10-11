@@ -1505,24 +1505,31 @@ async function restoreSyncBackup() {
     }
 }
 
-// Enhanced addToSyncQueue with backup
 function addToSyncQueue(operationType, data) {
+    if (!data || !data.id) {
+        console.error('❌ addToSyncQueue: Invalid data object, missing id:', data);
+        return;
+    }
+
+    // Ensure queue exists
+    window.excelSyncQueue = window.excelSyncQueue || [];
+
     // Create operation fingerprint for deduplication
     const operationFingerprint = `${operationType}-${data.id}`;
-    
+
     // Check for duplicates
-    const isDuplicate = excelSyncQueue.some(op => 
+    const isDuplicate = window.excelSyncQueue.some(op =>
         op.fingerprint === operationFingerprint && op.status !== 'failed'
     );
-    
+
     if (isDuplicate) {
         console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
         return;
     }
 
-    // Remove any older operations for the same data ID
-    excelSyncQueue = excelSyncQueue.filter(op => 
-        !(op.data.id === data.id && op.type !== operationType)
+    // Remove any older operations for the same data ID but different type
+    window.excelSyncQueue = window.excelSyncQueue.filter(op =>
+        !(op.data?.id === data.id && op.type !== operationType)
     );
 
     // Create enhanced operation object
@@ -1539,23 +1546,25 @@ function addToSyncQueue(operationType, data) {
         lastError: null
     };
 
-    // Create backup before modifying queue
-    localStorage.setItem('excelSyncQueue_backup', JSON.stringify(excelSyncQueue));
-    
+    // Backup queue
+    localStorage.setItem('excelSyncQueue_backup', JSON.stringify(window.excelSyncQueue));
+
     // Add new operation
-    excelSyncQueue.push(enhancedOperation);
-    
-    // Limit queue size to prevent memory issues
-    if (excelSyncQueue.length > 1000) {
+    window.excelSyncQueue.push(enhancedOperation);
+
+    // Limit queue size to last 500
+    if (window.excelSyncQueue.length > 1000) {
         console.warn('📦 Sync queue too large, removing oldest failed operations');
-        excelSyncQueue = excelSyncQueue
+        window.excelSyncQueue = window.excelSyncQueue
             .filter(op => op.status !== 'failed')
-            .slice(-500); // Keep last 500 non-failed operations
+            .slice(-500);
     }
 
-    localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
+    // Persist
+    localStorage.setItem('excelSyncQueue', JSON.stringify(window.excelSyncQueue));
     console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
 }
+
 
 
 
