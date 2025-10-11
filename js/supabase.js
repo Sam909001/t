@@ -1246,7 +1246,6 @@ async function saveToExcel(packageData) {
     try {
         if (!packageData) throw new Error('saveToExcel: packageData undefined');
 
-        window.excelSyncQueue = window.excelSyncQueue || [];
 
         const enhancedPackageData = {
             ...packageData,
