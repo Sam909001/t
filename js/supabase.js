@@ -4218,6 +4218,7 @@ async function sendToRamp(containerNo = null) {
             return;
         }
 
+        const workspaceId = getCurrentWorkspaceId();
         let containerId;
         
         if (containerNo && currentContainer) {
@@ -4236,14 +4237,18 @@ async function sendToRamp(containerNo = null) {
             const timestamp = new Date().getTime();
             containerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
+            // Calculate totals
+            const totalQuantity = await calculateTotalQuantity(selectedPackages.map(p => p.id));
+            
             const { data: newContainer, error } = await supabase
                 .from('containers')
                 .insert([{
                     container_no: containerNo,
                     customer: selectedCustomer?.name || selectedPackages[0]?.customer_name || '',
                     package_count: selectedPackages.length,
-                    total_quantity: selectedPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0),
+                    total_quantity: totalQuantity,
                     status: 'beklemede',
+                    workspace_id: workspaceId,
                     created_at: new Date().toISOString()
                 }])
                 .select();
@@ -4262,32 +4267,73 @@ async function sendToRamp(containerNo = null) {
             saveAppState();
         }
 
-        // Update packages to shipped status
-        await updatePackageStatusToShippedDirect(selectedPackages, containerNo);
-
-        showAlert(`${selectedPackages.length} paket konteynere eklendi ve sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        // ✅ FIXED: Update packages to shipped status IMMEDIATELY
+        console.log('📦 Updating packages to shipped status...');
         
-        // Refresh tables
-        await populatePackagesTable();
-        await populateShippingTable();
+        for (const pkg of selectedPackages) {
+            try {
+                // Track as shipped FIRST (before any updates)
+                shippedPackageIds.add(pkg.id);
+                if (pkg.package_no) shippedPackageIds.add(pkg.package_no);
+                
+                // Update in Supabase
+                if (supabase && navigator.onLine) {
+                    const { error } = await supabase
+                        .from('packages')
+                        .update({ 
+                            status: 'sevk-edildi',
+                            container_id: containerId,
+                            shipped_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', pkg.id);
+                    
+                    if (error) {
+                        console.error(`❌ Error updating package ${pkg.package_no}:`, error);
+                    } else {
+                        console.log(`✅ Package shipped: ${pkg.package_no}`);
+                    }
+                }
+                
+                // Update in Excel
+                const excelData = await ExcelJS.readFile();
+                const updatedExcel = excelData.map(p => {
+                    if (p.id === pkg.id || p.package_no === pkg.package_no) {
+                        return {
+                            ...p,
+                            status: 'sevk-edildi',
+                            container_id: containerId,
+                            shipped_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        };
+                    }
+                    return p;
+                });
+                await ExcelJS.writeFile(updatedExcel);
+                
+            } catch (pkgError) {
+                console.error(`Failed to ship package ${pkg.package_no}:`, pkgError);
+            }
+        }
+
+        showAlert(`✅ ${selectedPackages.length} paket konteynere eklendi ve sevk edildi! (Konteyner: ${containerNo})`, 'success');
+        
+        // Refresh all tables
+        await populatePackagesTable(); // Remove from pending
+        await populateShippingTable(); // Show in shipping
         
     } catch (error) {
         console.error('Error sending to ramp:', error);
-        console.error('Error details:', {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint
-        });
         showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
     }
 }
+
+
 async function updatePackageStatusToShippedDirect(packages, containerNo) {
     try {
         console.log(`🚢 Shipping ${packages.length} packages to container: ${containerNo}`);
-        console.log('Package data:', packages);
         
-        // Get the actual container ID from container_no
+        // Get container ID
         let containerId = null;
         if (supabase && navigator.onLine) {
             const { data: container } = await supabase
@@ -4298,38 +4344,38 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
             
             if (container) {
                 containerId = container.id;
-                console.log('Container ID found:', containerId);
             }
         }
         
-        // Update packages ONE BY ONE (to handle custom IDs properly)
+        // Update each package
         for (const pkg of packages) {
             try {
-                // Use package_no to identify the package (more reliable than custom ID)
-                const { error } = await supabase
-                    .from('packages')
-                    .update({ 
-                        status: 'sevk-edildi',
-                        container_id: containerId,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('package_no', pkg.package_no);  // Use package_no instead of id
+                // Track as shipped FIRST
+                if (pkg.id) shippedPackageIds.add(pkg.id);
+                if (pkg.package_no) shippedPackageIds.add(pkg.package_no);
                 
-                if (error) {
-                    console.error(`Error updating package ${pkg.package_no}:`, error);
-                } else {
-                    console.log(`✅ Updated package: ${pkg.package_no}`);
+                // Update in Supabase
+                if (supabase && navigator.onLine) {
+                    const { error } = await supabase
+                        .from('packages')
+                        .update({ 
+                            status: 'sevk-edildi',
+                            container_id: containerId,
+                            shipped_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('package_no', pkg.package_no);
                     
-                    // Track as shipped using package_no or id
-                    if (pkg.id) shippedPackageIds.add(pkg.id);
-                    if (pkg.package_no) shippedPackageIds.add(pkg.package_no);
+                    if (!error) {
+                        console.log(`✅ Updated package: ${pkg.package_no}`);
+                    }
                 }
             } catch (pkgError) {
                 console.error(`Failed to update package ${pkg.package_no}:`, pkgError);
             }
         }
         
-        // Update local packages array - remove from pending
+        // Update local packages array - REMOVE from pending
         if (window.packages) {
             const packageNos = packages.map(p => p.package_no);
             window.packages = window.packages.filter(pkg => 
@@ -4337,26 +4383,25 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
             );
         }
         
-        // Update Excel storage
-        try {
-            const excelData = await ExcelJS.readFile();
-            const packageNos = packages.map(p => p.package_no);
+        // Update Excel
+        const excelData = await ExcelJS.readFile();
+        const updatedExcel = excelData.map(pkg => {
+            const shouldUpdate = packages.some(p => 
+                p.package_no === pkg.package_no || p.id === pkg.id
+            );
             
-            const updatedExcel = excelData.map(pkg => {
-                if (packageNos.includes(pkg.package_no)) {
-                    return {
-                        ...pkg,
-                        status: 'sevk-edildi',
-                        container_id: containerId,
-                        updated_at: new Date().toISOString()
-                    };
-                }
-                return pkg;
-            });
-            await ExcelJS.writeFile(updatedExcel);
-        } catch (excelError) {
-            console.warn('Excel update failed:', excelError);
-        }
+            if (shouldUpdate) {
+                return {
+                    ...pkg,
+                    status: 'sevk-edildi',
+                    container_id: containerId,
+                    shipped_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        await ExcelJS.writeFile(updatedExcel);
         
         console.log(`✅ ${packages.length} packages marked as shipped`);
         
@@ -4365,6 +4410,7 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
         throw error;
     }
 }
+
 
 // Update package status when sent to shipping
 async function updatePackageStatusToShipped(packageIds, containerNo) {
