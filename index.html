@@ -415,35 +415,41 @@ document.addEventListener("DOMContentLoaded", function() {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔍 DEBUG: DOM loaded');
-    
-    // Wait a bit for everything to load
+
+    // Wait a bit to make sure everything is rendered
     setTimeout(() => {
+        // --- Button check ---
         const btn = document.getElementById('printBarcodeBtn');
         console.log('🔍 DEBUG: Button found?', btn);
-        console.log('🔍 DEBUG: Button listeners:', getEventListeners ? getEventListeners(btn) : 'Cannot check listeners');
-        
-        // Add a direct click listener to test
+
+        // Safely attempt to log event listeners (only if getEventListeners exists)
+        console.log('🔍 DEBUG: Button listeners:',
+            typeof getEventListeners !== 'undefined' ? getEventListeners(btn) : 'Cannot check listeners in page script');
+
+        // Add a temporary click listener to test button functionality
         if (btn) {
             btn.addEventListener('click', function() {
                 console.log('🔍 DEBUG: BUTTON CLICKED!');
             });
         }
-        
-        // Check if printer.js functions exist
+
+        // --- Function/object existence check ---
         console.log('🔍 DEBUG: printSelectedPackages exists?', typeof window.printSelectedPackages);
         console.log('🔍 DEBUG: printerService exists?', typeof window.printerService);
         console.log('🔍 DEBUG: electronAPI exists?', typeof window.electronAPI);
-        
-        // Check table
+
+        // --- Table check ---
         const tbody = document.getElementById('packagesTableBody');
         console.log('🔍 DEBUG: Table body found?', tbody);
+
         if (tbody) {
             const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
             console.log('🔍 DEBUG: Checkboxes found:', checkboxes.length);
         }
-    }, 1000);
+    }, 1000); // 1-second delay
 });
 </script>
+
                             
             <div class="tab-pane" id="shippingTab">
                 <div class="packaging-header">
