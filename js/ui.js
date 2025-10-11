@@ -3,7 +3,7 @@ if (!window.elements) window.elements = {};
 if (!window._elementsInitialized) {
     document.addEventListener('DOMContentLoaded', function() {
         // initializeElementsObject returns a map and sets elements[...] entries
-        try {
+        try {F
             // Call the existing helper if available
             if (typeof initializeElementsObject === 'function') {
                 window.elements = initializeElementsObject();
@@ -1901,55 +1901,34 @@ function fixElectronInputs() {
         // Remove any problematic attributes
         input.removeAttribute('readonly');
         
-       // Fix input focus issues in Electron safely
-function fixElectronInputs() {
-    if (!isElectronEnvironment()) {
-        console.log('Not Electron - skipping input fixes');
-        return;
-    }
-
-    console.log('🔧 Applying Electron input fixes...');
-
-    const allInputs = document.querySelectorAll('input, textarea, select');
-
-    allInputs.forEach(input => {
-        // Remove problematic readonly attributes
-        input.removeAttribute('readonly');
-
-        // Focus handler
+        // Ensure proper focus behavior
         input.addEventListener('focus', function() {
             this.style.userSelect = 'text';
             this.style.webkitUserSelect = 'text';
             this.readOnly = false;
-
-            // Only for text inputs or textareas that are visible
-            if ((this.type === 'text' || this.tagName === 'TEXTAREA') && this.offsetParent !== null) {
-                try {
-                    setTimeout(() => {
-                        // Safely set cursor at the end
-                        this.setSelectionRange(this.value.length, this.value.length);
-                    }, 50); // Slight delay for Electron render
-                } catch (e) {
-                    console.warn('Electron input selection failed:', e);
-                }
+            
+            // Force cursor position for text inputs
+            if (this.type === 'text' || this.type === 'number' || this.tagName === 'TEXTAREA') {
+                setTimeout(() => {
+                    this.setSelectionRange(this.value.length, this.value.length);
+                }, 10);
             }
         });
-
-        // Click handler - ensures focus
+        
+        // Fix click events
         input.addEventListener('click', function(e) {
             e.stopPropagation();
-            if (document.activeElement !== this) this.focus();
+            this.focus();
         });
-
-        // Keyboard handler - prevent propagation
+        
+        // Fix keyboard events
         input.addEventListener('keydown', function(e) {
             e.stopPropagation();
         });
     });
-
+    
     console.log(`✅ Fixed ${allInputs.length} input elements for Electron`);
 }
-
 
 // Fix modal inputs specifically
 function fixModalInputs(modalId) {
