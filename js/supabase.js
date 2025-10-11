@@ -5002,3 +5002,46 @@ async function initializeApp() {
 
 // Start the application
 initializeApp();
+
+
+// ==================== MISSING FUNCTION STUBS ====================
+
+function getCurrentWorkspaceName() {
+    return window.workspaceManager?.currentWorkspace?.name || 'Default Workspace';
+}
+
+async function populateReportsTable() {
+    console.log('Reports table population not yet implemented');
+    // Implementation needed
+}
+
+function validateWorkspaceAccess(data) {
+    const currentWorkspace = getCurrentWorkspaceId();
+    return data.workspace_id === currentWorkspace;
+}
+
+function selectPackage(pkg) {
+    console.log('Package selected:', pkg.package_no);
+    // Implementation needed
+}
+
+function updatePackageSelection() {
+    console.log('Package selection updated');
+    // Implementation needed
+}
+
+function closeContainerDetailModal() {
+    const modal = document.getElementById('containerDetailModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function createNewContainer() {
+    console.log('Create new container function called');
+    // Implementation needed
+}
+
+function toggleSelectAllCustomer(checkbox) {
+    console.log('Toggle select all customer:', checkbox.checked);
+    // Implementation needed
+}
+
