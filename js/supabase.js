@@ -122,7 +122,7 @@ async function loadPackagesDataStrict() {
                     .from('packages')
                     .select(`*, customers (name, code)`)
                     .is('container_id', null)
-                    .eq('status', 'beklemede')
+                    .eq('status', 'beklemede')  // Only truly pending packages
                     .eq('workspace_id', workspaceId)
                     .order('created_at', { ascending: false });
                 
@@ -139,6 +139,20 @@ async function loadPackagesDataStrict() {
                     const excelData = ExcelJS.toExcelFormat(mergedPackages);
                     await ExcelJS.writeFile(excelData);
                 }
+                
+                // Load shipped packages for shipping tab (INSIDE the try block)
+                const { data: shippedPackages } = await supabase
+                    .from('packages')
+                    .select(`*, customers (name, code)`)
+                    .eq('status', 'sevk-edildi')
+                    .eq('workspace_id', workspaceId)
+                    .order('created_at', { ascending: false });
+
+                if (shippedPackages) {
+                    console.log(`✅ Loaded shipped packages:`, shippedPackages.length);
+                    window.shippedPackages = shippedPackages;
+                }
+                
             } catch (supabaseError) {
                 console.warn('Supabase load failed, using Excel data:', supabaseError);
             }
@@ -2384,72 +2398,70 @@ function debouncedPopulateShippingTable() {
 
 
 
- // Konteyner detaylarını görüntüle
-        async function viewContainerDetails(containerId) {
-            try {
-                const { data: container, error } = await supabase
-                    .from('containers')
-                    .select(`
-                        *,
-                        packages (
-                            *,
-                            customers (name, code)
-                        )
-                    `)
-                    .eq('id', containerId)
-                    .single();
+async function viewContainerDetails(containerId) {
+    try {
+        const { data: container, error } = await supabase
+            .from('containers')
+            .select(`
+                *,
+                packages (
+                    *,
+                    customers (name, code)
+                )
+            `)
+            .eq('id', containerId)
+            .single();
 
-                if (error) throw error;
-                
-                currentContainerDetails = container;
-                
-                const modalTitle = document.getElementById('containerDetailTitle');
-                const modalContent = document.getElementById('containerDetailContent');
-                
-                modalTitle.textContent = `Konteyner: ${container.container_no}`;
-                
-                let contentHTML = `
-                    <p><strong>Durum:</strong> <span class="container-status status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></p>
-                    <p><strong>Oluşturulma Tarihi:</strong> ${new Date(container.created_at).toLocaleDateString('tr-TR')}</p>
-                    <p><strong>Paket Sayısı:</strong> ${container.package_count || 0}</p>
-                    <p><strong>Toplam Adet:</strong> ${container.total_quantity || 0}</p>
-                `;
-                
-                if (container.packages && container.packages.length > 0) {
-                    contentHTML += `
-                        <h4>Paketler</h4>
-                        <table class="package-table">
-                            <thead>
-                                <tr>
-                                    <th>Paket No</th>
-                                    <th>Müşteri</th>
-                                    <th>Adet</th>
-                                    <th>Durum</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${container.packages.map(pkg => `
-                                    <tr>
-                                        <td>${pkg.package_no}</td>
-                                        <td>${pkg.customers?.name || 'N/A'}</td>
-                                        <td>${pkg.total_quantity}</td>
-                                        <td><span class="status-${pkg.status}">${pkg.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                }
-                
-                modalContent.innerHTML = contentHTML;
-                document.getElementById('containerDetailModal').style.display = 'flex';
-                
-            } catch (error) {
-                console.error('Error loading container details:', error);
-                showAlert('Konteyner detayları yüklenirken hata oluştu', 'error');
-            }
+        if (error) throw error;
+        
+        currentContainerDetails = container;
+        
+        const modalTitle = document.getElementById('containerDetailTitle');
+        const modalContent = document.getElementById('containerDetailContent');
+        
+        modalTitle.textContent = `Konteyner: ${container.container_no}`;
+        
+        let contentHTML = `
+            <p><strong>Durum:</strong> <span class="container-status status-${container.status}">${container.status === 'beklemede' ? 'Beklemede' : 'Sevk Edildi'}</span></p>
+            <p><strong>Oluşturulma Tarihi:</strong> ${new Date(container.created_at).toLocaleDateString('tr-TR')}</p>
+            <p><strong>Paket Sayısı:</strong> ${container.packages?.length || 0}</p>
+            <p><strong>Toplam Adet:</strong> ${container.packages?.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0) || 0}</p>
+        `;
+        
+        if (container.packages && container.packages.length > 0) {
+            contentHTML += `
+                <h4>Paketler (Otomatik Sevk Edildi)</h4>
+                <table class="package-table">
+                    <thead>
+                        <tr>
+                            <th>Paket No</th>
+                            <th>Müşteri</th>
+                            <th>Adet</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${container.packages.map(pkg => `
+                            <tr>
+                                <td>${pkg.package_no}</td>
+                                <td>${pkg.customers?.name || pkg.customer_name || 'N/A'}</td>
+                                <td>${pkg.total_quantity}</td>
+                                <td><span class="status-sevk-edildi">Sevk Edildi</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
         }
-
+        
+        modalContent.innerHTML = contentHTML;
+        document.getElementById('containerDetailModal').style.display = 'flex';
+        
+    } catch (error) {
+        console.error('Error loading container details:', error);
+        showAlert('Konteyner detayları yüklenirken hata oluştu', 'error');
+    }
+}
 
 
 
@@ -2493,6 +2505,9 @@ function debouncedPopulateShippingTable() {
                 }
             });
         }
+
+
+
 
 
 
@@ -3897,7 +3912,7 @@ async function completePackage() {
                 `${name}: ${qty} adet`
             ).join(', '),
             total_quantity: totalQuantity,
-            status: 'beklemede',
+             status: 'sevk-edildi',
             packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -4154,10 +4169,11 @@ async function sendToRamp(containerNo = null) {
                 const packageDataStr = cb.getAttribute('data-package');
                 if (packageDataStr) {
                     const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
-                    return packageData.id;
+                    return packageData;
                 }
-                return cb.value;
-            });
+                return null;
+            })
+            .filter(pkg => pkg !== null);
         
         if (selectedPackages.length === 0) {
             showAlert('Sevk etmek için paket seçin', 'error');
@@ -4176,9 +4192,9 @@ async function sendToRamp(containerNo = null) {
                 .from('containers')
                 .insert([{
                     container_no: containerNo,
-                    customer: selectedCustomer?.name || '',
+                    customer: selectedCustomer?.name || selectedPackages[0]?.customer_name || '',
                     package_count: selectedPackages.length,
-                    total_quantity: await calculateTotalQuantity(selectedPackages),
+                    total_quantity: selectedPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0),
                     status: 'beklemede',
                     created_at: new Date().toISOString()
                 }])
@@ -4194,22 +4210,213 @@ async function sendToRamp(containerNo = null) {
             saveAppState();
         }
 
-        // ✅ FIX: Update package status to "shipped"
-        await updatePackageStatusToShipped(selectedPackages, containerNo);
+        // ✅ DOĞRUDAN "sevk-edildi" DURUMUNA GÜNCELLE
+        await updatePackageStatusToShippedDirect(selectedPackages, containerNo);
 
-        showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
+        showAlert(`${selectedPackages.length} paket konteynere eklendi ve sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
         
-        // ✅ FIX: Refresh both tables
+        // ✅ TABLOLARI GÜNCELLE
         await populatePackagesTable();
         await populateShippingTable();
         
     } catch (error) {
         console.error('Error sending to ramp:', error);
-        showAlert('Paketler sevk edilirken hata oluştu: ' + error.message, 'error');
+        showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
     }
 }
 
 
+
+
+// Eksik fonksiyonu ekleyin - bu sendToRamp içinde çağrılıyor
+async function updatePackageStatusToShippedDirect(packages, containerNo) {
+    console.log(`🚀 DIRECT SHIPPING: ${packages.length} packages → container: ${containerNo}`);
+    
+    const packageIds = packages.map(pkg => pkg.id);
+    
+    try {
+        // 1. EXCEL VERİLERİNİ KESİN OLARAK GÜNCELLE
+        const excelData = await ExcelJS.readFile();
+        let excelUpdated = 0;
+        
+        const updatedExcelData = excelData.map(pkg => {
+            if (packageIds.includes(pkg.id)) {
+                excelUpdated++;
+                console.log(`📦 Updating package in Excel: ${pkg.package_no} → sevk-edildi`);
+                return {
+                    ...pkg,
+                    status: 'sevk-edildi', // ✅ KESİNLİKLE "sevk-edildi"
+                    container_id: containerNo, // ✅ KESİNLİKLE container_id ata
+                    updated_at: new Date().toISOString(),
+                    shipped_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        
+        // Excel verilerini KESİN olarak kaydet
+        await ExcelJS.writeFile(updatedExcelData);
+        excelPackages = updatedExcelData; // Global değişkeni de güncelle
+        
+        console.log(`✅ EXCEL: Updated ${excelUpdated} packages to 'sevk-edildi'`);
+
+        // 2. SUPABASE'DE KESİN OLARAK GÜNCELLE
+        if (supabase && navigator.onLine) {
+            try {
+                console.log(`🔄 SUPABASE: Updating ${packageIds.length} packages to 'sevk-edildi'`);
+                
+                const { data, error } = await supabase
+                    .from('packages')
+                    .update({
+                        status: 'sevk-edildi', // ✅ KESİNLİKLE "sevk-edildi"
+                        container_id: containerNo, // ✅ KESİNLİKLE container_id ata
+                        updated_at: new Date().toISOString(),
+                        shipped_at: new Date().toISOString()
+                    })
+                    .in('id', packageIds)
+                    .select(); // Sonucu görmek için select ekle
+
+                if (error) {
+                    console.error('❌ SUPABASE UPDATE ERROR:', error);
+                    // Hata durumunda sync kuyruğuna ekle
+                    packages.forEach(pkg => {
+                        addToSyncQueue('update', {
+                            ...pkg,
+                            status: 'sevk-edildi',
+                            container_id: containerNo
+                        });
+                    });
+                } else {
+                    console.log(`✅ SUPABASE: Successfully updated ${data?.length || 0} packages to 'sevk-edildi'`, data);
+                }
+            } catch (supabaseError) {
+                console.error('❌ SUPABASE UPDATE FAILED:', supabaseError);
+            }
+        }
+
+        // 3. LOCALSTORAGE'DA KESİN OLARAK GÜNCELLE
+        try {
+            const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
+            let localUpdated = 0;
+            
+            const updatedLocalPackages = localPackages.map(pkg => {
+                if (packageIds.includes(pkg.id)) {
+                    localUpdated++;
+                    return {
+                        ...pkg,
+                        status: 'sevk-edildi', // ✅ KESİNLİKLE "sevk-edildi"
+                        container_id: containerNo, // ✅ KESİNLİKLE container_id ata
+                        updated_at: new Date().toISOString()
+                    };
+                }
+                return pkg;
+            });
+            localStorage.setItem('packages', JSON.stringify(updatedLocalPackages));
+            console.log(`✅ LOCALSTORAGE: Updated ${localUpdated} packages to 'sevk-edildi'`);
+        } catch (localError) {
+            console.error('LocalStorage update error:', localError);
+        }
+
+        console.log(`🎯 SUCCESS: All ${packageIds.length} packages shipped to container ${containerNo}`);
+
+        // 4. HEMEN TABLOLARI GÜNCELLE
+        setTimeout(async () => {
+            await populatePackagesTable();
+            await populateShippingTable();
+        }, 500);
+
+    } catch (error) {
+        console.error('❌ CRITICAL ERROR in updatePackagesToShipped:', error);
+        throw error;
+    }
+}
+
+
+// Paketleri doğrudan "sevk-edildi" durumuna güncelle
+async function updatePackagesToShipped(packages, containerNo) {
+    console.log(`🚀 Directly shipping ${packages.length} packages to container: ${containerNo}`);
+    
+    const packageIds = packages.map(pkg => pkg.id);
+    
+    try {
+        // 1. ÖNCE EXCEL VERİLERİNİ GÜNCELLE
+        const excelData = await ExcelJS.readFile();
+        let excelUpdated = 0;
+        
+        const updatedExcelData = excelData.map(pkg => {
+            if (packageIds.includes(pkg.id)) {
+                excelUpdated++;
+                return {
+                    ...pkg,
+                    status: 'sevk-edildi', // DOĞRUDAN SEVK EDİLDİ
+                    container_id: containerNo,
+                    updated_at: new Date().toISOString(),
+                    shipped_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        
+        // Excel verilerini kaydet
+        await ExcelJS.writeFile(updatedExcelData);
+        excelPackages = updatedExcelData;
+        
+        console.log(`✅ Updated ${excelUpdated} packages in Excel to 'sevk-edildi'`);
+
+        // 2. SUPABASE'DE GÜNCELLE (ÇEVRİMİÇİ İSE)
+        if (supabase && navigator.onLine) {
+            try {
+                const { error } = await supabase
+                    .from('packages')
+                    .update({
+                        status: 'sevk-edildi', // DOĞRUDAN SEVK EDİLDİ
+                        container_id: containerNo,
+                        updated_at: new Date().toISOString(),
+                        shipped_at: new Date().toISOString()
+                    })
+                    .in('id', packageIds);
+
+                if (error) {
+                    console.error('❌ Supabase update error:', error);
+                    // Hata durumunda sync kuyruğuna ekle
+                    packages.forEach(pkg => {
+                        addToSyncQueue('update', {
+                            ...pkg,
+                            status: 'sevk-edildi',
+                            container_id: containerNo
+                        });
+                    });
+                } else {
+                    console.log(`✅ Updated ${packageIds.length} packages in Supabase to 'sevk-edildi'`);
+                }
+            } catch (supabaseError) {
+                console.error('❌ Supabase update failed:', supabaseError);
+                // Supabase hatasında Excel verisi zaten güncellendi
+            }
+        }
+
+        // 3. LOCALSTORAGE'DA GÜNCELLE
+        const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
+        const updatedLocalPackages = localPackages.map(pkg => {
+            if (packageIds.includes(pkg.id)) {
+                return {
+                    ...pkg,
+                    status: 'sevk-edildi',
+                    container_id: containerNo,
+                    updated_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        localStorage.setItem('packages', JSON.stringify(updatedLocalPackages));
+
+        console.log(`🎯 Successfully shipped ${packageIds.length} packages to container ${containerNo}`);
+
+    } catch (error) {
+        console.error('❌ Error updating packages to shipped:', error);
+        throw error;
+    }
+}
 
 
 // Update package status when sent to shipping
