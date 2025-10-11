@@ -177,31 +177,36 @@ function mergePackagesStrict(excelPackages, supabasePackages) {
 // Track all created package IDs globally
 const createdPackageIds = new Set();
 
-// Enhanced UUID v4 generator with collision detection
+// SIMPLEST FIX: Use browser's built-in UUID generator
 function generateUniquePackageUUID() {
     let attempts = 0;
     let uuid;
     
     do {
-        // Generate cryptographically secure UUID
-        uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = (crypto.getRandomValues(new Uint8Array(1))[0] % 16) | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
+        // Use modern browser's built-in UUID generator (most reliable)
+        if (crypto && crypto.randomUUID) {
+            uuid = crypto.randomUUID();
+        } else {
+            // Fallback for older browsers
+            uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
         
         attempts++;
         
-        // Prevent infinite loop (extremely unlikely)
         if (attempts > 100) {
-            throw new Error('Failed to generate unique UUID after 100 attempts');
+            // Last resort: timestamp-based UUID
+            uuid = `uuid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            console.warn('⚠️ Using fallback UUID generator');
+            break;
         }
         
     } while (createdPackageIds.has(uuid));
     
-    // Store the generated UUID
     createdPackageIds.add(uuid);
-    
     return uuid;
 }
 
