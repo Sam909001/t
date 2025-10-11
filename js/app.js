@@ -1741,8 +1741,15 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         checkPrinterStatusAndUpdateUI();
     }, 1200);
-});
 
+    // --- NEW: start automatic Supabase sync ---
+    if (typeof setupEnhancedSyncTriggers === 'function') {
+        setupEnhancedSyncTriggers();
+        console.log('✅ Enhanced Supabase sync triggers are active');
+    } else {
+        console.warn('⚠️ setupEnhancedSyncTriggers() not found');
+    }
+});
 
 
 
