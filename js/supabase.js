@@ -1103,15 +1103,15 @@ const ProfessionalExcelExport = {
             
             // Set column widths for packages sheet
             const packageColWidths = [
-                { wch: 60 }, // PAKET NO
+                { wch: 40 }, // PAKET NO
                 { wch: 40 }, // MÜŞTERİ
                 { wch: 35 }, // ÜRÜNLER
                 { wch: 10 }, // TOPLAM ADET
-                { wch: 40 }, // DURUM
-                { wch: 40 }, // PAKETLEYEN
+                { wch: 35 }, // DURUM
+                { wch: 25 }, // PAKETLEYEN
                 { wch: 40 }, // OLUŞTURULMA TARİHİ
                 { wch: 40 }, // GÜNCELLENME TARİHİ
-                { wch: 5 }  // İSTASYON
+                { wch: 10 }  // İSTASYON
             ];
             wsPackages['!cols'] = packageColWidths;
             
@@ -1213,161 +1213,6 @@ const ProfessionalExcelExport = {
         // For advanced styling, consider using SheetJS Pro or xlsx-style library
     },
 
-    // Enhanced CSV export with customer totals
-    exportToProfessionalCSV: function(packages, filename = null) {
-        try {
-            if (!packages || packages.length === 0) {
-                showAlert('CSV için paket verisi bulunamadı', 'warning');
-                return false;
-            }
-
-            // For CSV, we'll create a ZIP file with multiple CSVs
-            this.exportMultipleCSVs(packages, filename);
-            
-            return true;
-
-        } catch (error) {
-            console.error('Professional CSV export error:', error);
-            showAlert('CSV dışa aktarım hatası: ' + error.message, 'error');
-            return false;
-        }
-    },
-
-    // Export multiple CSV files in a ZIP
-    exportMultipleCSVs: function(packages, baseFilename = null) {
-        if (!window.JSZip) {
-            console.warn('JSZip not available, exporting single CSV');
-            this.exportSingleCSV(packages, baseFilename);
-            return;
-        }
-
-        try {
-            const zip = new JSZip();
-            const date = new Date().toISOString().split('T')[0];
-            
-            if (!baseFilename) {
-                baseFilename = `ProClean_Rapor_${date}_${getCurrentWorkspaceName()}`;
-            }
-
-            // CSV 1: All Packages
-            const packagesData = this.convertToProfessionalExcel(packages);
-            const packagesCSV = this.convertToCSV(packagesData);
-            zip.file(`${baseFilename}_Tum_Paketler.csv`, '\uFEFF' + packagesCSV);
-            
-            // CSV 2: Customer Totals
-            const customerTotals = this.calculateCustomerItemTotals(packages);
-            const customerTotalsData = this.convertCustomerTotalsToExcel(customerTotals);
-            const customerCSV = this.convertToCSV(customerTotalsData);
-            zip.file(`${baseFilename}_Musteri_Toplamlari.csv`, '\uFEFF' + customerCSV);
-            
-            // CSV 3: Summary
-            const summaryData = this.createSummarySheet(customerTotals, packages);
-            const summaryCSV = this.convertToCSV(summaryData);
-            zip.file(`${baseFilename}_Ozet_Istatistikler.csv`, '\uFEFF' + summaryCSV);
-            
-            // Generate and download ZIP
-            zip.generateAsync({type: 'blob'}).then(function(content) {
-                const url = URL.createObjectURL(content);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `${baseFilename}.zip`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-                
-                showAlert(`✅ 3 CSV dosyası ZIP olarak indirildi:\n• Tüm Paketler\n• Müşteri Toplamları\n• Özet İstatistikler`, 'success');
-            });
-            
-        } catch (error) {
-            console.error('ZIP export error:', error);
-            this.exportSingleCSV(packages, baseFilename);
-        }
-    },
-
-    // Fallback single CSV export
-    exportSingleCSV: function(packages, filename = null) {
-        const excelData = this.convertToProfessionalExcel(packages);
-        
-        if (!filename) {
-            const date = new Date().toISOString().split('T')[0];
-            filename = `ProClean_Paketler_${date}_${getCurrentWorkspaceName()}.csv`;
-        }
-
-        const csvContent = this.convertToCSV(excelData);
-        const blob = new Blob(['\uFEFF' + csvContent], { 
-            type: 'text/csv;charset=utf-8;' 
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        showAlert(`✅ ${packages.length} paket CSV formatında dışa aktarıldı`, 'success');
-    },
-
-    // Convert data to CSV format
-    convertToCSV: function(data) {
-        if (!data || data.length === 0) {
-            return '';
-        }
-        
-        const headers = Object.keys(data[0]);
-        
-        const csvContent = [
-            headers.join(','), // Header row
-            ...data.map(row => 
-                headers.map(header => {
-                    const value = row[header];
-                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
-                        return `"${value.replace(/"/g, '""')}"`;
-                    }
-                    return value;
-                }).join(',')
-            )
-        ].join('\n');
-        
-        return csvContent;
-    }
-};
-
-// Add JSZip library check and fallback
-if (typeof JSZip === 'undefined') {
-    console.warn('JSZip library not found - multiple CSV export will use fallback');
-    // You can load JSZip from CDN if needed:
-    // <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-}
-
-// Update the ExcelStorage export function to use enhanced export
-ExcelStorage.exportDailyFile = function(dateString) {
-    try {
-        const fileName = `packages_${dateString}.json`;
-        const fileData = localStorage.getItem(fileName);
-        
-        if (!fileData) {
-            showAlert(`${dateString} tarihli dosya bulunamadı`, 'error');
-            return;
-        }
-        
-        const packages = JSON.parse(fileData);
-        
-        if (packages.length === 0) {
-            showAlert('İndirilecek paket bulunamadı', 'warning');
-            return;
-        }
-        
-        // Use enhanced professional export
-        ProfessionalExcelExport.exportToProfessionalExcel(packages, `ProClean_Paketler_${dateString}.xlsx`);
-        
-    } catch (error) {
-        console.error('Export error:', error);
-        showAlert('Dosya dışa aktarılırken hata oluştu', 'error');
-    }
-};
 
 // INITIALIZE SUPABASE - uses direct key (from localStorage or hardcoded above)
 // Singleton pattern with safe fallback to Excel mode if no key
@@ -3850,6 +3695,7 @@ console.log('✅ Reports module loaded successfully');
     }
 }
 
+
 async function completePackage() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
@@ -3868,26 +3714,17 @@ async function completePackage() {
     }
 
     try {
-        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-      const workspaceId = window.workspaceManager.currentWorkspace.id;
-
-// Get or initialize counter for this workspace
-let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-packageCounter++;
-localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
-
-const timestamp = Date.now();
-const random = Math.random().toString(36).substr(2, 9);
-
-const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+        const workspaceId = window.workspaceManager.currentWorkspace.id;
+        
+        // Generate unique package ID with duplicate checking
+        const { packageId, packageNo } = await generateUniquePackageWithValidation(workspaceId);
         
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
         const selectedPersonnel = elements.personnelSelect?.value || '';
 
-        // Enhanced package data with workspace info - USE THE SAME ID
+        // Enhanced package data with workspace info
         const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
+            id: packageId,
             package_no: packageNo,
             customer_id: selectedCustomer.id,
             customer_name: selectedCustomer.name,
@@ -3908,10 +3745,10 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
             workspace_id: workspaceId,
             station_name: window.workspaceManager.currentWorkspace.name,
             daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app' // Track source for sync
+            source: 'app'
         };
 
-        console.log('📦 Creating package with ID:', packageId);
+        console.log('📦 Creating package with verified ID:', packageId);
 
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
@@ -3924,18 +3761,18 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
                 if (error) throw error;
 
                 showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData); // SAME packageData with SAME ID
+                await saveToExcel(packageData);
                 
             } catch (supabaseError) {
                 console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+                await saveToExcel(packageData);
+                addToSyncQueue('add', packageData);
                 showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
                 isUsingExcel = true;
             }
         } else {
-            await saveToExcel(packageData); // SAME packageData with SAME ID
-            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
+            await saveToExcel(packageData);
+            addToSyncQueue('add', packageData);
             showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
             isUsingExcel = true;
         }
@@ -3949,6 +3786,219 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
     } catch (error) {
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
+    }
+}
+
+// Enhanced ID generation with duplicate checking
+async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5) {
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+        attempts++;
+        
+        // Get or initialize counter for this workspace
+        let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
+        packageCounter++;
+        localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
+
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+
+        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+        const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+
+        console.log(`🔍 Checking package ID uniqueness (attempt ${attempts}):`, packageId);
+
+        // Check for duplicates in multiple sources
+        const isUnique = await checkPackageIdUnique(packageId, packageNo);
+        
+        if (isUnique) {
+            console.log(`✅ Unique package ID generated: ${packageId}`);
+            return { packageId, packageNo };
+        } else {
+            console.warn(`⚠️ Duplicate detected, regenerating... (attempt ${attempts})`);
+            
+            // Wait a bit before retry to get different timestamp
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+    
+    throw new Error(`Failed to generate unique package ID after ${maxAttempts} attempts`);
+}
+
+// Comprehensive duplicate checking across all data sources
+async function checkPackageIdUnique(packageId, packageNo) {
+    try {
+        // 1. Check in createdPackageIds (memory)
+        if (createdPackageIds.has(packageId)) {
+            console.warn('❌ Duplicate in memory cache:', packageId);
+            return false;
+        }
+
+        // 2. Check in Supabase (if online)
+        if (supabase && navigator.onLine) {
+            try {
+                const { data: supabasePackages, error } = await supabase
+                    .from('packages')
+                    .select('id, package_no')
+                    .or(`id.eq.${packageId},package_no.eq.${packageNo}`)
+                    .limit(1);
+
+                if (error) {
+                    console.warn('Supabase check error (will continue):', error);
+                } else if (supabasePackages && supabasePackages.length > 0) {
+                    console.warn('❌ Duplicate in Supabase:', {
+                        searched: { packageId, packageNo },
+                        found: supabasePackages[0]
+                    });
+                    return false;
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase check failed (will continue):', supabaseError);
+            }
+        }
+
+        // 3. Check in localStorage packages
+        try {
+            const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
+            const localDuplicate = localPackages.find(p => 
+                p.id === packageId || p.package_no === packageNo
+            );
+            
+            if (localDuplicate) {
+                console.warn('❌ Duplicate in localStorage:', localDuplicate);
+                return false;
+            }
+        } catch (localError) {
+            console.warn('LocalStorage check failed (will continue):', localError);
+        }
+
+        // 4. Check in Excel packages
+        try {
+            const excelDuplicate = excelPackages.find(p => 
+                p.id === packageId || p.package_no === packageNo
+            );
+            
+            if (excelDuplicate) {
+                console.warn('❌ Duplicate in Excel packages:', excelDuplicate);
+                return false;
+            }
+        } catch (excelError) {
+            console.warn('Excel packages check failed (will continue):', excelError);
+        }
+
+        // 5. Check in sync queue
+        try {
+            const syncDuplicate = excelSyncQueue.find(op => 
+                op.data.id === packageId || op.data.package_no === packageNo
+            );
+            
+            if (syncDuplicate) {
+                console.warn('❌ Duplicate in sync queue:', syncDuplicate);
+                return false;
+            }
+        } catch (syncError) {
+            console.warn('Sync queue check failed (will continue):', syncError);
+        }
+
+        // All checks passed - ID is unique
+        createdPackageIds.add(packageId);
+        return true;
+
+    } catch (error) {
+        console.error('Error in duplicate checking:', error);
+        // If checking fails, assume it's unique to avoid blocking package creation
+        createdPackageIds.add(packageId);
+        return true;
+    }
+}
+
+// Also update the delete function to clean up IDs
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        // Remove from createdPackageIds
+        packageIds.forEach(id => {
+            if (createdPackageIds.has(id)) {
+                createdPackageIds.delete(id);
+            }
+        });
+
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
+
+        if (error) throw error;
+
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
+    }
+}
+
+// Add this function to clean up old IDs periodically
+function cleanupPackageIds() {
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    
+    // Remove IDs older than 1 hour from memory cache
+    for (let id of createdPackageIds) {
+        if (id.includes('pkg-')) {
+            const timestampMatch = id.match(/pkg-[^-]+-(\d+)-/);
+            if (timestampMatch) {
+                const packageTime = parseInt(timestampMatch[1]);
+                if (packageTime < oneHourAgo) {
+                    createdPackageIds.delete(id);
+                }
+            }
+        }
+    }
+    
+    console.log(`🧹 Cleaned up old package IDs. Current cache size: ${createdPackageIds.size}`);
+}
+
+// Run cleanup every hour
+setInterval(cleanupPackageIds, 60 * 60 * 1000);
+
+
+// Delete selected packages
+async function deleteSelectedPackages() {
+    const checkboxes = document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        showAlert('Silinecek paket seçin', 'error');
+        return;
+    }
+
+    if (!confirm(`${checkboxes.length} paketi silmek istediğinize emin misiniz?`)) return;
+
+    try {
+        const packageIds = Array.from(checkboxes).map(cb => cb.value);
+
+        const { error } = await supabase
+            .from('packages')
+            .delete()
+            .in('id', packageIds);
+
+        if (error) throw error;
+
+        showAlert(`${packageIds.length} paket silindi`, 'success');
+        await populatePackagesTable();
+
+    } catch (error) {
+        console.error('Error in deleteSelectedPackages:', error);
+        showAlert('Paket silme hatası', 'error');
     }
 }
 
