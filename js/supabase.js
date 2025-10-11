@@ -4212,7 +4212,75 @@ async function sendToRamp(containerNo = null) {
 
 
 
-
+// Update package status when sent to shipping
+async function updatePackageStatusToShipped(packageIds, containerNo) {
+    console.log(`🔄 Updating ${packageIds.length} packages to shipped status...`);
+    
+    try {
+        // Update in Excel data
+        const excelData = await ExcelJS.readFile();
+        let updatedCount = 0;
+        
+        const updatedData = excelData.map(pkg => {
+            if (packageIds.includes(pkg.id)) {
+                updatedCount++;
+                return {
+                    ...pkg,
+                    status: 'sevk-edildi',
+                    container_id: containerNo,
+                    updated_at: new Date().toISOString(),
+                    shipped_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        
+        // Save updated Excel data
+        await ExcelJS.writeFile(updatedData);
+        excelPackages = updatedData;
+        
+        console.log(`✅ Updated ${updatedCount} packages to shipped status`);
+        
+        // Update in Supabase if online
+        if (supabase && navigator.onLine) {
+            try {
+                const { error } = await supabase
+                    .from('packages')
+                    .update({
+                        status: 'sevk-edildi',
+                        container_id: containerNo,
+                        updated_at: new Date().toISOString()
+                    })
+                    .in('id', packageIds);
+                
+                if (error) {
+                    console.error('Supabase update error:', error);
+                    // Add to sync queue for retry
+                    packageIds.forEach(pkgId => {
+                        const pkg = excelData.find(p => p.id === pkgId);
+                        if (pkg) {
+                            addToSyncQueue('update', {
+                                ...pkg,
+                                status: 'sevk-edildi',
+                                container_id: containerNo
+                            });
+                        }
+                    });
+                } else {
+                    console.log(`✅ Updated ${packageIds.length} packages in Supabase`);
+                }
+            } catch (supabaseError) {
+                console.error('Supabase update failed:', supabaseError);
+            }
+        }
+        
+        return updatedCount;
+        
+    } catch (error) {
+        console.error('Error updating package status:', error);
+        return 0;
+    }
+}
 
         
       async function shipContainer(containerNo) {
