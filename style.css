@@ -2795,7 +2795,8 @@ body.dark-mode button[onclick*="openPrinterSettings"]:hover {
     font-weight: bold;
 }
 
-.status-shipped {
+.status-shipped,
+.status-sevk-edildi {
     background: #27ae60;
     color: white;
     padding: 4px 12px;
@@ -2805,7 +2806,8 @@ body.dark-mode button[onclick*="openPrinterSettings"]:hover {
     display: inline-block;
 }
 
-.status-pending {
+.status-pending,
+.status-beklemede {
     background: #f39c12;
     color: white;
     padding: 4px 12px;
