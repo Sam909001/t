@@ -2784,3 +2784,317 @@ body.dark-mode button[onclick*="openPrinterSettings"]:hover {
 .user-info {
     gap: 6px !important;  /* ← Less gap between items */
 }
+
+
+
+
+
+
+/* extra buttons css */ 
+
+/* ==================== ENHANCED BUTTON SYSTEM - ALL TABS ==================== */
+
+/* General button improvements */
+.btn {
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    white-space: nowrap !important;
+}
+
+.btn i {
+    font-size: 14px !important;
+}
+
+/* Hover effects for all buttons */
+.btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.btn:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Primary buttons (Blue) */
+.btn-primary {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%) !important;
+    color: white !important;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #21618c 100%) !important;
+}
+
+/* Success buttons (Green) - Sevk Et, Paketle, etc */
+.btn-success {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%) !important;
+    color: white !important;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%) !important;
+}
+
+/* Warning buttons (Orange) - İş Sonu Raporu, etc */
+.btn-warning {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%) !important;
+    color: white !important;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%) !important;
+}
+
+/* Danger buttons (Red) - Sil, Temizle, etc */
+.btn-danger {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+    color: white !important;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%) !important;
+}
+
+/* Secondary buttons (Gray) - İptal, Kapat, etc */
+.btn-secondary {
+    background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%) !important;
+    color: white !important;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #7f8c8d 0%, #6c7a7b 100%) !important;
+}
+
+/* Info buttons (Light Blue) */
+.btn-info {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%) !important;
+    color: white !important;
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #21618c 100%) !important;
+}
+
+/* ==================== SHIPPING TAB BUTTONS ==================== */
+
+/* Action buttons in header */
+.packaging-header .action-buttons .btn {
+    min-width: 140px !important;
+    height: 38px !important;
+}
+
+/* Folder buttons */
+.folder-header button,
+button[onclick*="shipContainer"],
+button[onclick*="viewContainer"] {
+    padding: 6px 14px !important;
+    font-size: 12px !important;
+    border-radius: 5px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Sevk Et button - Green */
+button[onclick*="shipContainer"] {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%) !important;
+    color: white !important;
+}
+
+button[onclick*="shipContainer"]:hover {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(46, 204, 113, 0.3) !important;
+}
+
+/* Detay button - Blue */
+button[onclick*="viewContainer"],
+button[onclick*="showContainer"] {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%) !important;
+    color: white !important;
+}
+
+button[onclick*="viewContainer"]:hover,
+button[onclick*="showContainer"]:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #21618c 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3) !important;
+}
+
+/* ==================== STOCK TAB BUTTONS ==================== */
+
+.stock-search button,
+.stock-actions button {
+    height: 38px !important;
+    padding: 0 16px !important;
+    font-size: 13px !important;
+    min-width: 120px !important;
+}
+
+/* Stock table action buttons */
+.stock-table button {
+    padding: 5px 12px !important;
+    font-size: 12px !important;
+    border-radius: 4px !important;
+    min-width: auto !important;
+}
+
+/* ==================== REPORTS TAB BUTTONS ==================== */
+
+#reportsTab .btn {
+    height: 38px !important;
+    min-width: 140px !important;
+}
+
+/* Report action buttons in table */
+#reportsTableBody button {
+    padding: 5px 12px !important;
+    font-size: 12px !important;
+    border-radius: 4px !important;
+}
+
+/* ==================== MODAL BUTTONS ==================== */
+
+.modal-buttons {
+    display: flex !important;
+    gap: 10px !important;
+    justify-content: flex-end !important;
+    margin-top: 20px !important;
+}
+
+.modal-buttons .btn {
+    min-width: 100px !important;
+}
+
+/* ==================== PACKAGE ACTIONS (Right Column) ==================== */
+
+.package-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    height: 38px !important;
+    margin-bottom: 8px !important;
+}
+
+.package-actions .btn:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* ==================== TABLE ACTION BUTTONS ==================== */
+
+/* Small buttons in tables */
+table button,
+.package-table button,
+.stock-table button {
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    min-width: 60px !important;
+}
+
+/* Yazdır button */
+button[onclick*="print"],
+button[title*="Yazdır"] {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%) !important;
+    color: white !important;
+}
+
+button[onclick*="print"]:hover,
+button[title*="Yazdır"]:hover {
+    background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%) !important;
+}
+
+/* ==================== DISABLED STATE ==================== */
+
+.btn:disabled,
+.btn.disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.btn:disabled:hover,
+.btn.disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* ==================== LOADING STATE ==================== */
+
+.btn.loading {
+    position: relative !important;
+    color: transparent !important;
+}
+
+.btn.loading::after {
+    content: '' !important;
+    position: absolute !important;
+    width: 16px !important;
+    height: 16px !important;
+    top: 50% !important;
+    left: 50% !important;
+    margin-left: -8px !important;
+    margin-top: -8px !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 50% !important;
+    border-top-color: white !important;
+    animation: button-spin 0.6s linear infinite !important;
+}
+
+@keyframes button-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+    .btn {
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+        min-width: auto !important;
+    }
+    
+    .packaging-header .action-buttons {
+        flex-wrap: wrap !important;
+    }
+    
+    .packaging-header .action-buttons .btn {
+        min-width: 100px !important;
+        font-size: 11px !important;
+    }
+    
+    .modal-buttons {
+        flex-direction: column !important;
+    }
+    
+    .modal-buttons .btn {
+        width: 100% !important;
+    }
+}
+
+/* ==================== DARK MODE ==================== */
+
+body.dark-mode .btn-secondary {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
+}
+
+body.dark-mode .btn-secondary:hover {
+    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%) !important;
+}
