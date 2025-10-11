@@ -25,6 +25,26 @@ let excelPackages = [];
 let excelSyncQueue = [];
 let isUsingExcel = false;
 
+
+// Add these missing functions:
+function getStrictWorkspaceFilter(table) {
+    const workspaceId = getCurrentWorkspaceId();
+    return `${table}.workspace_id.eq.${workspaceId}`;
+}
+
+function validateWorkspaceAccessStrict(data) {
+    const currentWorkspace = getCurrentWorkspaceId();
+    return data.workspace_id === currentWorkspace;
+}
+
+function updateStorageIndicator() {
+    const indicator = document.getElementById('storageIndicator');
+    if (indicator) {
+        indicator.textContent = isUsingExcel ? '📁 Excel' : '☁️ Supabase';
+        indicator.title = isUsingExcel ? 'Çevrimdışı Mod - Excel' : 'Çevrimiçi Mod - Supabase';
+    }
+}
+
 // Missing dependency placeholders
 if (typeof XLSX === 'undefined') {
     console.warn('XLSX library not found - using placeholder');
