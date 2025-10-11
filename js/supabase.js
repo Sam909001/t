@@ -3934,6 +3934,10 @@ async function completePackage() {
 
         console.log('📦 Creating package with verified ID:', packageId);
 
+        // Track this as shipped to prevent it loading back to pending
+        shippedPackageIds.add(packageId);
+
+        
         // Save based on connectivity and workspace settings
         if (supabase && navigator.onLine && !isUsingExcel) {
             try {
@@ -4235,7 +4239,56 @@ async function sendToRamp(containerNo = null) {
     }
 }
 
-
+async function updatePackageStatusToShippedDirect(packages, containerNo) {
+    try {
+        const packageIds = packages.map(pkg => pkg.id);
+        
+        console.log(`🚢 Directly shipping ${packageIds.length} packages to container: ${containerNo}`);
+        
+        // Update in Supabase
+        if (supabase && navigator.onLine) {
+            const { error } = await supabase
+                .from('packages')
+                .update({ 
+                    status: 'sevk-edildi',
+                    container_id: containerNo,
+                    updated_at: new Date().toISOString()
+                })
+                .in('id', packageIds);
+            
+            if (error) throw error;
+        }
+        
+        // Track as shipped to prevent loading back to pending
+        packageIds.forEach(id => shippedPackageIds.add(id));
+        
+        // Update local packages array
+        if (window.packages) {
+            window.packages = window.packages.filter(pkg => !packageIds.includes(pkg.id));
+        }
+        
+        // Update Excel storage
+        const excelData = await ExcelJS.readFile();
+        const updatedExcel = excelData.map(pkg => {
+            if (packageIds.includes(pkg.id)) {
+                return {
+                    ...pkg,
+                    status: 'sevk-edildi',
+                    container_id: containerNo,
+                    updated_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        await ExcelJS.writeFile(updatedExcel);
+        
+        console.log(`✅ ${packageIds.length} packages marked as shipped`);
+        
+    } catch (error) {
+        console.error('Error updating package status:', error);
+        throw error;
+    }
+}
 
 
 // Eksik fonksiyonu ekleyin - bu sendToRamp içinde çağrılıyor
