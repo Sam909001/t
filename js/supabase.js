@@ -97,7 +97,7 @@ async function loadPackagesDataStrict() {
         // STRICT workspace filtering with validation
         const workspacePackages = excelPackagesList.filter(pkg => {
             const isValidWorkspace = pkg.workspace_id === workspaceId;
-            const isWaiting = pkg.status === 'beklemede';
+            const isWaiting = pkg.status === 'Sevkedildi';
             const hasNoContainer = !pkg.container_id || pkg.container_id === null;
             
             if (!isValidWorkspace) {
@@ -4211,19 +4211,19 @@ async function sendToRamp(containerNo = null) {
 
 
 // Paketleri doğrudan "sevk-edildi" durumuna güncelle
-async function updatePackageStatusToShippedDirect(packages, containerNo) {
-    console.log(`🔄 Direct shipping ${packages.length} packages...`);
+async function updatePackagesToShipped(packages, containerNo) {
+    console.log(`🚀 Directly shipping ${packages.length} packages to container: ${containerNo}`);
+    
+    const packageIds = packages.map(pkg => pkg.id);
     
     try {
-        const packageIds = packages.map(pkg => pkg.id);
-        
-        // Excel verilerini güncelle
+        // 1. ÖNCE EXCEL VERİLERİNİ GÜNCELLE
         const excelData = await ExcelJS.readFile();
-        let updatedCount = 0;
+        let excelUpdated = 0;
         
-        const updatedData = excelData.map(pkg => {
+        const updatedExcelData = excelData.map(pkg => {
             if (packageIds.includes(pkg.id)) {
-                updatedCount++;
+                excelUpdated++;
                 return {
                     ...pkg,
                     status: 'sevk-edildi', // DOĞRUDAN SEVK EDİLDİ
@@ -4235,13 +4235,13 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
             return pkg;
         });
         
-        // Güncellenmiş Excel verilerini kaydet
-        await ExcelJS.writeFile(updatedData);
-        excelPackages = updatedData;
+        // Excel verilerini kaydet
+        await ExcelJS.writeFile(updatedExcelData);
+        excelPackages = updatedExcelData;
         
-        console.log(`✅ Directly shipped ${updatedCount} packages`);
-        
-        // Supabase'de güncelle (çevrimiçi ise)
+        console.log(`✅ Updated ${excelUpdated} packages in Excel to 'sevk-edildi'`);
+
+        // 2. SUPABASE'DE GÜNCELLE (ÇEVRİMİÇİ İSE)
         if (supabase && navigator.onLine) {
             try {
                 const { error } = await supabase
@@ -4253,10 +4253,10 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
                         shipped_at: new Date().toISOString()
                     })
                     .in('id', packageIds);
-                
+
                 if (error) {
-                    console.error('Supabase direct update error:', error);
-                    // Sync kuyruğuna ekle
+                    console.error('❌ Supabase update error:', error);
+                    // Hata durumunda sync kuyruğuna ekle
                     packages.forEach(pkg => {
                         addToSyncQueue('update', {
                             ...pkg,
@@ -4265,18 +4265,34 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
                         });
                     });
                 } else {
-                    console.log(`✅ Directly shipped ${packageIds.length} packages in Supabase`);
+                    console.log(`✅ Updated ${packageIds.length} packages in Supabase to 'sevk-edildi'`);
                 }
             } catch (supabaseError) {
-                console.error('Supabase direct update failed:', supabaseError);
+                console.error('❌ Supabase update failed:', supabaseError);
+                // Supabase hatasında Excel verisi zaten güncellendi
             }
         }
-        
-        return updatedCount;
-        
+
+        // 3. LOCALSTORAGE'DA GÜNCELLE
+        const localPackages = JSON.parse(localStorage.getItem('packages') || '[]');
+        const updatedLocalPackages = localPackages.map(pkg => {
+            if (packageIds.includes(pkg.id)) {
+                return {
+                    ...pkg,
+                    status: 'sevk-edildi',
+                    container_id: containerNo,
+                    updated_at: new Date().toISOString()
+                };
+            }
+            return pkg;
+        });
+        localStorage.setItem('packages', JSON.stringify(updatedLocalPackages));
+
+        console.log(`🎯 Successfully shipped ${packageIds.length} packages to container ${containerNo}`);
+
     } catch (error) {
-        console.error('Error in direct package shipping:', error);
-        return 0;
+        console.error('❌ Error updating packages to shipped:', error);
+        throw error;
     }
 }
 
