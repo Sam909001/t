@@ -4147,80 +4147,77 @@ async function deleteSelectedPackages() {
 
 
 
-// ENHANCED: sendToRamp with UI refresh - EDITED VERSION
 async function sendToRamp(containerNo = null) {
     try {
         console.log('🚀 Enhanced sendToRamp with UI refresh...');
         
+        // Get selected packages with full data
         const selectedPackages = Array.from(document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked'))
             .map(cb => {
                 const packageDataStr = cb.getAttribute('data-package');
                 if (packageDataStr) {
-                    const packageData = JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
-                    return packageData.id;
+                    return JSON.parse(packageDataStr.replace(/&quot;/g, '"'));
                 }
-                return cb.value;
-            });
+                return null;
+            })
+            .filter(pkg => pkg !== null);
         
         if (selectedPackages.length === 0) {
             showAlert('Sevk etmek için paket seçin', 'error');
             return;
         }
 
-        // Create container
+        const packageIds = selectedPackages.map(pkg => pkg.id);
         const finalContainerNo = containerNo || `CONT-${Date.now().toString().slice(-6)}`;
         console.log(`📦 Using container: ${finalContainerNo}`);
         
+        // ✅ FIXED: Calculate total quantity BEFORE updating packages
+        const totalQuantity = selectedPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
+        console.log(`📊 Total quantity: ${totalQuantity} from ${selectedPackages.length} packages`);
+        
         // Update packages to "sevk edildi"
-        await updatePackageStatusToShipped(selectedPackages, finalContainerNo);
+        await updatePackageStatusToShipped(packageIds, finalContainerNo);
         
         // Create container in database
         if (supabase && navigator.onLine) {
-            const totalQuantity = await calculateTotalQuantity(selectedPackages);
             const { error } = await supabase
                 .from('containers')
                 .insert([{
                     container_no: finalContainerNo,
                     customer: selectedCustomer?.name || 'Multiple Customers',
-                    package_count: selectedPackages.length,
-                    total_quantity: totalQuantity,
-                    status: 'sevk-edildi', // Container status also as shipped
+                    package_count: selectedPackages.length, // ✅ Use actual count
+                    total_quantity: totalQuantity, // ✅ Use calculated quantity
+                    status: 'sevk-edildi',
                     workspace_id: getCurrentWorkspaceId(),
                     created_at: new Date().toISOString()
                 }]);
             
             if (error) {
                 console.error('Container creation error:', error);
+                // Even if container creation fails, packages are still updated
             } else {
-                console.log(`✅ Container created: ${finalContainerNo}`);
+                console.log(`✅ Container created: ${finalContainerNo} with ${selectedPackages.length} packages`);
             }
         }
 
         showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${finalContainerNo}) ✅`, 'success');
         
-        // ✅ ENHANCED UI REFRESH - WITHOUT REDIRECT
-        console.log('🔄 Starting UI refresh (no redirect)...');
+        // UI refresh
+        console.log('🔄 Starting UI refresh...');
         
         // Clear checkboxes
         document.querySelectorAll('#packagesTableBody input[type="checkbox"]:checked').forEach(cb => {
             cb.checked = false;
         });
         
-        // Refresh packages table (packages will disappear from list since they're now shipped)
+        // Refresh packages table
         await populatePackagesTable();
         console.log('✅ Packages table refreshed');
         
-        // ✅ EDITED: Refresh shipping table in background WITHOUT switching tabs
+        // Refresh shipping table in background
         setTimeout(async () => {
             await manualRefreshShippingTable();
             console.log('✅ Shipping table refreshed in background');
-            
-            // ❌ REMOVED: No tab switching - user stays on current tab
-            // const shippingTab = document.querySelector('[data-tab="shipping"]');
-            // if (shippingTab) {
-            //     shippingTab.click();
-            //     console.log('✅ Switched to shipping tab');
-            // }
         }, 500);
         
     } catch (error) {
