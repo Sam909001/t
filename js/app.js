@@ -271,6 +271,9 @@ async function initApp() {
             showAlert('İnternet bağlantısı kesildi, veriler yerel olarak kaydediliyor', 'warning');
         });
         
+        // 15. Start daily auto-clear
+        scheduleDailyClear();
+        
         // 16. Auto-sync on startup if online and not in Electron
         if (navigator.onLine && supabase && !runningInElectron) {
             setTimeout(async () => {
@@ -690,7 +693,66 @@ function handleSupabaseError(error, context) {
     }
 }
 
+// ==========================
+// DAILY AUTO-CLEAR FUNCTION
+// ==========================
 
+// Clear local app state (frontend only)
+function clearDailyAppState() {
+    console.log('[Daily Clear] Clearing frontend state...');
+    
+    // Clear saved state in localStorage
+    localStorage.removeItem('procleanState');
+
+    // Reset global variables
+    selectedCustomer = null;
+    currentContainer = null;
+    currentPackage = {};
+
+    // Reset UI
+    if (elements.customerSelect) elements.customerSelect.value = '';
+    if (elements.personnelSelect) elements.personnelSelect.value = '';
+    if (elements.containerNumber) elements.containerNumber.textContent = 'Yok';
+    document.querySelectorAll('.quantity-badge').forEach(b => b.textContent = '0');
+    const packageDetail = document.getElementById('packageDetailContent');
+    if (packageDetail) packageDetail.innerHTML = '<p style="text-align:center; color:#666; margin:2rem 0;">Paket seçin</p>';
+
+    // Reload today's data from Supabase
+    loadTodaysData();
+}
+
+// Load today's packages/containers from Supabase
+async function loadTodaysData() {
+    try {
+        if (!supabase) return;
+
+        // Fetch today's packages
+        window.packages = await fetchTodaysPackages();
+        window.containers = await fetchTodaysContainers();
+
+        // Re-render UI tables
+        renderPackagesTable();
+        renderShippingTable();
+
+        console.log('[Daily Clear] Data reloaded from Supabase');
+    } catch (error) {
+        console.error('Error loading today\'s data:', error);
+    }
+}
+
+// Schedule daily clear at next midnight
+function scheduleDailyClear() {
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5); // 5 sec buffer
+    const msUntilMidnight = nextMidnight - now;
+
+    console.log(`[Daily Clear] Next clear in ${Math.round(msUntilMidnight / 1000)} seconds`);
+
+    setTimeout(() => {
+        clearDailyAppState();
+        scheduleDailyClear();  // reschedule for next day
+    }, msUntilMidnight);
+}
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', async function() {
@@ -933,6 +995,10 @@ async function initApp() {
     
     // Set up barcode scanner listener
     setupBarcodeScanner();
+    
+    // Start daily auto-clear
+    scheduleDailyClear();
+}
 
 // REPLACE the existing loadPackagesData function with this:
 async function loadPackagesData() {
@@ -1942,7 +2008,5 @@ async function refreshApp() {
     }
 }
 
-     // Make globally available
-     window.refreshApp = refreshApp;
-   }
-}
+// Make globally available
+window.refreshApp = refreshApp;
