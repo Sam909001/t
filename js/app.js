@@ -374,6 +374,61 @@ if (document.readyState === 'loading') {
     initApp();
 }
 
+
+// ✅ Display sync queue status in UI
+function updateSyncQueueStatus() {
+    const queueSize = window.offlineChangesQueue?.length || 0;
+    
+    // Find or create status element
+    let statusElement = document.getElementById('syncQueueStatus');
+    if (!statusElement) {
+        statusElement = document.createElement('div');
+        statusElement.id = 'syncQueueStatus';
+        statusElement.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #f39c12;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 9999;
+            cursor: pointer;
+            display: none;
+        `;
+        statusElement.onclick = () => {
+            if (navigator.onLine && typeof syncOfflineChanges === 'function') {
+                syncOfflineChanges();
+            }
+        };
+        document.body.appendChild(statusElement);
+    }
+    
+    if (queueSize > 0) {
+        statusElement.innerHTML = `
+            <i class="fas fa-sync"></i> 
+            ${queueSize} değişiklik senkronize edilecek
+            ${navigator.onLine ? '<br><small>Tıklayın: Şimdi senkronize et</small>' : '<br><small>Çevrimdışı</small>'}
+        `;
+        statusElement.style.display = 'block';
+    } else {
+        statusElement.style.display = 'none';
+    }
+}
+
+// ✅ Update status when queue changes
+window.updateSyncQueueStatus = updateSyncQueueStatus;
+
+// Call after sync operations
+const originalSaveOfflineQueue = window.saveOfflineQueue;
+window.saveOfflineQueue = function() {
+    if (originalSaveOfflineQueue) originalSaveOfflineQueue();
+    updateSyncQueueStatus();
+};
+
+
+
 // Storage bucket kontrolü ve oluşturma fonksiyonu
 async function setupStorageBucket() {
     try {
