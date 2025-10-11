@@ -1244,28 +1244,36 @@ async function initializeExcelStorage() {
 
 async function saveToExcel(packageData) {
     try {
-        if (!packageData) throw new Error('saveToExcel: packageData undefined');
+        if (!packageData) {
+            console.error('❌ saveToExcel: packageData is undefined');
+            return false;
+        }
 
+        // Add workspace_id if missing
+        packageData.workspace_id = packageData.workspace_id || getCurrentWorkspaceId();
 
+        // Enhance package data with defaults
         const enhancedPackageData = {
             ...packageData,
-            workspace_id: packageData.workspace_id || getCurrentWorkspaceId(),
-            updated_at: new Date().toISOString(),
+            created_at: packageData.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
 
-        // Save to Excel
-        await ExcelJS.savePackage(enhancedPackageData);
-        console.log('✅ Package saved to Excel:', enhancedPackageData.package_no || enhancedPackageData.id);
+        // --- Save to Excel ---
+        await ExcelJS.writePackageToFile(enhancedPackageData);
+        console.log(`✅ Package saved to daily file:`, enhancedPackageData.package_no);
 
-        // Queue for Supabase sync
-        addToSyncQueue('add', enhancedPackageData);
-        console.log('🆕 Package queued for Supabase sync:', enhancedPackageData.id);
-        console.log('📝 Current queue length:', window.excelSyncQueue.length);
+        // --- Queue for Supabase sync ---
+        if (typeof addToSyncQueue === 'function') {
+            addToSyncQueue('add', enhancedPackageData);
+        } else {
+            console.warn('⚠️ addToSyncQueue() not found, cannot sync');
+        }
 
         return true;
 
-    } catch (err) {
-        console.error('❌ saveToExcel error:', err);
+    } catch (error) {
+        console.error('💥 saveToExcel failed:', error);
         return false;
     }
 }
@@ -1392,57 +1400,39 @@ async function restoreSyncBackup() {
     }
 }
 
-// Enhanced addToSyncQueue with backup
-function addToSyncQueue(operationType, data) {
-    // Create operation fingerprint for deduplication
-    const operationFingerprint = `${operationType}-${data.id}`;
-    
-    // Check for duplicates
-    const isDuplicate = excelSyncQueue.some(op => 
-        op.fingerprint === operationFingerprint && op.status !== 'failed'
-    );
-    
-    if (isDuplicate) {
-        console.log('🔄 Sync operation already in queue, skipping duplicate:', operationFingerprint);
+// --- Add package operation to global sync queue ---
+function addToSyncQueue(type, data) {
+    // Ensure global queue exists
+    window.excelSyncQueue = window.excelSyncQueue || [];
+
+    if (!data || !data.id || !data.workspace_id) {
+        console.warn('⚠️ Cannot add to queue: missing required fields', data);
         return;
     }
 
-    // Remove any older operations for the same data ID
-    excelSyncQueue = excelSyncQueue.filter(op => 
-        !(op.data.id === data.id && op.type !== operationType)
-    );
-
-    // Create enhanced operation object
-    const enhancedOperation = {
-        type: operationType,
-        data: data,
-        timestamp: new Date().toISOString(),
-        fingerprint: operationFingerprint,
-        workspace_id: getCurrentWorkspaceId(),
-        attempts: 0,
-        maxAttempts: 3,
-        status: 'pending',
-        lastAttempt: null,
-        lastError: null
+    const operation = {
+        type,                       // 'add', 'update', 'delete'
+        data,                       // full package object
+        status: 'pending',           // pending / success / failed
+        attempts: 0,                 // retry counter
+        maxAttempts: 5,              // configurable
+        lastAttempt: null,           // timestamp
+        fingerprint: data.id + '-' + Date.now(), // unique identifier
+        workspace_id: data.workspace_id
     };
 
-    // Create backup before modifying queue
-    localStorage.setItem('excelSyncQueue_backup', JSON.stringify(excelSyncQueue));
-    
-    // Add new operation
-    excelSyncQueue.push(enhancedOperation);
-    
-    // Limit queue size to prevent memory issues
-    if (excelSyncQueue.length > 1000) {
-        console.warn('📦 Sync queue too large, removing oldest failed operations');
-        excelSyncQueue = excelSyncQueue
-            .filter(op => op.status !== 'failed')
-            .slice(-500); // Keep last 500 non-failed operations
+    // Prevent duplicate operations for same package & type
+    const exists = window.excelSyncQueue.some(op => op.fingerprint === operation.fingerprint);
+    if (exists) {
+        console.log('🔄 Sync operation already in queue, skipping duplicate:', operation.fingerprint);
+        return;
     }
 
-    localStorage.setItem('excelSyncQueue', JSON.stringify(excelSyncQueue));
-    console.log(`✅ Added to sync queue: ${operationType} for ${data.id}`);
+    window.excelSyncQueue.push(operation);
+    console.log('✅ Added to sync queue:', type, 'for', data.id);
+    console.log('📝 Current queue length:', window.excelSyncQueue.length);
 }
+
 
 
 
