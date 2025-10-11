@@ -1264,7 +1264,7 @@ async function initializeExcelStorage() {
     }
 }
 
-// REPLACE the existing saveToExcel function with this:
+// ✅ REPLACE the existing saveToExcel function with this:
 async function saveToExcel(packageData) {
     try {
         // Enhanced package data with customer and product info
@@ -1304,13 +1304,25 @@ async function saveToExcel(packageData) {
         if (success) {
             // Global excelPackages değişkenini güncelle
             excelPackages = currentPackages;
-            console.log(`Package saved to daily file:`, enhancedPackageData.package_no);
+            console.log(`✅ Package saved to daily file:`, enhancedPackageData.package_no);
+
+            // --- NEW: Queue for Supabase sync ---
+            if (navigator.onLine && supabase) {
+                addToSyncQueue('add', enhancedPackageData);
+                console.log('🆕 Package queued for Supabase sync:', enhancedPackageData.id);
+            } else {
+                console.log('📦 Offline mode - will sync package later:', enhancedPackageData.id);
+                addToSyncQueue('add', enhancedPackageData);
+            }
+
             return true;
+        } else {
+            console.warn('⚠️ Excel write failed');
+            return false;
         }
-        return false;
         
     } catch (error) {
-        console.error('Save to Excel error:', error);
+        console.error('❌ Save to Excel error:', error);
         return false;
     }
 }
