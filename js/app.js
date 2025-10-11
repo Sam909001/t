@@ -1,3 +1,28 @@
+// Fallback showAlert function if not defined elsewhere
+if (typeof showAlert === 'undefined') {
+    window.showAlert = function(message, type = 'info', duration = 3000) {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        
+        const alertDiv = document.createElement('div');
+        alertDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : type === 'warning' ? '#f39c12' : '#3498db'};
+            color: white;
+            border-radius: 5px;
+            z-index: 10001;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        `;
+        alertDiv.textContent = message;
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => alertDiv.remove(), duration);
+    };
+}
+
+
 // Initialize global sync queue if it doesn't exist
 window.excelSyncQueue = window.excelSyncQueue || [];
 
@@ -151,15 +176,28 @@ async function initApp() {
     console.log('🚀 Starting enhanced ProClean initialization...');
     
     try {
-        // 1. CRITICAL FIX: Initialize elements FIRST before anything else
-        if (typeof initializeElementsObject !== 'function') {
-            console.error('❌ initializeElementsObject function not loaded!');
-            // Fallback: load from ui.js if not available
-            if (typeof elements === 'undefined') {
-                window.elements = {};
-            }
-        } else {
+        // 1. Initialize elements object (with fallback)
+        if (typeof window.elements === 'undefined') {
+            window.elements = {};
+        }
+        
+        // Try to initialize elements from ui.js
+        if (typeof initializeElementsObject === 'function') {
             initializeElementsObject();
+        } else {
+            // Manual fallback - define critical elements
+            console.warn('⚠️ initializeElementsObject not found, using manual initialization');
+            window.elements = {
+                customerSelect: document.getElementById('customerSelect'),
+                customerSearch: document.getElementById('customerSearch'),
+                selectedCustomerName: document.getElementById('selectedCustomerName'),
+                personnelSelect: document.getElementById('personnelSelect'),
+                packagesTableBody: document.getElementById('packagesTableBody'),
+                totalPackages: document.getElementById('totalPackages'),
+                containerNumber: document.getElementById('containerNumber'),
+                currentDate: document.getElementById('currentDate'),
+                // Add more as needed
+            };
         }
         
         // 2. Initialize workspace system
@@ -170,7 +208,7 @@ async function initApp() {
         
         console.log('✅ Workspace initialized:', window.workspaceManager.currentWorkspace);
         
-        // 0. Detect and log environment
+        // 3. Detect environment
         const runningInElectron = isElectron();
         if (runningInElectron) {
             console.log('📱 Running in Electron environment');
@@ -180,7 +218,7 @@ async function initApp() {
             window.isElectronApp = false;
         }
 
-        // 3. Initialize workspace-aware UI
+        // 4. Initialize workspace-aware UI (with fallback)
         if (typeof initializeWorkspaceUI === 'function') {
             initializeWorkspaceUI();
         }
@@ -188,12 +226,12 @@ async function initApp() {
             setupWorkspaceAwareUI();
         }
         
-        // 4. Migrate existing data to workspace
+        // 5. Migrate existing data to workspace (with fallback)
         if (typeof migrateExistingDataToWorkspace === 'function') {
             await migrateExistingDataToWorkspace();
         }
         
-        // 5. Initialize sync system
+        // 6. Initialize sync system (with fallback)
         if (typeof initializeSyncQueue === 'function') {
             initializeSyncQueue();
         }
@@ -207,8 +245,19 @@ async function initApp() {
             loadOfflineQueue();
         } else {
             // Fallback: Initialize empty queue
-            window.offlineChangesQueue = [];
-            console.warn('⚠️ loadOfflineQueue function not found, initialized empty queue');
+            if (!window.offlineChangesQueue) {
+                window.offlineChangesQueue = [];
+            }
+            try {
+                const saved = localStorage.getItem('offlineChangesQueue');
+                if (saved) {
+                    window.offlineChangesQueue = JSON.parse(saved);
+                    console.log(`📂 Loaded ${window.offlineChangesQueue.length} items from queue`);
+                }
+            } catch (e) {
+                console.error('Error loading queue:', e);
+                window.offlineChangesQueue = [];
+            }
         }
         
         // ✅ CRITICAL: Load existing package IDs to prevent duplicates
@@ -219,18 +268,22 @@ async function initApp() {
             console.warn('⚠️ loadExistingPackageIds function not found');
         }
         
-        // 6. Setup event listeners
-        setupEventListeners();
+        // 7. Setup event listeners
+        if (typeof setupEventListeners === 'function') {
+            setupEventListeners();
+        }
         
-        // 7. API key initialization
-        initializeApiAndAuth();
+        // 8. API key initialization
+        if (typeof initializeApiAndAuth === 'function') {
+            initializeApiAndAuth();
+        }
         
-        // 8. Initialize settings
+        // 9. Initialize settings (with fallback)
         if (typeof initializeSettings === 'function') {
             initializeSettings();
         }
         
-        // 9. Initialize daily Excel file system
+        // 10. Initialize daily Excel file system (with fallback)
         if (typeof ExcelStorage !== 'undefined') {
             if (typeof ExcelStorage.cleanupOldFiles === 'function') {
                 await ExcelStorage.cleanupOldFiles();
@@ -240,29 +293,46 @@ async function initApp() {
             }
         }
         
-        // 10. Populate UI
+        // 11. Populate UI
         if (elements.currentDate) {
             elements.currentDate.textContent = new Date().toLocaleDateString('tr-TR');
         }
-        await populateCustomers();
-        await populatePersonnel();
         
-        // 11. Load saved state
-        loadAppState();
+        if (typeof populateCustomers === 'function') {
+            await populateCustomers();
+        }
+        if (typeof populatePersonnel === 'function') {
+            await populatePersonnel();
+        }
         
-        // 12. Load data
-        await loadPackagesData();
-        await populateStockTable();
-        await populateShippingTable();
+        // 12. Load saved state
+        if (typeof loadAppState === 'function') {
+            loadAppState();
+        }
         
-        // 13. Test connection
-        if (supabase) {
+        // 13. Load data
+        if (typeof loadPackagesData === 'function') {
+            await loadPackagesData();
+        }
+        if (typeof populateStockTable === 'function') {
+            await populateStockTable();
+        }
+        if (typeof populateShippingTable === 'function') {
+            await populateShippingTable();
+        }
+        
+        // 14. Test connection
+        if (supabase && typeof testConnection === 'function') {
             await testConnection();
         }
         
-        // 14. Set up auto-save and offline support
-        setInterval(saveAppState, 30000);
-        setupOfflineSupport();
+        // 15. Set up auto-save and offline support
+        if (typeof saveAppState === 'function') {
+            setInterval(saveAppState, 30000);
+        }
+        if (typeof setupOfflineSupport === 'function') {
+            setupOfflineSupport();
+        }
         if (typeof setupBarcodeScanner === 'function') {
             setupBarcodeScanner();
         }
@@ -283,11 +353,15 @@ async function initApp() {
 
         window.addEventListener('offline', function() {
             console.log('📡 Network offline - using local storage');
-            showAlert('İnternet bağlantısı kesildi, veriler yerel olarak kaydediliyor', 'warning');
+            if (typeof showAlert === 'function') {
+                showAlert('İnternet bağlantısı kesildi, veriler yerel olarak kaydediliyor', 'warning');
+            }
         });
         
-        // 15. Start daily auto-clear
-        scheduleDailyClear();
+        // 16. Start daily auto-clear (with fallback)
+        if (typeof scheduleDailyClear === 'function') {
+            scheduleDailyClear();
+        }
         
         // ✅ CRITICAL: Auto-sync on startup if online
         if (navigator.onLine && supabase) {
@@ -307,7 +381,7 @@ async function initApp() {
                     console.log('🔄 Running regular Excel-Supabase sync...');
                     await syncExcelWithSupabase();
                 }
-            }, 3000); // Increased delay to 3 seconds for stability
+            }, 3000);
         } else {
             console.log('📴 Offline mode or no Supabase - using local storage only');
         }
@@ -316,7 +390,9 @@ async function initApp() {
         const queueSize = window.offlineChangesQueue?.length || 0;
         if (queueSize > 0) {
             console.log(`📋 Sync queue has ${queueSize} pending items`);
-            showAlert(`${queueSize} değişiklik senkronize edilmeyi bekliyor`, 'info', 5000);
+            if (typeof showAlert === 'function') {
+                showAlert(`${queueSize} değişiklik senkronize edilmeyi bekliyor`, 'info', 5000);
+            }
         }
         
         const workspaceName = window.workspaceManager?.currentWorkspace?.name || 'Default';
@@ -326,14 +402,19 @@ async function initApp() {
         const successMsg = queueSize > 0 
             ? `Uygulama başlatıldı (${queueSize} değişiklik bekliyor)`
             : 'Uygulama başarıyla başlatıldı!';
-        showAlert(successMsg, 'success', 3000);
+        
+        if (typeof showAlert === 'function') {
+            showAlert(successMsg, 'success', 3000);
+        }
         
     } catch (error) {
         console.error('❌ Critical error during initialization:', error);
         console.error('Error stack:', error.stack);
         
         // CRITICAL FIX: User-friendly error recovery
-        showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        if (typeof showAlert === 'function') {
+            showAlert('Uygulama başlatılırken hata oluştu: ' + error.message, 'error');
+        }
         
         // Show recovery UI
         const recoveryUI = document.createElement('div');
@@ -371,6 +452,7 @@ window.initApp = initApp;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
 } else {
+    // DOM already loaded, run immediately
     initApp();
 }
 
