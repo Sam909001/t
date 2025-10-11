@@ -4215,7 +4215,8 @@ console.log('✅ Reports module loaded successfully');
     }
 }
 
-async function completePackage() {
+// Fixed package creation that actually adds metadata
+async function completePackageWithMetadata() {
     if (!selectedCustomer) {
         showAlert('Önce müşteri seçin', 'error');
         return;
@@ -4226,84 +4227,72 @@ async function completePackage() {
         return;
     }
 
-    // Check workspace permissions
-    if (!window.workspaceManager?.canPerformAction('create_package')) {
-        showAlert('Bu istasyon paket oluşturamaz', 'error');
-        return;
-    }
-
     try {
-        // GENERATE ONE CONSISTENT ID FOR BOTH SYSTEMS
-      const workspaceId = window.workspaceManager.currentWorkspace.id;
-
-// Get or initialize counter for this workspace
-let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
-packageCounter++;
-localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
-
-const timestamp = Date.now();
-const random = Math.random().toString(36).substr(2, 9);
-
-const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
-const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
-        
+        const workspaceId = getCurrentWorkspaceId();
+        const packageNo = generateUniquePackageNumber();
         const totalQuantity = Object.values(currentPackage.items).reduce((sum, qty) => sum + qty, 0);
-        const selectedPersonnel = elements.personnelSelect?.value || '';
+        
+        console.log('📦 Creating package with metadata:', {
+            customer: selectedCustomer.name,
+            items: currentPackage.items,
+            totalQuantity: totalQuantity
+        });
 
-        // Enhanced package data with workspace info - USE THE SAME ID
-        const packageData = {
-            id: packageId, // SAME ID FOR BOTH SYSTEMS
-            package_no: packageNo,
-            customer_id: selectedCustomer.id,
+        // Build items_array with products AND metadata
+        const itemsArray = [];
+        
+        // 1. Add ALL products first
+        Object.entries(currentPackage.items).forEach(([productName, quantity]) => {
+            if (quantity > 0) {
+                itemsArray.push({
+                    name: productName,
+                    quantity: quantity
+                });
+            }
+        });
+        
+        // 2. Add metadata as a separate object - THIS WAS MISSING!
+        const metadata = {
+            name: '_metadata', // This identifies it as metadata
             customer_name: selectedCustomer.name,
             customer_code: selectedCustomer.code,
-            items: currentPackage.items,
-            items_array: Object.entries(currentPackage.items).map(([name, qty]) => ({
-                name: name,
-                qty: qty
-            })),
-            items_display: Object.entries(currentPackage.items).map(([name, qty]) => 
-                `${name}: ${qty} adet`
-            ).join(', '),
             total_quantity: totalQuantity,
-            status: 'beklemede',
-            packer: selectedPersonnel || currentUser?.name || 'Bilinmeyen',
+            packer: elements.personnelSelect?.value || 'Bilinmeyen',
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            workspace_id: workspaceId,
-            station_name: window.workspaceManager.currentWorkspace.name,
-            daily_file: ExcelStorage.getTodayDateString(),
-            source: 'app' // Track source for sync
+            status: 'beklemede',
+            workspace_id: workspaceId
+        };
+        
+        // ADD THE METADATA TO THE ARRAY
+        itemsArray.push(metadata);
+        
+        console.log('Final items_array with metadata:', JSON.stringify(itemsArray, null, 2));
+
+        // Create package for Supabase
+        const supabasePackage = {
+            package_no: packageNo,
+            source: 'app',
+            station_name: window.workspaceManager?.currentWorkspace?.name || workspaceId,
+            items_array: itemsArray // This now includes metadata
         };
 
-        console.log('📦 Creating package with ID:', packageId);
+        // Add to sync queue
+        addToSyncQueue('add', supabasePackage);
 
-        // Save based on connectivity and workspace settings
-        if (supabase && navigator.onLine && !isUsingExcel) {
-            try {
-                const { data, error } = await supabase
-                    .from('packages')
-                    .insert([packageData])
-                    .select();
+        // Also save to Excel
+        const excelPackage = {
+            ...supabasePackage,
+            customer_name: selectedCustomer.name,
+            customer_code: selectedCustomer.code,
+            total_quantity: totalQuantity,
+            status: 'beklemede',
+            created_at: new Date().toISOString(),
+            workspace_id: workspaceId
+        };
+        
+        await saveToExcel(excelPackage);
 
-                if (error) throw error;
-
-                showAlert(`Paket oluşturuldu: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'success');
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                
-            } catch (supabaseError) {
-                console.warn('Supabase save failed, saving to Excel:', supabaseError);
-                await saveToExcel(packageData); // SAME packageData with SAME ID
-                addToSyncQueue('add', packageData); // SAME packageData with SAME ID
-                showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-                isUsingExcel = true;
-            }
-        } else {
-            await saveToExcel(packageData); // SAME packageData with SAME ID
-            addToSyncQueue('add', packageData); // SAME packageData with SAME ID
-            showAlert(`Paket Excel'e kaydedildi: ${packageNo} (${window.workspaceManager.currentWorkspace.name})`, 'warning');
-            isUsingExcel = true;
-        }
+        showAlert(`Paket oluşturuldu: ${packageNo}`, 'success');
 
         // Reset and refresh
         currentPackage = {};
@@ -4315,6 +4304,124 @@ const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0
         console.error('Error in completePackage:', error);
         showAlert('Paket oluşturma hatası: ' + error.message, 'error');
     }
+}
+
+// Replace the function
+window.completePackage = completePackageWithMetadata;
+console.log('✅ completePackage updated to include metadata');
+
+
+
+// Add this function - it will add metadata to existing packages
+async function addMetadataToExistingPackages() {
+    console.log('🔄 Adding metadata to existing packages...');
+    
+    // Get all packages from Supabase
+    const { data: supabasePackages, error } = await supabase
+        .from('packages')
+        .select('*');
+        
+    if (error) {
+        console.log('Error fetching packages:', error);
+        return 0;
+    }
+    
+    console.log(`Found ${supabasePackages.length} packages to update`);
+    
+    let updatedCount = 0;
+    
+    for (const supabasePkg of supabasePackages) {
+        // Find matching package in local data to get customer info
+        const localPkg = window.packages.find(p => p.package_no === supabasePkg.package_no);
+        
+        if (localPkg && localPkg.customer_name) {
+            // Create new items_array with metadata added
+            let newItemsArray = [...(supabasePkg.items_array || [])];
+            
+            // Remove any existing metadata
+            newItemsArray = newItemsArray.filter(item => item.name !== '_metadata');
+            
+            // Calculate total quantity from existing items
+            const totalQuantity = newItemsArray.reduce((sum, item) => sum + (item.quantity || 0), 0);
+            
+            // Add new metadata
+            const metadata = {
+                name: '_metadata',
+                customer_name: localPkg.customer_name,
+                customer_code: localPkg.customer_code,
+                total_quantity: totalQuantity,
+                packer: localPkg.packer || 'Bilinmeyen',
+                created_at: localPkg.created_at || new Date().toISOString(),
+                status: localPkg.status || 'beklemede',
+                workspace_id: localPkg.workspace_id
+            };
+            
+            newItemsArray.push(metadata);
+            
+            // Update the package in Supabase
+            const { error: updateError } = await supabase
+                .from('packages')
+                .update({ items_array: newItemsArray })
+                .eq('package_no', supabasePkg.package_no);
+                
+            if (updateError) {
+                console.log(`❌ Failed to update ${supabasePkg.package_no}:`, updateError.message);
+            } else {
+                updatedCount++;
+                console.log(`✅ Added metadata to ${supabasePkg.package_no}: ${localPkg.customer_name}, Total: ${totalQuantity}`);
+            }
+        } else {
+            console.log(`⚠️ No local data found for ${supabasePkg.package_no}, skipping...`);
+        }
+    }
+    
+    console.log(`🎉 Added metadata to ${updatedCount} packages`);
+    return updatedCount;
+}
+
+// Now run the function
+const updatedCount = await addMetadataToExistingPackages();
+
+
+// Add these metadata helper functions
+function extractMetadata(itemsArray) {
+    if (!Array.isArray(itemsArray)) {
+        return {
+            customer_name: 'N/A',
+            total_quantity: 0,
+            packer: 'N/A',
+            status: 'N/A'
+        };
+    }
+    
+    const metadataItem = itemsArray.find(item => item.name === '_metadata');
+    
+    if (metadataItem) {
+        return {
+            customer_name: metadataItem.customer_name || 'N/A',
+            total_quantity: metadataItem.total_quantity || metadataItem.quantity || 0,
+            packer: metadataItem.packer || 'N/A',
+            status: metadataItem.status || 'N/A',
+            customer_code: metadataItem.customer_code,
+            created_at: metadataItem.created_at,
+            workspace_id: metadataItem.workspace_id
+        };
+    }
+    
+    // If no metadata, calculate total from items
+    const totalQuantity = itemsArray.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    
+    return {
+        customer_name: 'N/A',
+        total_quantity: totalQuantity,
+        packer: 'N/A',
+        status: 'N/A'
+    };
+}
+
+function getProducts(itemsArray) {
+    if (!Array.isArray(itemsArray)) return [];
+    return itemsArray.filter(item => item.name !== '_metadata');
 }
 
 
