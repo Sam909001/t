@@ -1,10 +1,7 @@
-// ==================== REPORTS.JS - COMPLETE WORKING VERSION ====================
+// ==================== MAKE FUNCTIONS GLOBALLY AVAILABLE ====================
+// Add this at the VERY TOP of your reports.js file (line 1)
 
-// ==================== GLOBAL VARIABLES ====================
-let currentReportData = null;
-
-// ==================== DAILY REPORT GENERATION ====================
-window.generateDailyReport = async function() {
+async function generateDailyReport() {
     try {
         showAlert('Profesyonel günlük rapor oluşturuluyor...', 'info');
 
@@ -17,29 +14,24 @@ window.generateDailyReport = async function() {
         const startOfDay = new Date(today.setHours(0, 0, 0, 0));
         const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
-        // ==================== FETCH PACKAGES FROM EXCEL LOCAL STORAGE ====================
+        // ==================== FETCH PACKAGES FROM EXCEL ====================
         let allPackages = [];
         
         try {
-            // First, try to read from Excel local storage
             if (typeof ExcelStorage !== 'undefined' && ExcelStorage.readFile) {
                 const excelPackages = await ExcelStorage.readFile();
                 
                 if (excelPackages && excelPackages.length > 0) {
-                    // Filter packages for today from Excel
                     allPackages = excelPackages.filter(pkg => {
                         if (!pkg.created_at) return false;
                         const pkgDate = new Date(pkg.created_at);
                         return pkgDate >= startOfDay && pkgDate <= endOfDay;
                     });
-                    
-                    console.log(`✅ Loaded ${allPackages.length} packages from Excel for today`);
+                    console.log(`✅ Loaded ${allPackages.length} packages from Excel`);
                 }
             }
             
-            // Fallback: If no Excel data, try Supabase
             if (allPackages.length === 0 && supabase && navigator.onLine) {
-                console.log('📡 No Excel data, fetching from Supabase...');
                 const { data: supabasePackages, error: packagesError } = await supabase
                     .from('packages')
                     .select('*, customers (name, code)')
@@ -51,27 +43,21 @@ window.generateDailyReport = async function() {
                 allPackages = supabasePackages || [];
             }
             
-            // Last resort: Use global packages variable
             if (allPackages.length === 0 && window.packages) {
-                console.log('📦 Using global packages variable...');
                 allPackages = window.packages.filter(pkg => {
                     if (!pkg.created_at) return false;
                     const pkgDate = new Date(pkg.created_at);
                     return pkgDate >= startOfDay && pkgDate <= endOfDay;
                 });
             }
-            
         } catch (pkgError) {
             console.error('Package fetch error:', pkgError);
-            showAlert('Paket verileri yüklenirken hata oluştu', 'warning');
             allPackages = [];
         }
 
         // ==================== FETCH CONTAINERS ====================
         let allContainers = [];
-        
         try {
-            // Try to get containers from localStorage first
             const localContainers = localStorage.getItem('containers');
             if (localContainers) {
                 const parsedContainers = JSON.parse(localContainers);
@@ -82,7 +68,6 @@ window.generateDailyReport = async function() {
                 });
             }
             
-            // Fallback to Supabase if needed
             if (allContainers.length === 0 && supabase && navigator.onLine) {
                 const { data: supabaseContainers, error: containersError } = await supabase
                     .from('containers')
@@ -95,7 +80,6 @@ window.generateDailyReport = async function() {
                     allContainers = supabaseContainers;
                 }
             }
-            
         } catch (contError) {
             console.error('Container fetch error:', contError);
             allContainers = [];
@@ -103,18 +87,13 @@ window.generateDailyReport = async function() {
 
         // ==================== FETCH CRITICAL STOCK ====================
         let criticalStock = [];
-        
         try {
-            // Try localStorage first
             const localStock = localStorage.getItem('stock_items');
             if (localStock) {
                 const parsedStock = JSON.parse(localStock);
-                criticalStock = parsedStock
-                    .filter(item => item.quantity <= 5)
-                    .sort((a, b) => a.quantity - b.quantity);
+                criticalStock = parsedStock.filter(item => item.quantity <= 5).sort((a, b) => a.quantity - b.quantity);
             }
             
-            // Fallback to Supabase
             if (criticalStock.length === 0 && supabase && navigator.onLine) {
                 const { data: supabaseStock, error: stockError } = await supabase
                     .from('stock_items')
@@ -126,15 +105,13 @@ window.generateDailyReport = async function() {
                     criticalStock = supabaseStock;
                 }
             }
-            
         } catch (stockError) {
             console.error('Stock fetch error:', stockError);
             criticalStock = [];
         }
 
-        // ==================== ENRICH PACKAGE DATA WITH CUSTOMER INFO ====================
+        // ==================== ENRICH PACKAGES ====================
         const customersData = window.customers || [];
-        
         allPackages = allPackages.map(pkg => {
             if (!pkg.customers && pkg.customer_id) {
                 const customer = customersData.find(c => c.id === pkg.customer_id);
@@ -148,13 +125,12 @@ window.generateDailyReport = async function() {
         // ==================== CALCULATE REPORT DATA ====================
         const waitingPackages = allPackages.filter(pkg => !pkg.container_id);
         const shippedPackages = allPackages.filter(pkg => pkg.container_id);
-
         const totalPackages = allPackages.length;
         const totalItems = allPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
         const waitingItems = waitingPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
         const shippedItems = shippedPackages.reduce((sum, pkg) => sum + (pkg.total_quantity || 0), 0);
 
-        currentReportData = {
+        window.currentReportData = {
             date: new Date().toLocaleDateString('tr-TR'),
             totalPackages: totalPackages,
             totalItems: totalItems,
@@ -175,19 +151,19 @@ window.generateDailyReport = async function() {
 
         // Generate PDF
         showAlert('Profesyonel PDF oluşturuluyor...', 'info');
-        const pdfBlob = await generateProfessionalPDFReport(currentReportData);
+        const pdfBlob = await generateProfessionalPDFReport(window.currentReportData);
         
         // Upload PDF (optional)
         let pdfUrl = null;
         try {
             if (supabase && navigator.onLine) {
-                pdfUrl = await uploadPDFToSupabase(pdfBlob, currentReportData);
+                pdfUrl = await uploadPDFToSupabase(pdfBlob, window.currentReportData);
             }
         } catch (uploadError) {
             console.warn('PDF upload failed:', uploadError);
         }
 
-        // Save report to database (optional)
+        // Save report
         try {
             if (supabase && navigator.onLine) {
                 const { data: report, error: reportError } = await supabase
@@ -195,7 +171,7 @@ window.generateDailyReport = async function() {
                     .insert([{
                         report_date: new Date(),
                         report_type: 'daily',
-                        data: currentReportData,
+                        data: window.currentReportData,
                         pdf_url: pdfUrl,
                         user_id: user.id
                     }])
@@ -203,16 +179,15 @@ window.generateDailyReport = async function() {
                     .single();
 
                 if (!reportError && report) {
-                    currentReportData.id = report.id;
-                    currentReportData.pdf_url = pdfUrl;
+                    window.currentReportData.id = report.id;
+                    window.currentReportData.pdf_url = pdfUrl;
                 }
             } else {
-                currentReportData.id = `LOCAL_${Date.now()}`;
-                currentReportData.pdf_url = 'local';
+                window.currentReportData.id = `LOCAL_${Date.now()}`;
             }
         } catch (dbError) {
-            console.warn('Report save to DB failed:', dbError);
-            currentReportData.id = `LOCAL_${Date.now()}`;
+            console.warn('Report save failed:', dbError);
+            window.currentReportData.id = `LOCAL_${Date.now()}`;
         }
         
         showAlert('Profesyonel günlük rapor ve PDF başarıyla oluşturuldu', 'success');
@@ -226,14 +201,21 @@ window.generateDailyReport = async function() {
         URL.revokeObjectURL(downloadUrl);
         
         // Show email modal
-        document.getElementById('reportEmail').value = selectedCustomer?.email || '';
-        document.getElementById('emailModal').style.display = 'flex';
+        if (document.getElementById('reportEmail')) {
+            document.getElementById('reportEmail').value = selectedCustomer?.email || '';
+            document.getElementById('emailModal').style.display = 'flex';
+        }
 
     } catch (error) {
         console.error('Rapor oluşturma hatası:', error);
         showAlert(`Rapor oluşturulamadı: ${error.message}`, 'error');
     }
-};
+}
+
+// Make it globally available
+window.generateDailyReport = generateDailyReport;
+
+console.log('✅ generateDailyReport loaded:', typeof generateDailyReport);
 
 // ==================== PDF GENERATION ====================
 window.generateProfessionalPDFReport = async function(reportData) {
