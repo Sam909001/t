@@ -4212,11 +4212,21 @@ async function sendToRamp(containerNo = null) {
             return;
         }
 
-        // Use existing container or create a new one
         let containerId;
+        
         if (containerNo && currentContainer) {
-            containerId = currentContainer;
+            // Use existing container
+            const { data: existingContainer } = await supabase
+                .from('containers')
+                .select('id')
+                .eq('container_no', containerNo)
+                .single();
+            
+            if (existingContainer) {
+                containerId = existingContainer.id;
+            }
         } else {
+            // Create new container
             const timestamp = new Date().getTime();
             containerNo = `CONT-${timestamp.toString().slice(-6)}`;
             
@@ -4232,57 +4242,102 @@ async function sendToRamp(containerNo = null) {
                 }])
                 .select();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Container creation error:', error);
+                throw error;
+            }
             
             containerId = newContainer[0].id;
             currentContainer = containerNo;
+            
             if (elements.containerNumber) {
                 elements.containerNumber.textContent = containerNo;
             }
             saveAppState();
         }
 
-        // ✅ DOĞRUDAN "sevk-edildi" DURUMUNA GÜNCELLE
+        // Update packages to shipped status
         await updatePackageStatusToShippedDirect(selectedPackages, containerNo);
 
         showAlert(`${selectedPackages.length} paket konteynere eklendi ve sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
         
-        // ✅ TABLOLARI GÜNCELLE
+        // Refresh tables
         await populatePackagesTable();
         await populateShippingTable();
         
     } catch (error) {
         console.error('Error sending to ramp:', error);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+        });
         showAlert('Paketler konteynere eklenirken hata oluştu: ' + error.message, 'error');
     }
 }
-
 async function updatePackageStatusToShippedDirect(packages, containerNo) {
     try {
         const packageIds = packages.map(pkg => pkg.id);
         
         console.log(`🚢 Directly shipping ${packageIds.length} packages to container: ${containerNo}`);
         
-        // Update in Supabase
+        // Get the actual container ID from container_no
+        let containerId = null;
         if (supabase && navigator.onLine) {
+            const { data: container } = await supabase
+                .from('containers')
+                .select('id')
+                .eq('container_no', containerNo)
+                .single();
+            
+            if (container) {
+                containerId = container.id;
+            }
+        }
+        
+        // Update in Supabase with the correct container ID
+        if (supabase && navigator.onLine && containerId) {
             const { error } = await supabase
                 .from('packages')
                 .update({ 
                     status: 'sevk-edildi',
-                    container_id: containerNo,
+                    container_id: containerId,  // Use UUID, not string
                     updated_at: new Date().toISOString()
                 })
                 .in('id', packageIds);
             
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase update error:', error);
+                throw error;
+            }
         }
         
         // Track as shipped to prevent loading back to pending
         packageIds.forEach(id => shippedPackageIds.add(id));
         
-        // Update local packages array
+        // Update local packages array - remove from pending
         if (window.packages) {
             window.packages = window.packages.filter(pkg => !packageIds.includes(pkg.id));
+        }
+        
+        // Update Excel storage
+        try {
+            const excelData = await ExcelJS.readFile();
+            const updatedExcel = excelData.map(pkg => {
+                if (packageIds.includes(pkg.id)) {
+                    return {
+                        ...pkg,
+                        status: 'sevk-edildi',
+                        container_id: containerId,
+                        updated_at: new Date().toISOString()
+                    };
+                }
+                return pkg;
+            });
+            await ExcelJS.writeFile(updatedExcel);
+        } catch (excelError) {
+            console.warn('Excel update failed:', excelError);
         }
         
         console.log(`✅ ${packageIds.length} packages marked as shipped`);
@@ -4292,7 +4347,6 @@ async function updatePackageStatusToShippedDirect(packages, containerNo) {
         throw error;
     }
 }
-
 
 // Paketleri doğrudan "sevk-edildi" durumuna güncelle
 async function updatePackagesToShipped(packages, containerNo) {
