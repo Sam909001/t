@@ -1249,21 +1249,42 @@ async function saveToExcel(packageData) {
             return false;
         }
 
-        // Add workspace_id if missing
+        // Ensure workspace_id exists
         packageData.workspace_id = packageData.workspace_id || getCurrentWorkspaceId();
 
-        // Enhance package data with defaults
         const enhancedPackageData = {
             ...packageData,
             created_at: packageData.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
 
-        // --- Save to Excel ---
-        await ExcelJS.writePackageToFile(enhancedPackageData);
-        console.log(`✅ Package saved to daily file:`, enhancedPackageData.package_no);
+        // --- STEP 1: Load Excel file ---
+        const workbook = new ExcelJS.Workbook();
+        const fileName = 'daily.xlsx'; // replace with your real file path if needed
+        await workbook.xlsx.readFile(fileName);
+        const sheet = workbook.getWorksheet('packages') || workbook.addWorksheet('packages');
 
-        // --- Queue for Supabase sync ---
+        // --- STEP 2: Check if package already exists ---
+        let row = sheet.getRows(2, sheet.rowCount)?.find(r => r.getCell('A').value === enhancedPackageData.id); 
+        // Assuming column A = id, adjust if different
+        if (row) {
+            // Update existing row
+            Object.keys(enhancedPackageData).forEach((key, index) => {
+                row.getCell(index + 1).value = enhancedPackageData[key];
+            });
+            console.log('♻️ Updated existing package in Excel:', enhancedPackageData.id);
+        } else {
+            // Add new row
+            const values = Object.values(enhancedPackageData);
+            sheet.addRow(values);
+            console.log('✅ Added new package to Excel:', enhancedPackageData.id);
+        }
+
+        // --- STEP 3: Write back to Excel ---
+        await workbook.xlsx.writeFile(fileName);
+        console.log(`💾 Package saved to daily file: ${enhancedPackageData.package_no}`);
+
+        // --- STEP 4: Queue for Supabase sync ---
         if (typeof addToSyncQueue === 'function') {
             addToSyncQueue('add', enhancedPackageData);
         } else {
