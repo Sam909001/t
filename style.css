@@ -2786,6 +2786,18 @@ body.dark-mode button[onclick*="openPrinterSettings"]:hover {
 }
 
 
+.status-sevk-edildi {
+    background: #d4edda;
+    color: #155724;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+
+
+
 
 
 
