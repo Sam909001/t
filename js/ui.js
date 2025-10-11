@@ -1901,34 +1901,55 @@ function fixElectronInputs() {
         // Remove any problematic attributes
         input.removeAttribute('readonly');
         
-        // Ensure proper focus behavior
+       // Fix input focus issues in Electron safely
+function fixElectronInputs() {
+    if (!isElectronEnvironment()) {
+        console.log('Not Electron - skipping input fixes');
+        return;
+    }
+
+    console.log('🔧 Applying Electron input fixes...');
+
+    const allInputs = document.querySelectorAll('input, textarea, select');
+
+    allInputs.forEach(input => {
+        // Remove problematic readonly attributes
+        input.removeAttribute('readonly');
+
+        // Focus handler
         input.addEventListener('focus', function() {
             this.style.userSelect = 'text';
             this.style.webkitUserSelect = 'text';
             this.readOnly = false;
-            
-            // Force cursor position for text inputs
-            if (this.type === 'text' || this.type === 'number' || this.tagName === 'TEXTAREA') {
-                setTimeout(() => {
-                    this.setSelectionRange(this.value.length, this.value.length);
-                }, 10);
+
+            // Only for text inputs or textareas that are visible
+            if ((this.type === 'text' || this.tagName === 'TEXTAREA') && this.offsetParent !== null) {
+                try {
+                    setTimeout(() => {
+                        // Safely set cursor at the end
+                        this.setSelectionRange(this.value.length, this.value.length);
+                    }, 50); // Slight delay for Electron render
+                } catch (e) {
+                    console.warn('Electron input selection failed:', e);
+                }
             }
         });
-        
-        // Fix click events
+
+        // Click handler - ensures focus
         input.addEventListener('click', function(e) {
             e.stopPropagation();
-            this.focus();
+            if (document.activeElement !== this) this.focus();
         });
-        
-        // Fix keyboard events
+
+        // Keyboard handler - prevent propagation
         input.addEventListener('keydown', function(e) {
             e.stopPropagation();
         });
     });
-    
+
     console.log(`✅ Fixed ${allInputs.length} input elements for Electron`);
 }
+
 
 // Fix modal inputs specifically
 function fixModalInputs(modalId) {
