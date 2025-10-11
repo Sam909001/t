@@ -4229,15 +4229,6 @@ async function sendToRamp(containerNo = null) {
     }
 }
 
-async function manualRefreshShippingTable() {
-    console.log('🛠️ Manual Shipping Table Refresh...');
-    
-    const shippingFolders = document.getElementById('shippingFolders');
-    if (!shippingFolders) {
-        console.log('❌ shippingFolders element not found');
-        return;
-    }
-
 // Test the enhanced version
 async function testEnhancedShipping() {
     console.log('🧪 TEST: Enhanced Shipping with UI Refresh');
@@ -5349,3 +5340,233 @@ async function initializeApp() {
 
 // Start the application
 initializeApp();
+
+
+// DEBUG: UI Refresh Issue
+async function debugUIRefresh() {
+    console.log('🔍 DEBUG: UI Refresh Issue');
+    
+    // Step 1: Check current UI state
+    const shippingFolders = document.getElementById('shippingFolders');
+    console.log('1. 📋 Shipping Folders Element:', !!shippingFolders);
+    
+    if (shippingFolders) {
+        const containerElements = shippingFolders.querySelectorAll('.customer-folder');
+        console.log(`   Current UI containers: ${containerElements.length}`);
+        
+        containerElements.forEach((container, index) => {
+            const containerNo = container.querySelector('strong')?.textContent;
+            console.log(`   ${index + 1}. ${containerNo}`);
+        });
+    }
+    
+    // Step 2: Check what populateShippingTable is doing
+    console.log('\n2. 🔄 populateShippingTable execution:');
+    console.log('   Calling populateShippingTable...');
+    await populateShippingTable();
+    
+    // Step 3: Check UI after refresh
+    console.log('\n3. 🎯 UI After Refresh:');
+    const updatedFolders = document.getElementById('shippingFolders');
+    if (updatedFolders) {
+        const updatedContainers = updatedFolders.querySelectorAll('.customer-folder');
+        console.log(`   UI containers after refresh: ${updatedContainers.length}`);
+        
+        if (updatedContainers.length === 0) {
+            console.log('   ❌ UI still empty after refresh!');
+        } else {
+            console.log('   ✅ UI updated successfully!');
+        }
+    }
+    
+    // Step 4: Manual UI refresh test
+    console.log('\n4. 🛠️ Manual UI Refresh Test:');
+    await manualRefreshShippingTable();
+}
+
+// MANUAL: Force refresh shipping table
+async function manualRefreshShippingTable() {
+    console.log('🛠️ Manual Shipping Table Refresh...');
+    
+    const shippingFolders = document.getElementById('shippingFolders');
+    if (!shippingFolders) {
+        console.log('❌ shippingFolders element not found');
+        return;
+    }
+    
+    // Clear current content
+    shippingFolders.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">Yükleniyor...</div>';
+    
+    // Force reload data and rebuild UI
+    try {
+        let containers = [];
+        
+        if (supabase && navigator.onLine) {
+            console.log('🔄 Loading from Supabase...');
+            const { data: supabaseContainers, error } = await supabase
+                .from('containers')
+                .select('*')
+                .eq('workspace_id', getCurrentWorkspaceId())
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            containers = supabaseContainers || [];
+            console.log(`✅ Loaded ${containers.length} containers from Supabase`);
+        } else {
+            console.log('📁 Loading from Excel data...');
+            // Get containers from Excel packages
+            const excelData = await ExcelJS.readFile();
+            const containerMap = {};
+            
+            excelData.forEach(pkg => {
+                if (pkg.container_id && pkg.container_id !== 'undefined') {
+                    if (!containerMap[pkg.container_id]) {
+                        containerMap[pkg.container_id] = {
+                            container_no: pkg.container_id,
+                            package_count: 0,
+                            total_quantity: 0,
+                            customer: pkg.customer_name || 'Multiple',
+                            status: 'beklemede',
+                            created_at: pkg.created_at
+                        };
+                    }
+                    containerMap[pkg.container_id].package_count++;
+                    containerMap[pkg.container_id].total_quantity += pkg.total_quantity || 0;
+                }
+            });
+            
+            containers = Object.values(containerMap);
+            console.log(`✅ Found ${containers.length} containers in Excel data`);
+        }
+        
+        // Rebuild UI
+        shippingFolders.innerHTML = '';
+        
+        if (containers.length === 0) {
+            shippingFolders.innerHTML = `
+                <div style="text-align:center; padding:60px; color:#666;">
+                    <i class="fas fa-box-open" style="font-size:48px; margin-bottom:20px; opacity:0.5;"></i>
+                    <h3>Henüz konteyner bulunmamaktadır</h3>
+                    <p>Paketleri sevkiyat için konteynerlere ekleyin.</p>
+                </div>
+            `;
+            console.log('ℹ️ No containers to display');
+            return;
+        }
+        
+        // Group by customer
+        const customersMap = {};
+        containers.forEach(container => {
+            const customerName = container.customer || 'Genel Sevkiyat';
+            if (!customersMap[customerName]) {
+                customersMap[customerName] = [];
+            }
+            customersMap[customerName].push(container);
+        });
+        
+        // Create customer folders
+        Object.entries(customersMap).forEach(([customerName, customerContainers]) => {
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'customer-folder';
+            folderDiv.style.cssText = 'margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;';
+            
+            const folderHeader = document.createElement('div');
+            folderHeader.style.cssText = 'padding: 15px; background: #f8f9fa; cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+            folderHeader.innerHTML = `
+                <div>
+                    <strong>${customerName}</strong>
+                    <span style="margin-left:10px; color:#666; font-size:0.9em;">
+                        (${customerContainers.length} konteyner)
+                    </span>
+                </div>
+                <div class="folder-toggle">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            `;
+            
+            const folderContent = document.createElement('div');
+            folderContent.style.cssText = 'padding: 0; display: block;'; // Force open for debugging
+            
+            const table = document.createElement('table');
+            table.style.cssText = 'width: 100%; border-collapse: collapse;';
+            table.innerHTML = `
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding:12px; border:1px solid #ddd; width:30px;"></th>
+                        <th style="padding:12px; border:1px solid #ddd;">Konteyner No</th>
+                        <th style="padding:12px; border:1px solid #ddd;">Paket Sayısı</th>
+                        <th style="padding:12px; border:1px solid #ddd;">Toplam Adet</th>
+                        <th style="padding:12px; border:1px solid #ddd;">Tarih</th>
+                        <th style="padding:12px; border:1px solid #ddd;">Durum</th>
+                        <th style="padding:12px; border:1px solid #ddd;">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${customerContainers.map(container => `
+                        <tr>
+                            <td style="padding:10px; border:1px solid #ddd; text-align:center;">
+                                <input type="checkbox" value="${container.container_no}" class="container-checkbox">
+                            </td>
+                            <td style="padding:10px; border:1px solid #ddd;">
+                                <strong>${container.container_no}</strong>
+                            </td>
+                            <td style="padding:10px; border:1px solid #ddd; text-align:center;">
+                                ${container.package_count || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid #ddd; text-align:center;">
+                                ${container.total_quantity || 0}
+                            </td>
+                            <td style="padding:10px; border:1px solid #ddd;">
+                                ${container.created_at ? new Date(container.created_at).toLocaleDateString('tr-TR') : 'N/A'}
+                            </td>
+                            <td style="padding:10px; border:1px solid #ddd;">
+                                <span class="status-${container.status || 'beklemede'}">
+                                    ${container.status === 'sevk-edildi' ? 'Sevk Edildi' : 'Beklemede'}
+                                </span>
+                            </td>
+                            <td style="padding:10px; border:1px solid #ddd;">
+                                <button onclick="viewContainerDetails('${container.container_no}')" class="btn btn-primary btn-sm" style="margin:2px;">
+                                    <i class="fas fa-eye"></i> Detay
+                                </button>
+                                <button onclick="sendToRamp('${container.container_no}')" class="btn btn-warning btn-sm" style="margin:2px;">
+                                    <i class="fas fa-plus"></i> Paket Ekle
+                                </button>
+                                <button onclick="shipContainer('${container.container_no}')" class="btn btn-success btn-sm" style="margin:2px;">
+                                    <i class="fas fa-ship"></i> Sevk Et
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            
+            folderContent.appendChild(table);
+            folderDiv.appendChild(folderHeader);
+            folderDiv.appendChild(folderContent);
+            shippingFolders.appendChild(folderDiv);
+            
+            // Add click handler
+            folderHeader.addEventListener('click', () => {
+                const isOpen = folderContent.style.display === 'block';
+                folderContent.style.display = isOpen ? 'none' : 'block';
+                const icon = folderHeader.querySelector('.fa-chevron-down');
+                icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+            });
+        });
+        
+        console.log(`🎉 Manual UI refresh complete: ${Object.keys(customersMap).length} customer folders, ${containers.length} containers`);
+        
+    } catch (error) {
+        console.error('❌ Manual refresh failed:', error);
+        shippingFolders.innerHTML = `
+            <div style="text-align:center; padding:40px; color:#dc3545;">
+                <i class="fas fa-exclamation-triangle" style="font-size:48px; margin-bottom:20px;"></i>
+                <h3>UI yenileme hatası</h3>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Run debug
+debugUIRefresh();
