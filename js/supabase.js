@@ -3949,13 +3949,14 @@ async function completePackage() {
 }
 
 // FIXED: Enhanced ID generation
-async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 10) { // Increased to 10 attempts
+// SIMPLIFIED: Working ID generation
+async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5) {
     let attempts = 0;
     
     while (attempts < maxAttempts) {
         attempts++;
         
-        // Get or initialize counter for this workspace
+        // Get counter
         let packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0');
         packageCounter++;
         localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
@@ -3964,29 +3965,58 @@ async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 10
         const packageId = generateUniquePackageUUID();
         const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
 
-        console.log(`🔍 Checking package ID uniqueness (attempt ${attempts}):`, packageId);
+        console.log(`🔍 Attempt ${attempts}: ${packageId.substring(0, 8)}...`);
 
-        // Check for duplicates in multiple sources
-        const isUnique = await checkPackageIdUnique(packageId, packageNo);
+        // SIMPLIFIED DUPLICATE CHECK: Only check memory cache
+        if (createdPackageIds.has(packageId)) {
+            console.warn(`⚠️ Memory cache duplicate, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 10));
+            continue;
+        }
         
-        if (isUnique) {
-            console.log(`✅ Unique package ID generated: ${packageId}`);
+        // QUICK SUPABASE CHECK (non-blocking)
+        let supabaseDuplicate = false;
+        if (supabase && navigator.onLine) {
+            try {
+                const { data } = await supabase
+                    .from('packages')
+                    .select('id')
+                    .eq('id', packageId)
+                    .maybeSingle();
+                
+                if (data) {
+                    console.warn('⚠️ Supabase duplicate found');
+                    supabaseDuplicate = true;
+                }
+            } catch (error) {
+                // Ignore Supabase errors - don't block package creation
+                console.log('Supabase check skipped');
+            }
+        }
+        
+        if (!supabaseDuplicate) {
+            console.log(`✅ Unique ID generated: ${packageNo}`);
             
-            // ONLY add to createdPackageIds when we're actually going to use it
+            // Add to cache ONLY when we're sure it's being used
             createdPackageIds.add(packageId);
             
             return { packageId, packageNo };
-        } else {
-            console.warn(`⚠️ Duplicate detected, regenerating... (attempt ${attempts})`);
-            
-            // Wait a bit before retry
-            await new Promise(resolve => setTimeout(resolve, 50));
         }
+        
+        await new Promise(resolve => setTimeout(resolve, 10));
     }
     
-    throw new Error(`Failed to generate unique package ID after ${maxAttempts} attempts`);
+    // LAST RESORT: Force create with warning
+    console.warn('🚨 Using forced ID generation after max attempts');
+    const packageId = generateUniquePackageUUID();
+    const packageCounter = parseInt(localStorage.getItem(`pkg_counter_${workspaceId}`) || '0') + 1;
+    const packageNo = `PKG-FORCED-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
+    
+    createdPackageIds.add(packageId);
+    localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
+    
+    return { packageId, packageNo };
 }
-
 // FIXED: Comprehensive duplicate checking
 async function checkPackageIdUnique(packageId, packageNo) {
     try {
