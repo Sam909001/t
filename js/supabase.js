@@ -4164,15 +4164,6 @@ async function sendToRamp(containerNo = null) {
             return;
         }
 
-        // Filter out Excel-style IDs that can't be used with Supabase directly
-        const validPackageIds = selectedPackages.filter(id => 
-            id && !id.startsWith('pkg-') && !id.startsWith('excel-')
-        );
-        
-        const excelStylePackageIds = selectedPackages.filter(id => 
-            id && (id.startsWith('pkg-') || id.startsWith('excel-'))
-        );
-
         // Use existing container or create a new one
         let containerId;
         if (containerNo && currentContainer) {
@@ -4188,7 +4179,7 @@ async function sendToRamp(containerNo = null) {
                     customer: selectedCustomer?.name || '',
                     package_count: selectedPackages.length,
                     total_quantity: await calculateTotalQuantity(selectedPackages),
-                    status: 'sevk-edildi',
+                    status: 'beklemede',
                     created_at: new Date().toISOString()
                 }])
                 .select();
@@ -4197,45 +4188,18 @@ async function sendToRamp(containerNo = null) {
             
             containerId = newContainer[0].id;
             currentContainer = containerNo;
-            elements.containerNumber.textContent = containerNo;
+            if (elements.containerNumber) {
+                elements.containerNumber.textContent = containerNo;
+            }
             saveAppState();
         }
 
-        // Update valid Supabase packages
-        if (validPackageIds.length > 0 && supabase) {
-            const { error: updateError } = await supabase
-                .from('packages')
-                .update({ 
-                    container_id: containerId,
-                    status: 'sevk-edildi'
-                })
-                .in('id', validPackageIds);
-
-            if (updateError) console.warn('Supabase update error:', updateError);
-        }
-
-        // Update Excel packages locally
-        if (excelStylePackageIds.length > 0) {
-            const currentPackages = await ExcelJS.readFile();
-            const updatedPackages = currentPackages.map(pkg => {
-                if (excelStylePackageIds.includes(pkg.id)) {
-                    return {
-                        ...pkg,
-                        container_id: containerId,
-                        status: 'sevk-edildi',
-                        updated_at: new Date().toISOString()
-                    };
-                }
-                return pkg;
-            });
-            
-            await ExcelJS.writeFile(ExcelJS.toExcelFormat(updatedPackages));
-            excelPackages = updatedPackages;
-        }
+        // ✅ FIX: Update package status to "shipped"
+        await updatePackageStatusToShipped(selectedPackages, containerNo);
 
         showAlert(`${selectedPackages.length} paket sevk edildi (Konteyner: ${containerNo}) ✅`, 'success');
         
-        // Refresh tables
+        // ✅ FIX: Refresh both tables
         await populatePackagesTable();
         await populateShippingTable();
         
