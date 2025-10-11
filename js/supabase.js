@@ -3958,7 +3958,7 @@ async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5)
         const timestamp = Date.now();
         const random = Math.random().toString(36).substr(2, 9);
 
-        const packageId = `pkg-${workspaceId}-${timestamp}-${random}`;
+        const packageId = generateUniquePackageUUID();
         const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
 
         console.log(`🔍 Checking package ID uniqueness (attempt ${attempts}):`, packageId);
