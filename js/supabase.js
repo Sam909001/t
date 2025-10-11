@@ -3948,8 +3948,8 @@ async function completePackage() {
     }
 }
 
-// FIXED: Enhanced ID generation with duplicate checking
-async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5) {
+// FIXED: Enhanced ID generation
+async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 10) { // Increased to 10 attempts
     let attempts = 0;
     
     while (attempts < maxAttempts) {
@@ -3960,8 +3960,8 @@ async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5)
         packageCounter++;
         localStorage.setItem(`pkg_counter_${workspaceId}`, packageCounter.toString());
 
-        // FIX: Use your existing UUID generator instead of custom format
-        const packageId = generateUniquePackageUUID(); // This creates proper UUIDs
+        // Generate IDs
+        const packageId = generateUniquePackageUUID();
         const packageNo = `PKG-${workspaceId}-${packageCounter.toString().padStart(6, '0')}`;
 
         console.log(`🔍 Checking package ID uniqueness (attempt ${attempts}):`, packageId);
@@ -3971,23 +3971,26 @@ async function generateUniquePackageWithValidation(workspaceId, maxAttempts = 5)
         
         if (isUnique) {
             console.log(`✅ Unique package ID generated: ${packageId}`);
+            
+            // ONLY add to createdPackageIds when we're actually going to use it
+            createdPackageIds.add(packageId);
+            
             return { packageId, packageNo };
         } else {
             console.warn(`⚠️ Duplicate detected, regenerating... (attempt ${attempts})`);
             
-            // Wait a bit before retry to get different timestamp
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait a bit before retry
+            await new Promise(resolve => setTimeout(resolve, 50));
         }
     }
     
     throw new Error(`Failed to generate unique package ID after ${maxAttempts} attempts`);
 }
 
-
-// Comprehensive duplicate checking across all data sources
+// FIXED: Comprehensive duplicate checking
 async function checkPackageIdUnique(packageId, packageNo) {
     try {
-        // 1. Check in createdPackageIds (memory)
+        // 1. Check in createdPackageIds (memory) - BUT don't add yet!
         if (createdPackageIds.has(packageId)) {
             console.warn('❌ Duplicate in memory cache:', packageId);
             return false;
@@ -4060,16 +4063,16 @@ async function checkPackageIdUnique(packageId, packageNo) {
         }
 
         // All checks passed - ID is unique
-        createdPackageIds.add(packageId);
+        // DON'T add to createdPackageIds here - wait until package is actually created
         return true;
 
     } catch (error) {
         console.error('Error in duplicate checking:', error);
         // If checking fails, assume it's unique to avoid blocking package creation
-        createdPackageIds.add(packageId);
         return true;
     }
 }
+
 
 // Also update the delete function to clean up IDs
 async function deleteSelectedPackages() {
